@@ -1,0 +1,113 @@
+# API routes
+
+Paths are defined in [packages/contracts/src/routes.ts](../../packages/contracts/src/routes.ts). DTOs live in [packages/contracts/src/dto/](../../packages/contracts/src/dto/).
+
+**Auth:** Unless noted, routes require `JwtAuthGuard` + `X-Workspace-Id`.
+
+## Health
+
+| Method | Path | Roles | DTO | Controller |
+|--------|------|-------|-----|------------|
+| GET | `/health` | — | — | [health.controller.ts](../../apps/api/src/modules/health/interface/http/health.controller.ts) |
+
+## Auth
+
+| Method | Path | Roles | DTO | Controller |
+|--------|------|-------|-----|------------|
+| POST | `/auth/register` | — | [auth.dto.ts](../../packages/contracts/src/dto/auth.dto.ts) | [auth.controller.ts](../../apps/api/src/modules/auth/interface/http/auth.controller.ts) |
+| POST | `/auth/login` | — | auth.dto | auth.controller |
+| POST | `/auth/refresh` | Cookie | — | auth.controller |
+| POST | `/auth/switch-workspace` | Auth | auth.dto | auth.controller |
+| GET | `/auth/me` | Auth | — | auth.controller |
+| DELETE | `/auth/logout` | — | — | auth.controller |
+
+## Workspaces
+
+| Method | Path | Roles | DTO | Controller |
+|--------|------|-------|-----|------------|
+| GET | `/workspaces` | Auth | — | [workspace.controller.ts](../../apps/api/src/modules/workspace/interface/http/workspace.controller.ts) |
+| GET | `/workspaces/:id/members` | Auth | — | workspace.controller |
+| POST | `/workspaces/:id/members/invite` | Auth | [workspace.dto.ts](../../packages/contracts/src/dto/workspace.dto.ts) | workspace.controller |
+
+## Projects and team invites
+
+| Method | Path | Roles | DTO | Controller |
+|--------|------|-------|-----|------------|
+| GET | `/projects` | Auth | — | [projects.controller.ts](../../apps/api/src/modules/projects/interface/http/projects.controller.ts) |
+| POST | `/projects` | ADMIN | [project.dto.ts](../../packages/contracts/src/dto/project.dto.ts) | projects.controller |
+| GET | `/projects/:id` | Auth | — | projects.controller |
+| PATCH | `/projects/:id` | ADMIN | project.dto | projects.controller |
+| DELETE | `/projects/:id` | ADMIN | — | projects.controller |
+| GET | `/projects/:id/team` | ADMIN | — | projects.controller |
+| PATCH | `/projects/:projectId/team/members/:memberId` | ADMIN | team.dto | projects.controller |
+| DELETE | `/projects/:projectId/team/members/:memberId` | ADMIN | — | projects.controller |
+| POST | `/projects/:id/team/invites` | ADMIN | team.dto | projects.controller |
+| GET | `/team-invites/:token` | — | — | [team-invites.controller.ts](../../apps/api/src/modules/projects/interface/http/team-invites.controller.ts) |
+| POST | `/team-invites/:token/accept` | Auth | — | team-invites.controller |
+
+## Tasks
+
+| Method | Path | Roles | DTO | Controller |
+|--------|------|-------|-----|------------|
+| GET | `/tasks` | Auth | [task.dto.ts](../../packages/contracts/src/dto/task.dto.ts) | [tasks.controller.ts](../../apps/api/src/modules/tasks/interface/http/tasks.controller.ts) |
+| POST | `/tasks` | Auth | task.dto | tasks.controller |
+| PATCH | `/tasks/:id` | Auth | task.dto | tasks.controller |
+| DELETE | `/tasks/:id` | Auth | — | tasks.controller |
+
+## Time logs
+
+| Method | Path | Roles | DTO | Controller |
+|--------|------|-------|-----|------------|
+| GET | `/timelogs` | Auth | [timelog.dto.ts](../../packages/contracts/src/dto/timelog.dto.ts) | [timelogs.controller.ts](../../apps/api/src/modules/timelogs/interface/http/timelogs.controller.ts) |
+| POST | `/timelogs` | Auth | timelog.dto | timelogs.controller |
+| PATCH | `/timelogs/:id` | Auth | timelog.dto | timelogs.controller |
+| DELETE | `/timelogs/:id` | Auth | — | timelogs.controller |
+
+## Timer
+
+| Method | Path | Roles | DTO | Controller |
+|--------|------|-------|-----|------------|
+| POST | `/timer/start` | Auth | [timer.dto.ts](../../packages/contracts/src/dto/timer.dto.ts) | [timer.controller.ts](../../apps/api/src/modules/timer/interface/http/timer.controller.ts) |
+| POST | `/timer/stop` | Auth | — | timer.controller |
+| GET | `/timer/active` | Auth | — | timer.controller |
+
+## Billing
+
+| Method | Path | Roles | DTO | Controller |
+|--------|------|-------|-----|------------|
+| GET | `/billing/rates` | ADMIN | — | [billing.controller.ts](../../apps/api/src/modules/billing/interface/http/billing.controller.ts) |
+| POST | `/billing/rates` | ADMIN | [billing.dto.ts](../../packages/contracts/src/dto/billing.dto.ts) | billing.controller |
+| GET | `/billing/summary` | ADMIN | [reporting.dto.ts](../../packages/contracts/src/dto/reporting.dto.ts) | billing.controller |
+
+## Reporting
+
+| Method | Path | Roles | DTO | Controller |
+|--------|------|-------|-----|------------|
+| GET | `/reporting/dashboard` | ADMIN | reporting.dto | [reporting.controller.ts](../../apps/api/src/modules/reporting/interface/http/reporting.controller.ts) |
+| GET | `/reporting/me` | ADMIN, MEMBER | reporting.dto | reporting.controller |
+
+## Presence
+
+| Method | Path | Roles | DTO | Controller |
+|--------|------|-------|-----|------------|
+| GET | `/presence/snapshot` | ADMIN | — | [presence.controller.ts](../../apps/api/src/modules/presence/interface/http/presence.controller.ts) |
+| GET | `/presence/stream` | ADMIN | — | presence.controller (SSE) |
+
+## Export
+
+| Method | Path | Roles | DTO | Controller |
+|--------|------|-------|-----|------------|
+| POST | `/export` | ADMIN | [export.dto.ts](../../packages/contracts/src/dto/export.dto.ts) | [export.controller.ts](../../apps/api/src/modules/export/interface/http/export.controller.ts) |
+| GET | `/export` | ADMIN | export.dto (query) | export.controller |
+| POST | `/export/me` | ADMIN, MEMBER | export.dto (member body) | export.controller |
+
+Binary response with `Content-Disposition` attachment.
+
+## Maintenance
+
+When adding a route:
+
+1. Add path to `packages/contracts/src/routes.ts`
+2. Add Zod schemas to the appropriate `dto/*.ts`
+3. Implement controller method
+4. Update this file and the relevant [feature spec](../specs/)

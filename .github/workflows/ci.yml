@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: chronomint
+          POSTGRES_PASSWORD: chronomint
+          POSTGRES_DB: chronomint_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U chronomint"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://chronomint:chronomint@localhost:5432/chronomint_test
+      REDIS_URL: redis://localhost:6379
+      JWT_ACCESS_SECRET: ci-access-secret-min-32-chars-long
+      JWT_REFRESH_SECRET: ci-refresh-secret-min-32-chars-long
+      FRONTEND_ORIGIN: http://localhost:3000
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm prisma:generate
+      - run: pnpm --filter @chronomint/api exec prisma migrate deploy
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm build

@@ -1,0 +1,4 @@
+@import "tailwindcss";
+@source "../../../../packages/ui/src/**/*.{ts,tsx}";
+@import "tw-animate-css";
+@import "@chronomint/ui/globals.css";
