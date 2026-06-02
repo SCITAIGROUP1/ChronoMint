@@ -31,6 +31,12 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
 
 Default URL: http://localhost:3002
 
+## Deploy (Vercel)
+
+Separate Vercel project from the client app; **Root Directory** `apps/admin`, same API env var.
+
+See [docs/runbooks/vercel.md](../../docs/runbooks/vercel.md).
+
 ## Documentation
 
 - [Admin user guides](../../docs/user-guides/admin/)

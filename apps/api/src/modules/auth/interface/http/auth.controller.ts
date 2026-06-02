@@ -24,6 +24,8 @@ import { PrismaService } from "../../../../common/prisma/prisma.service";
 const REFRESH_COOKIE = "refresh_token";
 const ACCESS_COOKIE = "access_token";
 
+const cookieSecure = process.env.NODE_ENV === "production";
+
 @Controller()
 export class AuthController {
   constructor(
@@ -72,7 +74,12 @@ export class AuthController {
       workspaceRole: membership.role as "ADMIN" | "MEMBER"
     };
     const access = this.auth.signAccessToken(userId, membership.workspaceId, session.workspaceRole);
-    res.cookie(ACCESS_COOKIE, access, { httpOnly: true, sameSite: "lax", secure: false, maxAge: 15 * 60 * 1000 });
+    res.cookie(ACCESS_COOKIE, access, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: cookieSecure,
+      maxAge: 15 * 60 * 1000
+    });
     return { ...session, accessToken: access };
   }
 
@@ -125,7 +132,17 @@ export class AuthController {
   private setCookies(res: Response, session: { user: { id: string }; workspaceId: string; workspaceRole: "ADMIN" | "MEMBER" }) {
     const access = this.auth.signAccessToken(session.user.id, session.workspaceId, session.workspaceRole);
     const refresh = this.auth.signRefreshToken(session.user.id);
-    res.cookie(ACCESS_COOKIE, access, { httpOnly: true, sameSite: "lax", secure: false, maxAge: 15 * 60 * 1000 });
-    res.cookie(REFRESH_COOKIE, refresh, { httpOnly: true, sameSite: "lax", secure: false, maxAge: 7 * 24 * 60 * 60 * 1000 });
+    res.cookie(ACCESS_COOKIE, access, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: cookieSecure,
+      maxAge: 15 * 60 * 1000
+    });
+    res.cookie(REFRESH_COOKIE, refresh, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: cookieSecure,
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
   }
 }

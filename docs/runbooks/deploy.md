@@ -36,9 +36,14 @@ Set `FRONTEND_ORIGIN` to your deployed client and admin URLs (comma-separated, H
 
 ## Client and Admin (Vercel)
 
-1. Connect repo; set root directory to `apps/client` or `apps/admin`
-2. Env: `NEXT_PUBLIC_API_BASE_URL=https://api.yourdomain.com`
-3. Deploy preview, then production
+Use **two Vercel projects** (same repo, different root directories). Step-by-step guide: **[vercel.md](./vercel.md)**.
+
+Summary:
+
+1. Deploy API first (Railway/Render/Fly) — not Vercel.
+2. Vercel project **client:** root `apps/client`, env `NEXT_PUBLIC_API_BASE_URL`.
+3. Vercel project **admin:** root `apps/admin`, same API URL.
+4. Set API `FRONTEND_ORIGIN` to both Vercel production URLs.
 
 Per-app notes: [apps/client/README.md](../../apps/client/README.md), [apps/admin/README.md](../../apps/admin/README.md).
 
