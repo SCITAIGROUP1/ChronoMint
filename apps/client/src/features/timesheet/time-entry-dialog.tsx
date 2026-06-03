@@ -47,6 +47,17 @@ export function canSaveTaskDraft(draft: TimeEntryDraft): boolean {
   return Boolean(draft.taskSelection);
 }
 
+export function taskSaveHint(draft: TimeEntryDraft): string | null {
+  if (!draft.projectId) return null;
+  if (draft.taskSelection === NEW_TASK && !draft.newTaskName.trim()) {
+    return "Enter a name for the new task to enable Save.";
+  }
+  if (!draft.taskSelection) {
+    return "Select a task for this project to enable Save.";
+  }
+  return null;
+}
+
 export function draftToIsoRange(draft: TimeEntryDraft): { startTime: string; endTime: string } {
   const start = combineDayAndTime(draft.date, draft.startTime);
   const end = combineDayAndTime(draft.date, draft.endTime);
@@ -102,6 +113,7 @@ export function TimeEntryDialog({
   const canDelete = Boolean(editingLog && onDelete);
   const dateLabel = formatDraftDateLabel(draft, editingLog);
   const canSave = canSaveTaskDraft(draft);
+  const saveHint = taskSaveHint(draft);
 
   let durationHint = "";
   try {
@@ -158,7 +170,7 @@ export function TimeEntryDialog({
               <SelectTrigger>
                 <SelectValue placeholder="Select project" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="z-[100]">
                 {projects.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
                     <span className="flex items-center gap-2">
@@ -174,7 +186,8 @@ export function TimeEntryDialog({
           <div className="space-y-2">
             <Label>Task</Label>
             <Select
-              value={draft.taskSelection}
+              key={draft.projectId}
+              value={draft.taskSelection || undefined}
               onValueChange={(taskSelection) =>
                 patch({
                   taskSelection,
@@ -184,12 +197,12 @@ export function TimeEntryDialog({
               }
               disabled={!draft.projectId}
             >
-              <SelectTrigger>
+              <SelectTrigger aria-invalid={Boolean(draft.projectId && !draft.taskSelection)}>
                 <SelectValue
                   placeholder={draft.projectId ? "Select or create a task" : "Select a project first"}
                 />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="z-[100]">
                 {projectTasks.map((t) => (
                   <SelectItem key={t.id} value={t.id}>
                     {t.taskName}
@@ -198,6 +211,11 @@ export function TimeEntryDialog({
                 <SelectItem value={NEW_TASK}>+ Create new task…</SelectItem>
               </SelectContent>
             </Select>
+            {saveHint && (
+              <p className="text-xs text-amber-600 dark:text-amber-500" role="status">
+                {saveHint}
+              </p>
+            )}
           </div>
 
           {draft.taskSelection === NEW_TASK && (
@@ -266,7 +284,7 @@ export function TimeEntryDialog({
           </p>
           {error && <p className="text-sm text-destructive">{error}</p>}
           <div className="flex flex-wrap items-center gap-2 pt-2">
-            <Button type="submit" disabled={saving || !canSave}>
+            <Button type="submit" disabled={saving || !canSave} title={saveHint ?? undefined}>
               {saving ? "Saving…" : editingLog ? "Save changes" : "Log time"}
             </Button>
             <Button type="button" variant="outline" onClick={onClose}>
