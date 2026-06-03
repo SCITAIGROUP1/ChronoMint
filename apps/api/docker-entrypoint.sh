@@ -18,6 +18,8 @@ if [ -z "${DATABASE_URL:-}" ]; then
   exit 1
 fi
 
+echo "DATABASE_URL is set (${#DATABASE_URL} characters)."
+
 if [ -x ./node_modules/.bin/prisma ]; then
   echo "Running prisma migrate deploy..."
   ./node_modules/.bin/prisma migrate deploy --schema=./prisma/schema.prisma
