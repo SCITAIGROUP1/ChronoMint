@@ -36,6 +36,8 @@ COPY --from=builder /prod/dist ./dist
 COPY --from=builder /prod/node_modules ./node_modules
 COPY --from=builder /prod/package.json ./package.json
 COPY --from=builder /prod/prisma ./prisma
+COPY apps/api/docker-entrypoint.sh ./docker-entrypoint.sh
+RUN chmod +x ./docker-entrypoint.sh
 
 EXPOSE 3001
-CMD ["node", "dist/main.js"]
+CMD ["./docker-entrypoint.sh"]
