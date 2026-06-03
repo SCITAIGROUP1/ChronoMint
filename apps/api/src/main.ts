@@ -14,7 +14,11 @@ async function bootstrap() {
   console.log(`API listening on 0.0.0.0:${port}`);
 }
 
-bootstrap().catch((err) => {
-  console.error("Failed to start API:", err);
+bootstrap().catch((err: unknown) => {
+  const message = err instanceof Error ? err.message : String(err);
+  console.error("Failed to start API:", message);
+  if (err instanceof Error && err.stack) {
+    console.error(err.stack);
+  }
   process.exit(1);
 });

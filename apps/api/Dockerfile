@@ -1,5 +1,7 @@
-FROM node:20-alpine AS builder
+FROM node:20-alpine3.20 AS builder
 WORKDIR /app
+# Prisma query engine on Alpine needs OpenSSL; 3.20 avoids libssl path regressions on 3.21+
+RUN apk add --no-cache openssl libc6-compat
 RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
@@ -20,9 +22,15 @@ RUN pnpm --filter @chronomint/api deploy --prod /prod
 # pnpm deploy copies contracts source; ensure compiled dist is present at runtime
 RUN test -d /prod/node_modules/@chronomint/contracts/dist || \
     cp -r /app/packages/contracts/dist /prod/node_modules/@chronomint/contracts/dist
+# pnpm deploy skips postinstall — generate Prisma Client inside /prod (not the monorepo tree)
+ENV DATABASE_URL="postgresql://build:build@127.0.0.1:5432/build"
+RUN pnpm --filter @chronomint/api exec prisma generate --schema=/prod/prisma/schema.prisma && \
+    test -d /prod/node_modules/.prisma/client && \
+    test -n "$(find /prod/node_modules/.prisma/client -name 'libquery_engine-linux-musl*.so.node' -print -quit)"
 
-FROM node:20-alpine AS runner
+FROM node:20-alpine3.20 AS runner
 WORKDIR /app
+RUN apk add --no-cache openssl libc6-compat
 ENV NODE_ENV=production
 
 COPY --from=builder /prod/dist ./dist
