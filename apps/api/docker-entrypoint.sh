@@ -2,8 +2,19 @@
 set -e
 cd /app
 
+strip_quotes() {
+  value="$1"
+  case "$value" in
+    \"*\") value="${value#\"}"; value="${value%\"}" ;;
+    \'*\') value="${value#\'}"; value="${value%\'}" ;;
+  esac
+  printf '%s' "$value"
+}
+
 resolve_database_url() {
   if [ -n "${DATABASE_URL:-}" ]; then
+    DATABASE_URL="$(strip_quotes "$DATABASE_URL")"
+    export DATABASE_URL
     return 0
   fi
 
