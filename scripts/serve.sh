@@ -60,9 +60,6 @@ echo "==> Applying migrations..."
 echo "==> Seeding database..."
 $PNPM prisma:seed || true
 
-echo "==> Clearing Next.js build caches..."
-rm -rf apps/admin/.next apps/client/.next
-
 echo ""
 echo "==> Starting apps..."
 echo "    Client  http://localhost:3000"

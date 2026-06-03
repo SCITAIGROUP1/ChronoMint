@@ -10,9 +10,15 @@ import {
 
 const REPORT_LABELS: Record<ExportReportType, string> = {
   time_entries: "Time entries",
+  invoice: "Invoice",
   daily_summary: "Daily summary",
+  weekly_summary: "Weekly summary",
   by_project: "By project",
-  by_member: "By member"
+  by_member: "By member",
+  by_task: "By task",
+  users_without_time: "Users without time",
+  budget_vs_actual: "Budget vs actual",
+  utilization: "Utilization"
 };
 
 type Props = {

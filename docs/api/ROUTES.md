@@ -97,11 +97,16 @@ Paths are defined in [packages/contracts/src/routes.ts](../../packages/contracts
 
 | Method | Path | Roles | DTO | Controller |
 |--------|------|-------|-----|------------|
-| POST | `/export` | ADMIN | [export.dto.ts](../../packages/contracts/src/dto/export.dto.ts) | [export.controller.ts](../../apps/api/src/modules/export/interface/http/export.controller.ts) |
+| POST | `/export` | ADMIN | export.dto | [export.controller.ts](../../apps/api/src/modules/export/interface/http/export.controller.ts) |
+| POST | `/export/preview` | ADMIN | export.dto (preview body) | export.controller |
 | GET | `/export` | ADMIN | export.dto (query) | export.controller |
 | POST | `/export/me` | ADMIN, MEMBER | export.dto (member body) | export.controller |
+| GET/POST/DELETE | `/export/presets` … | ADMIN | export.dto | export.controller |
+| GET/POST/PATCH/DELETE | `/export/schedules` … | ADMIN | export.dto | export.controller |
+| POST | `/export/shares` | ADMIN | export.dto | export.controller |
+| GET | `/export/share/:token` | Public | — | [export-share.controller.ts](../../apps/api/src/modules/export/interface/http/export-share.controller.ts) |
 
-Binary response with `Content-Disposition` attachment.
+`POST /export` and legacy `GET /export` return binary attachments with `Content-Disposition`.
 
 ## Maintenance
 

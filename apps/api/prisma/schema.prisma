@@ -25,15 +25,18 @@ model User {
 }
 
 model Workspace {
-  id          String            @id @default(uuid())
-  name        String
-  slug        String            @unique
-  settings    Json              @default("{}")
-  createdAt   DateTime          @default(now()) @map("created_at")
-  updatedAt   DateTime          @updatedAt @map("updated_at")
-  members     WorkspaceMember[]
-  projects    Project[]
-  hourlyRates HourlyRate[]
+  id              String            @id @default(uuid())
+  name            String
+  slug            String            @unique
+  settings        Json              @default("{}")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+  members         WorkspaceMember[]
+  projects        Project[]
+  hourlyRates     HourlyRate[]
+  exportPresets   ExportPreset[]
+  exportSchedules ExportSchedule[]
+  reportShares    ReportShare[]
 
   @@map("workspaces")
 }
@@ -161,4 +164,52 @@ model HourlyRate {
 
   @@index([workspaceId])
   @@map("hourly_rates")
+}
+
+model ExportPreset {
+  id          String    @id @default(uuid())
+  workspaceId String    @map("workspace_id")
+  name        String
+  body        Json
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, name])
+  @@index([workspaceId])
+  @@map("export_presets")
+}
+
+model ExportSchedule {
+  id               String    @id @default(uuid())
+  workspaceId      String    @map("workspace_id")
+  name             String
+  frequency        String
+  recipientEmails  String[]  @map("recipient_emails")
+  body             Json
+  enabled          Boolean   @default(true)
+  nextRunAt        DateTime  @map("next_run_at")
+  lastRunAt        DateTime? @map("last_run_at")
+  lastRunStatus    String?   @map("last_run_status")
+  lastRunError     String?   @map("last_run_error")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  workspace        Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([nextRunAt, enabled])
+  @@map("export_schedules")
+}
+
+model ReportShare {
+  id          String    @id @default(uuid())
+  workspaceId String    @map("workspace_id")
+  token       String    @unique
+  body        Json
+  expiresAt   DateTime  @map("expires_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@map("report_shares")
 }

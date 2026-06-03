@@ -1,10 +1,15 @@
-import { Body, Controller, Get, Post, Query, Res, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Res, UseGuards } from "@nestjs/common";
 import { Response } from "express";
 import {
+  createExportPresetSchema,
+  createExportScheduleSchema,
+  createReportShareSchema,
   exportBodySchema,
+  exportPreviewBodySchema,
   exportQuerySchema,
   memberExportBodySchema,
-  ROUTES
+  ROUTES,
+  updateExportScheduleSchema
 } from "@chronomint/contracts";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../../../common/guards/roles.guard";
@@ -14,12 +19,18 @@ import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe"
 import { sendAttachment } from "../../../../common/http/attachment.util";
 import { ProjectAccessService } from "../../../projects/application/project-access.service";
 import { ExportService } from "../../application/export.service";
+import { ExportPresetService } from "../../application/export-preset.service";
+import { ExportScheduleService } from "../../application/export-schedule.service";
+import { ReportShareService } from "../../application/report-share.service";
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ExportController {
   constructor(
     private exportService: ExportService,
+    private exportPresets: ExportPresetService,
+    private exportSchedules: ExportScheduleService,
+    private reportShares: ReportShareService,
     private projectAccess: ProjectAccessService
   ) {}
 
@@ -35,6 +46,99 @@ export class ExportController {
       body as Parameters<ExportService["generate"]>[1]
     );
     sendAttachment(res, result);
+  }
+
+  @Roles("ADMIN")
+  @Post(ROUTES.EXPORT.PREVIEW)
+  async preview(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodValidationPipe(exportPreviewBodySchema)) body: unknown
+  ) {
+    return this.exportService.preview(
+      user.workspaceId,
+      body as Parameters<ExportService["preview"]>[1]
+    );
+  }
+
+  @Roles("ADMIN")
+  @Get(ROUTES.EXPORT.PRESETS)
+  async listPresets(@CurrentUser() user: RequestUser) {
+    return this.exportPresets.list(user.workspaceId);
+  }
+
+  @Roles("ADMIN")
+  @Post(ROUTES.EXPORT.PRESETS)
+  async createPreset(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodValidationPipe(createExportPresetSchema)) body: unknown
+  ) {
+    return this.exportPresets.create(
+      user.workspaceId,
+      body as Parameters<ExportPresetService["create"]>[1]
+    );
+  }
+
+  @Roles("ADMIN")
+  @Delete(ROUTES.EXPORT.PRESET(":id"))
+  async deletePreset(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+    await this.exportPresets.remove(user.workspaceId, id);
+    return { ok: true };
+  }
+
+  @Roles("ADMIN")
+  @Get(ROUTES.EXPORT.SCHEDULES)
+  async listSchedules(@CurrentUser() user: RequestUser) {
+    return this.exportSchedules.list(user.workspaceId);
+  }
+
+  @Roles("ADMIN")
+  @Post(ROUTES.EXPORT.SCHEDULES)
+  async createSchedule(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodValidationPipe(createExportScheduleSchema)) body: unknown
+  ) {
+    return this.exportSchedules.create(
+      user.workspaceId,
+      body as Parameters<ExportScheduleService["create"]>[1]
+    );
+  }
+
+  @Roles("ADMIN")
+  @Patch(ROUTES.EXPORT.SCHEDULE(":id"))
+  async updateSchedule(
+    @CurrentUser() user: RequestUser,
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(updateExportScheduleSchema)) body: unknown
+  ) {
+    return this.exportSchedules.update(
+      user.workspaceId,
+      id,
+      body as Parameters<ExportScheduleService["update"]>[2]
+    );
+  }
+
+  @Roles("ADMIN")
+  @Delete(ROUTES.EXPORT.SCHEDULE(":id"))
+  async deleteSchedule(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+    await this.exportSchedules.remove(user.workspaceId, id);
+    return { ok: true };
+  }
+
+  @Roles("ADMIN")
+  @Post(ROUTES.EXPORT.SHARES)
+  async createShare(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodValidationPipe(createReportShareSchema)) body: unknown
+  ) {
+    const base =
+      process.env.PUBLIC_API_BASE_URL ??
+      process.env.API_PUBLIC_URL ??
+      "http://localhost:3001";
+    return this.reportShares.create(
+      user.workspaceId,
+      body as Parameters<ReportShareService["create"]>[1],
+      base
+    );
   }
 
   @Roles("ADMIN", "MEMBER")

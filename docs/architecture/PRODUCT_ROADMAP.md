@@ -24,6 +24,7 @@ See [DOMAIN_MODEL.md](./DOMAIN_MODEL.md) for workspace vs project team boundarie
 | Team live presence | — | Yes | [presence.md](../specs/presence.md) |
 | Billing rates | — | Yes | [billing.md](../specs/billing.md) |
 | Multi-report export wizard | — | Yes | [export.md](../specs/export.md) |
+| Export scale-up (preview, presets, schedules, shares, extended reports) | — | Yes | [export.md](../specs/export.md) |
 | Export my timesheet + My week summary | Yes | — | [export.md](../specs/export.md) |
 
 ---
@@ -36,11 +37,7 @@ High value, mostly extends reporting/export patterns already in the API.
 
 | Feature | App | Description |
 |---------|-----|-------------|
-| **Invoice / client PDF** | Admin | Billable-only detail export + subtotal + workspace branding; shareable with clients (extends export `invoice` report type). |
-| **Budget vs actual** | Admin | Per-project: `budgetHours`, logged hours, remaining, % burned (uses existing `Project.budgetHours`). Dashboard widget + export rows. |
-| **Export presets** | Admin | Named column/filter presets (e.g. “Payroll CSV”, “Client invoice”) — `localStorage` v1, server-stored v2. |
-| **Quick export from dashboard** | Admin | Same date range as 7/30/90d chips → one-click download with sensible defaults. |
-| **Row-count preview** | Admin | Before export: “~N rows” or empty-range warning. |
+| **Budget burn-down widget** | Admin | Chart + alerts on `budgetHours` vs logged (export `budget_vs_actual` report shipped). |
 
 ### Phase C — Workflow & accountability
 
@@ -60,7 +57,7 @@ Larger surface area; defer until B/C are stable.
 | Feature | App | Description |
 |---------|-----|-------------|
 | **Client portal** | New or Admin | External login (client org): read-only hours/amounts for their projects — distinct from workspace `MEMBER`. |
-| **Scheduled / email exports** | Admin | Cron or queue: recurring export to email/S3. |
+| **Scheduled export email delivery** | Admin | SMTP delivery for existing `ExportSchedule` runs. |
 | **Cross-workspace export** | Admin | Agencies with multiple workspaces (out of scope for v1 export). |
 | **Multi-currency / tax lines** | Admin | Beyond USD label; GST/VAT columns. |
 

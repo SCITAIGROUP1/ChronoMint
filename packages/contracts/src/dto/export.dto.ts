@@ -5,7 +5,13 @@ export const exportReportTypeSchema = z.enum([
   "time_entries",
   "daily_summary",
   "by_project",
-  "by_member"
+  "by_member",
+  "invoice",
+  "by_task",
+  "weekly_summary",
+  "users_without_time",
+  "budget_vs_actual",
+  "utilization"
 ]);
 
 export type ExportReportType = z.infer<typeof exportReportTypeSchema>;
@@ -34,8 +40,32 @@ export const TIME_ENTRIES_COLUMNS = [
   "source"
 ] as const;
 
+export const INVOICE_COLUMNS = [
+  "client",
+  "project",
+  "task",
+  "date",
+  "hours",
+  "rate",
+  "amount",
+  "description"
+] as const;
+
 export const DAILY_SUMMARY_COLUMNS = [
   "date",
+  "member",
+  "email",
+  "client",
+  "project",
+  "total_hours",
+  "billable_hours",
+  "non_billable_hours",
+  "billable_amount"
+] as const;
+
+export const WEEKLY_SUMMARY_COLUMNS = [
+  "week_start",
+  "week_label",
   "member",
   "email",
   "client",
@@ -65,15 +95,44 @@ export const BY_MEMBER_COLUMNS = [
   "billable_amount"
 ] as const;
 
-export type TimeEntriesColumn = (typeof TIME_ENTRIES_COLUMNS)[number];
-export type DailySummaryColumn = (typeof DAILY_SUMMARY_COLUMNS)[number];
-export type ByProjectColumn = (typeof BY_PROJECT_COLUMNS)[number];
-export type ByMemberColumn = (typeof BY_MEMBER_COLUMNS)[number];
+export const BY_TASK_COLUMNS = [
+  "task",
+  "project",
+  "client",
+  "total_hours",
+  "billable_hours",
+  "non_billable_hours",
+  "billable_amount"
+] as const;
 
-export const EXPORT_COLUMN_LABELS: Record<
-  ExportReportType,
-  Record<string, string>
-> = {
+export const USERS_WITHOUT_TIME_COLUMNS = [
+  "member",
+  "email",
+  "last_log_date",
+  "days_without_logs"
+] as const;
+
+export const BUDGET_VS_ACTUAL_COLUMNS = [
+  "project",
+  "client",
+  "budget_hours",
+  "logged_hours",
+  "remaining_hours",
+  "percent_used",
+  "billable_amount"
+] as const;
+
+export const UTILIZATION_COLUMNS = [
+  "week_start",
+  "week_label",
+  "member",
+  "email",
+  "logged_hours",
+  "expected_hours",
+  "utilization_pct"
+] as const;
+
+export const EXPORT_COLUMN_LABELS: Record<ExportReportType, Record<string, string>> = {
   time_entries: {
     workspace: "Workspace",
     client: "Client",
@@ -91,8 +150,30 @@ export const EXPORT_COLUMN_LABELS: Record<
     description: "Description",
     source: "Source"
   },
+  invoice: {
+    client: "Client",
+    project: "Project",
+    task: "Task",
+    date: "Date",
+    hours: "Hours",
+    rate: "Rate",
+    amount: "Amount",
+    description: "Description"
+  },
   daily_summary: {
     date: "Date",
+    member: "Member",
+    email: "Email",
+    client: "Client",
+    project: "Project",
+    total_hours: "Total hours",
+    billable_hours: "Billable hours",
+    non_billable_hours: "Non-billable hours",
+    billable_amount: "Billable amount"
+  },
+  weekly_summary: {
+    week_start: "Week start",
+    week_label: "Week",
     member: "Member",
     email: "Email",
     client: "Client",
@@ -118,14 +199,53 @@ export const EXPORT_COLUMN_LABELS: Record<
     billable_hours: "Billable hours",
     non_billable_hours: "Non-billable hours",
     billable_amount: "Billable amount"
+  },
+  by_task: {
+    task: "Task",
+    project: "Project",
+    client: "Client",
+    total_hours: "Total hours",
+    billable_hours: "Billable hours",
+    non_billable_hours: "Non-billable hours",
+    billable_amount: "Billable amount"
+  },
+  users_without_time: {
+    member: "Member",
+    email: "Email",
+    last_log_date: "Last log date",
+    days_without_logs: "Days without logs in range"
+  },
+  budget_vs_actual: {
+    project: "Project",
+    client: "Client",
+    budget_hours: "Budget hours",
+    logged_hours: "Logged hours",
+    remaining_hours: "Remaining hours",
+    percent_used: "Percent used",
+    billable_amount: "Billable amount"
+  },
+  utilization: {
+    week_start: "Week start",
+    week_label: "Week",
+    member: "Member",
+    email: "Email",
+    logged_hours: "Logged hours",
+    expected_hours: "Expected hours",
+    utilization_pct: "Utilization %"
   }
 };
 
 export const DEFAULT_EXPORT_COLUMNS: Record<ExportReportType, readonly string[]> = {
   time_entries: TIME_ENTRIES_COLUMNS,
+  invoice: INVOICE_COLUMNS,
   daily_summary: DAILY_SUMMARY_COLUMNS,
+  weekly_summary: WEEKLY_SUMMARY_COLUMNS,
   by_project: BY_PROJECT_COLUMNS,
-  by_member: BY_MEMBER_COLUMNS
+  by_member: BY_MEMBER_COLUMNS,
+  by_task: BY_TASK_COLUMNS,
+  users_without_time: USERS_WITHOUT_TIME_COLUMNS,
+  budget_vs_actual: BUDGET_VS_ACTUAL_COLUMNS,
+  utilization: UTILIZATION_COLUMNS
 };
 
 const columnsForReport = (report: ExportReportType) => {
@@ -141,25 +261,50 @@ const columnsForReport = (report: ExportReportType) => {
 export const exportColumnsSchema = z
   .object({
     time_entries: columnsForReport("time_entries").optional(),
+    invoice: columnsForReport("invoice").optional(),
     daily_summary: columnsForReport("daily_summary").optional(),
+    weekly_summary: columnsForReport("weekly_summary").optional(),
     by_project: columnsForReport("by_project").optional(),
-    by_member: columnsForReport("by_member").optional()
+    by_member: columnsForReport("by_member").optional(),
+    by_task: columnsForReport("by_task").optional(),
+    users_without_time: columnsForReport("users_without_time").optional(),
+    budget_vs_actual: columnsForReport("budget_vs_actual").optional(),
+    utilization: columnsForReport("utilization").optional()
   })
   .optional();
 
-export const exportBodySchema = z.object({
+export const exportFiltersSchema = z.object({
   from: isoDatetimeSchema,
   to: isoDatetimeSchema,
   projectId: uuidSchema.optional(),
   userId: uuidSchema.optional(),
   teamOnly: z.boolean().optional(),
-  billable: exportBillableFilterSchema.default("all"),
+  billable: exportBillableFilterSchema.default("all")
+});
+
+export type ExportFiltersDto = z.infer<typeof exportFiltersSchema>;
+
+export const exportBodySchema = exportFiltersSchema.extend({
   reportTypes: z.array(exportReportTypeSchema).min(1),
   format: exportFormatSchema,
   columns: exportColumnsSchema
 });
 
 export type ExportBodyDto = z.infer<typeof exportBodySchema>;
+
+export const exportPreviewBodySchema = exportFiltersSchema.extend({
+  reportTypes: z.array(exportReportTypeSchema).min(1)
+});
+
+export type ExportPreviewBodyDto = z.infer<typeof exportPreviewBodySchema>;
+
+export const exportPreviewResponseSchema = z.object({
+  counts: z.record(exportReportTypeSchema, z.number()),
+  totalLogRows: z.number(),
+  isEmpty: z.boolean()
+});
+
+export type ExportPreviewResponseDto = z.infer<typeof exportPreviewResponseSchema>;
 
 /** @deprecated GET query — defaults only */
 export const exportQuerySchema = z.object({
@@ -276,6 +421,91 @@ export const memberExportBodySchema = z.object({
 });
 
 export type MemberExportBodyDto = z.infer<typeof memberExportBodySchema>;
+
+export const exportScheduleFrequencySchema = z.enum(["daily", "weekly", "monthly"]);
+
+export type ExportScheduleFrequency = z.infer<typeof exportScheduleFrequencySchema>;
+
+export const createExportScheduleSchema = z.object({
+  name: z.string().min(1).max(120),
+  frequency: exportScheduleFrequencySchema,
+  recipientEmails: z.array(z.string().email()).min(1),
+  body: exportBodySchema,
+  enabled: z.boolean().default(true)
+});
+
+export type CreateExportScheduleDto = z.infer<typeof createExportScheduleSchema>;
+
+export const updateExportScheduleSchema = createExportScheduleSchema.partial();
+
+export type UpdateExportScheduleDto = z.infer<typeof updateExportScheduleSchema>;
+
+export const exportScheduleDtoSchema = z.object({
+  id: uuidSchema,
+  workspaceId: uuidSchema,
+  name: z.string(),
+  frequency: exportScheduleFrequencySchema,
+  recipientEmails: z.array(z.string().email()),
+  body: exportBodySchema,
+  enabled: z.boolean(),
+  nextRunAt: isoDatetimeSchema,
+  lastRunAt: isoDatetimeSchema.nullable(),
+  lastRunStatus: z.string().nullable(),
+  lastRunError: z.string().nullable(),
+  createdAt: isoDatetimeSchema,
+  updatedAt: isoDatetimeSchema
+});
+
+export type ExportScheduleDto = z.infer<typeof exportScheduleDtoSchema>;
+
+export const createExportPresetSchema = z.object({
+  name: z.string().min(1).max(120),
+  body: exportBodySchema
+});
+
+export type CreateExportPresetDto = z.infer<typeof createExportPresetSchema>;
+
+export const exportPresetDtoSchema = z.object({
+  id: uuidSchema,
+  workspaceId: uuidSchema,
+  name: z.string(),
+  body: exportBodySchema,
+  createdAt: isoDatetimeSchema,
+  updatedAt: isoDatetimeSchema
+});
+
+export type ExportPresetDto = z.infer<typeof exportPresetDtoSchema>;
+
+export const createReportShareSchema = z.object({
+  body: exportPreviewBodySchema,
+  expiresInDays: z.number().int().min(1).max(90).default(30)
+});
+
+export type CreateReportShareDto = z.infer<typeof createReportShareSchema>;
+
+export const reportShareDtoSchema = z.object({
+  id: uuidSchema,
+  token: z.string(),
+  expiresAt: isoDatetimeSchema,
+  shareUrl: z.string()
+});
+
+export type ReportShareDto = z.infer<typeof reportShareDtoSchema>;
+
+export const publicReportShareViewSchema = z.object({
+  workspaceName: z.string(),
+  period: z.object({ from: z.string(), to: z.string() }),
+  billable: exportBillableFilterSchema,
+  generatedAt: isoDatetimeSchema,
+  reports: z.array(
+    z.object({
+      reportType: exportReportTypeSchema,
+      rows: z.array(z.record(z.union([z.string(), z.number()])))
+    })
+  )
+});
+
+export type PublicReportShareViewDto = z.infer<typeof publicReportShareViewSchema>;
 
 export function resolveExportColumns(
   report: ExportReportType,

@@ -7,20 +7,21 @@ import {
   buildExportFilename,
   EXPORT_COLUMN_LABELS,
   MEMBER_EXPORT_COLUMN_LABELS,
+  parseWorkspaceSettings,
   resolveExportColumns,
   resolveMemberExportColumns,
   type ExportBodyDto,
+  type ExportFiltersDto,
+  type ExportPreviewBodyDto,
+  type ExportPreviewResponseDto,
   type ExportReportType,
   type MemberExportBodyDto,
   type MemberExportReportType
 } from "@chronomint/contracts";
 import { PrismaService } from "../../../common/prisma/prisma.service";
-import {
-  roundExport,
-  TimeAggregationService,
-  type TimeLogWithRelations
-} from "../../reporting/application/time-aggregation.service";
+import { TimeAggregationService } from "../../reporting/application/time-aggregation.service";
 import { projectRows, rowsToCsv } from "./export-render.util";
+import { ExportRowsBuilder, type ExportRowContext } from "./export-rows.builder";
 
 type SheetData = {
   name: string;
@@ -36,7 +37,8 @@ type ExportScope = "admin" | "member";
 export class ExportService {
   constructor(
     private prisma: PrismaService,
-    private aggregation: TimeAggregationService
+    private aggregation: TimeAggregationService,
+    private rowsBuilder: ExportRowsBuilder
   ) {}
 
   async generate(
@@ -68,7 +70,6 @@ export class ExportService {
     );
   }
 
-  /** Backward-compatible GET export */
   async generateLegacy(
     workspaceId: string,
     query: { from: string; to: string; projectId?: string; userId?: string; format: "csv" | "pdf" | "xlsx" }
@@ -84,6 +85,67 @@ export class ExportService {
     });
   }
 
+  async preview(
+    workspaceId: string,
+    body: ExportPreviewBodyDto
+  ): Promise<ExportPreviewResponseDto> {
+    const ctx = await this.loadContext(workspaceId, body);
+    const counts = {} as Record<ExportReportType, number>;
+
+    for (const report of body.reportTypes) {
+      const rows = await this.rowsBuilder.buildRows(report, ctx);
+      counts[report] = rows.length;
+    }
+
+    const isEmpty = body.reportTypes.every((r) => (counts[r] ?? 0) === 0);
+
+    return {
+      counts,
+      totalLogRows: ctx.logs.length,
+      isEmpty
+    };
+  }
+
+  async loadContext(
+    workspaceId: string,
+    filters: ExportFiltersDto
+  ): Promise<ExportRowContext> {
+    const workspace = await this.prisma.workspace.findUniqueOrThrow({
+      where: { id: workspaceId }
+    });
+
+    const from = new Date(filters.from);
+    const to = new Date(filters.to);
+
+    let userIds: string[] | undefined;
+    if (filters.teamOnly && filters.projectId) {
+      userIds = await this.aggregation.teamMemberUserIds(filters.projectId);
+    }
+
+    const logs = await this.aggregation.fetchLogs(workspaceId, {
+      from,
+      to,
+      projectId: filters.projectId,
+      userId: filters.userId,
+      userIds,
+      billable: filters.billable
+    });
+
+    const { resolveRate } = await this.aggregation.resolveRateMaps(workspaceId);
+    const aggregates = this.aggregation.buildAggregates(logs, resolveRate);
+
+    return {
+      workspaceId,
+      workspaceName: workspace.name,
+      filters,
+      from,
+      to,
+      logs,
+      aggregates,
+      resolveRate
+    };
+  }
+
   private async runExport(
     workspaceId: string,
     body: ExportBodyDto,
@@ -93,27 +155,9 @@ export class ExportService {
     const workspace = await this.prisma.workspace.findUniqueOrThrow({
       where: { id: workspaceId }
     });
+    const settings = parseWorkspaceSettings(workspace.settings);
 
-    const from = new Date(body.from);
-    const to = new Date(body.to);
-
-    let userIds: string[] | undefined;
-    if (body.teamOnly && body.projectId) {
-      userIds = await this.aggregation.teamMemberUserIds(body.projectId);
-    }
-
-    const logs = await this.aggregation.fetchLogs(workspaceId, {
-      from,
-      to,
-      projectId: body.projectId,
-      userId: body.userId,
-      userIds,
-      billable: body.billable
-    });
-
-    const { resolveRate } = await this.aggregation.resolveRateMaps(workspaceId);
-    const aggregates = this.aggregation.buildAggregates(logs, resolveRate);
-
+    const ctx = await this.loadContext(workspaceId, body);
     const isMember = scope === "member";
     const sheets: SheetData[] = [];
 
@@ -132,11 +176,11 @@ export class ExportService {
       const rows = isMember
         ? this.buildMemberRows(
             report as MemberExportReportType,
-            logs,
-            aggregates,
-            resolveRate
+            ctx.logs,
+            ctx.aggregates,
+            ctx.resolveRate
           )
-        : this.buildRows(report, logs, workspace.name, aggregates, resolveRate);
+        : await this.rowsBuilder.buildRows(report, ctx);
 
       const { headers, lines } = projectRows(rows, columnKeys, labels);
       sheets.push({
@@ -161,120 +205,34 @@ export class ExportService {
     if (body.format === "xlsx") {
       return this.renderXlsx(sheets, fileBase);
     }
-    return this.renderPdf(sheets, fileBase, body, workspace.name);
-  }
-
-  private buildRows(
-    report: ExportReportType,
-    logs: TimeLogWithRelations[],
-    workspaceName: string,
-    aggregates: ReturnType<TimeAggregationService["buildAggregates"]>,
-    resolveRate: (userId: string, projectId: string, defaultRate: number | null) => number
-  ): Record<string, string | number>[] {
-    if (report === "time_entries") {
-      return logs.map((l) => {
-        const hours = roundExport(l.durationSec / 3600);
-        const rate = roundExport(
-          resolveRate(
-            l.userId,
-            l.task.projectId,
-            l.user.defaultHourlyRate?.toNumber() ?? null
-          )
-        );
-        const amount = l.isBillable ? roundExport(hours * rate) : 0;
-        return {
-          workspace: workspaceName,
-          client: l.task.project.clientName ?? "",
-          project: l.task.project.name,
-          task: l.task.taskName,
-          member: l.user.name,
-          email: l.user.email,
-          date: l.startTime.toISOString().slice(0, 10),
-          start_time: l.startTime.toISOString(),
-          end_time: l.endTime.toISOString(),
-          hours,
-          billable: l.isBillable ? "yes" : "no",
-          rate,
-          amount,
-          description: l.description ?? "",
-          source: l.source
-        };
-      });
-    }
-
-    if (report === "daily_summary") {
-      const rows: Record<string, string | number>[] = [];
-      for (const [date, dayMap] of aggregates.daily) {
-        for (const [, v] of dayMap) {
-          rows.push({
-            date,
-            member: v.userName,
-            email: v.userEmail,
-            client: v.clientName ?? "",
-            project: v.projectName,
-            total_hours: roundExport(v.totalHours),
-            billable_hours: roundExport(v.billableHours),
-            non_billable_hours: roundExport(v.totalHours - v.billableHours),
-            billable_amount: roundExport(v.billableAmount)
-          });
-        }
-      }
-      return rows.sort((a, b) => String(a.date).localeCompare(String(b.date)));
-    }
-
-    if (report === "by_project") {
-      return [...aggregates.byProject.entries()]
-        .map(([, v]) => ({
-          project: v.projectName,
-          client: v.clientName ?? "",
-          total_hours: roundExport(v.totalHours),
-          billable_hours: roundExport(v.billableHours),
-          non_billable_hours: roundExport(v.totalHours - v.billableHours),
-          billable_amount: roundExport(v.billableAmount),
-          active_members: v.members.size
-        }))
-        .sort((a, b) => Number(b.total_hours) - Number(a.total_hours));
-    }
-
-    return [...aggregates.byUser.entries()]
-      .map(([, v]) => ({
-        member: v.userName,
-        email: v.userEmail,
-        total_hours: roundExport(v.totalHours),
-        billable_hours: roundExport(v.billableHours),
-        non_billable_hours: roundExport(v.totalHours - v.billableHours),
-        billable_amount: roundExport(v.billableAmount)
-      }))
-      .sort((a, b) => Number(b.total_hours) - Number(a.total_hours));
+    return this.renderPdf(sheets, fileBase, body, workspace.name, settings);
   }
 
   private buildMemberRows(
     report: MemberExportReportType,
-    logs: TimeLogWithRelations[],
-    aggregates: ReturnType<TimeAggregationService["buildAggregates"]>,
-    resolveRate: (userId: string, projectId: string, defaultRate: number | null) => number
+    logs: ExportRowContext["logs"],
+    aggregates: ExportRowContext["aggregates"],
+    resolveRate: ExportRowContext["resolveRate"]
   ): Record<string, string | number>[] {
     if (report === "time_entries") {
       return logs.map((l) => {
-        const hours = roundExport(l.durationSec / 3600);
-        const rate = roundExport(
-          resolveRate(
-            l.userId,
-            l.task.projectId,
-            l.user.defaultHourlyRate?.toNumber() ?? null
-          )
+        const hours = l.durationSec / 3600;
+        const rate = resolveRate(
+          l.userId,
+          l.task.projectId,
+          l.user.defaultHourlyRate?.toNumber() ?? null
         );
-        const amount = l.isBillable ? roundExport(hours * rate) : 0;
+        const amount = l.isBillable ? hours * rate : 0;
         return {
           project: l.task.project.name,
           task: l.task.taskName,
           date: l.startTime.toISOString().slice(0, 10),
           start_time: l.startTime.toISOString(),
           end_time: l.endTime.toISOString(),
-          hours,
+          hours: Math.round(hours * 100) / 100,
           billable: l.isBillable ? "yes" : "no",
-          rate,
-          amount,
+          rate: Math.round(rate * 100) / 100,
+          amount: Math.round(amount * 100) / 100,
           description: l.description ?? "",
           source: l.source
         };
@@ -288,9 +246,9 @@ export class ExportService {
           rows.push({
             date,
             project: v.projectName,
-            total_hours: roundExport(v.totalHours),
-            billable_hours: roundExport(v.billableHours),
-            non_billable_hours: roundExport(v.totalHours - v.billableHours)
+            total_hours: Math.round(v.totalHours * 100) / 100,
+            billable_hours: Math.round(v.billableHours * 100) / 100,
+            non_billable_hours: Math.round((v.totalHours - v.billableHours) * 100) / 100
           });
         }
       }
@@ -300,9 +258,9 @@ export class ExportService {
     return [...aggregates.byProject.entries()]
       .map(([, v]) => ({
         project: v.projectName,
-        total_hours: roundExport(v.totalHours),
-        billable_hours: roundExport(v.billableHours),
-        non_billable_hours: roundExport(v.totalHours - v.billableHours)
+        total_hours: Math.round(v.totalHours * 100) / 100,
+        billable_hours: Math.round(v.billableHours * 100) / 100,
+        non_billable_hours: Math.round((v.totalHours - v.billableHours) * 100) / 100
       }))
       .sort((a, b) => Number(b.total_hours) - Number(a.total_hours));
   }
@@ -310,9 +268,15 @@ export class ExportService {
   private sheetName(report: ExportReportType | MemberExportReportType): string {
     const names: Record<string, string> = {
       time_entries: "Time entries",
+      invoice: "Invoice",
       daily_summary: "Daily summary",
+      weekly_summary: "Weekly summary",
       by_project: "By project",
-      by_member: "By member"
+      by_member: "By member",
+      by_task: "By task",
+      users_without_time: "Users without time",
+      budget_vs_actual: "Budget vs actual",
+      utilization: "Utilization"
     };
     return (names[report] ?? report).slice(0, 31);
   }
@@ -320,9 +284,15 @@ export class ExportService {
   private fileSlug(report: ExportReportType | MemberExportReportType): string {
     const slugs: Record<string, string> = {
       time_entries: "time-entries",
+      invoice: "invoice",
       daily_summary: "daily-summary",
+      weekly_summary: "weekly-summary",
       by_project: "by-project",
-      by_member: "by-member"
+      by_member: "by-member",
+      by_task: "by-task",
+      users_without_time: "users-without-time",
+      budget_vs_actual: "budget-vs-actual",
+      utilization: "utilization"
     };
     return slugs[report] ?? "report";
   }
@@ -405,7 +375,8 @@ export class ExportService {
     sheets: SheetData[],
     fileBase: { workspaceSlug: string; from: string; to: string; scope: ExportScope },
     body: ExportBodyDto,
-    workspaceName: string
+    workspaceName: string,
+    settings: ReturnType<typeof parseWorkspaceSettings>
   ): Promise<{ buffer: Buffer; contentType: string; filename: string }> {
     const doc = new PDFDocument({ margin: 50, size: "A4" });
     const chunks: Buffer[] = [];
@@ -425,7 +396,8 @@ export class ExportService {
       doc.moveDown(0.3);
       doc.fontSize(8);
 
-      const maxRows = s.report === "time_entries" ? 500 : 200;
+      const maxRows =
+        s.report === "time_entries" || s.report === "invoice" ? 500 : 200;
       const slice = s.lines.slice(0, maxRows);
       for (const line of slice) {
         doc.text(line.join(" | "));
@@ -435,6 +407,10 @@ export class ExportService {
         doc.text(`… ${s.lines.length - maxRows} more rows (use Excel/CSV for full export)`);
       }
       doc.moveDown();
+    }
+
+    if (settings.exportFooterNote) {
+      doc.fontSize(8).fillColor("#555555").text(settings.exportFooterNote, { align: "center" });
     }
 
     doc.end();

@@ -41,9 +41,10 @@ import {
   ChartTooltipContent,
   type ChartConfig
 } from "@chronomint/ui/chart";
-import { ROUTES } from "@chronomint/contracts";
+import { DEFAULT_EXPORT_COLUMNS, ROUTES } from "@chronomint/contracts";
 import type { DashboardReportDto, ProjectDto, TeamDto } from "@chronomint/contracts";
-import { api } from "@/lib/api";
+import { api, apiDownloadPost } from "@/lib/api";
+import { saveDownloadResponse } from "@/lib/download";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
 const billableChartConfig = {
@@ -84,6 +85,7 @@ export default function DashboardPage() {
   const [report, setReport] = useState<DashboardReportDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   const selectedProject = projects.find((p) => p.id === projectId);
   const selectedMember = teamMembers.find((m) => m.userId === userId);
@@ -141,6 +143,45 @@ export default function DashboardPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  async function quickExport() {
+    if (!ws) return;
+    setExporting(true);
+    try {
+      const to = new Date();
+      const from = new Date();
+      from.setDate(from.getDate() - range);
+      const res = await apiDownloadPost(ROUTES.EXPORT.GENERATE, ws, {
+        from: from.toISOString(),
+        to: to.toISOString(),
+        billable: "all",
+        reportTypes: ["time_entries", "by_project"],
+        format: "xlsx",
+        columns: {
+          time_entries: [...DEFAULT_EXPORT_COLUMNS.time_entries],
+          by_project: [...DEFAULT_EXPORT_COLUMNS.by_project]
+        },
+        ...(projectId ? { projectId } : {}),
+        ...(userId ? { userId } : {})
+      });
+      await saveDownloadResponse(res, "chronomint-dashboard-export.xlsx");
+    } catch {
+      setError("Quick export failed.");
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  const customizeHref = (() => {
+    const to = new Date();
+    const from = new Date();
+    from.setDate(from.getDate() - range);
+    const params = new URLSearchParams({
+      from: from.toISOString().slice(0, 10),
+      to: to.toISOString().slice(0, 10)
+    });
+    return `/exports?${params}`;
+  })();
 
   if (loading) {
     return <p className="text-muted-foreground">Loading analytics...</p>;
@@ -221,7 +262,7 @@ export default function DashboardPage() {
               </p>
             )}
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 items-center">
             {([7, 30, 90] as const).map((d) => (
               <Button
                 key={d}
@@ -232,6 +273,12 @@ export default function DashboardPage() {
                 {d}d
               </Button>
             ))}
+            <Button size="sm" variant="secondary" onClick={quickExport} disabled={exporting}>
+              {exporting ? "Exporting…" : "Export"}
+            </Button>
+            <Button size="sm" variant="ghost" asChild>
+              <a href={customizeHref}>Customize…</a>
+            </Button>
           </div>
         </div>
       </div>

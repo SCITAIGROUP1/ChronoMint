@@ -12,5 +12,6 @@ export * from "./dto/presence.dto";
 export * from "./dto/export.dto";
 export * from "./project-colors";
 export * from "./export-filename";
+export * from "./workspace-settings";
 export * from "./errors";
 export * from "./routes";

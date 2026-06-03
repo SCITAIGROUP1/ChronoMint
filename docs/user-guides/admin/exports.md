@@ -5,38 +5,33 @@ Download workspace time data for payroll, clients, or analysis.
 ## Open the export wizard
 
 1. Go to **Exports** (`/exports`).
+2. Or use **Export** on the dashboard (7 / 30 / 90 day range) and **Customize…** to open the wizard with the same period.
 
 ## Configure the export
 
-1. **Period** — set **From** and **To** dates (default often last 30 days).
-2. **Filters** (optional):
-   - **Project** — limit to one project
-   - **Member** — limit to one person
-   - **Billable** — all, billable only, or non-billable only
-   - **Team only** — when a project is selected, only members on that project’s team
-3. **Reports** — select one or more:
-   - **Time entries** — every log line (audit / payroll)
-   - **Daily summary** — by day, member, and project
-   - **By project** — totals per project
-   - **By member** — totals per person
-4. **Columns** — for each selected report, choose which columns appear and use up/down to reorder. Use **Reset columns** to restore defaults.
-5. **Format** — CSV, Excel, or PDF.
+1. **Period** — presets include Today, This week, Last 7/30/90 days, This month, or custom dates.
+2. **Filters** (optional): project, member, billable, team-only (when a project is selected).
+3. **Presets** — save locally or to the workspace; click a preset name to load settings.
+4. **Reports** — time entries, invoice (billable), daily/weekly summary, by project/member/task, users without time, budget vs actual, utilization.
+5. **Columns** — per report: checkboxes, drag reorder, reset to defaults.
+6. **Format** — CSV, Excel, or PDF (footer note from workspace settings when configured).
 
-## Download
+A preview line under the reports shows approximate row counts before you download.
 
-1. Click **Export**.
-2. Your browser downloads:
-   - **CSV** — one file per report, or a ZIP if multiple reports
-   - **Excel** — one workbook with a sheet per report
-   - **PDF** — summary-oriented layout
+## Download and share
 
-Filenames look like: `chronomint-{workspace}-{from}_to_{to}-{report}.csv`
+1. Click **Export** for a file download (CSV, ZIP, Excel, or PDF per spec).
+2. Click **Create share link** for a 30-day public read-only JSON view (copy URL to share).
+
+## Scheduled exports
+
+In **Scheduled exports**, name a schedule, pick daily/weekly/monthly frequency, add recipient emails, and create from current wizard settings. The server runs exports on schedule (logged until email delivery is configured).
 
 ## Tips
 
 - Match the dashboard date range when reconciling totals.
-- Use **Time entries** for accounting tools; use **By project** for client reviews.
-- Empty ranges still download but may contain headers only.
+- Use **Invoice** for client-facing billable detail; **Time entries** for payroll tools.
+- Empty ranges show a preview warning; some reports (e.g. users without time) can still have rows.
 
 ## Related
 

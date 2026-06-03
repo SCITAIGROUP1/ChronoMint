@@ -1,0 +1,198 @@
+import { Injectable, NotFoundException, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
+import {
+  createExportScheduleSchema,
+  exportBodySchema,
+  type CreateExportScheduleDto,
+  type ExportScheduleDto,
+  type ExportScheduleFrequency,
+  type UpdateExportScheduleDto
+} from "@chronomint/contracts";
+import { PrismaService } from "../../../common/prisma/prisma.service";
+import { ExportService } from "./export.service";
+
+@Injectable()
+export class ExportScheduleService implements OnModuleInit, OnModuleDestroy {
+  private timer: ReturnType<typeof setInterval> | null = null;
+
+  constructor(
+    private prisma: PrismaService,
+    private exportService: ExportService
+  ) {}
+
+  onModuleInit() {
+    this.timer = setInterval(() => void this.processDueSchedules(), 60_000);
+  }
+
+  onModuleDestroy() {
+    if (this.timer) clearInterval(this.timer);
+  }
+
+  async list(workspaceId: string): Promise<ExportScheduleDto[]> {
+    const rows = await this.prisma.exportSchedule.findMany({
+      where: { workspaceId },
+      orderBy: { name: "asc" }
+    });
+    return rows.map((r) => this.toDto(r));
+  }
+
+  async create(workspaceId: string, dto: CreateExportScheduleDto): Promise<ExportScheduleDto> {
+    const parsed = createExportScheduleSchema.parse(dto);
+    exportBodySchema.parse(parsed.body);
+
+    const row = await this.prisma.exportSchedule.create({
+      data: {
+        workspaceId,
+        name: parsed.name,
+        frequency: parsed.frequency,
+        recipientEmails: parsed.recipientEmails,
+        body: parsed.body,
+        enabled: parsed.enabled,
+        nextRunAt: this.computeNextRun(parsed.frequency, new Date())
+      }
+    });
+    return this.toDto(row);
+  }
+
+  async update(
+    workspaceId: string,
+    id: string,
+    dto: UpdateExportScheduleDto
+  ): Promise<ExportScheduleDto> {
+    const existing = await this.prisma.exportSchedule.findFirst({
+      where: { id, workspaceId }
+    });
+    if (!existing) throw new NotFoundException("Schedule not found");
+
+    if (dto.body) exportBodySchema.parse(dto.body);
+
+    const frequency = (dto.frequency ?? existing.frequency) as ExportScheduleFrequency;
+    const row = await this.prisma.exportSchedule.update({
+      where: { id },
+      data: {
+        ...(dto.name !== undefined ? { name: dto.name } : {}),
+        ...(dto.frequency !== undefined ? { frequency: dto.frequency } : {}),
+        ...(dto.recipientEmails !== undefined ? { recipientEmails: dto.recipientEmails } : {}),
+        ...(dto.body !== undefined ? { body: dto.body } : {}),
+        ...(dto.enabled !== undefined ? { enabled: dto.enabled } : {}),
+        ...(dto.frequency !== undefined
+          ? { nextRunAt: this.computeNextRun(frequency, new Date()) }
+          : {})
+      }
+    });
+    return this.toDto(row);
+  }
+
+  async remove(workspaceId: string, id: string): Promise<void> {
+    const row = await this.prisma.exportSchedule.findFirst({
+      where: { id, workspaceId }
+    });
+    if (!row) throw new NotFoundException("Schedule not found");
+    await this.prisma.exportSchedule.delete({ where: { id } });
+  }
+
+  private async processDueSchedules() {
+    const due = await this.prisma.exportSchedule.findMany({
+      where: {
+        enabled: true,
+        nextRunAt: { lte: new Date() }
+      },
+      take: 10
+    });
+
+    for (const schedule of due) {
+      await this.runSchedule(schedule.id);
+    }
+  }
+
+  private async runSchedule(scheduleId: string) {
+    const schedule = await this.prisma.exportSchedule.findUnique({
+      where: { id: scheduleId }
+    });
+    if (!schedule || !schedule.enabled) return;
+
+    try {
+      const body = exportBodySchema.parse(schedule.body);
+      const result = await this.exportService.generate(schedule.workspaceId, body);
+
+      const recipients = schedule.recipientEmails.join(", ");
+      console.info(
+        `[export-schedule] ${schedule.name}: generated ${result.filename} (${result.buffer.length} bytes) for ${recipients}`
+      );
+
+      await this.prisma.exportSchedule.update({
+        where: { id: scheduleId },
+        data: {
+          lastRunAt: new Date(),
+          lastRunStatus: "ok",
+          lastRunError: null,
+          nextRunAt: this.computeNextRun(
+            schedule.frequency as ExportScheduleFrequency,
+            new Date()
+          )
+        }
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Export failed";
+      await this.prisma.exportSchedule.update({
+        where: { id: scheduleId },
+        data: {
+          lastRunAt: new Date(),
+          lastRunStatus: "error",
+          lastRunError: message,
+          nextRunAt: this.computeNextRun(
+            schedule.frequency as ExportScheduleFrequency,
+            new Date()
+          )
+        }
+      });
+    }
+  }
+
+  computeNextRun(frequency: ExportScheduleFrequency, from: Date): Date {
+    const next = new Date(from);
+    if (frequency === "daily") {
+      next.setUTCDate(next.getUTCDate() + 1);
+      next.setUTCHours(6, 0, 0, 0);
+    } else if (frequency === "weekly") {
+      next.setUTCDate(next.getUTCDate() + 7);
+      next.setUTCHours(6, 0, 0, 0);
+    } else {
+      next.setUTCMonth(next.getUTCMonth() + 1);
+      next.setUTCDate(1);
+      next.setUTCHours(6, 0, 0, 0);
+    }
+    return next;
+  }
+
+  private toDto(row: {
+    id: string;
+    workspaceId: string;
+    name: string;
+    frequency: string;
+    recipientEmails: string[];
+    body: unknown;
+    enabled: boolean;
+    nextRunAt: Date;
+    lastRunAt: Date | null;
+    lastRunStatus: string | null;
+    lastRunError: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }): ExportScheduleDto {
+    return {
+      id: row.id,
+      workspaceId: row.workspaceId,
+      name: row.name,
+      frequency: row.frequency as ExportScheduleFrequency,
+      recipientEmails: row.recipientEmails,
+      body: exportBodySchema.parse(row.body),
+      enabled: row.enabled,
+      nextRunAt: row.nextRunAt.toISOString(),
+      lastRunAt: row.lastRunAt?.toISOString() ?? null,
+      lastRunStatus: row.lastRunStatus,
+      lastRunError: row.lastRunError,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString()
+    };
+  }
+}

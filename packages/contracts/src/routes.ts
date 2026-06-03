@@ -64,6 +64,13 @@ export const ROUTES = {
   },
   EXPORT: {
     GENERATE: "/export",
-    ME: "/export/me"
+    PREVIEW: "/export/preview",
+    ME: "/export/me",
+    PRESETS: "/export/presets",
+    PRESET: (id: string) => `/export/presets/${id}`,
+    SCHEDULES: "/export/schedules",
+    SCHEDULE: (id: string) => `/export/schedules/${id}`,
+    SHARE: (token: string) => `/export/share/${token}`,
+    SHARES: "/export/shares"
   }
 } as const;
