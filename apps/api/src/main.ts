@@ -2,11 +2,27 @@ import { NestFactory } from "@nestjs/core";
 import cookieParser from "cookie-parser";
 import { AppModule } from "./app.module";
 
+function isAllowedCorsOrigin(origin: string | undefined): boolean {
+  if (!origin) return true;
+  const allowed = (process.env.FRONTEND_ORIGIN ?? "http://localhost:3000")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  if (allowed.includes(origin)) return true;
+  try {
+    return new URL(origin).hostname.endsWith(".vercel.app");
+  } catch {
+    return false;
+  }
+}
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.use(cookieParser());
   app.enableCors({
-    origin: (process.env.FRONTEND_ORIGIN ?? "http://localhost:3000").split(","),
+    origin: (origin, callback) => {
+      callback(null, isAllowedCorsOrigin(origin));
+    },
     credentials: true
   });
   const port = Number(process.env.PORT ?? 3001);
