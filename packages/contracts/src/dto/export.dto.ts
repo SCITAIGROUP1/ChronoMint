@@ -6,6 +6,7 @@ export const exportReportTypeSchema = z.enum([
   "daily_summary",
   "by_project",
   "by_member",
+  "by_client",
   "invoice",
   "by_task",
   "weekly_summary",
@@ -13,6 +14,59 @@ export const exportReportTypeSchema = z.enum([
   "budget_vs_actual",
   "utilization"
 ]);
+
+/** One grouping dimension (combine up to 5 in order). */
+export const exportGroupByDimensionSchema = z.enum([
+  "project",
+  "member",
+  "task",
+  "client",
+  "day",
+  "week"
+]);
+
+export type ExportGroupByDimension = z.infer<typeof exportGroupByDimensionSchema>;
+
+/** @deprecated Single value from older presets; normalized to a dimension array. */
+export const exportGroupByLegacySchema = z.enum(["none", ...exportGroupByDimensionSchema.options]);
+
+export type ExportGroupByLegacy = z.infer<typeof exportGroupByLegacySchema>;
+
+function normalizeExportGroupBy(val: unknown): ExportGroupByDimension[] {
+  if (val == null || val === "none") return [];
+  if (typeof val === "string") {
+    const parsed = exportGroupByDimensionSchema.safeParse(val);
+    return parsed.success ? [parsed.data] : [];
+  }
+  if (Array.isArray(val)) {
+    const out: ExportGroupByDimension[] = [];
+    for (const item of val) {
+      if (item === "none") continue;
+      const parsed = exportGroupByDimensionSchema.safeParse(item);
+      if (parsed.success && !out.includes(parsed.data)) out.push(parsed.data);
+    }
+    return out.slice(0, 5);
+  }
+  return [];
+}
+
+/** Ordered dimensions for sort keys and rollup sheet suggestions (empty = manual). */
+export const exportGroupByListSchema = z.preprocess(
+  normalizeExportGroupBy,
+  z.array(exportGroupByDimensionSchema).max(5).default([])
+);
+
+export type ExportGroupBy = ExportGroupByDimension[];
+
+/** How detail rows are packaged into workbook tabs / files (admin). */
+export const exportSheetLayoutSchema = z.enum([
+  "standard",
+  "tabs_per_member",
+  "tabs_per_project",
+  "tabs_per_client"
+]);
+
+export type ExportSheetLayout = z.infer<typeof exportSheetLayoutSchema>;
 
 export type ExportReportType = z.infer<typeof exportReportTypeSchema>;
 
@@ -93,6 +147,15 @@ export const BY_MEMBER_COLUMNS = [
   "billable_hours",
   "non_billable_hours",
   "billable_amount"
+] as const;
+
+export const BY_CLIENT_COLUMNS = [
+  "client",
+  "total_hours",
+  "billable_hours",
+  "non_billable_hours",
+  "billable_amount",
+  "active_projects"
 ] as const;
 
 export const BY_TASK_COLUMNS = [
@@ -200,6 +263,14 @@ export const EXPORT_COLUMN_LABELS: Record<ExportReportType, Record<string, strin
     non_billable_hours: "Non-billable hours",
     billable_amount: "Billable amount"
   },
+  by_client: {
+    client: "Client",
+    total_hours: "Total hours",
+    billable_hours: "Billable hours",
+    non_billable_hours: "Non-billable hours",
+    billable_amount: "Billable amount",
+    active_projects: "Active projects"
+  },
   by_task: {
     task: "Task",
     project: "Project",
@@ -242,6 +313,7 @@ export const DEFAULT_EXPORT_COLUMNS: Record<ExportReportType, readonly string[]>
   weekly_summary: WEEKLY_SUMMARY_COLUMNS,
   by_project: BY_PROJECT_COLUMNS,
   by_member: BY_MEMBER_COLUMNS,
+  by_client: BY_CLIENT_COLUMNS,
   by_task: BY_TASK_COLUMNS,
   users_without_time: USERS_WITHOUT_TIME_COLUMNS,
   budget_vs_actual: BUDGET_VS_ACTUAL_COLUMNS,
@@ -266,6 +338,7 @@ export const exportColumnsSchema = z
     weekly_summary: columnsForReport("weekly_summary").optional(),
     by_project: columnsForReport("by_project").optional(),
     by_member: columnsForReport("by_member").optional(),
+    by_client: columnsForReport("by_client").optional(),
     by_task: columnsForReport("by_task").optional(),
     users_without_time: columnsForReport("users_without_time").optional(),
     budget_vs_actual: columnsForReport("budget_vs_actual").optional(),
@@ -279,7 +352,9 @@ const exportFiltersBaseSchema = z.object({
   projectId: uuidSchema.optional(),
   userId: uuidSchema.optional(),
   teamOnly: z.boolean().optional(),
-  billable: exportBillableFilterSchema.default("all")
+  billable: exportBillableFilterSchema.default("all"),
+  groupBy: exportGroupByListSchema.default([]),
+  sheetLayout: exportSheetLayoutSchema.default("standard")
 });
 
 export const exportFiltersSchema = exportFiltersBaseSchema.superRefine((v, ctx) =>
@@ -306,10 +381,21 @@ export const exportPreviewBodySchema = exportFiltersBaseSchema
 
 export type ExportPreviewBodyDto = z.infer<typeof exportPreviewBodySchema>;
 
+export const exportPreviewSheetSchema = z.object({
+  name: z.string(),
+  rowCount: z.number(),
+  kind: z.enum(["person", "project", "client", "report"])
+});
+
+export type ExportPreviewSheetDto = z.infer<typeof exportPreviewSheetSchema>;
+
 export const exportPreviewResponseSchema = z.object({
   counts: z.record(exportReportTypeSchema, z.number()),
   totalLogRows: z.number(),
-  isEmpty: z.boolean()
+  isEmpty: z.boolean(),
+  sheets: z.array(exportPreviewSheetSchema),
+  headline: z.string(),
+  detail: z.string()
 });
 
 export type ExportPreviewResponseDto = z.infer<typeof exportPreviewResponseSchema>;

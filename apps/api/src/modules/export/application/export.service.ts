@@ -21,8 +21,17 @@ import PDFDocument from "pdfkit";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { roundExport } from "../../../common/time/round.util";
 import { TimeAggregationService } from "../../../common/time/time-aggregation.service";
+import { buildExportPreviewCopy } from "./export-preview-copy.util";
 import { projectRows, rowsToCsv } from "./export-render.util";
 import { ExportRowsBuilder, type ExportRowContext } from "./export-rows.builder";
+import {
+  allocateSheetName,
+  groupRowsByField,
+  innerGroupByForSplit,
+  previewSheetKind,
+  splitFieldForLayout
+} from "./export-sheet.util";
+import { sortRowsForGroupBy } from "./export-sort.util";
 
 type SheetData = {
   name: string;
@@ -62,6 +71,8 @@ export class ExportService {
         projectId: body.projectId,
         userId,
         billable: body.billable,
+        groupBy: [],
+        sheetLayout: "standard",
         reportTypes: body.reportTypes as ExportReportType[],
         format: body.format,
         columns: body.columns as ExportBodyDto["columns"]
@@ -87,6 +98,8 @@ export class ExportService {
       projectId: query.projectId,
       userId: query.userId,
       billable: "all",
+      groupBy: [],
+      sheetLayout: "standard",
       reportTypes: ["time_entries"],
       format: query.format === "pdf" ? "pdf" : query.format === "xlsx" ? "xlsx" : "csv"
     });
@@ -98,18 +111,38 @@ export class ExportService {
   ): Promise<ExportPreviewResponseDto> {
     const ctx = await this.loadContext(workspaceId, body);
     const counts = {} as Record<ExportReportType, number>;
+    const sheetPlan = await this.buildSheets(
+      workspaceId,
+      { ...body, format: "xlsx" },
+      "admin",
+      undefined,
+      ctx
+    );
 
     for (const report of body.reportTypes) {
       const rows = await this.rowsBuilder.buildRows(report, ctx);
       counts[report] = rows.length;
     }
 
-    const isEmpty = body.reportTypes.every((r) => (counts[r] ?? 0) === 0);
+    const isEmpty = ctx.logs.length === 0;
+    const layout = body.sheetLayout ?? "standard";
+    const sheets = sheetPlan.map((s) => {
+      const split = splitFieldForLayout(layout, s.report as ExportReportType);
+      return {
+        name: s.name,
+        rowCount: s.lines.length,
+        kind: previewSheetKind(layout, split)
+      };
+    });
+    const { headline, detail } = buildExportPreviewCopy(body, sheets, ctx.logs.length);
 
     return {
       counts,
       totalLogRows: ctx.logs.length,
-      isEmpty
+      isEmpty,
+      sheets,
+      headline,
+      detail
     };
   }
 
@@ -160,36 +193,7 @@ export class ExportService {
   ): Promise<{ buffer: Buffer; contentType: string; filename: string }> {
     const ctx = await this.loadContext(workspaceId, body);
     const settings = ctx.settings;
-    const isMember = scope === "member";
-    const sheets: SheetData[] = [];
-
-    for (const report of body.reportTypes) {
-      const columnKeys = isMember
-        ? resolveMemberExportColumns(report as MemberExportReportType, memberBody?.columns)
-        : resolveExportColumns(report, body.columns);
-
-      const labels = isMember
-        ? MEMBER_EXPORT_COLUMN_LABELS[report as MemberExportReportType]
-        : EXPORT_COLUMN_LABELS[report];
-
-      const rows = isMember
-        ? this.buildMemberRows(
-            report as MemberExportReportType,
-            ctx.logs,
-            ctx.aggregates,
-            ctx.resolveRate
-          )
-        : await this.rowsBuilder.buildRows(report, ctx);
-
-      const { headers, lines } = projectRows(rows, columnKeys, labels);
-      sheets.push({
-        name: this.sheetName(report),
-        report,
-        reportSlug: this.fileSlug(report),
-        headers,
-        lines
-      });
-    }
+    const sheets = await this.buildSheets(workspaceId, body, scope, memberBody, ctx);
 
     const fileBase = {
       workspaceSlug: ctx.workspaceSlug,
@@ -205,6 +209,71 @@ export class ExportService {
       return this.renderXlsx(sheets, fileBase);
     }
     return this.renderPdf(sheets, fileBase, body, ctx.workspaceName, settings);
+  }
+
+  private async buildSheets(
+    _workspaceId: string,
+    body: ExportBodyDto,
+    scope: ExportScope,
+    memberBody: MemberExportBodyDto | undefined,
+    ctx: ExportRowContext
+  ): Promise<SheetData[]> {
+    const isMember = scope === "member";
+    const layout = body.sheetLayout ?? "standard";
+    const sheets: SheetData[] = [];
+    const usedNames = new Set<string>();
+
+    for (const report of body.reportTypes) {
+      const columnKeys = isMember
+        ? resolveMemberExportColumns(report as MemberExportReportType, memberBody?.columns)
+        : resolveExportColumns(report, body.columns);
+
+      const labels = isMember
+        ? MEMBER_EXPORT_COLUMN_LABELS[report as MemberExportReportType]
+        : EXPORT_COLUMN_LABELS[report];
+
+      const rows: Record<string, string | number>[] = isMember
+        ? this.buildMemberRows(
+            report as MemberExportReportType,
+            ctx.logs,
+            ctx.aggregates,
+            ctx.resolveRate
+          )
+        : await this.rowsBuilder.buildRows(report, ctx);
+
+      const splitField = isMember ? null : splitFieldForLayout(layout, report);
+
+      if (splitField) {
+        const innerGroupBy = innerGroupByForSplit(body.groupBy ?? [], splitField);
+        for (const [groupName, groupRows] of groupRowsByField(
+          sortRowsForGroupBy(rows, report, innerGroupBy),
+          splitField
+        )) {
+          const { headers, lines } = projectRows(groupRows, columnKeys, labels);
+          const name = allocateSheetName(groupName, usedNames);
+          sheets.push({
+            name,
+            report,
+            reportSlug: `${this.fileSlug(report)}-${name.toLowerCase().replace(/\s+/g, "-")}`,
+            headers,
+            lines
+          });
+        }
+        continue;
+      }
+
+      const { headers, lines } = projectRows(rows, columnKeys, labels);
+      const name = allocateSheetName(this.sheetName(report), usedNames);
+      sheets.push({
+        name,
+        report,
+        reportSlug: this.fileSlug(report),
+        headers,
+        lines
+      });
+    }
+
+    return sheets;
   }
 
   private buildMemberRows(
@@ -272,6 +341,7 @@ export class ExportService {
       weekly_summary: "Weekly summary",
       by_project: "By project",
       by_member: "By member",
+      by_client: "By client",
       by_task: "By task",
       users_without_time: "Users without time",
       budget_vs_actual: "Budget vs actual",
@@ -288,6 +358,7 @@ export class ExportService {
       weekly_summary: "weekly-summary",
       by_project: "by-project",
       by_member: "by-member",
+      by_client: "by-client",
       by_task: "by-task",
       users_without_time: "users-without-time",
       budget_vs_actual: "budget-vs-actual",

@@ -1,3 +1,5 @@
+import { getAccessToken } from "../stores/session.store";
+
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001";
 
 export function getApiBase(): string {
@@ -13,7 +15,7 @@ export async function api<T>(
     ...(options.headers as Record<string, string>)
   };
   if (options.workspaceId) headers["X-Workspace-Id"] = options.workspaceId;
-  const token = typeof window !== "undefined" ? localStorage.getItem("cm-access-token") : null;
+  const token = typeof window !== "undefined" ? getAccessToken() : null;
   if (token) headers.Authorization = `Bearer ${token}`;
 
   const res = await fetch(`${API_BASE}${path}`, {

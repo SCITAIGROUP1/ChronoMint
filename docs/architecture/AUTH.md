@@ -24,7 +24,9 @@ sequenceDiagram
 - **Body:** `accessToken`, `user`, `workspaceId`, `workspaceName`, `workspaceRole`
 - **Cookies:** `access_token` (short-lived), `refresh_token` (7 days)
 
-Frontends also store `accessToken` in `localStorage` and send `Authorization: Bearer <token>`.
+Each frontend stores `accessToken` in **scoped** `localStorage` keys (`cm-client-*` / `cm-admin-*` via `NEXT_PUBLIC_AUTH_SCOPE`) and sends `Authorization: Bearer <token>`. The API guard prefers the Bearer header over cookies when both are present.
+
+**Two apps (client + admin):** Login cookies (`access_token`, `refresh_token`) are set on the **API host** and are shared by any app calling that API. Logging out in one app must call `DELETE /auth/logout` to clear those cookies for the other app. Client and admin use separate browser origins in local dev (`:3000` / `:3002`), so in-memory tokens are isolated; cookie/session confusion was the main cross-app issue.
 
 ## Refresh
 

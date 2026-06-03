@@ -45,6 +45,7 @@ Filenames: [export-filename.ts](../../packages/contracts/src/export-filename.ts)
 | `weekly_summary`     | ISO week × member × project                   |
 | `by_project`         | One row per project                           |
 | `by_member`          | One row per user with logs                    |
+| `by_client`          | One row per client (from project metadata)    |
 | `by_task`            | One row per task                              |
 | `users_without_time` | Members with zero logs in range               |
 | `budget_vs_actual`   | Project budget vs logged hours                |
@@ -65,6 +66,22 @@ Subset: `time_entries`, `daily_summary`, `by_project` — columns exclude worksp
 | Member    | Optional `userId` (admin only)            |
 | Team only | Optional `teamOnly` when project selected |
 | Billable  | `all` \| `billable` \| `non_billable`     |
+
+## Group by (admin)
+
+`groupBy` on `exportBodySchema` / `exportPreviewBodySchema` is an **ordered array** of dimensions (`project`, `member`, `task`, `client`, `day`, `week`), max 5. Empty array = manual report selection. Legacy presets with a single string (e.g. `"project"`) are normalized on parse.
+
+- **Admin UI:** Multi-select dimensions; **sort order** list with ↑↓ controls. Combining e.g. Client → Project sorts detail rows that way and includes both `by_client` and `by_project` sheets (plus `time_entries`, and `daily_summary` / `weekly_summary` when day/week are selected).
+- **API:** `sortRowsForGroupBy` applies each dimension’s sort keys in order, then date/time tie-breakers on detail sheets.
+- **Suggested sheets** (`reportsForGroupBy`): union of rollups for each selected dimension, always including `time_entries` when any dimension is active.
+
+## Sheet layout (admin)
+
+`sheetLayout`: `standard` \| `tabs_per_member` \| `tabs_per_project` \| `tabs_per_client` (default `standard`).
+
+- **standard:** One tab per report type (current default).
+- **tabs_per_member / project / client:** Splits `time_entries`, `daily_summary`, `weekly_summary`, and `invoice` into one tab per distinct member, project, or client. Summary report types (`by_member`, etc.) stay as single tabs.
+- **Preview:** `POST /export/preview` returns `headline`, `detail`, and `sheets[]` (`name`, `rowCount`, `kind`) for a plain-language admin preview.
 
 ## Workspace settings (export)
 

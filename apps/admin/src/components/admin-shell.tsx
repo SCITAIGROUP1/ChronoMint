@@ -3,7 +3,12 @@
 import { ROUTES } from "@chronomint/contracts";
 import type { AuthSessionDto, WorkspaceWithRoleDto } from "@chronomint/contracts";
 import { Button, cn } from "@chronomint/ui";
-import { ThemeToggle, WorkspaceSwitcher } from "@chronomint/web-shared";
+import {
+  getAccessToken,
+  logoutSession,
+  ThemeToggle,
+  WorkspaceSwitcher
+} from "@chronomint/web-shared";
 import {
   Building2,
   CreditCard,
@@ -33,7 +38,7 @@ const nav = [
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { session, setSession, clear } = useSessionStore();
+  const { session, setSession } = useSessionStore();
   const setWorkspaces = useWorkspacesStore((s) => s.setWorkspaces);
 
   useEffect(() => {
@@ -46,7 +51,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       router.replace("/login");
       return;
     }
-    const token = localStorage.getItem("cm-access-token");
+    const token = getAccessToken();
     if (!token) {
       router.replace("/login");
       return;
@@ -145,8 +150,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             size="sm"
             className="w-full justify-start gap-2"
             onClick={() => {
-              clear();
-              router.push("/login");
+              void logoutSession(session.workspaceId).then(() => router.push("/login"));
             }}
           >
             <LogOut className="h-4 w-4" aria-hidden />

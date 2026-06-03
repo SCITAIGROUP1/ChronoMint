@@ -47,6 +47,22 @@ If you reset locally: drop and recreate `chronomint`, then migrate and `pnpm pri
 
 Sign in to admin with **`admin@chronomint.dev`**. Member accounts are workspace `MEMBER` role and are not intended for the admin app.
 
+## Weird login/logout with client and admin both open
+
+Both apps talk to the same API (`localhost:3001`) and share **httpOnly auth cookies** on that host. Each app keeps its own Bearer token in `localStorage` (scoped by `NEXT_PUBLIC_AUTH_SCOPE`).
+
+**Symptoms:** Wrong user after switching apps, 401 loops, admin shows member session, logout in one app leaves the other “half logged in”.
+
+**Fix:**
+
+1. Log out from **both** apps (admin now calls the API logout; client already did).
+2. Hard refresh both tabs or clear site data for `localhost`.
+3. Set in `apps/admin/.env.local`: `NEXT_PUBLIC_AUTH_SCOPE=admin`
+4. Set in `apps/client/.env.local`: `NEXT_PUBLIC_AUTH_SCOPE=client`
+5. Restart both frontends after changing env.
+
+See [AUTH.md](../architecture/AUTH.md).
+
 ## Workspace required / 401 on API calls
 
 Authenticated routes need:

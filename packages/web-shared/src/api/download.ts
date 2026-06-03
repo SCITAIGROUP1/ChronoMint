@@ -1,8 +1,9 @@
 import { parseContentDispositionFilename } from "@chronomint/contracts";
+import { getAccessToken } from "../stores/session.store";
 import { getApiBase } from "./client";
 
 export function apiDownloadPost(path: string, workspaceId: string, body: unknown) {
-  const token = localStorage.getItem("cm-access-token");
+  const token = getAccessToken();
   return fetch(`${getApiBase()}${path}`, {
     method: "POST",
     headers: {

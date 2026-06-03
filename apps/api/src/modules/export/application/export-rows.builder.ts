@@ -12,6 +12,7 @@ import {
   type TimeLogWithRelations
 } from "../../../common/time/time-aggregation.service";
 import { daysInRange, formatWeekLabel, getWeekStartUtc } from "../../../common/time/week.util";
+import { sortRowsForGroupBy } from "./export-sort.util";
 
 export type ExportRowContext = {
   workspaceId: string;
@@ -37,30 +38,48 @@ export class ExportRowsBuilder {
     report: ExportReportType,
     ctx: ExportRowContext
   ): Promise<Record<string, string | number>[]> {
+    const groupBy = ctx.filters.groupBy ?? [];
+    let rows: Record<string, string | number>[];
+
     switch (report) {
       case "time_entries":
-        return this.buildTimeEntries(ctx);
+        rows = this.buildTimeEntries(ctx);
+        break;
       case "invoice":
-        return this.buildInvoice(ctx);
+        rows = this.buildInvoice(ctx);
+        break;
       case "daily_summary":
-        return this.buildDailySummary(ctx);
+        rows = this.buildDailySummary(ctx);
+        break;
       case "weekly_summary":
-        return await this.buildWeeklySummary(ctx);
+        rows = await this.buildWeeklySummary(ctx);
+        break;
       case "by_project":
-        return this.buildByProject(ctx);
+        rows = this.buildByProject(ctx);
+        break;
       case "by_member":
-        return this.buildByMember(ctx);
+        rows = this.buildByMember(ctx);
+        break;
+      case "by_client":
+        rows = this.buildByClient(ctx);
+        break;
       case "by_task":
-        return this.buildByTask(ctx);
+        rows = this.buildByTask(ctx);
+        break;
       case "users_without_time":
-        return await this.buildUsersWithoutTime(ctx);
+        rows = await this.buildUsersWithoutTime(ctx);
+        break;
       case "budget_vs_actual":
-        return await this.buildBudgetVsActual(ctx);
+        rows = await this.buildBudgetVsActual(ctx);
+        break;
       case "utilization":
-        return await this.buildUtilization(ctx);
+        rows = await this.buildUtilization(ctx);
+        break;
       default:
-        return [];
+        rows = [];
     }
+
+    return sortRowsForGroupBy(rows, report, groupBy);
   }
 
   private buildTimeEntries(ctx: ExportRowContext): Record<string, string | number>[] {
@@ -234,6 +253,44 @@ export class ExportRowsBuilder {
         billable_hours: roundExport(v.billableHours),
         non_billable_hours: roundExport(v.totalHours - v.billableHours),
         billable_amount: roundExport(v.billableAmount)
+      }))
+      .sort((a, b) => Number(b.total_hours) - Number(a.total_hours));
+  }
+
+  private buildByClient(ctx: ExportRowContext): Record<string, string | number>[] {
+    const byClient = new Map<
+      string,
+      {
+        totalHours: number;
+        billableHours: number;
+        billableAmount: number;
+        projects: Set<string>;
+      }
+    >();
+
+    for (const [, v] of ctx.aggregates.byProject) {
+      const client = v.clientName?.trim() || "—";
+      const entry = byClient.get(client) ?? {
+        totalHours: 0,
+        billableHours: 0,
+        billableAmount: 0,
+        projects: new Set<string>()
+      };
+      entry.totalHours += v.totalHours;
+      entry.billableHours += v.billableHours;
+      entry.billableAmount += v.billableAmount;
+      entry.projects.add(v.projectName);
+      byClient.set(client, entry);
+    }
+
+    return [...byClient.entries()]
+      .map(([client, v]) => ({
+        client,
+        total_hours: roundExport(v.totalHours),
+        billable_hours: roundExport(v.billableHours),
+        non_billable_hours: roundExport(v.totalHours - v.billableHours),
+        billable_amount: roundExport(v.billableAmount),
+        active_projects: v.projects.size
       }))
       .sort((a, b) => Number(b.total_hours) - Number(a.total_hours));
   }

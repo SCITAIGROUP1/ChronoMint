@@ -4,6 +4,8 @@ import {
   DEFAULT_EXPORT_COLUMNS,
   ROUTES,
   type ExportBodyDto,
+  type ExportGroupByDimension,
+  type ExportSheetLayout,
   type ExportPresetDto,
   type ExportPreviewResponseDto,
   type ExportReportType,
@@ -29,7 +31,7 @@ import {
   SelectValue
 } from "@chronomint/ui";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   PageHeader,
   PreviewBanner,
@@ -38,16 +40,31 @@ import {
   ToggleChip
 } from "@/components/admin-page";
 import { ExportColumnPicker } from "@/components/export-column-picker";
+import { ExportLayoutPreview } from "@/components/export-layout-preview";
 import { ExportSchedulesPanel } from "@/components/export-schedules-panel";
 import { api } from "@/lib/api";
 import { apiDownloadPost, saveDownloadResponse } from "@/lib/download";
 import { applyDatePreset, toDateInputValue, type DatePreset } from "@/lib/export-date-presets";
+import {
+  GROUP_BY_DIMENSION_OPTIONS,
+  groupByCombinationHint,
+  groupBySummaryLabel,
+  moveGroupByDimension,
+  reportsForGroupBy
+} from "@/lib/export-group-by";
+import { normalizeExportBody, normalizeExportPreview } from "@/lib/export-normalize";
 import {
   deleteLocalExportPreset,
   listLocalExportPresets,
   saveLocalExportPreset,
   type StoredExportPreset
 } from "@/lib/export-presets";
+import {
+  groupByForSheetLayout,
+  primaryGroupByForSheetLayout,
+  SHEET_LAYOUT_OPTIONS,
+  sheetLayoutRequiresTimeEntries
+} from "@/lib/export-sheet-layout";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
 const REPORT_GROUPS: { title: string; reports: { id: ExportReportType; label: string }[] }[] = [
@@ -64,6 +81,7 @@ const REPORT_GROUPS: { title: string; reports: { id: ExportReportType; label: st
     reports: [
       { id: "by_project", label: "By project" },
       { id: "by_member", label: "By member" },
+      { id: "by_client", label: "By client" },
       { id: "by_task", label: "By task" }
     ]
   },
@@ -115,10 +133,9 @@ export function ExportsPage() {
   const [teamOnly, setTeamOnly] = useState(false);
   const [billable, setBillable] = useState<ExportBodyDto["billable"]>("all");
   const [format, setFormat] = useState<ExportBodyDto["format"]>("xlsx");
-  const [reportTypes, setReportTypes] = useState<ExportReportType[]>([
-    "time_entries",
-    "by_project"
-  ]);
+  const [sheetLayout, setSheetLayout] = useState<ExportSheetLayout>("standard");
+  const [groupBy, setGroupBy] = useState<ExportGroupByDimension[]>([]);
+  const [reportTypes, setReportTypes] = useState<ExportReportType[]>(["time_entries"]);
   const [columnsByReport, setColumnsByReport] = useState(defaultColumnsMap);
   const [expandedReport, setExpandedReport] = useState<ExportReportType | null>("time_entries");
   const [projects, setProjects] = useState<ProjectDto[]>([]);
@@ -153,27 +170,47 @@ export function ExportsPage() {
       .catch(() => {});
   }, [ws]);
 
+  const safeReportTypes = useMemo(
+    () => (Array.isArray(reportTypes) ? reportTypes : []),
+    [reportTypes]
+  );
+  const safeGroupBy = useMemo(() => (Array.isArray(groupBy) ? groupBy : []), [groupBy]);
+
   const columnsPayload = useMemo(() => {
     const out: Partial<Record<ExportReportType, string[]>> = {};
-    for (const rt of reportTypes) {
+    for (const rt of safeReportTypes) {
       out[rt] = columnsByReport[rt];
     }
     return out;
-  }, [reportTypes, columnsByReport]);
+  }, [safeReportTypes, columnsByReport]);
 
   const exportBody = useMemo((): ExportBodyDto => {
     return {
       from: new Date(from).toISOString(),
       to: new Date(to + "T23:59:59").toISOString(),
       billable,
-      reportTypes,
+      reportTypes: safeReportTypes,
       format,
+      groupBy: safeGroupBy,
+      sheetLayout,
       columns: columnsPayload,
       ...(projectId ? { projectId } : {}),
       ...(userId ? { userId } : {}),
       ...(teamOnly && projectId ? { teamOnly: true } : {})
     };
-  }, [from, to, billable, reportTypes, format, projectId, userId, teamOnly, columnsPayload]);
+  }, [
+    from,
+    to,
+    billable,
+    safeReportTypes,
+    format,
+    safeGroupBy,
+    sheetLayout,
+    projectId,
+    userId,
+    teamOnly,
+    columnsPayload
+  ]);
 
   const previewBody = useMemo(
     () => ({
@@ -181,6 +218,8 @@ export function ExportsPage() {
       to: exportBody.to,
       billable: exportBody.billable,
       reportTypes: exportBody.reportTypes,
+      groupBy: exportBody.groupBy,
+      sheetLayout: exportBody.sheetLayout,
       ...(exportBody.projectId ? { projectId: exportBody.projectId } : {}),
       ...(exportBody.userId ? { userId: exportBody.userId } : {}),
       ...(exportBody.teamOnly ? { teamOnly: true } : {})
@@ -199,7 +238,7 @@ export function ExportsPage() {
         body: JSON.stringify(previewBody)
       })
         .then((data) => {
-          setPreview(data);
+          setPreview(normalizeExportPreview(data));
           setPreviewError(null);
         })
         .catch((e) => {
@@ -213,23 +252,77 @@ export function ExportsPage() {
     return () => clearTimeout(t);
   }, [ws, previewBody]);
 
+  function applySuggestedReports(suggested: ExportReportType[]) {
+    setReportTypes((prev) => {
+      const merged = [...(Array.isArray(prev) ? prev : [])];
+      for (const rt of suggested) {
+        if (!merged.includes(rt)) merged.push(rt);
+      }
+      return merged;
+    });
+    setExpandedReport((cur) => cur ?? suggested[0] ?? null);
+    setColumnsByReport((prev) => {
+      const nextCols = { ...prev };
+      for (const rt of suggested) {
+        if (!nextCols[rt]?.length) {
+          const defaults = DEFAULT_EXPORT_COLUMNS[rt];
+          if (defaults) nextCols[rt] = [...defaults];
+        }
+      }
+      return nextCols;
+    });
+  }
+
+  function onGroupByDimensionsChange(next: ExportGroupByDimension[]) {
+    setGroupBy(next);
+    if (!next.length) return;
+    applySuggestedReports(reportsForGroupBy(next));
+  }
+
+  function toggleGroupByDimension(dim: ExportGroupByDimension) {
+    const current = Array.isArray(groupBy) ? groupBy : [];
+    const layoutPrimary = primaryGroupByForSheetLayout(sheetLayout);
+    if (layoutPrimary && dim === layoutPrimary && current.includes(dim)) {
+      return;
+    }
+    const next = current.includes(dim) ? current.filter((d) => d !== dim) : [...current, dim];
+    onGroupByDimensionsChange(next);
+  }
+
+  function onSheetLayoutChange(layout: ExportSheetLayout) {
+    const currentGroupBy = Array.isArray(groupBy) ? groupBy : [];
+    setSheetLayout(layout);
+    setGroupBy(groupByForSheetLayout(layout, currentGroupBy));
+
+    if (layout === "standard") return;
+
+    const types = Array.isArray(reportTypes) ? reportTypes : [];
+    if (!types.includes("time_entries")) {
+      applySuggestedReports(["time_entries", ...types]);
+    }
+  }
+
   function toggleReport(rt: ExportReportType) {
     setReportTypes((prev) => {
-      const next = prev.includes(rt)
-        ? prev.length > 1
-          ? prev.filter((r) => r !== rt)
-          : prev
-        : [...prev, rt];
-      if (!prev.includes(rt)) setExpandedReport(rt);
+      const current = Array.isArray(prev) ? prev : [];
+      const next = current.includes(rt)
+        ? current.length > 1
+          ? current.filter((r) => r !== rt)
+          : current
+        : [...current, rt];
+      if (!current.includes(rt)) setExpandedReport(rt);
       return next;
     });
   }
 
-  function applyPresetBody(body: ExportBodyDto) {
+  function applyPresetBody(raw: ExportBodyDto) {
+    const body = normalizeExportBody(raw);
     setFrom(body.from.slice(0, 10));
     setTo(body.to.slice(0, 10));
     setBillable(body.billable);
     setFormat(body.format);
+    setSheetLayout(body.sheetLayout);
+    setGroupBy(groupByForSheetLayout(body.sheetLayout, body.groupBy));
     setReportTypes(body.reportTypes);
     setProjectId(body.projectId ?? "");
     setUserId(body.userId ?? "");
@@ -306,22 +399,11 @@ export function ExportsPage() {
     }
   }
 
-  const previewContent = useCallback(() => {
-    if (previewLoading) return "Estimating how many rows will be exported…";
-    if (previewError) return previewError;
-    if (!preview) return "Preview unavailable.";
-    if (preview.isEmpty)
-      return "No rows match these filters. Try a wider date range or fewer filters.";
-    const parts = reportTypes.map((rt) => {
-      const n = preview.counts[rt];
-      if (n === undefined) return null;
-      const label = REPORT_GROUPS.flatMap((g) => g.reports).find((o) => o.id === rt)?.label ?? rt;
-      return `${n.toLocaleString()} ${label}`;
-    });
-    return `${parts.filter(Boolean).join(" · ")} · ${preview.totalLogRows.toLocaleString()} underlying time logs`;
-  }, [preview, previewLoading, previewError, reportTypes]);
+  const layoutNeedsTimeEntries =
+    sheetLayoutRequiresTimeEntries(sheetLayout) && !safeReportTypes.includes("time_entries");
 
-  const canExport = reportTypes.every((rt) => columnsByReport[rt]?.length > 0);
+  const canExport =
+    safeReportTypes.every((rt) => columnsByReport[rt]?.length > 0) && !layoutNeedsTimeEntries;
   const allPresets = [
     ...serverPresets.map((p) => ({ ...p, source: "workspace" as const })),
     ...localPresets.map((p) => ({ id: p.id, name: p.name, body: p.body, source: "local" as const }))
@@ -333,7 +415,8 @@ export function ExportsPage() {
         title="Exports"
         description={
           <>
-            Build multi-sheet reports for your workspace. Filters and date range sync with the{" "}
+            Download timesheets and summaries for your team. Pick a period, choose how tabs are
+            organized, and check the live preview before you download. Syncs with the{" "}
             <Link
               href="/dashboard"
               className="font-medium text-primary underline-offset-4 hover:underline"
@@ -465,9 +548,126 @@ export function ExportsPage() {
 
           <Card>
             <CardHeader className="pb-4">
+              <CardTitle className="text-base">Workbook layout</CardTitle>
+              <CardDescription>
+                How tabs are organized in Excel (or files in a ZIP for CSV). Best for monthly
+                timesheets: one tab per person.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-2 sm:grid-cols-2">
+              {SHEET_LAYOUT_OPTIONS.map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => onSheetLayoutChange(opt.id)}
+                  className={`rounded-lg border p-3 text-left transition-colors ${
+                    sheetLayout === opt.id
+                      ? "border-primary bg-primary/10 ring-1 ring-primary/30"
+                      : "border-border bg-muted/20 hover:bg-muted/40"
+                  }`}
+                >
+                  <p className="text-sm font-medium">{opt.label}</p>
+                  <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
+                    {opt.description}
+                  </p>
+                  <p className="mt-2 text-[11px] text-muted-foreground">{opt.bestFor}</p>
+                </button>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-base">Row order inside each tab</CardTitle>
+              <CardDescription>
+                {primaryGroupByForSheetLayout(sheetLayout)
+                  ? `Matches your workbook layout (${SHEET_LAYOUT_OPTIONS.find((o) => o.id === sheetLayout)?.label}). Add Day or Week to sort days in order inside each tab.`
+                  : "Optional. Controls how rows are sorted (e.g. member first, then day). Each option can add a matching totals tab."}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-wrap gap-2">
+                {GROUP_BY_DIMENSION_OPTIONS.map((opt) => (
+                  <ToggleChip
+                    key={opt.id}
+                    selected={safeGroupBy.includes(opt.id)}
+                    onClick={() => toggleGroupByDimension(opt.id)}
+                  >
+                    {opt.label}
+                  </ToggleChip>
+                ))}
+              </div>
+              {safeGroupBy.length > 0 ? (
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground">Sort order</p>
+                  <ol className="space-y-1.5">
+                    {safeGroupBy.map((dim, index) => {
+                      const label =
+                        GROUP_BY_DIMENSION_OPTIONS.find((o) => o.id === dim)?.label ?? dim;
+                      return (
+                        <li
+                          key={dim}
+                          className="flex items-center justify-between gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm"
+                        >
+                          <span>
+                            <span className="text-muted-foreground tabular-nums">{index + 1}.</span>{" "}
+                            {label}
+                          </span>
+                          <span className="flex shrink-0 gap-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2"
+                              disabled={index === 0}
+                              onClick={() =>
+                                setGroupBy(
+                                  groupByForSheetLayout(
+                                    sheetLayout,
+                                    moveGroupByDimension(safeGroupBy, index, -1)
+                                  )
+                                )
+                              }
+                            >
+                              ↑
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2"
+                              disabled={index === safeGroupBy.length - 1}
+                              onClick={() =>
+                                setGroupBy(
+                                  groupByForSheetLayout(
+                                    sheetLayout,
+                                    moveGroupByDimension(safeGroupBy, index, 1)
+                                  )
+                                )
+                              }
+                            >
+                              ↓
+                            </Button>
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                </div>
+              ) : null}
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {groupByCombinationHint(safeGroupBy)}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-4">
               <CardTitle className="text-base">Reports</CardTitle>
               <CardDescription>
-                Select one or more. Configure columns for each report below.
+                {safeGroupBy.length === 0
+                  ? "Select one or more. Configure columns for each report below."
+                  : `Sheets for ${groupBySummaryLabel(safeGroupBy)} — add or remove types as needed.`}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
@@ -477,7 +677,7 @@ export function ExportsPage() {
                     {group.reports.map((opt) => (
                       <ToggleChip
                         key={opt.id}
-                        selected={reportTypes.includes(opt.id)}
+                        selected={safeReportTypes.includes(opt.id)}
                         onClick={() => toggleReport(opt.id)}
                       >
                         {opt.label}
@@ -497,7 +697,7 @@ export function ExportsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
-              {reportTypes.map((rt) => {
+              {safeReportTypes.map((rt) => {
                 const label =
                   REPORT_GROUPS.flatMap((g) => g.reports).find((o) => o.id === rt)?.label ?? rt;
                 const open = expandedReport === rt;
@@ -549,8 +749,19 @@ export function ExportsPage() {
                   error={!!previewError && !previewLoading}
                   empty={!!preview?.isEmpty && !previewLoading && !previewError}
                 >
-                  {previewContent()}
+                  <ExportLayoutPreview
+                    preview={preview}
+                    loading={previewLoading}
+                    error={previewError}
+                    format={format}
+                  />
                 </PreviewBanner>
+
+                {layoutNeedsTimeEntries ? (
+                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                    Turn on <strong>Time entries</strong> in Reports for this workbook layout.
+                  </p>
+                ) : null}
 
                 <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground">File format</Label>

@@ -3,7 +3,12 @@
 import { ROUTES } from "@chronomint/contracts";
 import type { AuthSessionDto, WorkspaceWithRoleDto } from "@chronomint/contracts";
 import { Button, cn } from "@chronomint/ui";
-import { ThemeToggle, WorkspaceSwitcher } from "@chronomint/web-shared";
+import {
+  getAccessToken,
+  logoutSession,
+  ThemeToggle,
+  WorkspaceSwitcher
+} from "@chronomint/web-shared";
 import { CalendarDays, FolderKanban, ListTodo, LogOut, Timer as TimerIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -23,7 +28,7 @@ const nav = [
 export function WorkspaceShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { session, setSession, clear } = useSessionStore();
+  const { session, setSession } = useSessionStore();
   const setWorkspaceNames = useProjectsStore((s) => s.setWorkspaces);
   const setWorkspaces = useWorkspacesStore((s) => s.setWorkspaces);
 
@@ -34,7 +39,7 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
       router.replace("/login");
       return;
     }
-    const token = localStorage.getItem("cm-access-token");
+    const token = getAccessToken();
     if (!token) {
       router.replace("/login");
       return;
@@ -52,8 +57,7 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
   }, [session, setSession, setWorkspaces, setWorkspaceNames, router]);
 
   async function logout() {
-    await api(ROUTES.AUTH.LOGOUT, { method: "DELETE", workspaceId: session?.workspaceId });
-    clear();
+    await logoutSession(session?.workspaceId);
     router.push("/login");
   }
 
@@ -150,7 +154,7 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <main className="min-h-screen min-w-0 flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-5xl p-6 lg:p-8">{children}</div>
+        <div className="mx-auto w-full max-w-7xl p-6 lg:p-8">{children}</div>
       </main>
     </div>
   );

@@ -15,6 +15,7 @@ const REPORT_LABELS: Record<ExportReportType, string> = {
   weekly_summary: "Weekly summary",
   by_project: "By project",
   by_member: "By member",
+  by_client: "By client",
   by_task: "By task",
   users_without_time: "Users without time",
   budget_vs_actual: "Budget vs actual",
