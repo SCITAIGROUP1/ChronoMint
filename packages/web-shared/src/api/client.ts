@@ -1,9 +1,17 @@
 import { getAccessToken } from "../stores/session.store";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001";
-
 export function getApiBase(): string {
-  return API_BASE;
+  const raw = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001";
+  // HTTPS pages cannot call HTTP APIs (mixed content). Common deploy mistake.
+  if (
+    typeof window !== "undefined" &&
+    window.location.protocol === "https:" &&
+    raw.startsWith("http://") &&
+    !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(raw)
+  ) {
+    return raw.replace(/^http:/, "https:");
+  }
+  return raw;
 }
 
 export async function api<T>(
@@ -18,7 +26,7 @@ export async function api<T>(
   const token = typeof window !== "undefined" ? getAccessToken() : null;
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetch(`${getApiBase()}${path}`, {
     ...options,
     headers,
     credentials: "include"
@@ -54,7 +62,7 @@ export async function api<T>(
 
 /** Unauthenticated fetch for public share/invite routes. */
 export async function publicFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetch(`${getApiBase()}${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
