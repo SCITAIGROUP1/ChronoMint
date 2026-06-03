@@ -1,6 +1,10 @@
 import { NestFactory } from "@nestjs/core";
 import cookieParser from "cookie-parser";
 import { AppModule } from "./app.module";
+import { loadPrismaEnvFile, logMissingProductionEnv } from "./load-env";
+
+loadPrismaEnvFile();
+logMissingProductionEnv();
 
 function isAllowedCorsOrigin(origin: string | undefined): boolean {
   if (!origin) return true;

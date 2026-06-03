@@ -110,16 +110,24 @@ export class AuthService {
   }
 
   signAccessToken(userId: string, workspaceId: string, role: "ADMIN" | "MEMBER"): string {
+    const secret = process.env.JWT_ACCESS_SECRET?.trim();
+    if (!secret) {
+      throw new Error("JWT_ACCESS_SECRET is not set on the API service");
+    }
     return this.jwt.sign(
       { sub: userId, userId, workspaceId, role },
-      { secret: process.env.JWT_ACCESS_SECRET, expiresIn: process.env.JWT_ACCESS_EXPIRES ?? "15m" }
+      { secret, expiresIn: process.env.JWT_ACCESS_EXPIRES ?? "15m" }
     );
   }
 
   signRefreshToken(userId: string): string {
+    const secret = process.env.JWT_REFRESH_SECRET?.trim();
+    if (!secret) {
+      throw new Error("JWT_REFRESH_SECRET is not set on the API service");
+    }
     return this.jwt.sign(
       { sub: userId },
-      { secret: process.env.JWT_REFRESH_SECRET, expiresIn: process.env.JWT_REFRESH_EXPIRES ?? "7d" }
+      { secret, expiresIn: process.env.JWT_REFRESH_EXPIRES ?? "7d" }
     );
   }
 

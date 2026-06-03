@@ -46,5 +46,11 @@ else
   echo "DB-related env keys: $(env | grep -E '^(DATABASE|POSTGRES|PG)' | cut -d= -f1 | tr '\n' ' ' || echo none)" >&2
 fi
 
-# Forward full environment to Node (Railway injects vars at container start).
+if [ -f /app/prisma/.env ]; then
+  set -a
+  # shellcheck disable=SC1091
+  . /app/prisma/.env
+  set +a
+fi
+
 exec /usr/bin/env node dist/main.js
