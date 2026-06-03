@@ -7,13 +7,20 @@ import {
   type ExportScheduleFrequency,
   type UpdateExportScheduleDto
 } from "@chronomint/contracts";
-import { HttpStatus, Injectable, type OnModuleDestroy, type OnModuleInit } from "@nestjs/common";
+import {
+  HttpStatus,
+  Injectable,
+  Logger,
+  type OnModuleDestroy,
+  type OnModuleInit
+} from "@nestjs/common";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { ExportService } from "./export.service";
 
 @Injectable()
 export class ExportScheduleService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(ExportScheduleService.name);
   private timer: ReturnType<typeof setInterval> | null = null;
 
   constructor(
@@ -22,7 +29,16 @@ export class ExportScheduleService implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   onModuleInit() {
-    this.timer = setInterval(() => void this.processDueSchedules(), 60_000);
+    if (!process.env.DATABASE_URL?.trim()) {
+      this.logger.warn("DATABASE_URL not set — export schedule worker disabled.");
+      return;
+    }
+    this.timer = setInterval(() => {
+      void this.processDueSchedules().catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : String(err);
+        this.logger.error(`Export schedule tick failed: ${message}`);
+      });
+    }, 60_000);
   }
 
   onModuleDestroy() {
@@ -97,6 +113,8 @@ export class ExportScheduleService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async processDueSchedules() {
+    if (!process.env.DATABASE_URL?.trim()) return;
+
     const due = await this.prisma.exportSchedule.findMany({
       where: {
         enabled: true,
