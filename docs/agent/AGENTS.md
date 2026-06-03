@@ -11,22 +11,23 @@
 
 ## Role directory bounds
 
-| Role | May edit |
-|------|----------|
-| BA | `docs/specs/`, `docs/` markdown |
-| BE | `apps/api/src/` |
-| FE | `apps/client/`, `apps/admin/`, `packages/ui/` |
-| QA | `**/*.spec.ts`, `**/test/**`, `**/e2e/**` |
-| LSA | `packages/contracts/`, orchestration |
+| Role | May edit                                      |
+| ---- | --------------------------------------------- |
+| BA   | `docs/specs/`, `docs/` markdown               |
+| BE   | `apps/api/src/`                               |
+| FE   | `apps/client/`, `apps/admin/`, `packages/ui/` |
+| QA   | `**/*.spec.ts`, `**/test/**`, `**/e2e/**`     |
+| LSA  | `packages/contracts/`, orchestration          |
 
 ## MIP handoff block
 
 ```markdown
 <AGENT_INSTRUCTION role="BE" task_id="P1-07">
+
 - Target: apps/api/src/modules/timer/
 - Contracts: packages/contracts/src/dto/timer.dto.ts
-- TDD: apps/api/src/modules/timer/**/*.spec.ts must fail first
-</AGENT_INSTRUCTION>
+- TDD: apps/api/src/modules/timer/\*_/_.spec.ts must fail first
+  </AGENT_INSTRUCTION>
 ```
 
 ## Commands

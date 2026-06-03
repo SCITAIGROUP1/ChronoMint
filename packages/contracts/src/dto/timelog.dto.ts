@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { isoDatetimeSchema, timelogSourceSchema, uuidSchema } from "./common.dto";
+import {
+  assertMaxDateRange,
+  isoDatetimeSchema,
+  timelogSourceSchema,
+  uuidSchema
+} from "./common.dto";
 
 export const timeLogSchema = z.object({
   id: uuidSchema,
@@ -44,14 +49,26 @@ export const updateTimeLogSchema = z
     { message: "endTime must be >= startTime", path: ["endTime"] }
   );
 
-export const listTimeLogsQuerySchema = z.object({
-  taskId: uuidSchema.optional(),
-  userId: uuidSchema.optional(),
-  from: isoDatetimeSchema.optional(),
-  to: isoDatetimeSchema.optional()
+export const listTimeLogsQuerySchema = z
+  .object({
+    taskId: uuidSchema.optional(),
+    userId: uuidSchema.optional(),
+    from: isoDatetimeSchema.optional(),
+    to: isoDatetimeSchema.optional(),
+    limit: z.coerce.number().int().min(1).max(1000).optional(),
+    cursor: uuidSchema.optional()
+  })
+  .superRefine((v, ctx) => {
+    if (v.from && v.to) assertMaxDateRange(v.from, v.to, ctx);
+  });
+
+export const listTimeLogsResponseSchema = z.object({
+  items: z.array(timeLogSchema),
+  nextCursor: uuidSchema.optional()
 });
 
 export type TimeLogDto = z.infer<typeof timeLogSchema>;
 export type CreateTimeLogDto = z.infer<typeof createTimeLogSchema>;
 export type UpdateTimeLogDto = z.infer<typeof updateTimeLogSchema>;
 export type ListTimeLogsQueryDto = z.infer<typeof listTimeLogsQuerySchema>;
+export type ListTimeLogsResponseDto = z.infer<typeof listTimeLogsResponseSchema>;

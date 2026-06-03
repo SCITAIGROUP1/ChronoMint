@@ -1,13 +1,13 @@
-import { Controller, Get, Param } from "@nestjs/common";
 import { ROUTES } from "@chronomint/contracts";
-import { ReportShareService } from "../../application/report-share.service";
+import { Controller, Get, Param } from "@nestjs/common";
+import { ExportShareService } from "../../application/export-share.service";
 
 @Controller()
 export class ExportShareController {
-  constructor(private reportShares: ReportShareService) {}
+  constructor(private exportShares: ExportShareService) {}
 
   @Get(ROUTES.EXPORT.SHARE(":token"))
   async getShare(@Param("token") token: string) {
-    return this.reportShares.getPublicView(token);
+    return this.exportShares.getPublicView(token);
   }
 }

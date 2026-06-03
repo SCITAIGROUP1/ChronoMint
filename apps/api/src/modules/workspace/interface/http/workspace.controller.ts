@@ -1,9 +1,12 @@
-import { Controller, Get, Param, Post, Body, UseGuards } from "@nestjs/common";
 import { inviteMemberSchema, ROUTES } from "@chronomint/contracts";
+import { Controller, Get, Param, Post, Body, UseGuards } from "@nestjs/common";
+import {
+  CurrentUser,
+  type RequestUser
+} from "../../../../common/decorators/current-user.decorator";
+import { Roles } from "../../../../common/decorators/roles.decorator";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../../../common/guards/roles.guard";
-import { Roles } from "../../../../common/decorators/roles.decorator";
-import { CurrentUser, RequestUser } from "../../../../common/decorators/current-user.decorator";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
 import { WorkspaceService } from "../../application/workspace.service";
 
@@ -17,14 +20,14 @@ export class WorkspaceController {
     return this.workspace.listForUser(user.userId);
   }
 
-  @Get("/workspaces/:id/members")
+  @Get(ROUTES.WORKSPACES.MEMBERS(":id"))
   members(@Param("id") id: string, @CurrentUser() user: RequestUser) {
     if (id !== user.workspaceId) throw new Error("Forbidden");
     return this.workspace.listMembers(id);
   }
 
   @Roles("ADMIN")
-  @Post("/workspaces/:id/members/invite")
+  @Post(ROUTES.WORKSPACES.INVITE(":id"))
   invite(
     @Param("id") id: string,
     @Body(new ZodValidationPipe(inviteMemberSchema)) body: unknown,

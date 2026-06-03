@@ -1,22 +1,23 @@
-import { Injectable } from "@nestjs/common";
 import {
   DEFAULT_EXPECTED_WEEKLY_HOURS,
   parseWorkspaceSettings,
-  type ExportBodyDto,
   type ExportFiltersDto,
   type ExportReportType
 } from "@chronomint/contracts";
+import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { roundExport } from "../../../common/time/round.util";
 import {
-  roundExport,
   TimeAggregationService,
   type TimeLogWithRelations
-} from "../../reporting/application/time-aggregation.service";
-import { daysInRange, formatWeekLabel, getWeekStartUtc } from "./export-week.util";
+} from "../../../common/time/time-aggregation.service";
+import { daysInRange, formatWeekLabel, getWeekStartUtc } from "../../../common/time/week.util";
 
 export type ExportRowContext = {
   workspaceId: string;
   workspaceName: string;
+  workspaceSlug: string;
+  settings: ReturnType<typeof parseWorkspaceSettings>;
   filters: ExportFiltersDto;
   from: Date;
   to: Date;
@@ -71,11 +72,7 @@ export class ExportRowsBuilder {
     const rows = billableLogs.map((l) => {
       const hours = roundExport(l.durationSec / 3600);
       const rate = roundExport(
-        ctx.resolveRate(
-          l.userId,
-          l.task.projectId,
-          l.user.defaultHourlyRate?.toNumber() ?? null
-        )
+        ctx.resolveRate(l.userId, l.task.projectId, l.user.defaultHourlyRate?.toNumber() ?? null)
       );
       return {
         client: l.task.project.clientName ?? "",
@@ -154,8 +151,7 @@ export class ExportRowsBuilder {
   private async buildWeeklySummary(
     ctx: ExportRowContext
   ): Promise<Record<string, string | number>[]> {
-    const settings = await this.loadSettings(ctx.workspaceId);
-    const weekStartPref = settings.weekStart ?? "monday";
+    const weekStartPref = ctx.settings.weekStart ?? "monday";
     const weekly = new Map<
       string,
       {
@@ -313,26 +309,35 @@ export class ExportRowsBuilder {
     });
 
     const loggedUserIds = new Set(ctx.logs.map((l) => l.userId));
-    const rows: Record<string, string | number>[] = [];
+    const membersWithoutLogs = members.filter((m) => !loggedUserIds.has(m.userId));
+    const userIds = membersWithoutLogs.map((m) => m.userId);
 
-    for (const m of members) {
-      if (loggedUserIds.has(m.userId)) continue;
-
-      const lastLog = await this.prisma.timeLog.findFirst({
+    const lastByUser = new Map<string, Date>();
+    if (userIds.length > 0) {
+      const lastLogs = await this.prisma.timeLog.findMany({
         where: {
-          userId: m.userId,
+          userId: { in: userIds },
           task: { project: { workspaceId: ctx.workspaceId } }
         },
-        orderBy: { startTime: "desc" }
+        orderBy: { startTime: "desc" },
+        select: { userId: true, startTime: true }
       });
+      for (const log of lastLogs) {
+        if (!lastByUser.has(log.userId)) {
+          lastByUser.set(log.userId, log.startTime);
+        }
+      }
+    }
 
-      rows.push({
+    const rows = membersWithoutLogs.map((m) => {
+      const lastLog = lastByUser.get(m.userId);
+      return {
         member: m.user.name,
         email: m.user.email,
-        last_log_date: lastLog ? lastLog.startTime.toISOString().slice(0, 10) : "",
+        last_log_date: lastLog ? lastLog.toISOString().slice(0, 10) : "",
         days_without_logs: rangeDays
-      });
-    }
+      };
+    });
 
     return rows.sort((a, b) => String(a.member).localeCompare(String(b.member)));
   }
@@ -353,8 +358,7 @@ export class ExportRowsBuilder {
         const agg = ctx.aggregates.byProject.get(p.id);
         const logged = agg?.totalHours ?? 0;
         const budget = p.budgetHours?.toNumber() ?? null;
-        const remaining =
-          budget !== null ? roundExport(Math.max(0, budget - logged)) : "";
+        const remaining = budget !== null ? roundExport(Math.max(0, budget - logged)) : "";
         const percentUsed =
           budget !== null && budget > 0 ? roundExport((logged / budget) * 100) : "";
         return {
@@ -370,11 +374,11 @@ export class ExportRowsBuilder {
       .sort((a, b) => Number(b.logged_hours) - Number(a.logged_hours));
   }
 
-  private async buildUtilization(ctx: ExportRowContext): Promise<Record<string, string | number>[]> {
-    const settings = await this.loadSettings(ctx.workspaceId);
-    const weekStartPref = settings.weekStart ?? "monday";
-    const expectedWeekly =
-      settings.expectedWeeklyHours ?? DEFAULT_EXPECTED_WEEKLY_HOURS;
+  private async buildUtilization(
+    ctx: ExportRowContext
+  ): Promise<Record<string, string | number>[]> {
+    const weekStartPref = ctx.settings.weekStart ?? "monday";
+    const expectedWeekly = ctx.settings.expectedWeeklyHours ?? DEFAULT_EXPECTED_WEEKLY_HOURS;
 
     const byMemberWeek = new Map<
       string,
@@ -397,8 +401,7 @@ export class ExportRowsBuilder {
       .map(([key, v]) => {
         const weekStart = key.split(":")[0]!;
         const logged = roundExport(v.loggedHours);
-        const util =
-          expectedWeekly > 0 ? roundExport((v.loggedHours / expectedWeekly) * 100) : 0;
+        const util = expectedWeekly > 0 ? roundExport((v.loggedHours / expectedWeekly) * 100) : 0;
         return {
           week_start: weekStart,
           week_label: formatWeekLabel(weekStart),
@@ -410,13 +413,5 @@ export class ExportRowsBuilder {
         };
       })
       .sort((a, b) => String(a.week_start).localeCompare(String(b.week_start)));
-  }
-
-  private async loadSettings(workspaceId: string) {
-    const ws = await this.prisma.workspace.findUniqueOrThrow({
-      where: { id: workspaceId },
-      select: { settings: true }
-    });
-    return parseWorkspaceSettings(ws.settings);
   }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import type { TimeLogDto, TaskDto, ProjectDto } from "@chronomint/contracts";
 import {
   Button,
   Input,
@@ -12,8 +12,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@chronomint/ui";
-import type { TimeLogDto, TaskDto, ProjectDto } from "@chronomint/contracts";
-import { formatProjectLabel } from "@/lib/project-labels";
+import { useEffect, useMemo, useState } from "react";
 import {
   combineDayAndTime,
   formatDuration,
@@ -22,6 +21,7 @@ import {
   toDateKey,
   toTimeValue
 } from "./calendar-utils";
+import { formatProjectLabel } from "@/lib/project-labels";
 
 export const NEW_TASK = "__new__";
 
@@ -199,7 +199,9 @@ export function TimeEntryDialog({
             >
               <SelectTrigger aria-invalid={Boolean(draft.projectId && !draft.taskSelection)}>
                 <SelectValue
-                  placeholder={draft.projectId ? "Select or create a task" : "Select a project first"}
+                  placeholder={
+                    draft.projectId ? "Select or create a task" : "Select a project first"
+                  }
                 />
               </SelectTrigger>
               <SelectContent className="z-[100]">

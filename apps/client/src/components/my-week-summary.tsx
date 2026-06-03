@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, ProjectColorDot } from "@chronomint/ui";
 import { ROUTES, type MyWeekSummaryDto, type ProjectDto } from "@chronomint/contracts";
+import { Card, CardContent, CardHeader, CardTitle, ProjectColorDot } from "@chronomint/ui";
+import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { colorForProject } from "@/lib/project-color-styles";
-import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 import { useProjectsStore } from "@/stores/projects.store";
+import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
 export function MyWeekSummary() {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";

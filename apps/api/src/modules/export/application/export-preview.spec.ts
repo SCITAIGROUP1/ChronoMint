@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import { exportPreviewBodySchema, exportReportTypeSchema } from "@chronomint/contracts";
+import { describe, expect, it } from "vitest";
 
 describe("export preview contracts", () => {
   it("accepts preview body without format", () => {

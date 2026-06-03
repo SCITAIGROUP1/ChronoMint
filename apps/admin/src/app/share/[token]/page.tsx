@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { ROUTES, type PublicReportShareViewDto } from "@chronomint/contracts";
 import {
   Card,
   CardContent,
@@ -15,9 +14,9 @@ import {
   TableHeader,
   TableRow
 } from "@chronomint/ui";
-import { ROUTES, type PublicReportShareViewDto } from "@chronomint/contracts";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001";
+import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { publicFetch } from "@/lib/api";
 
 const REPORT_LABELS: Record<string, string> = {
   time_entries: "Time entries",
@@ -45,14 +44,7 @@ export default function PublicSharePage() {
       setLoading(false);
       return;
     }
-    fetch(`${API_BASE}${ROUTES.EXPORT.SHARE(token)}`)
-      .then(async (res) => {
-        if (!res.ok) {
-          const body = (await res.json().catch(() => ({}))) as { message?: string };
-          throw new Error(body.message ?? `Link unavailable (${res.status})`);
-        }
-        return res.json() as Promise<PublicReportShareViewDto>;
-      })
+    publicFetch<PublicReportShareViewDto>(ROUTES.EXPORT.SHARE(token))
       .then(setData)
       .catch((e) =>
         setError(e instanceof Error ? e.message : "This share link is invalid or has expired.")
@@ -93,8 +85,7 @@ export default function PublicSharePage() {
         </div>
 
         {data.reports.map((report) => {
-          const cols =
-            report.rows.length > 0 ? Object.keys(report.rows[0]!) : [];
+          const cols = report.rows.length > 0 ? Object.keys(report.rows[0]!) : [];
           return (
             <Card key={report.reportType}>
               <CardHeader>

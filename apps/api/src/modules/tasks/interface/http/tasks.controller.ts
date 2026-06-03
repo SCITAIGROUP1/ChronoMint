@@ -1,4 +1,10 @@
 import {
+  createTaskSchema,
+  listTasksQuerySchema,
+  updateTaskSchema,
+  ROUTES
+} from "@chronomint/contracts";
+import {
   Body,
   Controller,
   Delete,
@@ -10,13 +16,10 @@ import {
   UseGuards
 } from "@nestjs/common";
 import {
-  createTaskSchema,
-  listTasksQuerySchema,
-  updateTaskSchema,
-  ROUTES
-} from "@chronomint/contracts";
+  CurrentUser,
+  type RequestUser
+} from "../../../../common/decorators/current-user.decorator";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
-import { CurrentUser, RequestUser } from "../../../../common/decorators/current-user.decorator";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
 import { TasksService } from "../../application/tasks.service";
 

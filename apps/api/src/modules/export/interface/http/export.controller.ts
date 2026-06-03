@@ -1,4 +1,15 @@
 import {
+  createExportPresetSchema,
+  createExportScheduleSchema,
+  createReportShareSchema,
+  exportBodySchema,
+  exportPreviewBodySchema,
+  exportQuerySchema,
+  memberExportBodySchema,
+  ROUTES,
+  updateExportScheduleSchema
+} from "@chronomint/contracts";
+import {
   Body,
   Controller,
   Delete,
@@ -11,29 +22,21 @@ import {
   Res,
   UseGuards
 } from "@nestjs/common";
-import { Response } from "express";
+import { type Response } from "express";
+import { ProjectAccessService } from "../../../../common/access/project-access.service";
 import {
-  createExportPresetSchema,
-  createExportScheduleSchema,
-  createReportShareSchema,
-  exportBodySchema,
-  exportPreviewBodySchema,
-  exportQuerySchema,
-  memberExportBodySchema,
-  ROUTES,
-  updateExportScheduleSchema
-} from "@chronomint/contracts";
+  CurrentUser,
+  type RequestUser
+} from "../../../../common/decorators/current-user.decorator";
+import { Roles } from "../../../../common/decorators/roles.decorator";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../../../common/guards/roles.guard";
-import { Roles } from "../../../../common/decorators/roles.decorator";
-import { CurrentUser, RequestUser } from "../../../../common/decorators/current-user.decorator";
-import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
 import { sendAttachment } from "../../../../common/http/attachment.util";
-import { ProjectAccessService } from "../../../projects/application/project-access.service";
-import { ExportService } from "../../application/export.service";
+import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
 import { ExportPresetService } from "../../application/export-preset.service";
 import { ExportScheduleService } from "../../application/export-schedule.service";
-import { ReportShareService } from "../../application/report-share.service";
+import { ExportShareService } from "../../application/export-share.service";
+import { ExportService } from "../../application/export.service";
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -42,7 +45,7 @@ export class ExportController {
     private exportService: ExportService,
     private exportPresets: ExportPresetService,
     private exportSchedules: ExportScheduleService,
-    private reportShares: ReportShareService,
+    private exportShares: ExportShareService,
     private projectAccess: ProjectAccessService
   ) {}
 
@@ -152,9 +155,9 @@ export class ExportController {
         .map((o) => o.trim())
         .find((o) => o.includes(":3002")) ??
       "http://localhost:3002";
-    return this.reportShares.create(
+    return this.exportShares.create(
       user.workspaceId,
-      body as Parameters<ReportShareService["create"]>[1],
+      body as Parameters<ExportShareService["create"]>[1],
       adminBase
     );
   }

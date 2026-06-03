@@ -19,7 +19,11 @@ export function listLocalExportPresets(workspaceId: string): StoredExportPreset[
   }
 }
 
-export function saveLocalExportPreset(workspaceId: string, name: string, body: ExportBodyDto): StoredExportPreset[] {
+export function saveLocalExportPreset(
+  workspaceId: string,
+  name: string,
+  body: ExportBodyDto
+): StoredExportPreset[] {
   const presets = listLocalExportPresets(workspaceId);
   const id = crypto.randomUUID();
   const next = [...presets.filter((p) => p.name !== name), { id, name, body }];

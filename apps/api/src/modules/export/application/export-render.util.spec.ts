@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import { EXPORT_COLUMN_LABELS, resolveExportColumns } from "@chronomint/contracts";
+import { describe, expect, it } from "vitest";
 import { projectRows, rowsToCsv } from "./export-render.util";
 
 describe("export-render.util", () => {

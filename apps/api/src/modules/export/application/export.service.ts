@@ -1,7 +1,3 @@
-import { Injectable } from "@nestjs/common";
-import PDFDocument from "pdfkit";
-import ExcelJS from "exceljs";
-import archiver from "archiver";
 import { PassThrough } from "stream";
 import {
   buildExportFilename,
@@ -18,8 +14,13 @@ import {
   type MemberExportBodyDto,
   type MemberExportReportType
 } from "@chronomint/contracts";
+import { Injectable } from "@nestjs/common";
+import archiver from "archiver";
+import ExcelJS from "exceljs";
+import PDFDocument from "pdfkit";
 import { PrismaService } from "../../../common/prisma/prisma.service";
-import { TimeAggregationService } from "../../reporting/application/time-aggregation.service";
+import { roundExport } from "../../../common/time/round.util";
+import { TimeAggregationService } from "../../../common/time/time-aggregation.service";
 import { projectRows, rowsToCsv } from "./export-render.util";
 import { ExportRowsBuilder, type ExportRowContext } from "./export-rows.builder";
 
@@ -72,7 +73,13 @@ export class ExportService {
 
   async generateLegacy(
     workspaceId: string,
-    query: { from: string; to: string; projectId?: string; userId?: string; format: "csv" | "pdf" | "xlsx" }
+    query: {
+      from: string;
+      to: string;
+      projectId?: string;
+      userId?: string;
+      format: "csv" | "pdf" | "xlsx";
+    }
   ) {
     return this.generate(workspaceId, {
       from: query.from,
@@ -106,10 +113,7 @@ export class ExportService {
     };
   }
 
-  async loadContext(
-    workspaceId: string,
-    filters: ExportFiltersDto
-  ): Promise<ExportRowContext> {
+  async loadContext(workspaceId: string, filters: ExportFiltersDto): Promise<ExportRowContext> {
     const workspace = await this.prisma.workspace.findUniqueOrThrow({
       where: { id: workspaceId }
     });
@@ -137,6 +141,8 @@ export class ExportService {
     return {
       workspaceId,
       workspaceName: workspace.name,
+      workspaceSlug: workspace.slug,
+      settings: parseWorkspaceSettings(workspace.settings),
       filters,
       from,
       to,
@@ -152,21 +158,14 @@ export class ExportService {
     scope: ExportScope,
     memberBody?: MemberExportBodyDto
   ): Promise<{ buffer: Buffer; contentType: string; filename: string }> {
-    const workspace = await this.prisma.workspace.findUniqueOrThrow({
-      where: { id: workspaceId }
-    });
-    const settings = parseWorkspaceSettings(workspace.settings);
-
     const ctx = await this.loadContext(workspaceId, body);
+    const settings = ctx.settings;
     const isMember = scope === "member";
     const sheets: SheetData[] = [];
 
     for (const report of body.reportTypes) {
       const columnKeys = isMember
-        ? resolveMemberExportColumns(
-            report as MemberExportReportType,
-            memberBody?.columns
-          )
+        ? resolveMemberExportColumns(report as MemberExportReportType, memberBody?.columns)
         : resolveExportColumns(report, body.columns);
 
       const labels = isMember
@@ -193,7 +192,7 @@ export class ExportService {
     }
 
     const fileBase = {
-      workspaceSlug: workspace.slug,
+      workspaceSlug: ctx.workspaceSlug,
       from: body.from,
       to: body.to,
       scope
@@ -205,7 +204,7 @@ export class ExportService {
     if (body.format === "xlsx") {
       return this.renderXlsx(sheets, fileBase);
     }
-    return this.renderPdf(sheets, fileBase, body, workspace.name, settings);
+    return this.renderPdf(sheets, fileBase, body, ctx.workspaceName, settings);
   }
 
   private buildMemberRows(
@@ -229,10 +228,10 @@ export class ExportService {
           date: l.startTime.toISOString().slice(0, 10),
           start_time: l.startTime.toISOString(),
           end_time: l.endTime.toISOString(),
-          hours: Math.round(hours * 100) / 100,
+          hours: roundExport(hours),
           billable: l.isBillable ? "yes" : "no",
-          rate: Math.round(rate * 100) / 100,
-          amount: Math.round(amount * 100) / 100,
+          rate: roundExport(rate),
+          amount: roundExport(amount),
           description: l.description ?? "",
           source: l.source
         };
@@ -246,9 +245,9 @@ export class ExportService {
           rows.push({
             date,
             project: v.projectName,
-            total_hours: Math.round(v.totalHours * 100) / 100,
-            billable_hours: Math.round(v.billableHours * 100) / 100,
-            non_billable_hours: Math.round((v.totalHours - v.billableHours) * 100) / 100
+            total_hours: roundExport(v.totalHours),
+            billable_hours: roundExport(v.billableHours),
+            non_billable_hours: roundExport(v.totalHours - v.billableHours)
           });
         }
       }
@@ -258,9 +257,9 @@ export class ExportService {
     return [...aggregates.byProject.entries()]
       .map(([, v]) => ({
         project: v.projectName,
-        total_hours: Math.round(v.totalHours * 100) / 100,
-        billable_hours: Math.round(v.billableHours * 100) / 100,
-        non_billable_hours: Math.round((v.totalHours - v.billableHours) * 100) / 100
+        total_hours: roundExport(v.totalHours),
+        billable_hours: roundExport(v.billableHours),
+        non_billable_hours: roundExport(v.totalHours - v.billableHours)
       }))
       .sort((a, b) => Number(b.total_hours) - Number(a.total_hours));
   }
@@ -382,8 +381,7 @@ export class ExportService {
     const chunks: Buffer[] = [];
     doc.on("data", (c: Buffer) => chunks.push(c));
 
-    const title =
-      fileBase.scope === "member" ? "ChronoMint — My timesheet" : "ChronoMint Export";
+    const title = fileBase.scope === "member" ? "ChronoMint — My timesheet" : "ChronoMint Export";
     doc.fontSize(18).text(title, { align: "center" });
     doc.moveDown(0.5);
     doc.fontSize(11).text(workspaceName, { align: "center" });
@@ -396,8 +394,7 @@ export class ExportService {
       doc.moveDown(0.3);
       doc.fontSize(8);
 
-      const maxRows =
-        s.report === "time_entries" || s.report === "invoice" ? 500 : 200;
+      const maxRows = s.report === "time_entries" || s.report === "invoice" ? 500 : 200;
       const slice = s.lines.slice(0, maxRows);
       for (const line of slice) {
         doc.text(line.join(" | "));

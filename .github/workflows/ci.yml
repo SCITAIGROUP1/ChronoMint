@@ -52,7 +52,12 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm prisma:generate
       - run: pnpm --filter @chronomint/api exec prisma migrate deploy
+      - run: pnpm format:check
       - run: pnpm lint
+      - run: pnpm typecheck
       - run: pnpm --filter @chronomint/contracts build
       - run: pnpm test
       - run: pnpm build
+      - name: Bundle analysis (admin, non-blocking)
+        continue-on-error: true
+        run: pnpm --filter @chronomint/admin analyze

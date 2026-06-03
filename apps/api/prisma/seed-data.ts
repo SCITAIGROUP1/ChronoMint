@@ -28,7 +28,12 @@ export const CORE_USERS: SeedUserSpec[] = [
   { email: "casey@chronomint.dev", name: "Casey Nguyen", defaultHourlyRate: 92, role: "MEMBER" },
   { email: "jamie@chronomint.dev", name: "Jamie Ortiz", defaultHourlyRate: 98, role: "MEMBER" },
   { email: "onboarding@chronomint.dev", name: "Pat Harper", defaultHourlyRate: 85, role: "MEMBER" },
-  { email: "contractor@chronomint.dev", name: "Quinn Ellis", defaultHourlyRate: 120, role: "MEMBER" }
+  {
+    email: "contractor@chronomint.dev",
+    name: "Quinn Ellis",
+    defaultHourlyRate: 120,
+    role: "MEMBER"
+  }
 ];
 
 export const EXTRA_USERS: SeedUserSpec[] = [

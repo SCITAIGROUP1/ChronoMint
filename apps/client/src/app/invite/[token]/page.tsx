@@ -1,14 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { Button, Card, CardContent, CardHeader, CardTitle } from "@chronomint/ui";
 import { ROUTES } from "@chronomint/contracts";
 import type { TeamInvitePreviewDto } from "@chronomint/contracts";
-import { api } from "@/lib/api";
+import { Button, Card, CardContent, CardHeader, CardTitle } from "@chronomint/ui";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { api, publicFetch } from "@/lib/api";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001";
 
 export default function InvitePage() {
   const { token } = useParams<{ token: string }>();
@@ -19,8 +17,7 @@ export default function InvitePage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(`${API_BASE}${ROUTES.TEAM_INVITES.PREVIEW(token)}`)
-      .then((r) => r.json())
+    publicFetch<TeamInvitePreviewDto>(ROUTES.TEAM_INVITES.PREVIEW(token))
       .then(setPreview)
       .catch(() => setError("Invite not found."));
   }, [token]);
@@ -40,7 +37,9 @@ export default function InvitePage() {
       setMessage(`You joined ${result.projectName}.`);
       setTimeout(() => router.push("/projects"), 1500);
     } catch {
-      setError("Could not accept invite. Sign in with the correct account or ask your admin for a new link.");
+      setError(
+        "Could not accept invite. Sign in with the correct account or ask your admin for a new link."
+      );
     }
   }
 
@@ -49,7 +48,9 @@ export default function InvitePage() {
   }
 
   if (!preview) {
-    return <main className="flex min-h-screen items-center justify-center p-4">Loading invite…</main>;
+    return (
+      <main className="flex min-h-screen items-center justify-center p-4">Loading invite…</main>
+    );
   }
 
   return (
@@ -70,7 +71,9 @@ export default function InvitePage() {
           ) : session ? (
             <Button onClick={accept}>Accept invite</Button>
           ) : (
-            <Button onClick={() => router.push(`/login?next=/invite/${token}`)}>Sign in to accept</Button>
+            <Button onClick={() => router.push(`/login?next=/invite/${token}`)}>
+              Sign in to accept
+            </Button>
           )}
           {message ? <p className="text-sm text-primary">{message}</p> : null}
           {error ? <p className="text-sm text-destructive">{error}</p> : null}

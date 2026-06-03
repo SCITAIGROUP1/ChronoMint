@@ -7,15 +7,15 @@
 
 ## API
 
-| Method | Route | Roles | Contract |
-|--------|-------|-------|----------|
-| GET | `/projects` | Auth | [project.dto.ts](../../packages/contracts/src/dto/project.dto.ts) |
-| POST | `/projects` | ADMIN | project.dto |
-| GET/PATCH/DELETE | `/projects/:id` | ADMIN (mutate) | project.dto |
-| GET | `/projects/:id/team` | ADMIN | [team.dto.ts](../../packages/contracts/src/dto/team.dto.ts) |
-| POST | `/projects/:id/team/invites` | ADMIN | team.dto |
-| GET | `/team-invites/:token` | Public preview | team.dto |
-| POST | `/team-invites/:token/accept` | Auth | team.dto |
+| Method           | Route                         | Roles          | Contract                                                          |
+| ---------------- | ----------------------------- | -------------- | ----------------------------------------------------------------- |
+| GET              | `/projects`                   | Auth           | [project.dto.ts](../../packages/contracts/src/dto/project.dto.ts) |
+| POST             | `/projects`                   | ADMIN          | project.dto                                                       |
+| GET/PATCH/DELETE | `/projects/:id`               | ADMIN (mutate) | project.dto                                                       |
+| GET              | `/projects/:id/team`          | ADMIN          | [team.dto.ts](../../packages/contracts/src/dto/team.dto.ts)       |
+| POST             | `/projects/:id/team/invites`  | ADMIN          | team.dto                                                          |
+| GET              | `/team-invites/:token`        | Public preview | team.dto                                                          |
+| POST             | `/team-invites/:token/accept` | Auth           | team.dto                                                          |
 
 Controllers: [projects.controller.ts](../../apps/api/src/modules/projects/interface/http/projects.controller.ts), [team-invites.controller.ts](../../apps/api/src/modules/projects/interface/http/team-invites.controller.ts)
 
@@ -50,8 +50,8 @@ See [DOMAIN_MODEL.md](../architecture/DOMAIN_MODEL.md).
 
 ## UI
 
-- Admin projects: [apps/admin/src/app/(admin)/projects/page.tsx](../../apps/admin/src/app/(admin)/projects/page.tsx)
-- Client projects: [apps/client/src/app/(workspace)/projects/page.tsx](../../apps/client/src/app/(workspace)/projects/page.tsx)
+- Admin projects: [apps/admin/src/app/(admin)/projects/page.tsx](<../../apps/admin/src/app/(admin)/projects/page.tsx>)
+- Client projects: [apps/client/src/app/(workspace)/projects/page.tsx](<../../apps/client/src/app/(workspace)/projects/page.tsx>)
 - Invite accept: [apps/client/src/app/invite/[token]/page.tsx](../../apps/client/src/app/invite/[token]/page.tsx)
 
 ## Edge cases

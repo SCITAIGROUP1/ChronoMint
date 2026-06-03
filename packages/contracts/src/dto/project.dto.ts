@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { uuidSchema } from "./common.dto";
 import { PROJECT_COLORS } from "../project-colors";
+import { uuidSchema } from "./common.dto";
 
 export const projectColorSchema = z
   .string()

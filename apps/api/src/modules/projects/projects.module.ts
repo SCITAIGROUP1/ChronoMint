@@ -1,14 +1,14 @@
 import { Module } from "@nestjs/common";
+import { AccessModule } from "../../common/access/access.module";
 import { AuthModule } from "../auth/auth.module";
+import { ProjectsService } from "./application/projects.service";
 import { ProjectsController } from "./interface/http/projects.controller";
 import { TeamInvitesController } from "./interface/http/team-invites.controller";
-import { ProjectsService } from "./application/projects.service";
-import { ProjectAccessService } from "./application/project-access.service";
 
 @Module({
-  imports: [AuthModule],
+  imports: [AuthModule, AccessModule],
   controllers: [ProjectsController, TeamInvitesController],
-  providers: [ProjectsService, ProjectAccessService],
-  exports: [ProjectAccessService]
+  providers: [ProjectsService],
+  exports: [AccessModule]
 })
 export class ProjectsModule {}

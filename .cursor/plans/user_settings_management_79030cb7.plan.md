@@ -30,12 +30,12 @@ isProject: false
 
 ## Current state
 
-| Layer | Exists today | Gap |
-|-------|----------------|-----|
-| **User account** | `User.name`, `email`, `defaultHourlyRate` in DB; read via [`GET /auth/me`](apps/api/src/modules/auth/interface/http/auth.controller.ts) | No update password/profile APIs; no settings UI |
-| **User preferences** | Theme toggle in [`workspace-shell.tsx`](apps/client/src/components/workspace-shell.tsx) (client-only, not persisted) | No `User.preferences` column or API |
-| **Workspace settings** | `Workspace.settings` JSONB in [`schema.prisma`](apps/api/prisma/schema.prisma) | Never read/written in API; roadmap lists timezone/week/rounding ([`PRODUCT_ROADMAP.md`](docs/architecture/PRODUCT_ROADMAP.md) Phase B) |
-| **Notifications** | None | Roadmap Phase D for email; v1 = store prefs + stub UI |
+| Layer                  | Exists today                                                                                                                            | Gap                                                                                                                                    |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| **User account**       | `User.name`, `email`, `defaultHourlyRate` in DB; read via [`GET /auth/me`](apps/api/src/modules/auth/interface/http/auth.controller.ts) | No update password/profile APIs; no settings UI                                                                                        |
+| **User preferences**   | Theme toggle in [`workspace-shell.tsx`](apps/client/src/components/workspace-shell.tsx) (client-only, not persisted)                    | No `User.preferences` column or API                                                                                                    |
+| **Workspace settings** | `Workspace.settings` JSONB in [`schema.prisma`](apps/api/prisma/schema.prisma)                                                          | Never read/written in API; roadmap lists timezone/week/rounding ([`PRODUCT_ROADMAP.md`](docs/architecture/PRODUCT_ROADMAP.md) Phase B) |
+| **Notifications**      | None                                                                                                                                    | Roadmap Phase D for email; v1 = store prefs + stub UI                                                                                  |
 
 ```mermaid
 flowchart TB
@@ -71,27 +71,27 @@ flowchart TB
 
 ### 2. User preferences (per user, syncs across devices)
 
-| Preference | Client | Admin | Storage |
-|------------|--------|-------|---------|
-| Theme (`light` / `dark` / `system`) | Yes | Yes | `User.preferences` + `next-themes` |
-| Last timer project/task | Yes | — | preferences |
-| Default billable on new entries | Yes | Optional | preferences |
-| Timesheet default view (week vs list) | Yes | — | preferences |
-| Export column presets | — | Yes | preferences (replaces roadmap `localStorage` v1 for presets) |
-| Notification toggles | Yes | Yes | preferences (no sender in v1) |
+| Preference                            | Client | Admin    | Storage                                                      |
+| ------------------------------------- | ------ | -------- | ------------------------------------------------------------ |
+| Theme (`light` / `dark` / `system`)   | Yes    | Yes      | `User.preferences` + `next-themes`                           |
+| Last timer project/task               | Yes    | —        | preferences                                                  |
+| Default billable on new entries       | Yes    | Optional | preferences                                                  |
+| Timesheet default view (week vs list) | Yes    | —        | preferences                                                  |
+| Export column presets                 | —      | Yes      | preferences (replaces roadmap `localStorage` v1 for presets) |
+| Notification toggles                  | Yes    | Yes      | preferences (no sender in v1)                                |
 
 ### 3. Workspace settings (admin edit; all members read)
 
 Aligned with roadmap **Workspace settings**:
 
-| Setting | Effect |
-|---------|--------|
+| Setting                                    | Effect                                                                     |
+| ------------------------------------------ | -------------------------------------------------------------------------- |
 | `timezone` (IANA, e.g. `America/New_York`) | Day boundaries for timesheet week, reporting buckets, export `date` column |
-| `weekStartsOn` (`monday` \| `sunday`) | Timesheet week navigation (client + admin) |
-| `roundingMinutes` (`0` \| `15` \| `30`) | Round `durationSec` on timer stop and manual create (billing consistency) |
-| `currency` (ISO code, default `USD`) | Billing summary + export labels |
-| `features.membersCanSeeRates` | Gate whether client shows hourly rate on entries |
-| `features.emailNotificationsEnabled` | Master switch before any future mailer runs |
+| `weekStartsOn` (`monday` \| `sunday`)      | Timesheet week navigation (client + admin)                                 |
+| `roundingMinutes` (`0` \| `15` \| `30`)    | Round `durationSec` on timer stop and manual create (billing consistency)  |
+| `currency` (ISO code, default `USD`)       | Billing summary + export labels                                            |
+| `features.membersCanSeeRates`              | Gate whether client shows hourly rate on entries                           |
+| `features.emailNotificationsEnabled`       | Master switch before any future mailer runs                                |
 
 Members **read** workspace settings (for timesheet week + rounding display); only **ADMIN** may PATCH.
 
@@ -153,19 +153,19 @@ WORKSPACES: {
 
 Extend **auth module** (or small `settings` module if you prefer isolation):
 
-| Method | Route | Guard | Behavior |
-|--------|-------|-------|----------|
-| `PATCH` | `/auth/me` | JWT | Update `name` |
-| `PATCH` | `/auth/me/password` | JWT | Verify current hash, set new |
-| `GET` | `/auth/me/preferences` | JWT | Return merged defaults + stored JSON |
-| `PATCH` | `/auth/me/preferences` | JWT | Deep-merge partial into `preferences` |
+| Method  | Route                  | Guard | Behavior                              |
+| ------- | ---------------------- | ----- | ------------------------------------- |
+| `PATCH` | `/auth/me`             | JWT   | Update `name`                         |
+| `PATCH` | `/auth/me/password`    | JWT   | Verify current hash, set new          |
+| `GET`   | `/auth/me/preferences` | JWT   | Return merged defaults + stored JSON  |
+| `PATCH` | `/auth/me/preferences` | JWT   | Deep-merge partial into `preferences` |
 
 Extend **workspace module** — [`workspace.service.ts`](apps/api/src/modules/workspace/application/workspace.service.ts):
 
-| Method | Route | Guard | Behavior |
-|--------|-------|-------|----------|
-| `GET` | `/workspaces/:id/settings` | JWT, workspace match | Return merged settings |
-| `PATCH` | `/workspaces/:id/settings` | JWT + `ADMIN` | Deep-merge into `workspace.settings` |
+| Method  | Route                      | Guard                | Behavior                             |
+| ------- | -------------------------- | -------------------- | ------------------------------------ |
+| `GET`   | `/workspaces/:id/settings` | JWT, workspace match | Return merged settings               |
+| `PATCH` | `/workspaces/:id/settings` | JWT + `ADMIN`        | Deep-merge into `workspace.settings` |
 
 Include `settings` (merged) in `GET /auth/me` response for active workspace so shells can initialize timesheet week without another call.
 
@@ -189,10 +189,10 @@ Start with **rounding + timezone on new writes and exports**; refactor reporting
 
 ### Routes & navigation
 
-| App | Route | Sections |
-|-----|-------|----------|
-| Client | `/settings` | Account · Preferences · Notifications |
-| Admin | `/settings` (new) or tabs on [`workspace/page.tsx`](apps/admin/src/app/(admin)/workspace/page.tsx) | **Workspace** (admin) · Account · Preferences · Notifications |
+| App    | Route                                                                                                | Sections                                                      |
+| ------ | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Client | `/settings`                                                                                          | Account · Preferences · Notifications                         |
+| Admin  | `/settings` (new) or tabs on [`workspace/page.tsx`](<apps/admin/src/app/(admin)/workspace/page.tsx>) | **Workspace** (admin) · Account · Preferences · Notifications |
 
 Add “Settings” link to [`workspace-shell.tsx`](apps/client/src/components/workspace-shell.tsx) and [`admin-shell.tsx`](apps/admin/src/components/admin-shell.tsx); remove ad-hoc theme button from sidebar footer (move into Preferences).
 

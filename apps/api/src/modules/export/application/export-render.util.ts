@@ -18,7 +18,5 @@ export function rowsToCsv(headers: string[], lines: string[][]): string {
     if (/[",\n]/.test(cell)) return `"${cell.replace(/"/g, '""')}"`;
     return cell;
   };
-  return [headers.map(escape).join(","), ...lines.map((r) => r.map(escape).join(","))].join(
-    "\n"
-  );
+  return [headers.map(escape).join(","), ...lines.map((r) => r.map(escape).join(","))].join("\n");
 }

@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleDestroy } from "@nestjs/common";
+import { Injectable, Logger, type OnModuleDestroy } from "@nestjs/common";
 import Redis from "ioredis";
 import { MemoryRedis } from "./memory-redis";
 
@@ -12,8 +12,7 @@ export class RedisService implements OnModuleDestroy {
   getClient(): RedisClient {
     if (!this.client) {
       const useMemory =
-        process.env.REDIS_USE_MEMORY === "true" ||
-        process.env.REDIS_URL === "memory";
+        process.env.REDIS_USE_MEMORY === "true" || process.env.REDIS_URL === "memory";
 
       if (useMemory) {
         this.logger.log("Using in-memory Redis (no Docker required)");

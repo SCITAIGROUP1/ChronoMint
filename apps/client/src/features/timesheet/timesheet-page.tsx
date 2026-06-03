@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { ROUTES } from "@chronomint/contracts";
+import type {
+  ListTimeLogsResponseDto,
+  TimeLogDto,
+  TaskDto,
+  ProjectDto
+} from "@chronomint/contracts";
 import {
   Button,
   Card,
@@ -12,31 +18,11 @@ import {
   TableCell,
   TableHead,
   TableHeader,
-  TableRow
+  TableRow,
+  ProjectColorDot
 } from "@chronomint/ui";
-import { ROUTES } from "@chronomint/contracts";
-import type { TimeLogDto, TaskDto, ProjectDto } from "@chronomint/contracts";
-import { api } from "@/lib/api";
-import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
-import { useTimesheetStore } from "@/stores/timesheet.store";
-import { useProjectsStore } from "@/stores/projects.store";
-import { formatTaskLabel } from "@/lib/project-labels";
-import { colorForTask } from "@/lib/project-color-styles";
-import { ProjectColorDot } from "@chronomint/ui";
-import { TimesheetCalendar } from "./timesheet-calendar";
-import { TimesheetMonth } from "./timesheet-month";
-import {
-  TimeEntryDialog,
-  NEW_TASK,
-  canSaveTaskDraft,
-  draftFromLog,
-  draftFromSlot,
-  draftFromSlotRange,
-  draftToIsoRange,
-  type TimeEntryDraft
-} from "./time-entry-dialog";
-import { MyWeekSummary } from "@/components/my-week-summary";
-import { TimesheetExport } from "@/components/timesheet-export";
+import { toDateInputValue } from "@chronomint/web-shared";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   addDays,
   addMonths,
@@ -49,12 +35,28 @@ import {
   startOfWeek,
   startOfDay
 } from "./calendar-utils";
+import {
+  TimeEntryDialog,
+  NEW_TASK,
+  canSaveTaskDraft,
+  draftFromLog,
+  draftFromSlot,
+  draftFromSlotRange,
+  draftToIsoRange,
+  type TimeEntryDraft
+} from "./time-entry-dialog";
+import { TimesheetCalendar } from "./timesheet-calendar";
+import { TimesheetMonth } from "./timesheet-month";
+import { MyWeekSummary } from "@/components/my-week-summary";
+import { TimesheetExport } from "@/components/timesheet-export";
+import { api } from "@/lib/api";
+import { colorForTask } from "@/lib/project-color-styles";
+import { formatTaskLabel } from "@/lib/project-labels";
+import { useProjectsStore } from "@/stores/projects.store";
+import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
+import { useTimesheetStore } from "@/stores/timesheet.store";
 
 type ViewMode = "day" | "week" | "month" | "list";
-
-function toDateInputValue(d: Date) {
-  return d.toISOString().slice(0, 10);
-}
 
 function buildLogsQuery(from: Date, to: Date): string {
   const params = new URLSearchParams({
@@ -131,15 +133,11 @@ export function TimesheetPage() {
   );
 
   const refreshLogs = useCallback(async () => {
-    if (visibleRange) {
-      setLogs(
-        await api<TimeLogDto[]>(buildLogsQuery(visibleRange.from, visibleRange.to), {
-          workspaceId: ws
-        })
-      );
-    } else {
-      setLogs(await api<TimeLogDto[]>(ROUTES.TIMELOGS.LIST, { workspaceId: ws }));
-    }
+    const path = visibleRange
+      ? buildLogsQuery(visibleRange.from, visibleRange.to)
+      : ROUTES.TIMELOGS.LIST;
+    const res = await api<ListTimeLogsResponseDto>(path, { workspaceId: ws });
+    setLogs(res.items);
   }, [ws, setLogs, visibleRange]);
 
   useEffect(() => {
@@ -355,10 +353,22 @@ export function TimesheetPage() {
             Today
           </Button>
           <div className="flex items-center gap-1">
-            <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={goPrev}>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              onClick={goPrev}
+            >
               ‹
             </Button>
-            <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={goNext}>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              onClick={goNext}
+            >
               ›
             </Button>
           </div>
@@ -371,13 +381,9 @@ export function TimesheetPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <MyWeekSummary />
         <TimesheetExport
-          defaultFrom={
-            visibleRange ? toDateInputValue(visibleRange.from) : undefined
-          }
+          defaultFrom={visibleRange ? toDateInputValue(visibleRange.from) : undefined}
           defaultTo={
-            visibleRange
-              ? toDateInputValue(new Date(visibleRange.to.getTime() - 1))
-              : undefined
+            visibleRange ? toDateInputValue(new Date(visibleRange.to.getTime() - 1)) : undefined
           }
         />
       </div>
@@ -389,7 +395,9 @@ export function TimesheetPage() {
           </CardHeader>
           <CardContent>
             {logs.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No entries yet. Use the calendar to log time.</p>
+              <p className="text-sm text-muted-foreground">
+                No entries yet. Use the calendar to log time.
+              </p>
             ) : (
               <Table>
                 <TableHeader>

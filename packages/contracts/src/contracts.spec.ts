@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createTimeLogSchema,
   loginSchema,
+  reportQuerySchema,
   startTimerSchema,
   dashboardReportSchema
 } from "./index";
@@ -26,6 +27,14 @@ describe("contracts", () => {
       taskId: "550e8400-e29b-41d4-a716-446655440000"
     });
     expect(r.success).toBe(true);
+  });
+
+  it("rejects report query range over 366 days", () => {
+    const r = reportQuerySchema.safeParse({
+      from: "2024-01-01T00:00:00.000Z",
+      to: "2025-06-01T00:00:00.000Z"
+    });
+    expect(r.success).toBe(false);
   });
 
   it("validates dashboard report shape", () => {

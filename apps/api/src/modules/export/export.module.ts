@@ -1,24 +1,25 @@
 import { Module } from "@nestjs/common";
+import { TimeModule } from "../../common/time/time.module";
 import { AuthModule } from "../auth/auth.module";
 import { ProjectsModule } from "../projects/projects.module";
 import { ReportingModule } from "../reporting/reporting.module";
-import { ExportController } from "./interface/http/export.controller";
-import { ExportShareController } from "./interface/http/export-share.controller";
-import { ExportService } from "./application/export.service";
-import { ExportRowsBuilder } from "./application/export-rows.builder";
 import { ExportPresetService } from "./application/export-preset.service";
+import { ExportRowsBuilder } from "./application/export-rows.builder";
 import { ExportScheduleService } from "./application/export-schedule.service";
-import { ReportShareService } from "./application/report-share.service";
+import { ExportShareService } from "./application/export-share.service";
+import { ExportService } from "./application/export.service";
+import { ExportShareController } from "./interface/http/export-share.controller";
+import { ExportController } from "./interface/http/export.controller";
 
 @Module({
-  imports: [AuthModule, ReportingModule, ProjectsModule],
+  imports: [AuthModule, TimeModule, ReportingModule, ProjectsModule],
   controllers: [ExportController, ExportShareController],
   providers: [
     ExportService,
     ExportRowsBuilder,
     ExportPresetService,
     ExportScheduleService,
-    ReportShareService
+    ExportShareService
   ],
   exports: [ExportService]
 })

@@ -20,14 +20,14 @@ See [ENVIRONMENT.md](ENVIRONMENT.md) for variable details.
 
 ## Monorepo layout
 
-| Path | Purpose |
-|------|---------|
-| `apps/api` | NestJS API — sole write path to PostgreSQL |
-| `apps/client` | Next.js member app (timer, timesheet) |
-| `apps/admin` | Next.js admin app (dashboard, billing, exports) |
-| `packages/contracts` | Zod DTOs and route constants (SSOT) |
-| `packages/ui` | Shared UI primitives and charts |
-| `docs/` | Documentation hub |
+| Path                 | Purpose                                         |
+| -------------------- | ----------------------------------------------- |
+| `apps/api`           | NestJS API — sole write path to PostgreSQL      |
+| `apps/client`        | Next.js member app (timer, timesheet)           |
+| `apps/admin`         | Next.js admin app (dashboard, billing, exports) |
+| `packages/contracts` | Zod DTOs and route constants (SSOT)             |
+| `packages/ui`        | Shared UI primitives and charts                 |
+| `docs/`              | Documentation hub                               |
 
 ## Contract-first workflow
 
@@ -61,16 +61,16 @@ modules/<name>/
 
 ## Scripts (repository root)
 
-| Command | Description |
-|---------|-------------|
-| `pnpm dev` | Start API, client, and admin in parallel |
-| `pnpm serve` | Install, migrate, seed, then dev |
-| `pnpm build` | Build all packages and apps |
-| `pnpm test` | Unit tests in all packages |
-| `pnpm test:e2e` | API health e2e + client Playwright smoke |
-| `pnpm lint` | Lint all packages |
-| `pnpm prisma:migrate` | Apply migrations |
-| `pnpm prisma:seed` | Seed demo data |
+| Command               | Description                              |
+| --------------------- | ---------------------------------------- |
+| `pnpm dev`            | Start API, client, and admin in parallel |
+| `pnpm serve`          | Install, migrate, seed, then dev         |
+| `pnpm build`          | Build all packages and apps              |
+| `pnpm test`           | Unit tests in all packages               |
+| `pnpm test:e2e`       | API health e2e + client Playwright smoke |
+| `pnpm lint`           | Lint all packages                        |
+| `pnpm prisma:migrate` | Apply migrations                         |
+| `pnpm prisma:seed`    | Seed demo data                           |
 
 ## Pull request checklist
 

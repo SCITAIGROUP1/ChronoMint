@@ -58,11 +58,11 @@ Refresh via `POST /auth/refresh` if the access token expired (uses httpOnly refr
 
 ## Port already in use
 
-| Port | App |
-|------|-----|
+| Port | App    |
+| ---- | ------ |
 | 3000 | Client |
-| 3001 | API |
-| 3002 | Admin |
+| 3001 | API    |
+| 3002 | Admin  |
 
 Stop the conflicting process or change `PORT` in `apps/api/.env` and update `NEXT_PUBLIC_API_BASE_URL` if you change the API port.
 

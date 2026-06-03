@@ -1,0 +1,13 @@
+---
+description: Test placement and TDD expectations
+globs: "**/*.{spec,test}.ts"
+alwaysApply: false
+---
+
+# Testing conventions
+
+- Unit spec beside implementation: `foo.service.ts` + `foo.service.spec.ts`
+- Contract tests: `packages/contracts/src/*.spec.ts`
+- E2E: `apps/client/e2e/`, `apps/api` vitest e2e config
+- QA writes failing tests before BE/FE implementation (see AGENTS.md)
+- Prefer testing behavior over implementation details

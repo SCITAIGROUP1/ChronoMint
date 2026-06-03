@@ -6,8 +6,7 @@ export function formatProjectLabel(
   project: ProjectLike,
   workspaceNames?: Record<string, string>
 ): string {
-  const workspace =
-    project.workspaceName ?? workspaceNames?.[project.workspaceId];
+  const workspace = project.workspaceName ?? workspaceNames?.[project.workspaceId];
   return workspace ? `${workspace} · ${project.name}` : project.name;
 }
 

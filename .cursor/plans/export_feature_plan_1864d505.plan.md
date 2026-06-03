@@ -31,7 +31,7 @@ You already have a minimal export path:
 
 - **API**: [`apps/api/src/modules/export/application/export.service.ts`](apps/api/src/modules/export/application/export.service.ts) — flat **time log rows** for the active workspace, `from`/`to`, optional `projectId` / `userId`, formats `csv` | `pdf`.
 - **Contracts**: [`packages/contracts/src/dto/export.dto.ts`](packages/contracts/src/dto/export.dto.ts) — query schema only.
-- **Admin UI**: [`apps/admin/src/app/(admin)/exports/page.tsx`](apps/admin/src/app/(admin)/exports/page.tsx) — date range + CSV/PDF buttons only.
+- **Admin UI**: [`apps/admin/src/app/(admin)/exports/page.tsx`](<apps/admin/src/app/(admin)/exports/page.tsx>) — date range + CSV/PDF buttons only.
 - **Billing math**: [`apps/api/src/modules/reporting/application/reporting.service.ts`](apps/api/src/modules/reporting/application/reporting.service.ts) already resolves **billable hours + amounts** using hourly rates (project → user → user default). Export does **not** use this yet.
 
 **Important domain note:** “Team” is per-project ([`DOMAIN_MODEL.md`](docs/architecture/DOMAIN_MODEL.md)). Exports do not query `TeamMember` directly; they query **`TimeLog`** joined to `User`, `Task`, `Project`. “Team member” in the UI means **filter by user** (optionally limited to members of a selected project’s team).
@@ -69,23 +69,23 @@ One row per logged interval. Best for audit, payroll import, and accounting tool
 
 **Default column order** (admin can change — see [Column picker](#column-picker-and-order)):
 
-| Key | Header label | Source |
-|-----|--------------|--------|
-| `workspace` | Workspace | Current workspace name |
-| `client` | Client | `Project.clientName` |
-| `project` | Project | `Project.name` |
-| `task` | Task | `Task.taskName` |
-| `member` | Member | `User.name` |
-| `email` | Email | `User.email` |
-| `date` | Date | `startTime` (UTC in file; document in UI) |
-| `start_time` | Start | `startTime` |
-| `end_time` | End | `endTime` |
-| `hours` | Hours | `durationSec / 3600` |
-| `billable` | Billable | yes/no |
-| `rate` | Rate | Resolved hourly rate |
-| `amount` | Amount | Hours × rate if billable |
-| `description` | Description | `TimeLog.description` |
-| `source` | Source | `timer` / `manual` |
+| Key           | Header label | Source                                    |
+| ------------- | ------------ | ----------------------------------------- |
+| `workspace`   | Workspace    | Current workspace name                    |
+| `client`      | Client       | `Project.clientName`                      |
+| `project`     | Project      | `Project.name`                            |
+| `task`        | Task         | `Task.taskName`                           |
+| `member`      | Member       | `User.name`                               |
+| `email`       | Email        | `User.email`                              |
+| `date`        | Date         | `startTime` (UTC in file; document in UI) |
+| `start_time`  | Start        | `startTime`                               |
+| `end_time`    | End          | `endTime`                                 |
+| `hours`       | Hours        | `durationSec / 3600`                      |
+| `billable`    | Billable     | yes/no                                    |
+| `rate`        | Rate         | Resolved hourly rate                      |
+| `amount`      | Amount       | Hours × rate if billable                  |
+| `description` | Description  | `TimeLog.description`                     |
+| `source`      | Source       | `timer` / `manual`                        |
 
 ### 2. Daily summary
 
@@ -107,13 +107,13 @@ Same as **Time entries** but pre-filtered to `isBillable = true`, with subtotal 
 
 ## Filters (admin export wizard)
 
-| Filter | Behavior |
-|--------|----------|
-| **Period** | `from` + `to` (date inputs). Single day = same `from`/`to` with end-of-day on `to`. Presets later: Today, This week, Last 30 days. |
-| **Project** | Optional; all projects if empty. Dropdown from `GET /projects`. |
-| **Member** | Optional; all users if empty. Dropdown from `GET /workspaces/:id/members` on new Workspace page. |
+| Filter                       | Behavior                                                                                                                                              |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Period**                   | `from` + `to` (date inputs). Single day = same `from`/`to` with end-of-day on `to`. Presets later: Today, This week, Last 30 days.                    |
+| **Project**                  | Optional; all projects if empty. Dropdown from `GET /projects`.                                                                                       |
+| **Member**                   | Optional; all users if empty. Dropdown from `GET /workspaces/:id/members` on new Workspace page.                                                      |
 | **Team scope** (optional UX) | When a project is selected, checkbox “Only project team members” → restrict `userId` to `TeamMember` for that project (still exported via time logs). |
-| **Billable** | `all` \| `billable` \| `non_billable` (add to `exportQuerySchema`). |
+| **Billable**                 | `all` \| `billable` \| `non_billable` (add to `exportQuerySchema`).                                                                                   |
 
 Workspace is always the **active workspace** (`X-Workspace-Id`); include workspace name in file header / first row.
 
@@ -136,7 +136,7 @@ In [`packages/contracts/src/dto/export.dto.ts`](packages/contracts/src/dto/expor
 columns: z.record(
   z.enum(["time_entries", "daily_summary", "by_project", "by_member"]),
   z.array(z.string()).min(1)
-).optional()
+).optional();
 ```
 
 If `columns` is omitted for a report type, use `DEFAULT_EXPORT_COLUMNS`. Server validates: unknown keys → 400; empty array → 400; at least one column required.
@@ -157,7 +157,7 @@ projectRows(rows: Record<string, unknown>[], columnKeys: string[], labels: Recor
 
 ### Admin UI
 
-On [`exports/page.tsx`](apps/admin/src/app/(admin)/exports/page.tsx), for **each checked report type**:
+On [`exports/page.tsx`](<apps/admin/src/app/(admin)/exports/page.tsx>), for **each checked report type**:
 
 1. **Column list** — checkboxes for all allowed columns (default: all on, default order).
 2. **Reorder** — move selected columns up/down (simple buttons in v1; drag-and-drop optional later). Only **selected** columns participate in order.
@@ -190,11 +190,11 @@ flowchart TB
 
 ## Formats
 
-| Format | When to use | Delivery when multiple report types selected |
-|--------|-------------|-----------------------------------------------|
-| **CSV** | Integrations, spreadsheets | **One file per selected report** (e.g. `detail.csv`, `by-project.csv`). If 2+ selected, return a **ZIP** (`application/zip`). |
-| **Excel (.xlsx)** | Finance/ops preferred | **One workbook, one sheet per selected report** (sheet names: Detail, Daily, ByProject, ByMember). Add dependency `exceljs` in [`apps/api/package.json`](apps/api/package.json). |
-| **PDF** | Printable summary | **Summary PDF only** for v1: cover (workspace, period, filters), totals table (workspace + by project), then optional appendix of detail lines capped (e.g. 500 rows) or “see Excel for full detail”. Full detail PDF can be Phase 2. |
+| Format            | When to use                | Delivery when multiple report types selected                                                                                                                                                                                          |
+| ----------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **CSV**           | Integrations, spreadsheets | **One file per selected report** (e.g. `detail.csv`, `by-project.csv`). If 2+ selected, return a **ZIP** (`application/zip`).                                                                                                         |
+| **Excel (.xlsx)** | Finance/ops preferred      | **One workbook, one sheet per selected report** (sheet names: Detail, Daily, ByProject, ByMember). Add dependency `exceljs` in [`apps/api/package.json`](apps/api/package.json).                                                      |
+| **PDF**           | Printable summary          | **Summary PDF only** for v1: cover (workspace, period, filters), totals table (workspace + by project), then optional appendix of detail lines capped (e.g. 500 rows) or “see Excel for full detail”. Full detail PDF can be Phase 2. |
 
 ---
 
@@ -217,7 +217,7 @@ Response: binary stream with `Content-Disposition` filename `chronomint-{workspa
 
 ---
 
-## Admin UI ([`exports/page.tsx`](apps/admin/src/app/(admin)/exports/page.tsx))
+## Admin UI ([`exports/page.tsx`](<apps/admin/src/app/(admin)/exports/page.tsx>))
 
 Replace the minimal wizard with:
 

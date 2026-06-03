@@ -1,10 +1,5 @@
+import { Card, CardContent, CardHeader, CardTitle } from "@chronomint/ui";
 import { Suspense } from "react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle
-} from "@chronomint/ui";
 import { LoginForm } from "./login-form";
 
 function LoginFallback() {

@@ -8,11 +8,11 @@
 
 ## Authentication
 
-| Mechanism | Purpose |
-|-----------|---------|
-| JWT access token | Short-lived API authorization (`JWT_ACCESS_EXPIRES`, default 15m) |
-| JWT refresh token | httpOnly cookie; renews access via `POST /auth/refresh` |
-| Password storage | bcrypt hash in `users.password_hash` |
+| Mechanism         | Purpose                                                           |
+| ----------------- | ----------------------------------------------------------------- |
+| JWT access token  | Short-lived API authorization (`JWT_ACCESS_EXPIRES`, default 15m) |
+| JWT refresh token | httpOnly cookie; renews access via `POST /auth/refresh`           |
+| Password storage  | bcrypt hash in `users.password_hash`                              |
 
 Access token can be sent as:
 

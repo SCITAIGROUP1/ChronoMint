@@ -1,10 +1,12 @@
-import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import {
   createExportPresetSchema,
+  ErrorCodes,
   exportBodySchema,
   type CreateExportPresetDto,
   type ExportPresetDto
 } from "@chronomint/contracts";
+import { HttpStatus, Injectable } from "@nestjs/common";
+import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 
 @Injectable()
@@ -33,7 +35,11 @@ export class ExportPresetService {
       });
       return this.toDto(row);
     } catch {
-      throw new ConflictException("A preset with this name already exists");
+      throw new DomainException(
+        ErrorCodes.VALIDATION_ERROR,
+        "A preset with this name already exists",
+        HttpStatus.CONFLICT
+      );
     }
   }
 
@@ -41,7 +47,9 @@ export class ExportPresetService {
     const row = await this.prisma.exportPreset.findFirst({
       where: { id, workspaceId }
     });
-    if (!row) throw new NotFoundException("Preset not found");
+    if (!row) {
+      throw new DomainException(ErrorCodes.NOT_FOUND, "Preset not found", HttpStatus.NOT_FOUND);
+    }
     await this.prisma.exportPreset.delete({ where: { id } });
   }
 

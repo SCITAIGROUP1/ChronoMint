@@ -1,11 +1,11 @@
+import { ErrorCodes } from "@chronomint/contracts";
 import {
-  CanActivate,
-  ExecutionContext,
+  type CanActivate,
+  type ExecutionContext,
   Injectable,
   UnauthorizedException
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import { ErrorCodes } from "@chronomint/contracts";
 import type { RequestUser } from "../decorators/current-user.decorator";
 
 @Injectable()
@@ -14,12 +14,13 @@ export class JwtAuthGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     const req = context.switchToHttp().getRequest();
-    const token =
-      req.cookies?.access_token ??
-      req.headers.authorization?.replace("Bearer ", "");
+    const token = req.cookies?.access_token ?? req.headers.authorization?.replace("Bearer ", "");
 
     if (!token) {
-      throw new UnauthorizedException({ code: ErrorCodes.UNAUTHORIZED, message: "Not authenticated" });
+      throw new UnauthorizedException({
+        code: ErrorCodes.UNAUTHORIZED,
+        message: "Not authenticated"
+      });
     }
 
     try {

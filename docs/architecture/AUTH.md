@@ -51,26 +51,26 @@ Missing workspace → `WORKSPACE_REQUIRED` error.
 
 Workspace roles: `ADMIN` | `MEMBER`.
 
-| Area | ADMIN | MEMBER |
-|------|-------|--------|
-| Create/edit/delete projects | Yes | No |
-| Team invites | Yes | No |
-| Billing rates | Yes | No |
-| Reporting dashboard | Yes | No |
-| Admin export wizard | Yes | No |
-| Timer, own timelogs | Yes | Yes |
-| Member export (`POST /export/me`) | Yes | Yes |
-| List projects | All in workspace | Only where on project team |
-| Timelogs list | All users (optional filter) | Own logs only |
+| Area                              | ADMIN                       | MEMBER                     |
+| --------------------------------- | --------------------------- | -------------------------- |
+| Create/edit/delete projects       | Yes                         | No                         |
+| Team invites                      | Yes                         | No                         |
+| Billing rates                     | Yes                         | No                         |
+| Reporting dashboard               | Yes                         | No                         |
+| Admin export wizard               | Yes                         | No                         |
+| Timer, own timelogs               | Yes                         | Yes                        |
+| Member export (`POST /export/me`) | Yes                         | Yes                        |
+| List projects                     | All in workspace            | Only where on project team |
+| Timelogs list                     | All users (optional filter) | Own logs only              |
 
 Enforced via `@Roles("ADMIN")` and `RolesGuard` on controllers, plus service-level checks (e.g. timelogs ownership).
 
 ## App separation
 
-| App | Expected role |
-|-----|----------------|
+| App              | Expected role                                                     |
+| ---------------- | ----------------------------------------------------------------- |
 | Client (`:3000`) | `MEMBER` (admins may use it but admin features live in admin app) |
-| Admin (`:3002`) | `ADMIN` — member accounts should use the client app |
+| Admin (`:3002`)  | `ADMIN` — member accounts should use the client app               |
 
 ## Production hardening
 

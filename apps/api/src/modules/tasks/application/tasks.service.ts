@@ -1,10 +1,9 @@
-import { Injectable } from "@nestjs/common";
 import type { CreateTaskDto, UpdateTaskDto } from "@chronomint/contracts";
 import { ErrorCodes } from "@chronomint/contracts";
-import { PrismaService } from "../../../common/prisma/prisma.service";
+import { Injectable, HttpStatus } from "@nestjs/common";
+import { ProjectAccessService } from "../../../common/access/project-access.service";
 import { DomainException } from "../../../common/errors/domain.exception";
-import { HttpStatus } from "@nestjs/common";
-import { ProjectAccessService } from "../../projects/application/project-access.service";
+import { PrismaService } from "../../../common/prisma/prisma.service";
 
 @Injectable()
 export class TasksService {
@@ -22,12 +21,7 @@ export class TasksService {
     };
   }
 
-  async list(
-    workspaceId: string,
-    userId: string,
-    role: "ADMIN" | "MEMBER",
-    projectId?: string
-  ) {
+  async list(workspaceId: string, userId: string, role: "ADMIN" | "MEMBER", projectId?: string) {
     let projectIds = await this.access.accessibleProjectIds(workspaceId, userId, role);
     if (projectId) {
       if (!projectIds.includes(projectId)) return [];
@@ -42,12 +36,7 @@ export class TasksService {
     return tasks.map((t) => this.toDto(t));
   }
 
-  async create(
-    workspaceId: string,
-    userId: string,
-    role: "ADMIN" | "MEMBER",
-    dto: CreateTaskDto
-  ) {
+  async create(workspaceId: string, userId: string, role: "ADMIN" | "MEMBER", dto: CreateTaskDto) {
     await this.access.assertCanAccessProject(workspaceId, userId, role, dto.projectId);
     const t = await this.prisma.task.create({
       data: {
@@ -89,7 +78,8 @@ export class TasksService {
     const task = await this.prisma.task.findFirst({
       where: { id: taskId, project: { workspaceId } }
     });
-    if (!task) throw new DomainException(ErrorCodes.NOT_FOUND, "Task not found", HttpStatus.NOT_FOUND);
+    if (!task)
+      throw new DomainException(ErrorCodes.NOT_FOUND, "Task not found", HttpStatus.NOT_FOUND);
     await this.access.assertCanAccessProject(workspaceId, userId, role, task.projectId);
     return task;
   }

@@ -17,13 +17,13 @@ Request bodies and query params are validated with Zod schemas from `@chronomint
 
 Domain errors use `DomainException` with contract `ErrorCodes`, for example:
 
-| Code | Typical HTTP status |
-|------|---------------------|
-| `UNAUTHORIZED` | 401 |
-| `FORBIDDEN` | 403 |
-| `NOT_FOUND` | 404 |
-| `WORKSPACE_REQUIRED` | 401 |
-| `VALIDATION_ERROR` | 400 |
+| Code                 | Typical HTTP status |
+| -------------------- | ------------------- |
+| `UNAUTHORIZED`       | 401                 |
+| `FORBIDDEN`          | 403                 |
+| `NOT_FOUND`          | 404                 |
+| `WORKSPACE_REQUIRED` | 401                 |
+| `VALIDATION_ERROR`   | 400                 |
 
 ## Scoping
 

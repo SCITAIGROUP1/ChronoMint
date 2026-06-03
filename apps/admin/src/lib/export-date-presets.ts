@@ -1,8 +1,8 @@
+import { toDateInputValue } from "@chronomint/web-shared";
+
 export type DatePreset = "today" | "week" | "7d" | "30d" | "90d" | "month";
 
-export function toDateInputValue(d: Date) {
-  return d.toISOString().slice(0, 10);
-}
+export { toDateInputValue };
 
 export function applyDatePreset(preset: DatePreset): { from: string; to: string } {
   const to = new Date();

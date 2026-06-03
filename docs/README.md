@@ -4,25 +4,26 @@ Start here for architecture, development, API reference, feature specs, user gui
 
 ## Quick links
 
-| I want to… | Go to |
-|------------|--------|
-| Run the app locally | [Root README](../README.md) |
-| Set up environment variables | [ENVIRONMENT.md](development/ENVIRONMENT.md) |
-| Contribute code | [CONTRIBUTING.md](development/CONTRIBUTING.md) |
-| Run tests | [TESTING.md](development/TESTING.md) |
-| Understand the system | [CONTEXT.md](architecture/CONTEXT.md) |
-| Call the API | [api/ROUTES.md](api/ROUTES.md) |
-| Use the member app | [user-guides/member/getting-started.md](user-guides/member/getting-started.md) |
-| Use the admin app | [user-guides/admin/getting-started.md](user-guides/admin/getting-started.md) |
-| Deploy to staging | [runbooks/deploy.md](runbooks/deploy.md) |
-| Fix local dev issues | [runbooks/local-troubleshooting.md](runbooks/local-troubleshooting.md) |
-| Work with AI agents | [agent/AGENTS.md](agent/AGENTS.md) |
+| I want to…                   | Go to                                                                          |
+| ---------------------------- | ------------------------------------------------------------------------------ |
+| Run the app locally          | [Root README](../README.md)                                                    |
+| Set up environment variables | [ENVIRONMENT.md](development/ENVIRONMENT.md)                                   |
+| Contribute code              | [CONTRIBUTING.md](../CONTRIBUTING.md)                                          |
+| Run tests                    | [TESTING.md](development/TESTING.md)                                           |
+| Understand the system        | [CONTEXT.md](architecture/CONTEXT.md)                                          |
+| Call the API                 | [api/ROUTES.md](api/ROUTES.md)                                                 |
+| Use the member app           | [user-guides/member/getting-started.md](user-guides/member/getting-started.md) |
+| Use the admin app            | [user-guides/admin/getting-started.md](user-guides/admin/getting-started.md)   |
+| Deploy to staging            | [runbooks/deploy.md](runbooks/deploy.md)                                       |
+| Fix local dev issues         | [runbooks/local-troubleshooting.md](runbooks/local-troubleshooting.md)         |
+| Work with AI agents          | [agent/AGENTS.md](agent/AGENTS.md)                                             |
 
 ## By audience
 
 ### Developer
 
-- [CONTRIBUTING.md](development/CONTRIBUTING.md) — monorepo layout, contract-first workflow, PR checklist
+- [CONTRIBUTING.md](../CONTRIBUTING.md) — monorepo layout, contract-first workflow, pre-commit hooks
+- **Architecture (target):** API slices under `apps/api/src/modules/` + shared `common/time/`; Next.js apps use `features/` + `@chronomint/web-shared`
 - [ENVIRONMENT.md](development/ENVIRONMENT.md) — all environment variables
 - [TESTING.md](development/TESTING.md) — unit and e2e tests
 - [SECURITY.md](development/SECURITY.md) — auth, secrets, RBAC
@@ -55,15 +56,15 @@ Start here for architecture, development, API reference, feature specs, user gui
 
 Canonical behavior for shipped features (read before implementing changes):
 
-| Spec | Module |
-|------|--------|
-| [timer.md](specs/timer.md) | Timer engine |
-| [timelogs.md](specs/timelogs.md) | Time log CRUD |
-| [projects.md](specs/projects.md) | Projects and team invites |
-| [billing.md](specs/billing.md) | Hourly rates and summary |
-| [reporting.md](specs/reporting.md) | Dashboard aggregates |
-| [export.md](specs/export.md) | Admin and member exports |
-| [presence.md](specs/presence.md) | Team live presence |
+| Spec                                         | Module                     |
+| -------------------------------------------- | -------------------------- |
+| [timer.md](specs/timer.md)                   | Timer engine               |
+| [timelogs.md](specs/timelogs.md)             | Time log CRUD              |
+| [projects.md](specs/projects.md)             | Projects and team invites  |
+| [billing.md](specs/billing.md)               | Hourly rates and summary   |
+| [reporting.md](specs/reporting.md)           | Dashboard aggregates       |
+| [export.md](specs/export.md)                 | Admin and member exports   |
+| [presence.md](specs/presence.md)             | Team live presence         |
 | [auth-workspace.md](specs/auth-workspace.md) | Auth and workspace members |
 
 ## Product direction

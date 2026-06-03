@@ -1,4 +1,12 @@
 import {
+  createTeamInviteSchema,
+  createProjectSchema,
+  listProjectsQuerySchema,
+  updateProjectSchema,
+  updateTeamMemberSchema,
+  ROUTES
+} from "@chronomint/contracts";
+import {
   Body,
   Controller,
   Delete,
@@ -10,17 +18,12 @@ import {
   UseGuards
 } from "@nestjs/common";
 import {
-  createTeamInviteSchema,
-  createProjectSchema,
-  listProjectsQuerySchema,
-  updateProjectSchema,
-  updateTeamMemberSchema,
-  ROUTES
-} from "@chronomint/contracts";
+  CurrentUser,
+  type RequestUser
+} from "../../../../common/decorators/current-user.decorator";
+import { Roles } from "../../../../common/decorators/roles.decorator";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../../../common/guards/roles.guard";
-import { Roles } from "../../../../common/decorators/roles.decorator";
-import { CurrentUser, RequestUser } from "../../../../common/decorators/current-user.decorator";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
 import { ProjectsService } from "../../application/projects.service";
 
@@ -46,35 +49,39 @@ export class ProjectsController {
     return this.projects.create(user.workspaceId, body as Parameters<ProjectsService["create"]>[1]);
   }
 
-  @Get("/projects/:id")
+  @Get(ROUTES.PROJECTS.BY_ID(":id"))
   get(@CurrentUser() user: RequestUser, @Param("id") id: string) {
     return this.projects.get(user.workspaceId, user.userId, user.role, id);
   }
 
   @Roles("ADMIN")
-  @Patch("/projects/:id")
+  @Patch(ROUTES.PROJECTS.BY_ID(":id"))
   update(
     @CurrentUser() user: RequestUser,
     @Param("id") id: string,
     @Body(new ZodValidationPipe(updateProjectSchema)) body: unknown
   ) {
-    return this.projects.update(user.workspaceId, id, body as Parameters<ProjectsService["update"]>[2]);
+    return this.projects.update(
+      user.workspaceId,
+      id,
+      body as Parameters<ProjectsService["update"]>[2]
+    );
   }
 
   @Roles("ADMIN")
-  @Delete("/projects/:id")
+  @Delete(ROUTES.PROJECTS.BY_ID(":id"))
   remove(@CurrentUser() user: RequestUser, @Param("id") id: string) {
     return this.projects.remove(user.workspaceId, id);
   }
 
   @Roles("ADMIN")
-  @Get("/projects/:id/team")
+  @Get(ROUTES.PROJECTS.TEAM(":id"))
   getTeam(@CurrentUser() user: RequestUser, @Param("id") id: string) {
     return this.projects.getTeam(user.workspaceId, id);
   }
 
   @Roles("ADMIN")
-  @Patch("/projects/:projectId/team/members/:memberId")
+  @Patch(ROUTES.PROJECTS.TEAM_MEMBER(":projectId", ":memberId"))
   updateTeamMember(
     @CurrentUser() user: RequestUser,
     @Param("projectId") projectId: string,
@@ -86,7 +93,7 @@ export class ProjectsController {
   }
 
   @Roles("ADMIN")
-  @Delete("/projects/:projectId/team/members/:memberId")
+  @Delete(ROUTES.PROJECTS.TEAM_MEMBER(":projectId", ":memberId"))
   removeTeamMember(
     @CurrentUser() user: RequestUser,
     @Param("projectId") projectId: string,
@@ -96,7 +103,7 @@ export class ProjectsController {
   }
 
   @Roles("ADMIN")
-  @Post("/projects/:id/team/invites")
+  @Post(ROUTES.PROJECTS.TEAM_INVITES(":id"))
   createTeamInvite(
     @CurrentUser() user: RequestUser,
     @Param("id") id: string,

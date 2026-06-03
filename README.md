@@ -41,7 +41,7 @@ pnpm install && pnpm prisma:migrate && pnpm prisma:seed && pnpm dev
 ```
 
 | App    | URL                   |
-|--------|-----------------------|
+| ------ | --------------------- |
 | Client | http://localhost:3000 |
 | Admin  | http://localhost:3002 |
 | API    | http://localhost:3001 |
@@ -50,17 +50,17 @@ pnpm install && pnpm prisma:migrate && pnpm prisma:seed && pnpm dev
 
 ### Client vs admin
 
-| Feature | Client (`:3000`) | Admin (`:3002`) |
-|---------|------------------|-----------------|
-| Timer, timesheet, tasks (assigned projects) | Yes | No |
-| View assigned projects | Yes (`/projects`) | No |
-| Create projects & team invite links | No | `/projects` |
-| Dashboard charts & summary widgets | No | `/dashboard` |
-| Team live presence | No | `/team` |
-| Billing rates | No | `/billing` |
-| Export my timesheet (CSV/Excel/PDF) | Yes (timesheet page) | No |
-| My week summary | Yes (timesheet page) | No |
-| Multi-report export wizard | No | `/exports` |
+| Feature                                     | Client (`:3000`)     | Admin (`:3002`) |
+| ------------------------------------------- | -------------------- | --------------- |
+| Timer, timesheet, tasks (assigned projects) | Yes                  | No              |
+| View assigned projects                      | Yes (`/projects`)    | No              |
+| Create projects & team invite links         | No                   | `/projects`     |
+| Dashboard charts & summary widgets          | No                   | `/dashboard`    |
+| Team live presence                          | No                   | `/team`         |
+| Billing rates                               | No                   | `/billing`      |
+| Export my timesheet (CSV/Excel/PDF)         | Yes (timesheet page) | No              |
+| My week summary                             | Yes (timesheet page) | No              |
+| Multi-report export wizard                  | No                   | `/exports`      |
 
 Sign in to admin with **`admin@chronomint.dev`** (member accounts are redirected).
 
@@ -68,6 +68,6 @@ Sign in to admin with **`admin@chronomint.dev`** (member accounts are redirected
 
 **[Documentation hub](docs/README.md)** — start here for full index.
 
-- [Contributing](docs/development/CONTRIBUTING.md) · [Environment](docs/development/ENVIRONMENT.md) · [Testing](docs/development/TESTING.md)
+- [Contributing](CONTRIBUTING.md) · [Environment](docs/development/ENVIRONMENT.md) · [Testing](docs/development/TESTING.md)
 - [Architecture](docs/architecture/CONTEXT.md) · [API routes](docs/api/ROUTES.md) · [Product roadmap](docs/architecture/PRODUCT_ROADMAP.md)
 - [User guides](docs/user-guides/README.md) · [Deploy runbook](docs/runbooks/deploy.md) · [Agent playbook](docs/agent/AGENTS.md)

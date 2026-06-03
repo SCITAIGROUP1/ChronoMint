@@ -1,7 +1,10 @@
+import type { DashboardReportDto, MyWeekSummaryDto, ReportQueryDto } from "@chronomint/contracts";
 import { Injectable } from "@nestjs/common";
-import type { MyWeekSummaryDto, ReportQueryDto } from "@chronomint/contracts";
+import { ReportCacheService } from "../../../common/cache/report-cache.service";
 import { PrismaService } from "../../../common/prisma/prisma.service";
-import { roundExport, TimeAggregationService } from "./time-aggregation.service";
+import { roundExport } from "../../../common/time/round.util";
+import { TimeAggregationService } from "../../../common/time/time-aggregation.service";
+import { getWeekStartDate, getWeekStartUtc } from "../../../common/time/week.util";
 
 type HoursAgg = {
   totalHours: number;
@@ -13,12 +16,13 @@ type HoursAgg = {
 export class ReportingService {
   constructor(
     private prisma: PrismaService,
-    private aggregation: TimeAggregationService
+    private aggregation: TimeAggregationService,
+    private reportCache: ReportCacheService
   ) {}
 
   async myWeekSummary(workspaceId: string, userId: string): Promise<MyWeekSummaryDto> {
     const now = new Date();
-    const weekStart = this.weekStart(now);
+    const weekStart = getWeekStartDate(now, "sunday");
     const weekEnd = new Date(weekStart);
     weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
     weekEnd.setUTCHours(23, 59, 59, 999);
@@ -28,21 +32,16 @@ export class ReportingService {
     const todayEnd = new Date(now);
     todayEnd.setUTCHours(23, 59, 59, 999);
 
-    const [todayLogs, weekLogs] = await Promise.all([
-      this.aggregation.fetchLogs(workspaceId, {
-        from: todayStart,
-        to: todayEnd,
-        userId
-      }),
-      this.aggregation.fetchLogs(workspaceId, {
-        from: weekStart,
-        to: weekEnd,
-        userId
-      })
-    ]);
+    const weekLogs = await this.aggregation.fetchLogs(workspaceId, {
+      from: weekStart,
+      to: weekEnd,
+      userId
+    });
 
     const todayHours = roundExport(
-      todayLogs.reduce((sum, l) => sum + l.durationSec / 3600, 0)
+      weekLogs
+        .filter((l) => l.startTime >= todayStart && l.startTime <= todayEnd)
+        .reduce((sum, l) => sum + l.durationSec / 3600, 0)
     );
 
     const { resolveRate } = await this.aggregation.resolveRateMaps(workspaceId);
@@ -84,90 +83,57 @@ export class ReportingService {
     };
   }
 
-  async dashboard(workspaceId: string, query: ReportQueryDto) {
+  async dashboard(workspaceId: string, query: ReportQueryDto): Promise<DashboardReportDto> {
+    const cacheKey = this.reportCache.dashboardKey(
+      workspaceId,
+      query.from,
+      query.to,
+      query.userId,
+      query.projectId
+    );
+    const cached = await this.reportCache.getDashboard(cacheKey);
+    if (cached) return cached;
+
+    const result = await this.buildDashboard(workspaceId, query);
+    await this.reportCache.setDashboard(cacheKey, workspaceId, result);
+    return result;
+  }
+
+  private async buildDashboard(
+    workspaceId: string,
+    query: ReportQueryDto
+  ): Promise<DashboardReportDto> {
     const from = new Date(query.from);
     const to = new Date(query.to);
 
-    const logs = await this.prisma.timeLog.findMany({
-      where: {
-        task: { project: { workspaceId } },
-        startTime: { gte: from, lte: to },
-        ...(query.userId ? { userId: query.userId } : {}),
-        ...(query.projectId ? { task: { projectId: query.projectId } } : {})
-      },
-      include: {
-        user: true,
-        task: { include: { project: true } }
-      }
+    const logs = await this.aggregation.fetchLogs(workspaceId, {
+      from,
+      to,
+      userId: query.userId,
+      projectId: query.projectId
     });
+    const { resolveRate } = await this.aggregation.resolveRateMaps(workspaceId);
+    const { workspaceAgg, byProject, byUser } = this.aggregation.buildAggregates(logs, resolveRate);
 
-    const rates = await this.prisma.hourlyRate.findMany({
-      where: { workspaceId },
-      orderBy: { effectiveFrom: "desc" }
-    });
+    const activeProjects = new Set(logs.map((l) => l.task.projectId));
+    const activeMembers = new Set(logs.map((l) => l.userId));
 
-    const projectRate = new Map<string, number>();
-    const userRate = new Map<string, number>();
-    for (const r of rates) {
-      if (r.projectId && !projectRate.has(r.projectId)) {
-        projectRate.set(r.projectId, r.rate.toNumber());
-      }
-      if (r.userId && !userRate.has(r.userId)) {
-        userRate.set(r.userId, r.rate.toNumber());
-      }
-    }
-
-    const resolveRate = (userId: string, projectId: string, defaultRate: number | null) =>
-      projectRate.get(projectId) ?? userRate.get(userId) ?? defaultRate ?? 0;
-
-    const byProject = new Map<
-      string,
-      HoursAgg & { projectName: string }
-    >();
-    const byUser = new Map<string, HoursAgg & { userName: string }>();
     const weekly = new Map<string, HoursAgg>();
     const daily = new Map<string, HoursAgg>();
-
-    const workspaceAgg: HoursAgg = {
-      totalHours: 0,
-      billableHours: 0,
-      billableAmount: 0
-    };
-    const activeProjects = new Set<string>();
-    const activeMembers = new Set<string>();
 
     for (const log of logs) {
       const hours = log.durationSec / 3600;
       const billable = log.isBillable;
       const amount = billable
-        ? hours * resolveRate(log.userId, log.task.projectId, log.user.defaultHourlyRate?.toNumber() ?? null)
+        ? hours *
+          resolveRate(
+            log.userId,
+            log.task.projectId,
+            log.user.defaultHourlyRate?.toNumber() ?? null
+          )
         : 0;
 
-      activeProjects.add(log.task.projectId);
-      activeMembers.add(log.userId);
-
-      this.addHours(workspaceAgg, hours, billable, amount);
-
-      const pid = log.task.projectId;
-      const pEntry = byProject.get(pid) ?? {
-        projectName: log.task.project.name,
-        totalHours: 0,
-        billableHours: 0,
-        billableAmount: 0
-      };
-      this.addHours(pEntry, hours, billable, amount);
-      byProject.set(pid, pEntry);
-
-      const uEntry = byUser.get(log.userId) ?? {
-        userName: log.user.name,
-        totalHours: 0,
-        billableHours: 0,
-        billableAmount: 0
-      };
-      this.addHours(uEntry, hours, billable, amount);
-      byUser.set(log.userId, uEntry);
-
-      const weekKey = this.weekStart(log.startTime).toISOString().slice(0, 10);
+      const weekKey = getWeekStartUtc(log.startTime, "sunday");
       const weekEntry = weekly.get(weekKey) ?? {
         totalHours: 0,
         billableHours: 0,
@@ -187,7 +153,8 @@ export class ReportingService {
     }
 
     const wsTotal = workspaceAgg.totalHours;
-    const billablePercent = wsTotal > 0 ? round((workspaceAgg.billableHours / wsTotal) * 100) : 0;
+    const billablePercent =
+      wsTotal > 0 ? roundExport((workspaceAgg.billableHours / wsTotal) * 100) : 0;
 
     const topProjectIds = [...byProject.entries()]
       .sort((a, b) => b[1].totalHours - a[1].totalHours)
@@ -195,7 +162,10 @@ export class ReportingService {
       .map(([id]) => id);
     const topProjectSet = new Set(topProjectIds);
 
-    const dailyProjectStacks = new Map<string, Map<string, { projectName: string; hours: number }>>();
+    const dailyProjectStacks = new Map<
+      string,
+      Map<string, { projectName: string; hours: number }>
+    >();
     for (const log of logs) {
       const pid = log.task.projectId;
       if (!topProjectSet.has(pid)) continue;
@@ -221,7 +191,7 @@ export class ReportingService {
             return {
               projectId,
               projectName: v.projectName,
-              hours: round(v.hours)
+              hours: roundExport(v.hours)
             };
           })
           .filter((s): s is NonNullable<typeof s> => s !== null);
@@ -231,10 +201,10 @@ export class ReportingService {
     return {
       period: { from: query.from, to: query.to },
       workspace: {
-        totalHours: round(wsTotal),
-        billableHours: round(workspaceAgg.billableHours),
-        nonBillableHours: round(wsTotal - workspaceAgg.billableHours),
-        totalAmount: round(workspaceAgg.billableAmount),
+        totalHours: roundExport(wsTotal),
+        billableHours: roundExport(workspaceAgg.billableHours),
+        nonBillableHours: roundExport(wsTotal - workspaceAgg.billableHours),
+        totalAmount: roundExport(workspaceAgg.billableAmount),
         currency: "USD" as const,
         activeProjects: activeProjects.size,
         activeMembers: activeMembers.size,
@@ -274,38 +244,23 @@ export class ReportingService {
     }
   }
 
-  private toBreakdown(
-    projectId: string,
-    v: HoursAgg & { projectName: string }
-  ) {
+  private toBreakdown(projectId: string, v: HoursAgg & { projectName: string }) {
     return {
       projectId,
       projectName: v.projectName,
-      totalHours: round(v.totalHours),
-      billableHours: round(v.billableHours),
-      nonBillableHours: round(v.totalHours - v.billableHours),
-      billableAmount: round(v.billableAmount)
+      totalHours: roundExport(v.totalHours),
+      billableHours: roundExport(v.billableHours),
+      nonBillableHours: roundExport(v.totalHours - v.billableHours),
+      billableAmount: roundExport(v.billableAmount)
     };
   }
 
-  private stripName(v: HoursAgg & { projectName?: string; userName?: string }) {
+  private stripName(v: HoursAgg) {
     return {
-      totalHours: round(v.totalHours),
-      billableHours: round(v.billableHours),
-      nonBillableHours: round(v.totalHours - v.billableHours),
-      billableAmount: round(v.billableAmount)
+      totalHours: roundExport(v.totalHours),
+      billableHours: roundExport(v.billableHours),
+      nonBillableHours: roundExport(v.totalHours - v.billableHours),
+      billableAmount: roundExport(v.billableAmount)
     };
   }
-
-  private weekStart(d: Date): Date {
-    const copy = new Date(d);
-    const day = copy.getUTCDay();
-    copy.setUTCDate(copy.getUTCDate() - day);
-    copy.setUTCHours(0, 0, 0, 0);
-    return copy;
-  }
-}
-
-function round(n: number) {
-  return Math.round(n * 100) / 100;
 }

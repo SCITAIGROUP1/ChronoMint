@@ -1,5 +1,5 @@
-import { create } from "zustand";
 import type { PresenceSnapshotDto } from "@chronomint/contracts";
+import { create } from "zustand";
 
 interface PresenceState {
   snapshot: PresenceSnapshotDto | null;

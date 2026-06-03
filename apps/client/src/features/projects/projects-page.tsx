@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { ROUTES } from "@chronomint/contracts";
+import type { ProjectDto } from "@chronomint/contracts";
 import {
   Card,
   CardContent,
@@ -14,11 +15,10 @@ import {
   TableHeader,
   TableRow
 } from "@chronomint/ui";
-import { ROUTES } from "@chronomint/contracts";
-import type { ProjectDto } from "@chronomint/contracts";
+import { useEffect } from "react";
 import { api } from "@/lib/api";
-import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 import { useProjectsStore } from "@/stores/projects.store";
+import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
 export function ProjectsPage() {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";

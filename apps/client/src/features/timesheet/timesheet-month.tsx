@@ -38,7 +38,9 @@ export function TimesheetMonth({ month, logs, entryColor, onDayClick }: Timeshee
         <div key={wi} className="grid grid-cols-7 border-b border-border last:border-b-0">
           {week.map((day, di) => {
             if (!day) {
-              return <div key={di} className="min-h-[5rem] border-l border-border/50 bg-muted/10" />;
+              return (
+                <div key={di} className="min-h-[5rem] border-l border-border/50 bg-muted/10" />
+              );
             }
             const inMonth = day.getMonth() === monthStart.getMonth();
             const totalSec = totalSecondsOnDay(logs, day);
@@ -67,7 +69,9 @@ export function TimesheetMonth({ month, logs, entryColor, onDayClick }: Timeshee
                   {day.getDate()}
                 </span>
                 {totalSec > 0 && (
-                  <p className="mt-1 text-xs font-medium text-primary">{formatDuration(totalSec)}</p>
+                  <p className="mt-1 text-xs font-medium text-primary">
+                    {formatDuration(totalSec)}
+                  </p>
                 )}
                 {dayLogs.length > 0 && (
                   <div className="mt-1 flex flex-wrap gap-0.5">
@@ -80,7 +84,9 @@ export function TimesheetMonth({ month, logs, entryColor, onDayClick }: Timeshee
                       />
                     ))}
                     {dayLogs.length > 3 && (
-                      <span className="text-[10px] text-muted-foreground">+{dayLogs.length - 3}</span>
+                      <span className="text-[10px] text-muted-foreground">
+                        +{dayLogs.length - 3}
+                      </span>
                     )}
                   </div>
                 )}

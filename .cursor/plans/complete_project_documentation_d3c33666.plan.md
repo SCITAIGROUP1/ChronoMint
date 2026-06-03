@@ -26,18 +26,18 @@ isProject: false
 
 **What exists today**
 
-| Area | Status |
-|------|--------|
-| Onboarding | Strong: [README.md](README.md) — stack, `pnpm serve`, ports, seed accounts, client vs admin matrix |
-| Architecture | Thin but useful: [CONTEXT.md](docs/architecture/CONTEXT.md), [DOMAIN_MODEL.md](docs/architecture/DOMAIN_MODEL.md), [TIMER_SEQUENCE.md](docs/architecture/TIMER_SEQUENCE.md) |
-| Product direction | Good: [PRODUCT_ROADMAP.md](docs/architecture/PRODUCT_ROADMAP.md), [FUTURE_SCOPE.md](docs/architecture/FUTURE_SCOPE.md) |
-| Agent workflow | [AGENTS.md](docs/agent/AGENTS.md), [ROC.md](docs/agent/ROC.md), [TASK_BOARD.json](TASK_BOARD.json) |
-| Feature specs | **Only** [timer.md](docs/specs/timer.md) |
-| API reference | **None** (no OpenAPI); SSOT is [packages/contracts](packages/contracts/src/) + [routes.ts](packages/contracts/src/routes.ts) |
-| Runbooks | [deploy.md](docs/runbooks/deploy.md) only |
-| Per-app READMEs | **None** |
-| End-user guides | **None** |
-| Deep feature design | Lives in `.cursor/plans/` (export, settings) — not linked from README |
+| Area                | Status                                                                                                                                                                      |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Onboarding          | Strong: [README.md](README.md) — stack, `pnpm serve`, ports, seed accounts, client vs admin matrix                                                                          |
+| Architecture        | Thin but useful: [CONTEXT.md](docs/architecture/CONTEXT.md), [DOMAIN_MODEL.md](docs/architecture/DOMAIN_MODEL.md), [TIMER_SEQUENCE.md](docs/architecture/TIMER_SEQUENCE.md) |
+| Product direction   | Good: [PRODUCT_ROADMAP.md](docs/architecture/PRODUCT_ROADMAP.md), [FUTURE_SCOPE.md](docs/architecture/FUTURE_SCOPE.md)                                                      |
+| Agent workflow      | [AGENTS.md](docs/agent/AGENTS.md), [ROC.md](docs/agent/ROC.md), [TASK_BOARD.json](TASK_BOARD.json)                                                                          |
+| Feature specs       | **Only** [timer.md](docs/specs/timer.md)                                                                                                                                    |
+| API reference       | **None** (no OpenAPI); SSOT is [packages/contracts](packages/contracts/src/) + [routes.ts](packages/contracts/src/routes.ts)                                                |
+| Runbooks            | [deploy.md](docs/runbooks/deploy.md) only                                                                                                                                   |
+| Per-app READMEs     | **None**                                                                                                                                                                    |
+| End-user guides     | **None**                                                                                                                                                                    |
+| Deep feature design | Lives in `.cursor/plans/` (export, settings) — not linked from README                                                                                                       |
 
 **Gaps to close:** no docs index, no env/security/testing guides, no ER/schema doc, no specs for 8+ shipped API modules, export knowledge trapped in a Cursor plan file.
 
@@ -158,15 +158,15 @@ Per-app pointers (short, link to hub):
 
 **Goal:** One canonical spec per shipped feature (Given/When/Then or user stories + API touchpoints), aligned with [AGENTS.md](docs/agent/AGENTS.md) workflow.
 
-| Spec file | Module | Key behaviors to document |
-|-----------|--------|---------------------------|
-| `timelogs.md` | timelogs | CRUD, manual vs timer immutability |
-| `projects.md` | projects | CRUD, team invites, access rules |
-| `billing.md` | billing | Rate precedence (project → user → default), summary |
-| `reporting.md` | reporting | Dashboard aggregates, `/reporting/me` |
-| `export.md` | export | **Promote from** [.cursor/plans/export_feature_plan_1864d505.plan.md](.cursor/plans/export_feature_plan_1864d505.plan.md) — report catalog, filters, formats, filename rules; trim implementation todos |
-| `presence.md` | presence | SSE stream vs snapshot, team live |
-| `auth-workspace.md` | auth + workspace | Register, members, invites |
+| Spec file           | Module           | Key behaviors to document                                                                                                                                                                               |
+| ------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `timelogs.md`       | timelogs         | CRUD, manual vs timer immutability                                                                                                                                                                      |
+| `projects.md`       | projects         | CRUD, team invites, access rules                                                                                                                                                                        |
+| `billing.md`        | billing          | Rate precedence (project → user → default), summary                                                                                                                                                     |
+| `reporting.md`      | reporting        | Dashboard aggregates, `/reporting/me`                                                                                                                                                                   |
+| `export.md`         | export           | **Promote from** [.cursor/plans/export_feature_plan_1864d505.plan.md](.cursor/plans/export_feature_plan_1864d505.plan.md) — report catalog, filters, formats, filename rules; trim implementation todos |
+| `presence.md`       | presence         | SSE stream vs snapshot, team live                                                                                                                                                                       |
+| `auth-workspace.md` | auth + workspace | Register, members, invites                                                                                                                                                                              |
 
 Each spec should include:
 
@@ -189,21 +189,21 @@ Structure under `docs/user-guides/`:
 
 **Member ([apps/client](apps/client))**
 
-| Guide | Covers |
-|-------|--------|
-| `member/getting-started.md` | Register, login, accept team invite |
-| `member/timer-and-timesheet.md` | Start/stop timer, manual entries, week view |
-| `member/export-my-data.md` | CSV/Excel/PDF from timesheet, “My week summary” |
+| Guide                           | Covers                                          |
+| ------------------------------- | ----------------------------------------------- |
+| `member/getting-started.md`     | Register, login, accept team invite             |
+| `member/timer-and-timesheet.md` | Start/stop timer, manual entries, week view     |
+| `member/export-my-data.md`      | CSV/Excel/PDF from timesheet, “My week summary” |
 
 **Admin ([apps/admin](apps/admin))**
 
-| Guide | Covers |
-|-------|--------|
-| `admin/getting-started.md` | Admin login, workspace overview |
-| `admin/projects-and-teams.md` | Create project, invite links |
-| `admin/dashboard-and-team-live.md` | Analytics, presence |
-| `admin/billing.md` | Rates, billable summary |
-| `admin/exports.md` | Wizard: filters, report types, columns, formats (user language, not exceljs internals) |
+| Guide                              | Covers                                                                                 |
+| ---------------------------------- | -------------------------------------------------------------------------------------- |
+| `admin/getting-started.md`         | Admin login, workspace overview                                                        |
+| `admin/projects-and-teams.md`      | Create project, invite links                                                           |
+| `admin/dashboard-and-team-live.md` | Analytics, presence                                                                    |
+| `admin/billing.md`                 | Rates, billable summary                                                                |
+| `admin/exports.md`                 | Wizard: filters, report types, columns, formats (user language, not exceljs internals) |
 
 Use screenshots only if you plan to keep them updated; otherwise numbered UI steps (“Exports → date range → …”) referencing route paths from the app.
 
@@ -229,13 +229,13 @@ Use screenshots only if you plan to keep them updated; otherwise numbered UI ste
 
 ## Suggested execution order
 
-| Order | Phase | Why |
-|-------|-------|-----|
-| 1 | Foundation hub + env + contributing + per-app READMEs | Unblocks everyone immediately |
-| 2 | DATA_MODEL + AUTH + API ROUTES | Highest developer ROI |
-| 3 | Feature specs (start with **export** promotion) | Captures shipped behavior before it drifts |
-| 4 | User guides | Depends on accurate specs |
-| 5 | CHANGELOG + maintenance rules | Keeps docs from rotting |
+| Order | Phase                                                 | Why                                        |
+| ----- | ----------------------------------------------------- | ------------------------------------------ |
+| 1     | Foundation hub + env + contributing + per-app READMEs | Unblocks everyone immediately              |
+| 2     | DATA_MODEL + AUTH + API ROUTES                        | Highest developer ROI                      |
+| 3     | Feature specs (start with **export** promotion)       | Captures shipped behavior before it drifts |
+| 4     | User guides                                           | Depends on accurate specs                  |
+| 5     | CHANGELOG + maintenance rules                         | Keeps docs from rotting                    |
 
 ---
 

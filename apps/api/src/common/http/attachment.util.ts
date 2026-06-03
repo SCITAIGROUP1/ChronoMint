@@ -1,5 +1,5 @@
-import { Response } from "express";
 import { formatContentDisposition } from "@chronomint/contracts";
+import { type Response } from "express";
 
 export function sendAttachment(
   res: Response,

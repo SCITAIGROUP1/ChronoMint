@@ -28,11 +28,7 @@ export function buildProjectColorByTaskId(tasks: TaskDto[], projects: ProjectDto
   return map;
 }
 
-export function colorForTask(
-  taskId: string,
-  tasks: TaskDto[],
-  projects: ProjectDto[]
-): string {
+export function colorForTask(taskId: string, tasks: TaskDto[], projects: ProjectDto[]): string {
   const task = tasks.find((t) => t.id === taskId);
   if (!task) return DEFAULT_PROJECT_COLOR;
   return colorForProject(task.projectId, projects);
@@ -43,9 +39,5 @@ export function colorForProject(
   projects: ProjectDto[],
   apiColor?: string
 ): string {
-  return (
-    projects.find((p) => p.id === projectId)?.color ??
-    apiColor ??
-    DEFAULT_PROJECT_COLOR
-  );
+  return projects.find((p) => p.id === projectId)?.color ?? apiColor ?? DEFAULT_PROJECT_COLOR;
 }

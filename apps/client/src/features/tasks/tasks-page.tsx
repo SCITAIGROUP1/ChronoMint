@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { ROUTES } from "@chronomint/contracts";
+import type { TaskDto, ProjectDto } from "@chronomint/contracts";
 import {
   Button,
   Card,
@@ -22,12 +23,11 @@ import {
   TableHeader,
   TableRow
 } from "@chronomint/ui";
-import { ROUTES } from "@chronomint/contracts";
-import type { TaskDto, ProjectDto } from "@chronomint/contracts";
+import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
-import { useProjectsStore } from "@/stores/projects.store";
 import { formatProjectLabel } from "@/lib/project-labels";
+import { useProjectsStore } from "@/stores/projects.store";
+import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
 export function TasksPage() {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";

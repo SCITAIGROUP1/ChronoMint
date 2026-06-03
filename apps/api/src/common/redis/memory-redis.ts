@@ -14,6 +14,11 @@ export class MemoryRedis {
     return "OK";
   }
 
+  async setex(key: string, _seconds: number, value: string) {
+    this.store.set(key, value);
+    return "OK";
+  }
+
   async del(key: string) {
     return this.store.delete(key) ? 1 : 0;
   }
@@ -27,6 +32,7 @@ export class MemoryRedis {
   duplicate() {
     const localHandlers = new Set<MessageHandler>();
     const subscribed = new Set<string>();
+    // eslint-disable-next-line @typescript-eslint/no-this-alias -- redis duplicate() pattern
     const parent = this;
 
     const attach = (handler: MessageHandler) => {

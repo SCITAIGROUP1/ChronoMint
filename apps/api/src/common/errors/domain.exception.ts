@@ -1,5 +1,5 @@
-import { HttpException, HttpStatus } from "@nestjs/common";
 import type { ErrorCode } from "@chronomint/contracts";
+import { HttpException, HttpStatus } from "@nestjs/common";
 
 export class DomainException extends HttpException {
   constructor(

@@ -1,6 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import {
+  ROUTES,
+  type CreateExportScheduleDto,
+  type ExportBodyDto,
+  type ExportScheduleDto
+} from "@chronomint/contracts";
 import {
   Button,
   Card,
@@ -16,12 +21,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@chronomint/ui";
-import {
-  ROUTES,
-  type CreateExportScheduleDto,
-  type ExportBodyDto,
-  type ExportScheduleDto
-} from "@chronomint/contracts";
+import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 
 type Props = {
@@ -39,7 +39,9 @@ export function ExportSchedulesPanel({ workspaceId, currentBody }: Props) {
 
   const load = useCallback(() => {
     if (!workspaceId) return;
-    api<ExportScheduleDto[]>(ROUTES.EXPORT.SCHEDULES, { workspaceId }).then(setSchedules).catch(() => {});
+    api<ExportScheduleDto[]>(ROUTES.EXPORT.SCHEDULES, { workspaceId })
+      .then(setSchedules)
+      .catch(() => {});
   }, [workspaceId]);
 
   useEffect(() => {
@@ -98,15 +100,19 @@ export function ExportSchedulesPanel({ workspaceId, currentBody }: Props) {
       <CardHeader>
         <CardTitle className="text-base">Scheduled exports</CardTitle>
         <CardDescription>
-          Email recurring exports using your current filters and report selection (server logs runs when
-          email is not configured).
+          Email recurring exports using your current filters and report selection (server logs runs
+          when email is not configured).
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-wrap gap-4">
           <div className="space-y-2 min-w-[160px]">
             <Label>Name</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Weekly payroll" />
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Weekly payroll"
+            />
           </div>
           <div className="space-y-2 min-w-[120px]">
             <Label>Frequency</Label>
@@ -150,10 +156,20 @@ export function ExportSchedulesPanel({ workspaceId, currentBody }: Props) {
                   {s.lastRunStatus ? ` · last: ${s.lastRunStatus}` : ""}
                 </span>
                 <span className="flex gap-2">
-                  <Button type="button" size="sm" variant="outline" onClick={() => toggleSchedule(s)}>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => toggleSchedule(s)}
+                  >
                     {s.enabled ? "Pause" : "Enable"}
                   </Button>
-                  <Button type="button" size="sm" variant="outline" onClick={() => deleteSchedule(s.id)}>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => deleteSchedule(s.id)}
+                  >
                     Delete
                   </Button>
                 </span>

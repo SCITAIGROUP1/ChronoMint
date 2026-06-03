@@ -1,11 +1,13 @@
-import { PrismaClient, type Project, type Task, type Team, type User, type Workspace } from "@prisma/client";
-import * as bcrypt from "bcrypt";
 import {
-  ALL_PROJECTS,
-  ALL_USERS,
-  SPARSE_LOG_EMAILS,
-  type SeedProjectSpec
-} from "./seed-data";
+  PrismaClient,
+  type Project,
+  type Task,
+  type Team,
+  type User,
+  type Workspace
+} from "@prisma/client";
+import * as bcrypt from "bcrypt";
+import { ALL_PROJECTS, ALL_USERS, SPARSE_LOG_EMAILS, type SeedProjectSpec } from "./seed-data";
 
 const prisma = new PrismaClient();
 
@@ -272,10 +274,7 @@ async function seedExportPresets(workspaceId: string) {
   }
 }
 
-async function seedSampleInvites(
-  projectCtx: { project: Project; team: Team }[],
-  admin: User
-) {
+async function seedSampleInvites(projectCtx: { project: Project; team: Team }[], admin: User) {
   const acme = projectCtx.find((c) => c.project.name === "Acme Website");
   if (!acme) return;
 
@@ -446,9 +445,7 @@ type Assignment = {
   weight: number;
 };
 
-function buildAssignments(
-  projectCtx: { spec: SeedProject }[]
-): Assignment[] {
+function buildAssignments(projectCtx: { spec: SeedProject }[]): Assignment[] {
   const out: Assignment[] = [];
   projectCtx.forEach((ctx, projectIndex) => {
     ctx.spec.tasks.forEach((_, taskIndex) => {
@@ -543,8 +540,7 @@ async function seedTimeLogsBulk(
       const start = utcWorkday(daysAgo, startHour, (e * 17) % 60);
       const end = new Date(start.getTime() + hours * 3600 * 1000);
       const source = hash01(daysAgo, e, 6) > 0.38 ? "timer" : "manual";
-      const description =
-        DESCRIPTIONS[Math.floor(hash01(daysAgo, e, 7) * DESCRIPTIONS.length)]!;
+      const description = DESCRIPTIONS[Math.floor(hash01(daysAgo, e, 7) * DESCRIPTIONS.length)]!;
 
       batch.push({
         userId: user.id,
@@ -570,7 +566,12 @@ async function seedTimeLogsBulk(
   for (const email of SPARSE_LOG_EMAILS) {
     const sparse = users.get(email);
     if (!sparse || !kappaTask) continue;
-    const offsets = email === "onboarding@chronomint.dev" ? [45, 72] : email === "newhire@chronomint.dev" ? [18] : [];
+    const offsets =
+      email === "onboarding@chronomint.dev"
+        ? [45, 72]
+        : email === "newhire@chronomint.dev"
+          ? [18]
+          : [];
     for (const daysAgo of offsets) {
       const start = utcWorkday(daysAgo, 10);
       const end = new Date(start.getTime() + 1.25 * 3600 * 1000);
@@ -645,12 +646,8 @@ async function seedAdminCurrentWeek(
   return created;
 }
 
-async function seedAcmeAgencyRich(
-  workspace: Workspace,
-  users: Map<string, User>
-): Promise<number> {
+async function seedAcmeAgencyRich(workspace: Workspace, users: Map<string, User>): Promise<number> {
   const member = users.get("member@chronomint.dev")!;
-  const admin = users.get("admin@chronomint.dev")!;
   const contractor = users.get("contractor@chronomint.dev")!;
 
   const projects = [
@@ -734,7 +731,12 @@ async function seedAcmeAgencyRich(
       tasks.push(task);
     }
 
-    const actors = [member, contractor, users.get("alex@chronomint.dev")!, users.get("drew@chronomint.dev")!];
+    const actors = [
+      member,
+      contractor,
+      users.get("alex@chronomint.dev")!,
+      users.get("drew@chronomint.dev")!
+    ];
 
     for (let weeksAgo = 0; weeksAgo < 24; weeksAgo++) {
       for (let day = 0; day < 3; day++) {

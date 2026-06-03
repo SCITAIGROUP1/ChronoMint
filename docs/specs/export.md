@@ -13,21 +13,21 @@ Domain note: [DOMAIN_MODEL.md](../architecture/DOMAIN_MODEL.md).
 
 ## API
 
-| Method | Route | Roles | Contract |
-|--------|-------|-------|----------|
-| POST | `/export` | ADMIN | `exportBodySchema` |
-| POST | `/export/preview` | ADMIN | `exportPreviewBodySchema` → `exportPreviewResponseSchema` |
-| GET | `/export` | ADMIN | `exportQuerySchema` (legacy; default columns) |
-| POST | `/export/me` | ADMIN, MEMBER | `memberExportBodySchema` |
-| GET | `/export/presets` | ADMIN | — |
-| POST | `/export/presets` | ADMIN | `createExportPresetSchema` |
-| DELETE | `/export/presets/:id` | ADMIN | — |
-| GET | `/export/schedules` | ADMIN | — |
-| POST | `/export/schedules` | ADMIN | `createExportScheduleSchema` |
-| PATCH | `/export/schedules/:id` | ADMIN | `updateExportScheduleSchema` |
-| DELETE | `/export/schedules/:id` | ADMIN | — |
-| POST | `/export/shares` | ADMIN | `createReportShareSchema` |
-| GET | `/export/share/:token` | Public | `publicReportShareViewSchema` |
+| Method | Route                   | Roles         | Contract                                                  |
+| ------ | ----------------------- | ------------- | --------------------------------------------------------- |
+| POST   | `/export`               | ADMIN         | `exportBodySchema`                                        |
+| POST   | `/export/preview`       | ADMIN         | `exportPreviewBodySchema` → `exportPreviewResponseSchema` |
+| GET    | `/export`               | ADMIN         | `exportQuerySchema` (legacy; default columns)             |
+| POST   | `/export/me`            | ADMIN, MEMBER | `memberExportBodySchema`                                  |
+| GET    | `/export/presets`       | ADMIN         | —                                                         |
+| POST   | `/export/presets`       | ADMIN         | `createExportPresetSchema`                                |
+| DELETE | `/export/presets/:id`   | ADMIN         | —                                                         |
+| GET    | `/export/schedules`     | ADMIN         | —                                                         |
+| POST   | `/export/schedules`     | ADMIN         | `createExportScheduleSchema`                              |
+| PATCH  | `/export/schedules/:id` | ADMIN         | `updateExportScheduleSchema`                              |
+| DELETE | `/export/schedules/:id` | ADMIN         | —                                                         |
+| POST   | `/export/shares`        | ADMIN         | `createReportShareSchema`                                 |
+| GET    | `/export/share/:token`  | Public        | `publicReportShareViewSchema`                             |
 
 Controller: [export.controller.ts](../../apps/api/src/modules/export/interface/http/export.controller.ts), [export-share.controller.ts](../../apps/api/src/modules/export/interface/http/export-share.controller.ts)
 
@@ -37,18 +37,18 @@ Filenames: [export-filename.ts](../../packages/contracts/src/export-filename.ts)
 
 ## Report catalog (admin)
 
-| Type | Description |
-|------|-------------|
-| `time_entries` | One row per logged interval |
-| `invoice` | Billable entries only + TOTAL row |
-| `daily_summary` | date × member × project |
-| `weekly_summary` | ISO week × member × project |
-| `by_project` | One row per project |
-| `by_member` | One row per user with logs |
-| `by_task` | One row per task |
-| `users_without_time` | Members with zero logs in range |
-| `budget_vs_actual` | Project budget vs logged hours |
-| `utilization` | Member × week vs expected hours (default 40h) |
+| Type                 | Description                                   |
+| -------------------- | --------------------------------------------- |
+| `time_entries`       | One row per logged interval                   |
+| `invoice`            | Billable entries only + TOTAL row             |
+| `daily_summary`      | date × member × project                       |
+| `weekly_summary`     | ISO week × member × project                   |
+| `by_project`         | One row per project                           |
+| `by_member`          | One row per user with logs                    |
+| `by_task`            | One row per task                              |
+| `users_without_time` | Members with zero logs in range               |
+| `budget_vs_actual`   | Project budget vs logged hours                |
+| `utilization`        | Member × week vs expected hours (default 40h) |
 
 Column keys and labels: SSOT in `export.dto.ts`.
 
@@ -58,13 +58,13 @@ Subset: `time_entries`, `daily_summary`, `by_project` — columns exclude worksp
 
 ## Filters
 
-| Filter | Behavior |
-|--------|----------|
-| Period | `from` + `to` (ISO datetimes) |
-| Project | Optional `projectId` |
-| Member | Optional `userId` (admin only) |
+| Filter    | Behavior                                  |
+| --------- | ----------------------------------------- |
+| Period    | `from` + `to` (ISO datetimes)             |
+| Project   | Optional `projectId`                      |
+| Member    | Optional `userId` (admin only)            |
 | Team only | Optional `teamOnly` when project selected |
-| Billable | `all` \| `billable` \| `non_billable` |
+| Billable  | `all` \| `billable` \| `non_billable`     |
 
 ## Workspace settings (export)
 
@@ -77,11 +77,11 @@ Parsed via [workspace-settings.ts](../../packages/contracts/src/workspace-settin
 
 ## Formats
 
-| Format | Delivery |
-|--------|----------|
-| CSV | One file per report; multiple → ZIP |
-| Excel | One workbook, one sheet per report |
-| PDF | Summary layout; footer note from settings |
+| Format | Delivery                                  |
+| ------ | ----------------------------------------- |
+| CSV    | One file per report; multiple → ZIP       |
+| Excel  | One workbook, one sheet per report        |
+| PDF    | Summary layout; footer note from settings |
 
 ## Scheduled exports
 
@@ -104,7 +104,7 @@ Parsed via [workspace-settings.ts](../../packages/contracts/src/workspace-settin
 
 ## UI
 
-- Admin: [exports/page.tsx](../../apps/admin/src/app/(admin)/exports/page.tsx), [dashboard/page.tsx](../../apps/admin/src/app/(admin)/dashboard/page.tsx)
+- Admin: [exports/page.tsx](<../../apps/admin/src/app/(admin)/exports/page.tsx>), [dashboard/page.tsx](<../../apps/admin/src/app/(admin)/dashboard/page.tsx>)
 - Client: timesheet export on client app
 
 ## Testing

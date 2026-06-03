@@ -19,15 +19,15 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
 
 ## Routes
 
-| Path | Purpose |
-|------|---------|
-| `/login` | Admin sign-in (`ADMIN` workspace role) |
-| `/dashboard` | Analytics and summary widgets |
-| `/projects` | Create projects, team invites |
-| `/team` | Live presence |
-| `/billing` | Hourly rates |
-| `/exports` | Multi-report export wizard |
-| `/workspace` | Workspace members |
+| Path         | Purpose                                |
+| ------------ | -------------------------------------- |
+| `/login`     | Admin sign-in (`ADMIN` workspace role) |
+| `/dashboard` | Analytics and summary widgets          |
+| `/projects`  | Create projects, team invites          |
+| `/team`      | Live presence                          |
+| `/billing`   | Hourly rates                           |
+| `/exports`   | Multi-report export wizard             |
+| `/workspace` | Workspace members                      |
 
 Default URL: http://localhost:3002
 

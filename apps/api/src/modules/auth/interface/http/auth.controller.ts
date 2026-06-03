@@ -1,25 +1,13 @@
+import { loginSchema, registerSchema, switchWorkspaceSchema, ROUTES } from "@chronomint/contracts";
+import { Body, Controller, Delete, Get, Post, Req, Res, UseGuards } from "@nestjs/common";
+import { type Response, type Request } from "express";
 import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Post,
-  Req,
-  Res,
-  UseGuards
-} from "@nestjs/common";
-import { Response, Request } from "express";
-import {
-  loginSchema,
-  registerSchema,
-  switchWorkspaceSchema,
-  ROUTES
-} from "@chronomint/contracts";
+  CurrentUser,
+  type RequestUser
+} from "../../../../common/decorators/current-user.decorator";
+import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
 import { AuthService } from "../../application/auth.service";
-import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
-import { CurrentUser, RequestUser } from "../../../../common/decorators/current-user.decorator";
-import { PrismaService } from "../../../../common/prisma/prisma.service";
 
 const REFRESH_COOKIE = "refresh_token";
 const ACCESS_COOKIE = "access_token";
@@ -28,10 +16,7 @@ const cookieSecure = process.env.NODE_ENV === "production";
 
 @Controller()
 export class AuthController {
-  constructor(
-    private auth: AuthService,
-    private prisma: PrismaService
-  ) {}
+  constructor(private auth: AuthService) {}
 
   @Post(ROUTES.AUTH.REGISTER)
   async register(
@@ -40,7 +25,14 @@ export class AuthController {
   ) {
     const session = await this.auth.register(body as Parameters<AuthService["register"]>[0]);
     this.setCookies(res, session);
-    return { ...session, accessToken: this.auth.signAccessToken(session.user.id, session.workspaceId, session.workspaceRole) };
+    return {
+      ...session,
+      accessToken: this.auth.signAccessToken(
+        session.user.id,
+        session.workspaceId,
+        session.workspaceRole
+      )
+    };
   }
 
   @Post(ROUTES.AUTH.LOGIN)
@@ -50,30 +42,23 @@ export class AuthController {
   ) {
     const session = await this.auth.login(body as Parameters<AuthService["login"]>[0]);
     this.setCookies(res, session);
-    return { ...session, accessToken: this.auth.signAccessToken(session.user.id, session.workspaceId, session.workspaceRole) };
+    return {
+      ...session,
+      accessToken: this.auth.signAccessToken(
+        session.user.id,
+        session.workspaceId,
+        session.workspaceRole
+      )
+    };
   }
 
   @Post(ROUTES.AUTH.REFRESH)
   async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const refresh = req.cookies?.[REFRESH_COOKIE];
     const { userId } = this.auth.verifyRefresh(refresh);
-    const membership = await this.prisma.workspaceMember.findFirst({
-      where: { userId },
-      include: { user: true, workspace: true }
-    });
-    if (!membership) return { error: "No workspace" };
-    const session = {
-      user: {
-        id: membership.user.id,
-        email: membership.user.email,
-        name: membership.user.name,
-        defaultHourlyRate: membership.user.defaultHourlyRate?.toNumber() ?? null
-      },
-      workspaceId: membership.workspaceId,
-      workspaceName: membership.workspace.name,
-      workspaceRole: membership.role as "ADMIN" | "MEMBER"
-    };
-    const access = this.auth.signAccessToken(userId, membership.workspaceId, session.workspaceRole);
+    const session = await this.auth.refreshSession(userId);
+    if (!session) return { error: "No workspace" };
+    const access = this.auth.signAccessToken(userId, session.workspaceId, session.workspaceRole);
     res.cookie(ACCESS_COOKIE, access, {
       httpOnly: true,
       sameSite: "lax",
@@ -104,22 +89,8 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @Get(ROUTES.AUTH.ME)
-  async me(@CurrentUser() user: RequestUser) {
-    const dbUser = await this.prisma.user.findUniqueOrThrow({ where: { id: user.userId } });
-    const workspace = await this.prisma.workspace.findUniqueOrThrow({
-      where: { id: user.workspaceId }
-    });
-    return {
-      user: {
-        id: dbUser.id,
-        email: dbUser.email,
-        name: dbUser.name,
-        defaultHourlyRate: dbUser.defaultHourlyRate?.toNumber() ?? null
-      },
-      workspaceId: user.workspaceId,
-      workspaceName: workspace.name,
-      workspaceRole: user.role
-    };
+  me(@CurrentUser() user: RequestUser) {
+    return this.auth.getMe(user.userId, user.workspaceId);
   }
 
   @Delete(ROUTES.AUTH.LOGOUT)
@@ -129,8 +100,15 @@ export class AuthController {
     return { ok: true };
   }
 
-  private setCookies(res: Response, session: { user: { id: string }; workspaceId: string; workspaceRole: "ADMIN" | "MEMBER" }) {
-    const access = this.auth.signAccessToken(session.user.id, session.workspaceId, session.workspaceRole);
+  private setCookies(
+    res: Response,
+    session: { user: { id: string }; workspaceId: string; workspaceRole: "ADMIN" | "MEMBER" }
+  ) {
+    const access = this.auth.signAccessToken(
+      session.user.id,
+      session.workspaceId,
+      session.workspaceRole
+    );
     const refresh = this.auth.signRefreshToken(session.user.id);
     res.cookie(ACCESS_COOKIE, access, {
       httpOnly: true,

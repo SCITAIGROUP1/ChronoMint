@@ -1,18 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  LabelList,
-  Legend,
-  Pie,
-  PieChart,
-  XAxis,
-  YAxis
-} from "recharts";
+import type { DashboardReportDto } from "@chronomint/contracts";
 import {
   Card,
   CardContent,
@@ -39,7 +27,19 @@ import {
   ChartTooltipContent,
   type ChartConfig
 } from "@chronomint/ui/chart";
-import type { DashboardReportDto } from "@chronomint/contracts";
+import { useMemo, useState } from "react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  LabelList,
+  Legend,
+  Pie,
+  PieChart,
+  XAxis,
+  YAxis
+} from "recharts";
 
 const billableChartConfig = {
   billableHours: { label: "Billable", color: "hsl(142 76% 36%)" },
@@ -135,11 +135,22 @@ export function DailyStackedBarChart({ report, chartBy, projectColors }: DailyBa
       <ChartContainer config={billableChartConfig} className="min-h-[320px] w-full">
         <BarChart data={billabilityData} accessibilityLayer margin={{ top: 24 }}>
           <CartesianGrid vertical={false} strokeDasharray="3 3" />
-          <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} tick={{ fontSize: 11 }} />
+          <XAxis
+            dataKey="label"
+            tickLine={false}
+            axisLine={false}
+            tickMargin={8}
+            tick={{ fontSize: 11 }}
+          />
           <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 12 }} unit="h" />
           <ChartTooltip content={<ChartTooltipContent />} />
           <Legend />
-          <Bar dataKey="billableHours" stackId="stack" fill="var(--color-billableHours)" radius={[0, 0, 0, 0]} />
+          <Bar
+            dataKey="billableHours"
+            stackId="stack"
+            fill="var(--color-billableHours)"
+            radius={[0, 0, 0, 0]}
+          />
           <Bar
             dataKey="nonBillableHours"
             stackId="stack"
@@ -165,7 +176,13 @@ export function DailyStackedBarChart({ report, chartBy, projectColors }: DailyBa
     <ChartContainer config={projectChartConfig} className="min-h-[320px] w-full">
       <BarChart data={projectData} accessibilityLayer margin={{ top: 24 }}>
         <CartesianGrid vertical={false} strokeDasharray="3 3" />
-        <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} tick={{ fontSize: 11 }} />
+        <XAxis
+          dataKey="label"
+          tickLine={false}
+          axisLine={false}
+          tickMargin={8}
+          tick={{ fontSize: 11 }}
+        />
         <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 12 }} unit="h" />
         <ChartTooltip content={<ChartTooltipContent />} />
         <Legend />
@@ -343,13 +360,11 @@ export function ReportBreakdownTable({ report, groupBy, projectColors }: Breakdo
           rows.map((r) => (
             <TableRow key={r.id}>
               <TableCell className="font-medium">
-                {r.color ? (
-                  <ProjectNameWithColor name={r.title} color={r.color} />
-                ) : (
-                  r.title
-                )}
+                {r.color ? <ProjectNameWithColor name={r.title} color={r.color} /> : r.title}
               </TableCell>
-              <TableCell className="text-right tabular-nums">{formatDurationClock(r.hours)}</TableCell>
+              <TableCell className="text-right tabular-nums">
+                {formatDurationClock(r.hours)}
+              </TableCell>
               <TableCell className="text-right tabular-nums">{formatMoney(r.amount)} USD</TableCell>
             </TableRow>
           ))
@@ -435,8 +450,6 @@ export function ReportVisualsSection({ report, projectColors }: ReportVisualsSec
 
 function ChartEmptyHint() {
   return (
-    <p className="text-sm text-muted-foreground py-8 text-center">
-      No time logged in this period.
-    </p>
+    <p className="text-sm text-muted-foreground py-8 text-center">No time logged in this period.</p>
   );
 }

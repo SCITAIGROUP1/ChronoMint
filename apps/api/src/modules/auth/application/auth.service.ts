@@ -1,11 +1,10 @@
-import { Injectable } from "@nestjs/common";
-import { JwtService } from "@nestjs/jwt";
-import * as bcrypt from "bcrypt";
 import { ErrorCodes } from "@chronomint/contracts";
 import type { LoginDto, RegisterDto, AuthSessionDto } from "@chronomint/contracts";
-import { PrismaService } from "../../../common/prisma/prisma.service";
+import { Injectable, HttpStatus } from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import * as bcrypt from "bcrypt";
 import { DomainException } from "../../../common/errors/domain.exception";
-import { HttpStatus } from "@nestjs/common";
+import { PrismaService } from "../../../common/prisma/prisma.service";
 
 function slugify(name: string): string {
   return name
@@ -25,7 +24,11 @@ export class AuthService {
   async register(dto: RegisterDto): Promise<AuthSessionDto> {
     const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (existing) {
-      throw new DomainException(ErrorCodes.EMAIL_EXISTS, "Email already registered", HttpStatus.CONFLICT);
+      throw new DomainException(
+        ErrorCodes.EMAIL_EXISTS,
+        "Email already registered",
+        HttpStatus.CONFLICT
+      );
     }
 
     const passwordHash = await bcrypt.hash(dto.password, 10);
@@ -84,11 +87,19 @@ export class AuthService {
       include: { memberships: { include: { workspace: true }, take: 1 } }
     });
     if (!user || !(await bcrypt.compare(dto.password, user.passwordHash))) {
-      throw new DomainException(ErrorCodes.UNAUTHORIZED, "Invalid credentials", HttpStatus.UNAUTHORIZED);
+      throw new DomainException(
+        ErrorCodes.UNAUTHORIZED,
+        "Invalid credentials",
+        HttpStatus.UNAUTHORIZED
+      );
     }
     const membership = user.memberships[0];
     if (!membership) {
-      throw new DomainException(ErrorCodes.NOT_FOUND, "No workspace membership", HttpStatus.NOT_FOUND);
+      throw new DomainException(
+        ErrorCodes.NOT_FOUND,
+        "No workspace membership",
+        HttpStatus.NOT_FOUND
+      );
     }
     return this.buildSession(
       user,
@@ -113,12 +124,50 @@ export class AuthService {
   }
 
   verifyRefresh(token: string): { userId: string } {
-    const payload = this.jwt.verify(token, { secret: process.env.JWT_REFRESH_SECRET }) as { sub: string };
+    const payload = this.jwt.verify(token, { secret: process.env.JWT_REFRESH_SECRET }) as {
+      sub: string;
+    };
     return { userId: payload.sub };
   }
 
+  async refreshSession(userId: string): Promise<AuthSessionDto | null> {
+    const membership = await this.prisma.workspaceMember.findFirst({
+      where: { userId },
+      include: { user: true, workspace: true }
+    });
+    if (!membership) return null;
+    return this.buildSession(
+      membership.user,
+      membership.workspaceId,
+      membership.role as "ADMIN" | "MEMBER",
+      membership.workspace.name
+    );
+  }
+
+  async getMe(userId: string, workspaceId: string): Promise<AuthSessionDto> {
+    const dbUser = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    const workspace = await this.prisma.workspace.findUniqueOrThrow({
+      where: { id: workspaceId }
+    });
+    return this.buildSession(
+      dbUser,
+      workspaceId,
+      (
+        await this.prisma.workspaceMember.findUniqueOrThrow({
+          where: { workspaceId_userId: { workspaceId, userId } }
+        })
+      ).role as "ADMIN" | "MEMBER",
+      workspace.name
+    );
+  }
+
   private buildSession(
-    user: { id: string; email: string; name: string; defaultHourlyRate: { toNumber(): number } | null },
+    user: {
+      id: string;
+      email: string;
+      name: string;
+      defaultHourlyRate: { toNumber(): number } | null;
+    },
     workspaceId: string,
     role: "ADMIN" | "MEMBER",
     workspaceName: string

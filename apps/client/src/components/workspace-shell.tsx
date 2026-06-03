@@ -1,18 +1,16 @@
 "use client";
 
+import { ROUTES } from "@chronomint/contracts";
+import type { AuthSessionDto, WorkspaceWithRoleDto } from "@chronomint/contracts";
+import { Button } from "@chronomint/ui";
+import { ThemeToggle, WorkspaceSwitcher } from "@chronomint/web-shared";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { Button } from "@chronomint/ui";
-import { useTheme } from "next-themes";
-import { ROUTES } from "@chronomint/contracts";
-import type { AuthSessionDto } from "@chronomint/contracts";
 import { api } from "@/lib/api";
-import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 import { useProjectsStore } from "@/stores/projects.store";
+import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 import { useWorkspacesStore } from "@/stores/workspaces.store";
-import { WorkspaceSwitcher } from "@/components/workspace-switcher";
-import type { WorkspaceWithRoleDto } from "@chronomint/contracts";
 
 const nav = [
   { href: "/timer", label: "Timer" },
@@ -27,9 +25,6 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
   const { session, setSession, clear } = useSessionStore();
   const setWorkspaceNames = useProjectsStore((s) => s.setWorkspaces);
   const setWorkspaces = useWorkspacesStore((s) => s.setWorkspaces);
-  const { resolvedTheme, setTheme } = useTheme();
-  const toggle = () => setTheme(resolvedTheme === "dark" ? "light" : "dark");
-
   useEffect(() => {
     if (session) return;
     const ws = getWorkspaceId();
@@ -69,26 +64,28 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
       <aside className="w-56 border-r border-border bg-card p-4">
         <h1 className="text-lg font-bold text-primary">ChronoMint</h1>
         <p className="mt-1 text-xs text-muted-foreground">{session.user.name}</p>
-        <WorkspaceSwitcher />
+        <WorkspaceSwitcher
+          defaultRedirect="/timer"
+          onAfterSwitch={() => {
+            useProjectsStore.getState().setProjects([]);
+            useProjectsStore.getState().setTasks([]);
+          }}
+        />
         <nav className="mt-6 flex flex-col gap-1">
           {nav.map((item) => (
             <Link
               key={item.href}
               href={item.href}
               className={`rounded px-3 py-2 text-sm ${
-                pathname === item.href
-                  ? "bg-primary text-primary-foreground"
-                  : "hover:bg-accent"
+                pathname === item.href ? "bg-primary text-primary-foreground" : "hover:bg-accent"
               }`}
             >
               {item.label}
             </Link>
           ))}
         </nav>
-        <div className="mt-auto flex flex-col gap-2 pt-8">
-          <Button variant="ghost" size="sm" onClick={toggle}>
-            Toggle theme
-          </Button>
+        <div className="mt-auto flex flex-col gap-2 border-t border-border/70 pt-4">
+          <ThemeToggle />
           <Button variant="secondary" size="sm" onClick={logout}>
             Logout
           </Button>

@@ -1,5 +1,5 @@
-import { create } from "zustand";
 import type { ProjectDto, TaskDto, WorkspaceWithRoleDto } from "@chronomint/contracts";
+import { create } from "zustand";
 
 interface ProjectsState {
   projects: ProjectDto[];

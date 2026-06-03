@@ -1,11 +1,14 @@
-import { Injectable } from "@nestjs/common";
 import { randomBytes } from "crypto";
-import type { CreateProjectDto, CreateTeamInviteDto, UpdateProjectDto } from "@chronomint/contracts";
+import type {
+  CreateProjectDto,
+  CreateTeamInviteDto,
+  UpdateProjectDto
+} from "@chronomint/contracts";
 import { ErrorCodes, pickDefaultProjectColor } from "@chronomint/contracts";
-import { PrismaService } from "../../../common/prisma/prisma.service";
+import { Injectable, HttpStatus } from "@nestjs/common";
+import { ProjectAccessService } from "../../../common/access/project-access.service";
 import { DomainException } from "../../../common/errors/domain.exception";
-import { HttpStatus } from "@nestjs/common";
-import { ProjectAccessService } from "./project-access.service";
+import { PrismaService } from "../../../common/prisma/prisma.service";
 
 @Injectable()
 export class ProjectsService {
@@ -51,12 +54,7 @@ export class ProjectsService {
     };
   }
 
-  async list(
-    workspaceId: string,
-    userId: string,
-    role: "ADMIN" | "MEMBER",
-    isActive?: boolean
-  ) {
+  async list(workspaceId: string, userId: string, role: "ADMIN" | "MEMBER", isActive?: boolean) {
     const projectIds = await this.access.accessibleProjectIds(workspaceId, userId, role);
     if (projectIds.length === 0) return [];
 
@@ -96,7 +94,8 @@ export class ProjectsService {
       where: { id, workspaceId },
       include: { workspace: { select: { name: true } } }
     });
-    if (!p) throw new DomainException(ErrorCodes.NOT_FOUND, "Project not found", HttpStatus.NOT_FOUND);
+    if (!p)
+      throw new DomainException(ErrorCodes.NOT_FOUND, "Project not found", HttpStatus.NOT_FOUND);
     return this.toDto(p, p.workspace.name);
   }
 
@@ -118,7 +117,8 @@ export class ProjectsService {
 
   private async getAdmin(workspaceId: string, id: string) {
     const p = await this.prisma.project.findFirst({ where: { id, workspaceId } });
-    if (!p) throw new DomainException(ErrorCodes.NOT_FOUND, "Project not found", HttpStatus.NOT_FOUND);
+    if (!p)
+      throw new DomainException(ErrorCodes.NOT_FOUND, "Project not found", HttpStatus.NOT_FOUND);
     return p;
   }
 
@@ -163,7 +163,11 @@ export class ProjectsService {
       where: { id: memberId, teamId: team.id }
     });
     if (!member) {
-      throw new DomainException(ErrorCodes.NOT_FOUND, "Team member not found", HttpStatus.NOT_FOUND);
+      throw new DomainException(
+        ErrorCodes.NOT_FOUND,
+        "Team member not found",
+        HttpStatus.NOT_FOUND
+      );
     }
     const updated = await this.prisma.teamMember.update({
       where: { id: memberId },
@@ -187,7 +191,11 @@ export class ProjectsService {
       where: { id: memberId, teamId: team.id }
     });
     if (!member) {
-      throw new DomainException(ErrorCodes.NOT_FOUND, "Team member not found", HttpStatus.NOT_FOUND);
+      throw new DomainException(
+        ErrorCodes.NOT_FOUND,
+        "Team member not found",
+        HttpStatus.NOT_FOUND
+      );
     }
     await this.prisma.teamMember.delete({ where: { id: memberId } });
     return { ok: true };
@@ -246,6 +254,11 @@ export class ProjectsService {
     };
   }
 
+  async acceptInviteForUser(token: string, userId: string) {
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    return this.acceptInvite(token, userId, user.email);
+  }
+
   async acceptInvite(token: string, userId: string, userEmail: string) {
     const invite = await this.prisma.projectInvite.findUnique({
       where: { token },
@@ -255,7 +268,11 @@ export class ProjectsService {
       throw new DomainException(ErrorCodes.NOT_FOUND, "Invite not found", HttpStatus.NOT_FOUND);
     }
     if (invite.acceptedAt) {
-      throw new DomainException(ErrorCodes.VALIDATION_ERROR, "Invite already used", HttpStatus.CONFLICT);
+      throw new DomainException(
+        ErrorCodes.VALIDATION_ERROR,
+        "Invite already used",
+        HttpStatus.CONFLICT
+      );
     }
     if (invite.expiresAt < new Date()) {
       throw new DomainException(ErrorCodes.VALIDATION_ERROR, "Invite expired", HttpStatus.GONE);

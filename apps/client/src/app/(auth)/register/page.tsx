@@ -1,20 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import {
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Input,
-  Label
-} from "@chronomint/ui";
 import { ROUTES } from "@chronomint/contracts";
+import type { AuthSessionDto } from "@chronomint/contracts";
+import { Button, Card, CardContent, CardHeader, CardTitle, Input, Label } from "@chronomint/ui";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { api } from "@/lib/api";
 import { useSessionStore } from "@/stores/session.store";
-import type { AuthSessionDto } from "@chronomint/contracts";
 
 export default function RegisterPage() {
   const router = useRouter();

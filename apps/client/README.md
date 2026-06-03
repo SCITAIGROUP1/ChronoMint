@@ -20,14 +20,14 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
 
 ## Routes
 
-| Path | Purpose |
-|------|---------|
-| `/login`, `/register` | Authentication |
-| `/timer` | Start/stop timer |
-| `/timesheet` | Week view, manual entries, export my data |
-| `/tasks` | Task list |
-| `/projects` | Assigned projects |
-| `/invite/[token]` | Accept team invite |
+| Path                  | Purpose                                   |
+| --------------------- | ----------------------------------------- |
+| `/login`, `/register` | Authentication                            |
+| `/timer`              | Start/stop timer                          |
+| `/timesheet`          | Week view, manual entries, export my data |
+| `/tasks`              | Task list                                 |
+| `/projects`           | Assigned projects                         |
+| `/invite/[token]`     | Accept team invite                        |
 
 Default URL: http://localhost:3000
 

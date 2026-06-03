@@ -1,7 +1,7 @@
 import { Module } from "@nestjs/common";
 import { AuthModule } from "../auth/auth.module";
-import { WorkspaceController } from "./interface/http/workspace.controller";
 import { WorkspaceService } from "./application/workspace.service";
+import { WorkspaceController } from "./interface/http/workspace.controller";
 
 @Module({
   imports: [AuthModule],

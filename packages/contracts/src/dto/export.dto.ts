@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { isoDatetimeSchema, uuidSchema } from "./common.dto";
+import { assertMaxDateRange, isoDatetimeSchema, uuidSchema } from "./common.dto";
 
 export const exportReportTypeSchema = z.enum([
   "time_entries",
@@ -273,7 +273,7 @@ export const exportColumnsSchema = z
   })
   .optional();
 
-export const exportFiltersSchema = z.object({
+const exportFiltersBaseSchema = z.object({
   from: isoDatetimeSchema,
   to: isoDatetimeSchema,
   projectId: uuidSchema.optional(),
@@ -282,19 +282,27 @@ export const exportFiltersSchema = z.object({
   billable: exportBillableFilterSchema.default("all")
 });
 
-export type ExportFiltersDto = z.infer<typeof exportFiltersSchema>;
+export const exportFiltersSchema = exportFiltersBaseSchema.superRefine((v, ctx) =>
+  assertMaxDateRange(v.from, v.to, ctx)
+);
 
-export const exportBodySchema = exportFiltersSchema.extend({
-  reportTypes: z.array(exportReportTypeSchema).min(1),
-  format: exportFormatSchema,
-  columns: exportColumnsSchema
-});
+export type ExportFiltersDto = z.infer<typeof exportFiltersBaseSchema>;
+
+export const exportBodySchema = exportFiltersBaseSchema
+  .extend({
+    reportTypes: z.array(exportReportTypeSchema).min(1),
+    format: exportFormatSchema,
+    columns: exportColumnsSchema
+  })
+  .superRefine((v, ctx) => assertMaxDateRange(v.from, v.to, ctx));
 
 export type ExportBodyDto = z.infer<typeof exportBodySchema>;
 
-export const exportPreviewBodySchema = exportFiltersSchema.extend({
-  reportTypes: z.array(exportReportTypeSchema).min(1)
-});
+export const exportPreviewBodySchema = exportFiltersBaseSchema
+  .extend({
+    reportTypes: z.array(exportReportTypeSchema).min(1)
+  })
+  .superRefine((v, ctx) => assertMaxDateRange(v.from, v.to, ctx));
 
 export type ExportPreviewBodyDto = z.infer<typeof exportPreviewBodySchema>;
 
@@ -307,21 +315,19 @@ export const exportPreviewResponseSchema = z.object({
 export type ExportPreviewResponseDto = z.infer<typeof exportPreviewResponseSchema>;
 
 /** @deprecated GET query — defaults only */
-export const exportQuerySchema = z.object({
-  from: isoDatetimeSchema,
-  to: isoDatetimeSchema,
-  projectId: uuidSchema.optional(),
-  userId: uuidSchema.optional(),
-  format: z.enum(["csv", "pdf", "xlsx"])
-});
+export const exportQuerySchema = z
+  .object({
+    from: isoDatetimeSchema,
+    to: isoDatetimeSchema,
+    projectId: uuidSchema.optional(),
+    userId: uuidSchema.optional(),
+    format: z.enum(["csv", "pdf", "xlsx"])
+  })
+  .superRefine((v, ctx) => assertMaxDateRange(v.from, v.to, ctx));
 
 export type ExportQueryDto = z.infer<typeof exportQuerySchema>;
 
-export const memberExportReportTypeSchema = z.enum([
-  "time_entries",
-  "daily_summary",
-  "by_project"
-]);
+export const memberExportReportTypeSchema = z.enum(["time_entries", "daily_summary", "by_project"]);
 
 export type MemberExportReportType = z.infer<typeof memberExportReportTypeSchema>;
 
@@ -354,10 +360,7 @@ export const MEMBER_BY_PROJECT_COLUMNS = [
   "non_billable_hours"
 ] as const;
 
-export const MEMBER_EXPORT_COLUMN_LABELS: Record<
-  MemberExportReportType,
-  Record<string, string>
-> = {
+export const MEMBER_EXPORT_COLUMN_LABELS: Record<MemberExportReportType, Record<string, string>> = {
   time_entries: {
     project: "Project",
     task: "Task",
@@ -410,15 +413,17 @@ export const memberExportColumnsSchema = z
   })
   .optional();
 
-export const memberExportBodySchema = z.object({
-  from: isoDatetimeSchema,
-  to: isoDatetimeSchema,
-  projectId: uuidSchema.optional(),
-  billable: exportBillableFilterSchema.default("all"),
-  reportTypes: z.array(memberExportReportTypeSchema).min(1).default(["time_entries"]),
-  format: exportFormatSchema,
-  columns: memberExportColumnsSchema
-});
+export const memberExportBodySchema = z
+  .object({
+    from: isoDatetimeSchema,
+    to: isoDatetimeSchema,
+    projectId: uuidSchema.optional(),
+    billable: exportBillableFilterSchema.default("all"),
+    reportTypes: z.array(memberExportReportTypeSchema).min(1).default(["time_entries"]),
+    format: exportFormatSchema,
+    columns: memberExportColumnsSchema
+  })
+  .superRefine((v, ctx) => assertMaxDateRange(v.from, v.to, ctx));
 
 export type MemberExportBodyDto = z.infer<typeof memberExportBodySchema>;
 

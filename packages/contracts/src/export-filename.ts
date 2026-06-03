@@ -34,11 +34,8 @@ export function buildExportFilename(input: BuildExportFilenameInput): string {
   const ws = sanitizeFilenameSegment(input.workspaceSlug, 40);
   const from = formatDatePart(input.from);
   const to = formatDatePart(input.to);
-  const scope =
-    input.scope === "member" ? "-my-timesheet" : "";
-  const report = input.reportSlug
-    ? `-${sanitizeFilenameSegment(input.reportSlug, 32)}`
-    : "";
+  const scope = input.scope === "member" ? "-my-timesheet" : "";
+  const report = input.reportSlug ? `-${sanitizeFilenameSegment(input.reportSlug, 32)}` : "";
   const ext = input.ext.replace(/^\./, "").toLowerCase();
   const safeExt = /^[a-z0-9]+$/.test(ext) ? ext : "bin";
   return `chronomint-${ws}-${from}_to_${to}${scope}${report}.${safeExt}`;

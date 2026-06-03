@@ -1,9 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
 import type { TimeLogDto } from "@chronomint/contracts";
 import { cn } from "@chronomint/ui";
-import { entryColorsFromProject } from "@/lib/project-color-styles";
+import { startTransition, useCallback, useEffect, useRef, useState } from "react";
 import {
   buildSlotRows,
   clipLogToDay,
@@ -15,6 +14,7 @@ import {
   SLOT_MINUTES,
   toDateKey
 } from "./calendar-utils";
+import { entryColorsFromProject } from "@/lib/project-color-styles";
 
 export type SlotSelect = {
   dayKey: string;
@@ -30,6 +30,11 @@ type EntryPreview = {
 };
 
 const MOVE_THRESHOLD_PX = 5;
+
+/** Avoid updating parent state while this tree is still rendering (React 19). */
+function deferToParent(fn: () => void) {
+  queueMicrotask(fn);
+}
 
 type TimesheetCalendarProps = {
   view: "day" | "week";
@@ -116,7 +121,7 @@ export function TimesheetCalendar({
       const day = days.find((d) => toDateKey(d) === selection.dayKey);
       if (day) {
         suppressClick.current = true;
-        onSlotRangeSelect(day, selection.startIndex, selection.endIndex);
+        deferToParent(() => onSlotRangeSelect(day, selection.startIndex, selection.endIndex));
       }
       setDrag(null);
       dragMoved.current = false;
@@ -143,16 +148,21 @@ export function TimesheetCalendar({
       setResize((r) => {
         if (!r) return r;
         if (r.edge === "start") {
-          const nextStart = t < r.previewEnd ? t : new Date(r.previewEnd.getTime() - SLOT_MINUTES * 60_000);
+          const nextStart =
+            t < r.previewEnd ? t : new Date(r.previewEnd.getTime() - SLOT_MINUTES * 60_000);
           return { ...r, previewStart: nextStart };
         }
-        const nextEnd = t > r.previewStart ? t : new Date(r.previewStart.getTime() + SLOT_MINUTES * 60_000);
+        const nextEnd =
+          t > r.previewStart ? t : new Date(r.previewStart.getTime() + SLOT_MINUTES * 60_000);
         return { ...r, previewEnd: nextEnd };
       });
     };
     const onUp = () => {
       setResize((r) => {
-        if (r) onEntryResize(r.log, r.previewStart, r.previewEnd);
+        if (r) {
+          const { log, previewStart, previewEnd } = r;
+          deferToParent(() => onEntryResize(log, previewStart, previewEnd));
+        }
         return null;
       });
     };
@@ -203,8 +213,9 @@ export function TimesheetCalendar({
 
     const onPointerUp = (e: PointerEvent) => {
       if (pendingEntry.current?.pointerId === e.pointerId) {
-        onEntryClick(pendingEntry.current.log);
+        const log = pendingEntry.current.log;
         pendingEntry.current = null;
+        deferToParent(() => onEntryClick(log));
         return;
       }
 
@@ -215,7 +226,7 @@ export function TimesheetCalendar({
           const newStart = new Date(new Date(log.startTime).getTime() + delta);
           const newEnd = new Date(new Date(log.endTime).getTime() + delta);
           suppressClick.current = true;
-          onEntryMove(log, newStart, newEnd);
+          deferToParent(() => onEntryMove(log, newStart, newEnd));
         }
         setMove(null);
       }
@@ -239,15 +250,14 @@ export function TimesheetCalendar({
       const blockTop = e.clientY - duplicate.grabOffsetY;
       const start = pointerYToTime(day, blockTop + 4, rect.top, rect.height);
       const end = new Date(start.getTime() + duplicate.durationMs);
-      setDuplicate((d) =>
-        d ? { ...d, preview: { log: d.log, day, start, end } } : d
-      );
+      setDuplicate((d) => (d ? { ...d, preview: { log: d.log, day, start, end } } : d));
     };
     const onUp = () => {
       setDuplicate((d) => {
         if (d && d.preview.end > d.preview.start) {
+          const { log, preview } = d;
           suppressClick.current = true;
-          onEntryDuplicate(d.log, d.preview.start, d.preview.end);
+          deferToParent(() => onEntryDuplicate(log, preview.start, preview.end));
         }
         return null;
       });
@@ -283,10 +293,7 @@ export function TimesheetCalendar({
     return index >= lo && index <= hi;
   }
 
-  function previewOnDay(
-    preview: EntryPreview | undefined,
-    day: Date
-  ): EntryPreview | null {
+  function previewOnDay(preview: EntryPreview | undefined, day: Date): EntryPreview | null {
     if (!preview || toDateKey(preview.day) !== toDateKey(day)) return null;
     return preview;
   }
@@ -316,8 +323,8 @@ export function TimesheetCalendar({
     <div className="overflow-hidden rounded-lg border border-border bg-card">
       <p className="border-b border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
         Drag slots to log · Drag block to move · Resize edges · Click to edit ·{" "}
-        <kbd className="rounded border border-border bg-muted px-1 font-sans text-[10px]">Ctrl</kbd>+drag
-        to duplicate
+        <kbd className="rounded border border-border bg-muted px-1 font-sans text-[10px]">Ctrl</kbd>
+        +drag to duplicate
       </p>
       <div
         className="grid border-b border-border bg-muted/40"
@@ -361,9 +368,7 @@ export function TimesheetCalendar({
               entryColor={entryColor}
               compact={view === "week"}
               isSlotSelected={(idx) => isSlotSelected(toDateKey(day), idx)}
-              resizePreview={
-                resize && toDateKey(resize.day) === toDateKey(day) ? resize : null
-              }
+              resizePreview={resize && toDateKey(resize.day) === toDateKey(day) ? resize : null}
               movePreview={previewOnDay(move?.preview, day)}
               duplicatePreview={previewOnDay(duplicate?.preview, day)}
               movingLogId={move?.log.id ?? null}
@@ -372,10 +377,12 @@ export function TimesheetCalendar({
                 setDrag({ dayKey: toDateKey(day), startIndex: index, endIndex: index });
               }}
               onSlotPointerEnter={(index) => {
-                setDrag((d) => {
-                  if (!d || d.dayKey !== toDateKey(day)) return d;
-                  dragMoved.current = dragMoved.current || index !== d.startIndex;
-                  return { ...d, endIndex: index };
+                startTransition(() => {
+                  setDrag((d) => {
+                    if (!d || d.dayKey !== toDateKey(day)) return d;
+                    dragMoved.current = dragMoved.current || index !== d.startIndex;
+                    return { ...d, endIndex: index };
+                  });
                 });
               }}
               onSlotClick={(hour, minute) => {
@@ -383,14 +390,14 @@ export function TimesheetCalendar({
                   suppressClick.current = false;
                   return;
                 }
-                onSlotClick(day, hour, minute);
+                deferToParent(() => onSlotClick(day, hour, minute));
               }}
               onEntryClick={(log) => {
                 if (suppressClick.current) {
                   suppressClick.current = false;
                   return;
                 }
-                onEntryClick(log);
+                deferToParent(() => onEntryClick(log));
               }}
               onResizeStart={(log, clip, edge) => {
                 setResize({
@@ -450,11 +457,7 @@ function DayColumn({
   onSlotPointerEnter: (index: number) => void;
   onSlotClick: (hour: number, minute: number) => void;
   onEntryClick: (log: TimeLogDto) => void;
-  onResizeStart: (
-    log: TimeLogDto,
-    clip: { start: Date; end: Date },
-    edge: "start" | "end"
-  ) => void;
+  onResizeStart: (log: TimeLogDto, clip: { start: Date; end: Date }, edge: "start" | "end") => void;
   onDuplicateDragStart: (
     log: TimeLogDto,
     clip: { start: Date; end: Date },
@@ -590,7 +593,9 @@ function DayColumn({
                 }}
                 title={`${taskName(log.taskId)} — drag to move, Ctrl+drag to duplicate`}
               >
-                <span className={cn("block truncate font-medium", compact ? "text-[10px]" : "text-xs")}>
+                <span
+                  className={cn("block truncate font-medium", compact ? "text-[10px]" : "text-xs")}
+                >
                   {taskName(log.taskId)}
                 </span>
                 {!compact && log.description && (

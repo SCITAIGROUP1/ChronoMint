@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { ROUTES } from "@chronomint/contracts";
+import type { ActiveTimerDto, TaskDto, ProjectDto } from "@chronomint/contracts";
 import {
   Button,
   Card,
@@ -17,21 +18,22 @@ import {
   SelectTrigger,
   SelectValue
 } from "@chronomint/ui";
-import { ROUTES } from "@chronomint/contracts";
-import type { ActiveTimerDto, TaskDto, ProjectDto } from "@chronomint/contracts";
-import { api } from "@/lib/api";
-import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
-import { useTimerStore } from "@/stores/timer.store";
-import { useProjectsStore } from "@/stores/projects.store";
-import { formatProjectLabel, formatTaskLabel } from "@/lib/project-labels";
+import { useEffect, useMemo, useState } from "react";
 import { suggestBillableFromTask } from "@/features/timesheet/time-entry-dialog";
+import { api } from "@/lib/api";
+import { formatProjectLabel, formatTaskLabel } from "@/lib/project-labels";
+import { useProjectsStore } from "@/stores/projects.store";
+import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
+import { isActiveTimer, useTimerStore } from "@/stores/timer.store";
 
 const NEW_TASK = "__new__";
 
 function formatElapsed(sec: number) {
-  const h = Math.floor(sec / 3600);
-  const m = Math.floor((sec % 3600) / 60);
-  const s = sec % 60;
+  if (!Number.isFinite(sec) || sec < 0) return "00:00:00";
+  const total = Math.floor(sec);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
   return [h, m, s].map((n) => String(n).padStart(2, "0")).join(":");
 }
 
@@ -52,9 +54,11 @@ export function TimerPage() {
 
   useEffect(() => {
     if (!ws) return;
-    api<ProjectDto[]>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects);
-    api<TaskDto[]>(ROUTES.TASKS.LIST, { workspaceId: ws }).then(setTasks);
-    api<ActiveTimerDto | null>(ROUTES.TIMER.ACTIVE, { workspaceId: ws }).then(setActive);
+    void Promise.all([
+      api<ProjectDto[]>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects),
+      api<TaskDto[]>(ROUTES.TASKS.LIST, { workspaceId: ws }).then(setTasks),
+      api<ActiveTimerDto | null>(ROUTES.TIMER.ACTIVE, { workspaceId: ws }).then(setActive)
+    ]);
   }, [ws, setProjects, setTasks, setActive]);
 
   useEffect(() => {
@@ -69,6 +73,12 @@ export function TimerPage() {
 
   const activeTask = active ? tasks.find((t) => t.id === active.taskId) : null;
   const activeProject = activeTask ? projects.find((p) => p.id === activeTask.projectId) : null;
+  const tracking = isActiveTimer(active);
+
+  useEffect(() => {
+    if (!ws || !tracking || activeTask) return;
+    api<ActiveTimerDto | null>(ROUTES.TIMER.ACTIVE, { workspaceId: ws }).then(setActive);
+  }, [ws, tracking, activeTask, setActive]);
 
   const canStart =
     Boolean(projectId) &&
@@ -136,7 +146,11 @@ export function TimerPage() {
       setActive(null);
       setStopDescription("");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not stop timer");
+      const message = e instanceof Error ? e.message : "Could not stop timer";
+      if (message.toLowerCase().includes("no active timer")) {
+        setActive(null);
+      }
+      setError(message);
     } finally {
       setStopping(false);
     }
@@ -147,24 +161,34 @@ export function TimerPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Timer</h1>
         <p className="text-sm text-muted-foreground">
-          Choose a project and task before you start tracking.
+          {tracking
+            ? "Stop the timer when you are done. The clock updates every second."
+            : "Choose a project and task before you start tracking."}
         </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>{active ? "Tracking time" : "Start timer"}</CardTitle>
-          {active && activeProject && activeTask && (
+          <CardTitle>{tracking ? "Tracking time" : "Start timer"}</CardTitle>
+          {tracking && activeProject && activeTask && (
             <CardDescription className="flex items-center gap-2">
               <ProjectColorDot color={activeProject.color} size="md" />
               {formatTaskLabel(activeProject, activeTask.taskName, workspaceNamesById)}
             </CardDescription>
           )}
+          {tracking && !activeTask && (
+            <CardDescription className="text-amber-700 dark:text-amber-200">
+              Active timer on the server, but this task is not in your list. Stop to clear, or
+              refresh the page.
+            </CardDescription>
+          )}
         </CardHeader>
         <CardContent className="space-y-6">
-          <p className="font-mono text-5xl tabular-nums tracking-tight">{formatElapsed(elapsedSec)}</p>
+          <p className="font-mono text-5xl tabular-nums tracking-tight">
+            {formatElapsed(elapsedSec)}
+          </p>
 
-          {active ? (
+          {tracking ? (
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="stop-description">Note (optional)</Label>
@@ -263,11 +287,7 @@ export function TimerPage() {
                     </div>
                   )}
 
-                  <Button
-                    className="w-full"
-                    onClick={startTimer}
-                    disabled={!canStart || starting}
-                  >
+                  <Button className="w-full" onClick={startTimer} disabled={!canStart || starting}>
                     {starting ? "Starting…" : "Start timer"}
                   </Button>
                 </>

@@ -4,17 +4,17 @@ Step-by-step help for ChronoMint apps. No technical setup required.
 
 ## Which app do I use?
 
-| Role | App | URL (local) |
-|------|-----|-------------|
-| **Member** — log your own time | Client | http://localhost:3000 |
-| **Admin** — manage projects, billing, exports | Admin | http://localhost:3002 |
+| Role                                          | App    | URL (local)           |
+| --------------------------------------------- | ------ | --------------------- |
+| **Member** — log your own time                | Client | http://localhost:3000 |
+| **Admin** — manage projects, billing, exports | Admin  | http://localhost:3002 |
 
 Demo passwords (after seed): `password123`
 
-| Account | Use for |
-|---------|---------|
+| Account                 | Use for    |
+| ----------------------- | ---------- |
 | `member@chronomint.dev` | Client app |
-| `admin@chronomint.dev` | Admin app |
+| `admin@chronomint.dev`  | Admin app  |
 
 ## Member guides (client)
 

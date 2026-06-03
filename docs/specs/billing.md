@@ -6,11 +6,11 @@
 
 ## API
 
-| Method | Route | Roles | Contract |
-|--------|-------|-------|----------|
-| GET | `/billing/rates` | ADMIN | [billing.dto.ts](../../packages/contracts/src/dto/billing.dto.ts) |
-| POST | `/billing/rates` | ADMIN | billing.dto |
-| GET | `/billing/summary` | ADMIN | [reporting.dto.ts](../../packages/contracts/src/dto/reporting.dto.ts) (query: `from`, `to`, optional filters) |
+| Method | Route              | Roles | Contract                                                                                                      |
+| ------ | ------------------ | ----- | ------------------------------------------------------------------------------------------------------------- |
+| GET    | `/billing/rates`   | ADMIN | [billing.dto.ts](../../packages/contracts/src/dto/billing.dto.ts)                                             |
+| POST   | `/billing/rates`   | ADMIN | billing.dto                                                                                                   |
+| GET    | `/billing/summary` | ADMIN | [reporting.dto.ts](../../packages/contracts/src/dto/reporting.dto.ts) (query: `from`, `to`, optional filters) |
 
 Controller: [billing.controller.ts](../../apps/api/src/modules/billing/interface/http/billing.controller.ts)
 
@@ -30,7 +30,7 @@ Returns `totalHours`, `billableHours`, `totalAmount`, `currency: "USD"` for the 
 
 ## UI
 
-- [apps/admin/src/app/(admin)/billing/page.tsx](../../apps/admin/src/app/(admin)/billing/page.tsx)
+- [apps/admin/src/app/(admin)/billing/page.tsx](<../../apps/admin/src/app/(admin)/billing/page.tsx>)
 
 ## Edge cases
 

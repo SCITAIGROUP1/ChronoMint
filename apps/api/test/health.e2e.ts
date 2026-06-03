@@ -1,8 +1,8 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { type INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
-import { INestApplication } from "@nestjs/common";
 import cookieParser from "cookie-parser";
 import * as request from "supertest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { AppModule } from "../src/app.module";
 
 describe("Health E2E", () => {

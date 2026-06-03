@@ -1,9 +1,8 @@
-import { Injectable } from "@nestjs/common";
 import { ErrorCodes } from "@chronomint/contracts";
 import type { InviteMemberDto } from "@chronomint/contracts";
-import { PrismaService } from "../../../common/prisma/prisma.service";
+import { Injectable, HttpStatus } from "@nestjs/common";
 import { DomainException } from "../../../common/errors/domain.exception";
-import { HttpStatus } from "@nestjs/common";
+import { PrismaService } from "../../../common/prisma/prisma.service";
 
 @Injectable()
 export class WorkspaceService {
@@ -36,7 +35,7 @@ export class WorkspaceService {
   }
 
   async invite(workspaceId: string, dto: InviteMemberDto) {
-    let user = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (!user) {
       throw new DomainException(
         ErrorCodes.NOT_FOUND,
@@ -48,7 +47,11 @@ export class WorkspaceService {
       where: { workspaceId_userId: { workspaceId, userId: user.id } }
     });
     if (existing) {
-      throw new DomainException(ErrorCodes.VALIDATION_ERROR, "Already a member", HttpStatus.CONFLICT);
+      throw new DomainException(
+        ErrorCodes.VALIDATION_ERROR,
+        "Already a member",
+        HttpStatus.CONFLICT
+      );
     }
     return this.prisma.workspaceMember.create({
       data: { workspaceId, userId: user.id, role: dto.role }

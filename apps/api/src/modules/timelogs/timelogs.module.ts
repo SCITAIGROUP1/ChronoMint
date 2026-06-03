@@ -1,7 +1,7 @@
 import { Module } from "@nestjs/common";
 import { AuthModule } from "../auth/auth.module";
-import { TimelogsController } from "./interface/http/timelogs.controller";
 import { TimelogsService } from "./application/timelogs.service";
+import { TimelogsController } from "./interface/http/timelogs.controller";
 
 @Module({
   imports: [AuthModule],

@@ -1,10 +1,11 @@
 import { Module } from "@nestjs/common";
+import { TimeModule } from "../../common/time/time.module";
 import { AuthModule } from "../auth/auth.module";
-import { BillingController } from "./interface/http/billing.controller";
 import { BillingService } from "./application/billing.service";
+import { BillingController } from "./interface/http/billing.controller";
 
 @Module({
-  imports: [AuthModule],
+  imports: [AuthModule, TimeModule],
   controllers: [BillingController],
   providers: [BillingService],
   exports: [BillingService]

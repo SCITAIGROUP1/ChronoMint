@@ -69,7 +69,10 @@ export function formatWeekRange(weekStart: Date): string {
 
 export function formatTimeLabel(hour: number, minute: number): string {
   const d = new Date(2000, 0, 1, hour, minute);
-  return d.toLocaleTimeString(undefined, { hour: "numeric", minute: minute === 0 ? undefined : "2-digit" });
+  return d.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: minute === 0 ? undefined : "2-digit"
+  });
 }
 
 export function getVisibleMinutes(): number {
@@ -214,7 +217,12 @@ export function getMonthGrid(month: Date): (Date | null)[][] {
   return weeks;
 }
 
-export function pointerYToTime(day: Date, clientY: number, columnTop: number, columnHeight: number): Date {
+export function pointerYToTime(
+  day: Date,
+  clientY: number,
+  columnTop: number,
+  columnHeight: number
+): Date {
   const ratio = Math.max(0, Math.min(1, (clientY - columnTop) / columnHeight));
   const total = getVisibleMinutes();
   const slotCount = Math.floor(total / SLOT_MINUTES);

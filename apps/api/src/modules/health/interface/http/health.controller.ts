@@ -1,5 +1,5 @@
-import { Controller, Get } from "@nestjs/common";
 import { ROUTES } from "@chronomint/contracts";
+import { Controller, Get } from "@nestjs/common";
 
 @Controller()
 export class HealthController {

@@ -12,11 +12,11 @@
 Full variable reference: [ENVIRONMENT.md](../development/ENVIRONMENT.md).  
 Security notes: [SECURITY.md](../development/SECURITY.md).
 
-| Service | Required variables |
-|---------|-------------------|
-| API | `DATABASE_URL`, `REDIS_URL`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `FRONTEND_ORIGIN`, `PORT` |
-| Client | `NEXT_PUBLIC_API_BASE_URL` |
-| Admin | `NEXT_PUBLIC_API_BASE_URL` |
+| Service | Required variables                                                                                |
+| ------- | ------------------------------------------------------------------------------------------------- |
+| API     | `DATABASE_URL`, `REDIS_URL`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `FRONTEND_ORIGIN`, `PORT` |
+| Client  | `NEXT_PUBLIC_API_BASE_URL`                                                                        |
+| Admin   | `NEXT_PUBLIC_API_BASE_URL`                                                                        |
 
 Production API must **not** set `REDIS_USE_MEMORY` — use a real Redis for timer and presence.
 

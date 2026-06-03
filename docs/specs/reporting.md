@@ -7,10 +7,10 @@
 
 ## API
 
-| Method | Route | Roles | Contract |
-|--------|-------|-------|----------|
-| GET | `/reporting/dashboard` | ADMIN | [reporting.dto.ts](../../packages/contracts/src/dto/reporting.dto.ts) |
-| GET | `/reporting/me` | ADMIN, MEMBER | reporting.dto |
+| Method | Route                  | Roles         | Contract                                                              |
+| ------ | ---------------------- | ------------- | --------------------------------------------------------------------- |
+| GET    | `/reporting/dashboard` | ADMIN         | [reporting.dto.ts](../../packages/contracts/src/dto/reporting.dto.ts) |
+| GET    | `/reporting/me`        | ADMIN, MEMBER | reporting.dto                                                         |
 
 Controller: [reporting.controller.ts](../../apps/api/src/modules/reporting/interface/http/reporting.controller.ts)
 
@@ -32,7 +32,7 @@ Query parameters: `from`, `to` (ISO datetimes), optional `projectId`, `userId`.
 
 ## UI
 
-- Admin: [apps/admin/src/app/(admin)/dashboard/page.tsx](../../apps/admin/src/app/(admin)/dashboard/page.tsx)
+- Admin: [apps/admin/src/app/(admin)/dashboard/page.tsx](<../../apps/admin/src/app/(admin)/dashboard/page.tsx>)
 - Client timesheet may use `/reporting/me` for “My week summary”.
 
 ## Edge cases

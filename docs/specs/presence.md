@@ -6,10 +6,10 @@
 
 ## API
 
-| Method | Route | Roles | Contract |
-|--------|-------|-------|----------|
-| GET | `/presence/snapshot` | ADMIN | [presence.dto.ts](../../packages/contracts/src/dto/presence.dto.ts) |
-| GET | `/presence/stream` | ADMIN | presence.dto (SSE) |
+| Method | Route                | Roles | Contract                                                            |
+| ------ | -------------------- | ----- | ------------------------------------------------------------------- |
+| GET    | `/presence/snapshot` | ADMIN | [presence.dto.ts](../../packages/contracts/src/dto/presence.dto.ts) |
+| GET    | `/presence/stream`   | ADMIN | presence.dto (SSE)                                                  |
 
 Controller: [presence.controller.ts](../../apps/api/src/modules/presence/interface/http/presence.controller.ts)
 
@@ -30,7 +30,7 @@ Controller: [presence.controller.ts](../../apps/api/src/modules/presence/interfa
 
 ## UI
 
-- [apps/admin/src/app/(admin)/team/page.tsx](../../apps/admin/src/app/(admin)/team/page.tsx)
+- [apps/admin/src/app/(admin)/team/page.tsx](<../../apps/admin/src/app/(admin)/team/page.tsx>)
 
 ## Edge cases
 

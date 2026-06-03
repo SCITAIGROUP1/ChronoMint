@@ -26,14 +26,14 @@ isProject: false
 
 **Partially.** The repo has scaffolding and a small number of real tests—not a complete unit / integration / e2e suite.
 
-| Layer | Tooling | Written? | Where |
-|-------|---------|----------|--------|
-| **Unit** | Vitest | **Partial** | [apps/api/src/**/*.spec.ts](apps/api/src) (4 files), [packages/contracts/src/*.spec.ts](packages/contracts/src) (2 files). Several specs test inline math, not service behavior (e.g. [timelogs.service.spec.ts](apps/api/src/modules/timelogs/application/timelogs.service.spec.ts)). |
-| **Integration** | Vitest + Nest + Supertest + Postgres/Redis | **Minimal** | [apps/api/test/health.e2e.ts](apps/api/test/health.e2e.ts) only. No DB-backed module tests, no Redis/timer integration tests. |
-| **E2E (browser)** | Playwright | **Minimal** | [apps/client/e2e/smoke.spec.ts](apps/client/e2e/smoke.spec.ts) (login heading). **Admin: none.** |
-| **CI run** | GitHub Actions | **Unit only** | [.github/workflows/ci.yml](.github/workflows/ci.yml) runs `pnpm test`, not `pnpm test:e2e`. |
-| **CI log/artifacts** | — | **Missing** | No JUnit/XML, HTML reports, coverage uploads, or Playwright traces. |
-| **Docs** | — | **Missing** | [docs/development/TESTING.md](docs/development/TESTING.md) is referenced in [docs/README.md](docs/README.md) but does not exist. |
+| Layer                | Tooling                                    | Written?      | Where                                                                                                                                                                                                                                                                                    |
+| -------------------- | ------------------------------------------ | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Unit**             | Vitest                                     | **Partial**   | [apps/api/src/\*_/_.spec.ts](apps/api/src) (4 files), [packages/contracts/src/\*.spec.ts](packages/contracts/src) (2 files). Several specs test inline math, not service behavior (e.g. [timelogs.service.spec.ts](apps/api/src/modules/timelogs/application/timelogs.service.spec.ts)). |
+| **Integration**      | Vitest + Nest + Supertest + Postgres/Redis | **Minimal**   | [apps/api/test/health.e2e.ts](apps/api/test/health.e2e.ts) only. No DB-backed module tests, no Redis/timer integration tests.                                                                                                                                                            |
+| **E2E (browser)**    | Playwright                                 | **Minimal**   | [apps/client/e2e/smoke.spec.ts](apps/client/e2e/smoke.spec.ts) (login heading). **Admin: none.**                                                                                                                                                                                         |
+| **CI run**           | GitHub Actions                             | **Unit only** | [.github/workflows/ci.yml](.github/workflows/ci.yml) runs `pnpm test`, not `pnpm test:e2e`.                                                                                                                                                                                              |
+| **CI log/artifacts** | —                                          | **Missing**   | No JUnit/XML, HTML reports, coverage uploads, or Playwright traces.                                                                                                                                                                                                                      |
+| **Docs**             | —                                          | **Missing**   | [docs/development/TESTING.md](docs/development/TESTING.md) is referenced in [docs/README.md](docs/README.md) but does not exist.                                                                                                                                                         |
 
 ```mermaid
 flowchart TB
@@ -96,12 +96,12 @@ Remove `--passWithNoTests` from [apps/client/package.json](apps/client/package.j
 
 Refactor [.github/workflows/ci.yml](.github/workflows/ci.yml) into jobs (same Postgres/Redis services for API jobs):
 
-| Job | Command | Artifacts |
-|-----|---------|-----------|
-| `lint-build` | lint + build | — |
-| `unit` | `pnpm test` (workspace unit) | `**/test-results/*-junit.xml`, `**/coverage/**` |
-| `integration` | `pnpm --filter @chronomint/api test:e2e` | integration JUnit |
-| `e2e` | `pnpm exec playwright install --with-deps` then client + admin `test:e2e` | Playwright HTML + JUnit + traces |
+| Job           | Command                                                                   | Artifacts                                       |
+| ------------- | ------------------------------------------------------------------------- | ----------------------------------------------- |
+| `lint-build`  | lint + build                                                              | —                                               |
+| `unit`        | `pnpm test` (workspace unit)                                              | `**/test-results/*-junit.xml`, `**/coverage/**` |
+| `integration` | `pnpm --filter @chronomint/api test:e2e`                                  | integration JUnit                               |
+| `e2e`         | `pnpm exec playwright install --with-deps` then client + admin `test:e2e` | Playwright HTML + JUnit + traces                |
 
 E2E job must start **API** (port 3001 or whatever [apps/api](apps/api) uses) + seed/migrate, then Playwright `webServer` for each app—or use a composite `scripts/test-e2e.sh` that boots api + client + admin in order. Inspect [scripts/serve.sh](scripts/serve.sh) for reuse.
 
@@ -119,13 +119,13 @@ Priority modules (align with [docs/agent/AGENTS.md](docs/agent/AGENTS.md) TDD fl
 
 **API** — refactor existing thin specs to test real units:
 
-| Module | Target file | Approach |
-|--------|-------------|----------|
-| Export | [export.service.ts](apps/api/src/modules/export/application/export.service.ts), [export-render.util.ts](apps/api/src/modules/export/application/export-render.util.ts) | Extend existing specs; mock Prisma + `TimeAggregationService`; assert column projection and totals. |
-| Reporting | [reporting.service.ts](apps/api/src/modules/reporting/application/reporting.service.ts), [time-aggregation.service.ts](apps/api/src/modules/reporting/application/time-aggregation.service.ts) | Replace inline math-only tests with `TimeAggregationService` unit tests (rate resolution order). |
-| Timelogs / Timer | [timelogs.service.ts](apps/api/src/modules/timelogs/application/timelogs.service.ts), [timer.service.ts](apps/api/src/modules/timer/application/timer.service.ts) | Duration, overlap rules, Redis timer state (mock `RedisService`). |
-| Auth | [auth.service.ts](apps/api/src/modules/auth/application/auth.service.ts) | Password hash/verify, token payload (mock Prisma). |
-| Projects / access | [project-access.service.ts](apps/api/src/modules/projects/application/project-access.service.ts) | Role checks with fixture users. |
+| Module            | Target file                                                                                                                                                                                    | Approach                                                                                            |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Export            | [export.service.ts](apps/api/src/modules/export/application/export.service.ts), [export-render.util.ts](apps/api/src/modules/export/application/export-render.util.ts)                         | Extend existing specs; mock Prisma + `TimeAggregationService`; assert column projection and totals. |
+| Reporting         | [reporting.service.ts](apps/api/src/modules/reporting/application/reporting.service.ts), [time-aggregation.service.ts](apps/api/src/modules/reporting/application/time-aggregation.service.ts) | Replace inline math-only tests with `TimeAggregationService` unit tests (rate resolution order).    |
+| Timelogs / Timer  | [timelogs.service.ts](apps/api/src/modules/timelogs/application/timelogs.service.ts), [timer.service.ts](apps/api/src/modules/timer/application/timer.service.ts)                              | Duration, overlap rules, Redis timer state (mock `RedisService`).                                   |
+| Auth              | [auth.service.ts](apps/api/src/modules/auth/application/auth.service.ts)                                                                                                                       | Password hash/verify, token payload (mock Prisma).                                                  |
+| Projects / access | [project-access.service.ts](apps/api/src/modules/projects/application/project-access.service.ts)                                                                                               | Role checks with fixture users.                                                                     |
 
 **contracts** — keep DTO/schema tests; add cases for export query schema edge cases.
 
@@ -181,13 +181,13 @@ apps/admin/e2e/
 
 **Flows to cover (full scope):**
 
-| App | Flow |
-|-----|------|
-| Client | Login → start timer → stop → see entry on timelogs |
-| Client | Login failure / logout |
-| Admin | Admin login → projects list → open project |
-| Admin | Exports page: date range + format + download (mock or assert Content-Disposition) |
-| Admin | Reporting dashboard loads aggregates for seeded range |
+| App    | Flow                                                                              |
+| ------ | --------------------------------------------------------------------------------- |
+| Client | Login → start timer → stop → see entry on timelogs                                |
+| Client | Login failure / logout                                                            |
+| Admin  | Admin login → projects list → open project                                        |
+| Admin  | Exports page: date range + format + download (mock or assert Content-Disposition) |
+| Admin  | Reporting dashboard loads aggregates for seeded range                             |
 
 CI e2e job: migrate + seed → start API → run client Playwright → run admin Playwright (sequential or matrix). Set `reuseExistingServer: !process.env.CI` in Playwright configs.
 
@@ -223,13 +223,13 @@ flowchart LR
 
 ## Files to touch (summary)
 
-| Area | Files |
-|------|--------|
-| CI | [.github/workflows/ci.yml](.github/workflows/ci.yml), optional `scripts/test-e2e.sh` |
+| Area                 | Files                                                                                                                    |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| CI                   | [.github/workflows/ci.yml](.github/workflows/ci.yml), optional `scripts/test-e2e.sh`                                     |
 | API unit/integration | [vitest.config.ts](apps/api/vitest.config.ts), [vitest.e2e.config.ts](apps/api/vitest.e2e.config.ts), `apps/api/test/**` |
-| Client/admin e2e | [playwright.config.ts](apps/client/playwright.config.ts), new `apps/admin/playwright.config.ts`, `**/e2e/*.spec.ts` |
-| Root | [package.json](package.json) scripts, devDeps for coverage |
-| Docs | [docs/development/TESTING.md](docs/development/TESTING.md) |
+| Client/admin e2e     | [playwright.config.ts](apps/client/playwright.config.ts), new `apps/admin/playwright.config.ts`, `**/e2e/*.spec.ts`      |
+| Root                 | [package.json](package.json) scripts, devDeps for coverage                                                               |
+| Docs                 | [docs/development/TESTING.md](docs/development/TESTING.md)                                                               |
 
 ---
 

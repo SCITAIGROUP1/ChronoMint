@@ -7,12 +7,12 @@
 
 ## API
 
-| Method | Route | Contract |
-|--------|-------|----------|
-| GET | `/timelogs` | [timelog.dto.ts](../../packages/contracts/src/dto/timelog.dto.ts) |
-| POST | `/timelogs` | timelog.dto |
-| PATCH | `/timelogs/:id` | timelog.dto |
-| DELETE | `/timelogs/:id` | timelog.dto |
+| Method | Route           | Contract                                                          |
+| ------ | --------------- | ----------------------------------------------------------------- |
+| GET    | `/timelogs`     | [timelog.dto.ts](../../packages/contracts/src/dto/timelog.dto.ts) |
+| POST   | `/timelogs`     | timelog.dto                                                       |
+| PATCH  | `/timelogs/:id` | timelog.dto                                                       |
+| DELETE | `/timelogs/:id` | timelog.dto                                                       |
 
 Controller: [timelogs.controller.ts](../../apps/api/src/modules/timelogs/interface/http/timelogs.controller.ts)
 
@@ -52,7 +52,7 @@ Entries created via `POST /timer/stop` have `source: timer`. Product intent: tim
 
 ## UI
 
-- Client: [apps/client/src/app/(workspace)/timesheet/page.tsx](../../apps/client/src/app/(workspace)/timesheet/page.tsx)
+- Client: [apps/client/src/app/(workspace)/timesheet/page.tsx](<../../apps/client/src/app/(workspace)/timesheet/page.tsx>)
 
 ## Edge cases
 

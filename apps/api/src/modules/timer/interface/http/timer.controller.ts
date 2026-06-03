@@ -1,7 +1,10 @@
-import { Body, Controller, Get, Post, UseGuards } from "@nestjs/common";
 import { startTimerSchema, stopTimerSchema, ROUTES } from "@chronomint/contracts";
+import { Body, Controller, Get, Post, UseGuards } from "@nestjs/common";
+import {
+  CurrentUser,
+  type RequestUser
+} from "../../../../common/decorators/current-user.decorator";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
-import { CurrentUser, RequestUser } from "../../../../common/decorators/current-user.decorator";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
 import { TimerService } from "../../application/timer.service";
 
@@ -28,7 +31,11 @@ export class TimerController {
     @CurrentUser() user: RequestUser,
     @Body(new ZodValidationPipe(stopTimerSchema)) body: unknown
   ) {
-    return this.timer.stop(user.workspaceId, user.userId, body as Parameters<TimerService["stop"]>[2]);
+    return this.timer.stop(
+      user.workspaceId,
+      user.userId,
+      body as Parameters<TimerService["stop"]>[2]
+    );
   }
 
   @Get(ROUTES.TIMER.ACTIVE)

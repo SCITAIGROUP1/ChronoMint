@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { Button, Label } from "@chronomint/ui";
 import {
   DEFAULT_EXPORT_COLUMNS,
   EXPORT_COLUMN_LABELS,
   type ExportReportType
 } from "@chronomint/contracts";
+import { Button, Label } from "@chronomint/ui";
+import { useState } from "react";
 
 const REPORT_LABELS: Record<ExportReportType, string> = {
   time_entries: "Time entries",
@@ -71,8 +71,7 @@ export function ExportColumnPicker({ report, selected, onChange }: Props) {
         </Button>
       </div>
       <p className="mb-3 text-xs text-muted-foreground">
-        {selected.length} selected (export order):{" "}
-        {selected.map((k) => labels[k]).join(" → ")}
+        {selected.length} selected (export order): {selected.map((k) => labels[k]).join(" → ")}
       </p>
 
       <p className="mb-1 text-xs font-medium text-muted-foreground">Export order</p>
@@ -97,11 +96,7 @@ export function ExportColumnPicker({ report, selected, onChange }: Props) {
               dragIndex === index ? "border-primary/40 bg-accent/60" : ""
             }`}
           >
-            <span
-              className="select-none text-muted-foreground"
-              title="Drag to reorder"
-              aria-hidden
-            >
+            <span className="select-none text-muted-foreground" title="Drag to reorder" aria-hidden>
               ⠿
             </span>
             <input

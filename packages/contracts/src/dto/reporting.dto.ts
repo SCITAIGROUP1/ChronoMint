@@ -1,12 +1,14 @@
 import { z } from "zod";
-import { isoDatetimeSchema, uuidSchema } from "./common.dto";
+import { assertMaxDateRange, isoDatetimeSchema, uuidSchema } from "./common.dto";
 
-export const reportQuerySchema = z.object({
-  from: isoDatetimeSchema,
-  to: isoDatetimeSchema,
-  projectId: uuidSchema.optional(),
-  userId: uuidSchema.optional()
-});
+export const reportQuerySchema = z
+  .object({
+    from: isoDatetimeSchema,
+    to: isoDatetimeSchema,
+    projectId: uuidSchema.optional(),
+    userId: uuidSchema.optional()
+  })
+  .superRefine((v, ctx) => assertMaxDateRange(v.from, v.to, ctx));
 
 export const hoursBreakdownSchema = z.object({
   totalHours: z.number(),

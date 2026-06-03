@@ -1,12 +1,14 @@
-import { Injectable, NotFoundException, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import {
   createExportScheduleSchema,
+  ErrorCodes,
   exportBodySchema,
   type CreateExportScheduleDto,
   type ExportScheduleDto,
   type ExportScheduleFrequency,
   type UpdateExportScheduleDto
 } from "@chronomint/contracts";
+import { HttpStatus, Injectable, type OnModuleDestroy, type OnModuleInit } from "@nestjs/common";
+import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { ExportService } from "./export.service";
 
@@ -61,7 +63,9 @@ export class ExportScheduleService implements OnModuleInit, OnModuleDestroy {
     const existing = await this.prisma.exportSchedule.findFirst({
       where: { id, workspaceId }
     });
-    if (!existing) throw new NotFoundException("Schedule not found");
+    if (!existing) {
+      throw new DomainException(ErrorCodes.NOT_FOUND, "Schedule not found", HttpStatus.NOT_FOUND);
+    }
 
     if (dto.body) exportBodySchema.parse(dto.body);
 
@@ -86,7 +90,9 @@ export class ExportScheduleService implements OnModuleInit, OnModuleDestroy {
     const row = await this.prisma.exportSchedule.findFirst({
       where: { id, workspaceId }
     });
-    if (!row) throw new NotFoundException("Schedule not found");
+    if (!row) {
+      throw new DomainException(ErrorCodes.NOT_FOUND, "Schedule not found", HttpStatus.NOT_FOUND);
+    }
     await this.prisma.exportSchedule.delete({ where: { id } });
   }
 
@@ -125,10 +131,7 @@ export class ExportScheduleService implements OnModuleInit, OnModuleDestroy {
           lastRunAt: new Date(),
           lastRunStatus: "ok",
           lastRunError: null,
-          nextRunAt: this.computeNextRun(
-            schedule.frequency as ExportScheduleFrequency,
-            new Date()
-          )
+          nextRunAt: this.computeNextRun(schedule.frequency as ExportScheduleFrequency, new Date())
         }
       });
     } catch (err) {
@@ -139,10 +142,7 @@ export class ExportScheduleService implements OnModuleInit, OnModuleDestroy {
           lastRunAt: new Date(),
           lastRunStatus: "error",
           lastRunError: message,
-          nextRunAt: this.computeNextRun(
-            schedule.frequency as ExportScheduleFrequency,
-            new Date()
-          )
+          nextRunAt: this.computeNextRun(schedule.frequency as ExportScheduleFrequency, new Date())
         }
       });
     }

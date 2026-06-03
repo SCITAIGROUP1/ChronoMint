@@ -4,41 +4,41 @@
 
 Copy `apps/api/.env.example` to `apps/api/.env`.
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `DATABASE_URL` | Yes | PostgreSQL connection string. Postgres.app: `postgresql://YOUR_MAC_USER@localhost:5432/chronomint`. Docker: `postgresql://chronomint:chronomint@localhost:5432/chronomint` |
-| `REDIS_USE_MEMORY` | Local dev | Set `true` to run the timer without Redis (in-memory store). Remove when using real Redis |
-| `REDIS_URL` | Production / Docker | e.g. `redis://localhost:6379`. Used when `REDIS_USE_MEMORY` is not set |
-| `JWT_ACCESS_SECRET` | Yes | Min 32 characters. Signs short-lived access tokens |
-| `JWT_REFRESH_SECRET` | Yes | Min 32 characters. Signs refresh tokens (httpOnly cookie) |
-| `JWT_ACCESS_EXPIRES` | No | Default `15m` |
-| `JWT_REFRESH_EXPIRES` | No | Default `7d` |
-| `FRONTEND_ORIGIN` | Yes | Comma-separated CORS origins, e.g. `http://localhost:3000,http://localhost:3002` |
-| `PORT` | No | API listen port. Default `3001` |
+| Variable              | Required            | Description                                                                                                                                                                |
+| --------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`        | Yes                 | PostgreSQL connection string. Postgres.app: `postgresql://YOUR_MAC_USER@localhost:5432/chronomint`. Docker: `postgresql://chronomint:chronomint@localhost:5432/chronomint` |
+| `REDIS_USE_MEMORY`    | Local dev           | Set `true` to run the timer without Redis (in-memory store). Remove when using real Redis                                                                                  |
+| `REDIS_URL`           | Production / Docker | e.g. `redis://localhost:6379`. Used when `REDIS_USE_MEMORY` is not set                                                                                                     |
+| `JWT_ACCESS_SECRET`   | Yes                 | Min 32 characters. Signs short-lived access tokens                                                                                                                         |
+| `JWT_REFRESH_SECRET`  | Yes                 | Min 32 characters. Signs refresh tokens (httpOnly cookie)                                                                                                                  |
+| `JWT_ACCESS_EXPIRES`  | No                  | Default `15m`                                                                                                                                                              |
+| `JWT_REFRESH_EXPIRES` | No                  | Default `7d`                                                                                                                                                               |
+| `FRONTEND_ORIGIN`     | Yes                 | Comma-separated CORS origins, e.g. `http://localhost:3000,http://localhost:3002`                                                                                           |
+| `PORT`                | No                  | API listen port. Default `3001`                                                                                                                                            |
 
 ## Client (`apps/client`)
 
 Copy `apps/client/.env.example` to `apps/client/.env.local`.
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `NEXT_PUBLIC_API_BASE_URL` | Yes | API base URL. Default dev: `http://localhost:3001` |
+| Variable                   | Required | Description                                        |
+| -------------------------- | -------- | -------------------------------------------------- |
+| `NEXT_PUBLIC_API_BASE_URL` | Yes      | API base URL. Default dev: `http://localhost:3001` |
 
 ## Admin (`apps/admin`)
 
 Copy `apps/admin/.env.example` to `apps/admin/.env.local`.
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `NEXT_PUBLIC_API_BASE_URL` | Yes | API base URL. Default dev: `http://localhost:3001` |
+| Variable                   | Required | Description                                        |
+| -------------------------- | -------- | -------------------------------------------------- |
+| `NEXT_PUBLIC_API_BASE_URL` | Yes      | API base URL. Default dev: `http://localhost:3001` |
 
 ## Local ports
 
-| App | URL |
-|-----|-----|
+| App    | URL                   |
+| ------ | --------------------- |
 | Client | http://localhost:3000 |
-| API | http://localhost:3001 |
-| Admin | http://localhost:3002 |
+| API    | http://localhost:3001 |
+| Admin  | http://localhost:3002 |
 
 ## Production notes
 

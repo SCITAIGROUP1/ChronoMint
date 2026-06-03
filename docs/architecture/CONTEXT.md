@@ -37,17 +37,17 @@ No cross-imports between feature modules.
 
 ### Shipped modules
 
-| Module | Docs |
-|--------|------|
+| Module          | Docs                                            |
+| --------------- | ----------------------------------------------- |
 | auth, workspace | [auth-workspace.md](../specs/auth-workspace.md) |
-| projects | [projects.md](../specs/projects.md) |
-| tasks | (see projects / timelogs specs) |
-| timelogs | [timelogs.md](../specs/timelogs.md) |
-| timer | [timer.md](../specs/timer.md) |
-| billing | [billing.md](../specs/billing.md) |
-| reporting | [reporting.md](../specs/reporting.md) |
-| presence | [presence.md](../specs/presence.md) |
-| export | [export.md](../specs/export.md) |
+| projects        | [projects.md](../specs/projects.md)             |
+| tasks           | (see projects / timelogs specs)                 |
+| timelogs        | [timelogs.md](../specs/timelogs.md)             |
+| timer           | [timer.md](../specs/timer.md)                   |
+| billing         | [billing.md](../specs/billing.md)               |
+| reporting       | [reporting.md](../specs/reporting.md)           |
+| presence        | [presence.md](../specs/presence.md)             |
+| export          | [export.md](../specs/export.md)                 |
 
 API route catalog: [api/ROUTES.md](../api/ROUTES.md).
 

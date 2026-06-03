@@ -62,15 +62,15 @@ Product sequencing: [docs/architecture/PRODUCT_ROADMAP.md](../docs/architecture/
 
 ## Baseline (already shipped)
 
-| Capability | Location |
-|------------|----------|
-| Report types | `time_entries`, `daily_summary`, `by_project`, `by_member` |
-| Formats | CSV (ZIP multi), Excel multi-sheet, PDF summary |
-| Filters | Period, project, member, teamOnly, billable |
-| Column picker | Per-report order; contracts SSOT |
-| Member export | `POST /export/me`, client timesheet |
-| Aggregation parity | `time-aggregation.service` shared with reporting |
-| Period chips | 7d / 30d / 90d / This month on exports page |
+| Capability         | Location                                                   |
+| ------------------ | ---------------------------------------------------------- |
+| Report types       | `time_entries`, `daily_summary`, `by_project`, `by_member` |
+| Formats            | CSV (ZIP multi), Excel multi-sheet, PDF summary            |
+| Filters            | Period, project, member, teamOnly, billable                |
+| Column picker      | Per-report order; contracts SSOT                           |
+| Member export      | `POST /export/me`, client timesheet                        |
+| Aggregation parity | `time-aggregation.service` shared with reporting           |
+| Period chips       | 7d / 30d / 90d / This month on exports page                |
 
 **Do not rebuild** — extend `exportReportTypeSchema`, aggregations in `export.service.ts`, and admin wizard panels.
 
@@ -103,34 +103,34 @@ flowchart TB
 
 ### 1.1 Export preview API
 
-| Item | Detail |
-|------|--------|
-| Route | `POST /export/preview` (ADMIN), body subset of `exportBodySchema` (same filters + `reportTypes`, no `format` required) |
-| Response | `{ counts: Record<ExportReportType, number>, totalLogRows: number, isEmpty: boolean }` |
-| Implementation | Reuse aggregation row builders in `export.service.ts`; count only, no render |
+| Item           | Detail                                                                                                                 |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Route          | `POST /export/preview` (ADMIN), body subset of `exportBodySchema` (same filters + `reportTypes`, no `format` required) |
+| Response       | `{ counts: Record<ExportReportType, number>, totalLogRows: number, isEmpty: boolean }`                                 |
+| Implementation | Reuse aggregation row builders in `export.service.ts`; count only, no render                                           |
 
 **Files:** `export.controller.ts`, `export.service.ts`, `export.dto.ts` (`exportPreviewBodySchema`, `exportPreviewResponseSchema`), `ROUTES.md`.
 
 ### 1.2 Admin UI preview line
 
-Below **Export** button on [exports/page.tsx](../../apps/admin/src/app/(admin)/exports/page.tsx):
+Below **Export** button on [exports/page.tsx](<../../apps/admin/src/app/(admin)/exports/page.tsx>):
 
 - Debounced call to preview when filters/report selection change.
 - Copy: `~1,240 time entry rows · 12 projects · Empty range` or warning if `isEmpty`.
 
 ### 1.3 Named presets (localStorage v1)
 
-| Item | Detail |
-|------|--------|
-| Storage key | `chronomint-export-presets:{workspaceId}` |
-| Shape | `{ id, name, body: ExportBodyDto }[]` |
-| UI | Dropdown: Load preset · Save as… · Delete; does not auto-run export |
+| Item        | Detail                                                              |
+| ----------- | ------------------------------------------------------------------- |
+| Storage key | `chronomint-export-presets:{workspaceId}`                           |
+| Shape       | `{ id, name, body: ExportBodyDto }[]`                               |
+| UI          | Dropdown: Load preset · Save as… · Delete; does not auto-run export |
 
 Optional: ship [export-column-picker.tsx](../../apps/admin/src/components/export-column-picker.tsx) helper `useExportPresets(workspaceId)`.
 
 ### 1.4 Quick export from dashboard
 
-On [dashboard/page.tsx](../../apps/admin/src/app/(admin)/dashboard/page.tsx):
+On [dashboard/page.tsx](<../../apps/admin/src/app/(admin)/dashboard/page.tsx>):
 
 - **Export** button next to range chips (7 / 30 / 90).
 - Uses dashboard’s current `from`/`to` + `projectId`/`userId` filters.
@@ -149,34 +149,34 @@ Add chips: **Today**, **This week** (Monday-start v1; align to `Workspace.settin
 
 ### 2.1 `invoice` report type
 
-| Item | Detail |
-|------|--------|
-| Rows | Same projection as `time_entries` with `billable: 'billable'` enforced server-side |
-| Extra | Footer/subtotal row in PDF and last row in CSV/Excel (`billable_amount` total) |
+| Item    | Detail                                                                                        |
+| ------- | --------------------------------------------------------------------------------------------- |
+| Rows    | Same projection as `time_entries` with `billable: 'billable'` enforced server-side            |
+| Extra   | Footer/subtotal row in PDF and last row in CSV/Excel (`billable_amount` total)                |
 | Columns | Subset: client, project, task, date, hours, rate, amount, description (defaults in contracts) |
-| PDF | Prefer this report as default sheet when format is PDF and only invoice selected |
+| PDF     | Prefer this report as default sheet when format is PDF and only invoice selected              |
 
 ### 2.2 `by_task` report type
 
-| Item | Detail |
-|------|--------|
-| Grain | One row per `taskId` (task name, project, client, totals) |
+| Item    | Detail                                                                                                |
+| ------- | ----------------------------------------------------------------------------------------------------- |
+| Grain   | One row per `taskId` (task name, project, client, totals)                                             |
 | Columns | `task`, `project`, `client`, `total_hours`, `billable_hours`, `non_billable_hours`, `billable_amount` |
 
 ### 2.3 `weekly_summary` report type
 
-| Item | Detail |
-|------|--------|
-| Grain | ISO week label + member + project (mirror `daily_summary` but bucket by week) |
+| Item    | Detail                                                                                 |
+| ------- | -------------------------------------------------------------------------------------- |
+| Grain   | ISO week label + member + project (mirror `daily_summary` but bucket by week)          |
 | Columns | `week_start`, `week_label`, `member`, `email`, `client`, `project`, hour/amount fields |
 
 ### 2.4 PDF branding (minimal)
 
-| Item | Detail |
-|------|--------|
-| Header | Workspace display name, period, filter summary (existing) |
-| Logo | Optional `Workspace.settings.logoUrl` — embed if reachable |
-| Footer | Optional `settings.exportFooterNote` — plain text |
+| Item      | Detail                                                                                                                                                                                         |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Header    | Workspace display name, period, filter summary (existing)                                                                                                                                      |
+| Logo      | Optional `Workspace.settings.logoUrl` — embed if reachable                                                                                                                                     |
+| Footer    | Optional `settings.exportFooterNote` — plain text                                                                                                                                              |
 | Contracts | Extend workspace settings Zod when [user settings / workspace settings](../plans/user_settings_management_79030cb7.plan.md) lands; until then hardcode footer field optional on workspace JSON |
 
 **Member export:** Do not expose `invoice` or ops reports on `POST /export/me` unless product asks.
@@ -211,11 +211,11 @@ Add chips: **Today**, **This week** (Monday-start v1; align to `Workspace.settin
 
 **Goal:** Clockify share + schedule. Separate from file generation.
 
-| Feature | Approach sketch |
-|---------|-----------------|
-| **Scheduled export** | `ExportSchedule` table: cron, recipient emails, frozen `ExportBodyDto` JSON, lastRunAt; worker uses existing `generate()` |
-| **Shareable link** | `ReportShare` token → read-only HTML or JSON view; no workspace JWT; expires_at |
-| **Rounding at export** | Apply `Workspace.settings.roundingMinutes` in aggregation layer before render |
+| Feature                | Approach sketch                                                                                                           |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| **Scheduled export**   | `ExportSchedule` table: cron, recipient emails, frozen `ExportBodyDto` JSON, lastRunAt; worker uses existing `generate()` |
+| **Shareable link**     | `ReportShare` token → read-only HTML or JSON view; no workspace JWT; expires_at                                           |
+| **Rounding at export** | Apply `Workspace.settings.roundingMinutes` in aggregation layer before render                                             |
 
 **Dependencies:** Phase 1 presets inform default scheduled bodies; Phase 2 PDF branding needed for client-facing emails.
 
@@ -258,13 +258,13 @@ Dashboard
 
 ## Suggested PR split
 
-| PR | Scope | Risk |
-|----|--------|------|
-| PR1 | Phase 1 entirely | Low |
-| PR2 | `invoice` + `by_task` + tests | Medium |
-| PR3 | `weekly_summary` + PDF branding | Medium |
-| PR4 | Phase 3 ops reports | Medium |
-| PR5+ | Phase 4 distribution | High |
+| PR   | Scope                           | Risk   |
+| ---- | ------------------------------- | ------ |
+| PR1  | Phase 1 entirely                | Low    |
+| PR2  | `invoice` + `by_task` + tests   | Medium |
+| PR3  | `weekly_summary` + PDF branding | Medium |
+| PR4  | Phase 3 ops reports             | Medium |
+| PR5+ | Phase 4 distribution            | High   |
 
 ---
 
@@ -280,14 +280,14 @@ Dashboard
 
 ## Explicitly deferred
 
-| Item | Reason |
-|------|--------|
-| Live in-app “custom breakdown” builder | Dashboard/charts concern; export gets fixed report types |
-| Bulk edit / time audit in export | Timesheet admin features, not export |
-| Expense / attendance / assignments reports | No domain models yet |
-| Cross-workspace export | Agency tier; separate security model |
-| Multi-currency columns | USD label only today |
-| Member presets / scheduled member export | Low demand; member path stays simple |
+| Item                                       | Reason                                                   |
+| ------------------------------------------ | -------------------------------------------------------- |
+| Live in-app “custom breakdown” builder     | Dashboard/charts concern; export gets fixed report types |
+| Bulk edit / time audit in export           | Timesheet admin features, not export                     |
+| Expense / attendance / assignments reports | No domain models yet                                     |
+| Cross-workspace export                     | Agency tier; separate security model                     |
+| Multi-currency columns                     | USD label only today                                     |
+| Member presets / scheduled member export   | Low demand; member path stays simple                     |
 
 ---
 

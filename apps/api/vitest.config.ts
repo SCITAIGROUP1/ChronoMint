@@ -7,10 +7,7 @@ const apiRoot = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
   resolve: {
     alias: {
-      "@chronomint/contracts": path.resolve(
-        apiRoot,
-        "../../packages/contracts/src/index.ts"
-      )
+      "@chronomint/contracts": path.resolve(apiRoot, "../../packages/contracts/src/index.ts")
     }
   },
   test: {

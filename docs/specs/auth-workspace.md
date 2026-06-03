@@ -10,24 +10,24 @@
 
 ### Auth
 
-| Method | Route | Contract |
-|--------|-------|----------|
-| POST | `/auth/register` | [auth.dto.ts](../../packages/contracts/src/dto/auth.dto.ts) |
-| POST | `/auth/login` | auth.dto |
-| POST | `/auth/refresh` | — |
-| POST | `/auth/switch-workspace` | auth.dto |
-| GET | `/auth/me` | — |
-| DELETE | `/auth/logout` | — |
+| Method | Route                    | Contract                                                    |
+| ------ | ------------------------ | ----------------------------------------------------------- |
+| POST   | `/auth/register`         | [auth.dto.ts](../../packages/contracts/src/dto/auth.dto.ts) |
+| POST   | `/auth/login`            | auth.dto                                                    |
+| POST   | `/auth/refresh`          | —                                                           |
+| POST   | `/auth/switch-workspace` | auth.dto                                                    |
+| GET    | `/auth/me`               | —                                                           |
+| DELETE | `/auth/logout`           | —                                                           |
 
 Controller: [auth.controller.ts](../../apps/api/src/modules/auth/interface/http/auth.controller.ts)
 
 ### Workspace
 
-| Method | Route | Contract |
-|--------|-------|----------|
-| GET | `/workspaces` | [workspace.dto.ts](../../packages/contracts/src/dto/workspace.dto.ts) |
-| GET | `/workspaces/:id/members` | workspace.dto |
-| POST | `/workspaces/:id/members/invite` | workspace.dto |
+| Method | Route                            | Contract                                                              |
+| ------ | -------------------------------- | --------------------------------------------------------------------- |
+| GET    | `/workspaces`                    | [workspace.dto.ts](../../packages/contracts/src/dto/workspace.dto.ts) |
+| GET    | `/workspaces/:id/members`        | workspace.dto                                                         |
+| POST   | `/workspaces/:id/members/invite` | workspace.dto                                                         |
 
 Controller: [workspace.controller.ts](../../apps/api/src/modules/workspace/interface/http/workspace.controller.ts)
 
@@ -56,7 +56,7 @@ See [AUTH.md](../architecture/AUTH.md) and [SECURITY.md](../development/SECURITY
 
 - Client: `/login`, `/register`
 - Admin: `/login`
-- Admin workspace: [apps/admin/src/app/(admin)/workspace/page.tsx](../../apps/admin/src/app/(admin)/workspace/page.tsx)
+- Admin workspace: [apps/admin/src/app/(admin)/workspace/page.tsx](<../../apps/admin/src/app/(admin)/workspace/page.tsx>)
 
 ## Edge cases
 

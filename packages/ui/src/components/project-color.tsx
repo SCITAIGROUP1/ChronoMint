@@ -42,7 +42,11 @@ export function ProjectColorPicker({
   const current = normalizeDisplayColor(value);
 
   return (
-    <div className={cn("flex flex-wrap gap-2", className)} role="radiogroup" aria-label="Project color">
+    <div
+      className={cn("flex flex-wrap gap-2", className)}
+      role="radiogroup"
+      aria-label="Project color"
+    >
       {colors.map((c) => {
         const selected = projectColorsMatchLocal(current, c);
         return (
@@ -72,7 +76,11 @@ export function ProjectColorPicker({
                   strokeWidth="2.5"
                   aria-hidden
                 >
-                  <path d="M3.5 8.5 6.5 11.5 12.5 4.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <path
+                    d="M3.5 8.5 6.5 11.5 12.5 4.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </svg>
               </span>
             ) : null}

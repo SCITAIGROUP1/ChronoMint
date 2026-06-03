@@ -11,11 +11,11 @@ pnpm test:e2e      # API e2e + client Playwright
 
 ## Unit tests
 
-| Location | What it covers |
-|----------|----------------|
-| `packages/contracts/src/**/*.spec.ts` | Zod schemas, export filename helpers |
-| `apps/api/src/modules/**/**/*.spec.ts` | Export rendering, reporting totals, timelogs overlap |
-| Other packages | Run `pnpm --filter <package> test` for a single package |
+| Location                               | What it covers                                          |
+| -------------------------------------- | ------------------------------------------------------- |
+| `packages/contracts/src/**/*.spec.ts`  | Zod schemas, export filename helpers                    |
+| `apps/api/src/modules/**/**/*.spec.ts` | Export rendering, reporting totals, timelogs overlap    |
+| Other packages                         | Run `pnpm --filter <package> test` for a single package |
 
 API tests use Vitest. Example modules with specs:
 
@@ -44,9 +44,9 @@ Start the client dev server separately or configure Playwright `webServer` in `p
 
 After `pnpm prisma:seed`:
 
-| Account | Password | Role |
-|---------|----------|------|
-| `admin@chronomint.dev` | `password123` | Workspace ADMIN |
+| Account                 | Password      | Role             |
+| ----------------------- | ------------- | ---------------- |
+| `admin@chronomint.dev`  | `password123` | Workspace ADMIN  |
 | `member@chronomint.dev` | `password123` | Workspace MEMBER |
 
 Use admin on http://localhost:3002 and member on http://localhost:3000.

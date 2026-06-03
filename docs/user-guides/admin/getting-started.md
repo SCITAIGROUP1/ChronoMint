@@ -10,14 +10,14 @@ Use the **admin app** at http://localhost:3002 (or your deployed admin URL).
 
 ## Main areas
 
-| Page | Path | Purpose |
-|------|------|---------|
-| Dashboard | `/dashboard` | Hours and revenue trends |
-| Projects | `/projects` | Create projects and invite members |
-| Team live | `/team` | Who is timing right now |
-| Billing | `/billing` | Hourly rates and summary |
-| Exports | `/exports` | Download reports |
-| Workspace | `/workspace` | Members list |
+| Page      | Path         | Purpose                            |
+| --------- | ------------ | ---------------------------------- |
+| Dashboard | `/dashboard` | Hours and revenue trends           |
+| Projects  | `/projects`  | Create projects and invite members |
+| Team live | `/team`      | Who is timing right now            |
+| Billing   | `/billing`   | Hourly rates and summary           |
+| Exports   | `/exports`   | Download reports                   |
+| Workspace | `/workspace` | Members list                       |
 
 ## Typical first-day setup
 
