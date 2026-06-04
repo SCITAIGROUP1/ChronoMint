@@ -1,0 +1,262 @@
+# Full-stack deploy: migrate → Railway API → Vercel frontends → smoke checks.
+#
+# Triggers after CI succeeds on main/staging, or manually (workflow_dispatch).
+# One-time setup: docs/runbooks/deploy.md § "GitHub Actions full deploy"
+#
+# If Railway/Vercel are also connected to GitHub for auto-deploy, either:
+#   - Disable platform auto-deploy and use this workflow only, or
+#   - Omit RAILWAY_TOKEN / VERCEL_TOKEN secrets; workflow runs migrate + health wait only.
+
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main, staging]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+
+concurrency:
+  group: deploy-${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'staging') }}
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    name: Deploy gate
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       (github.event.workflow_run.head_branch == 'main' ||
+        github.event.workflow_run.head_branch == 'staging'))
+    outputs:
+      environment: ${{ steps.env.outputs.environment }}
+      sha: ${{ steps.env.outputs.sha }}
+    steps:
+      - id: env
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "environment=${{ github.event.inputs.environment }}" >> "$GITHUB_OUTPUT"
+            echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          else
+            BRANCH="${{ github.event.workflow_run.head_branch }}"
+            if [[ "$BRANCH" == "main" ]]; then
+              echo "environment=production" >> "$GITHUB_OUTPUT"
+            else
+              echo "environment=staging" >> "$GITHUB_OUTPUT"
+            fi
+            echo "sha=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+          fi
+
+  quality:
+    name: Quality (manual deploy only)
+    needs: gate
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: chronomint
+          POSTGRES_PASSWORD: chronomint
+          POSTGRES_DB: chronomint_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U chronomint"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://chronomint:chronomint@localhost:5432/chronomint_test
+      REDIS_URL: redis://localhost:6379
+      JWT_ACCESS_SECRET: ci-access-secret-min-32-chars-long
+      JWT_REFRESH_SECRET: ci-refresh-secret-min-32-chars-long
+      FRONTEND_ORIGIN: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.gate.outputs.sha }}
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm prisma:generate
+      - run: pnpm --filter @chronomint/api exec prisma migrate deploy
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm --filter @chronomint/contracts build
+      - run: pnpm test
+      - run: pnpm build
+
+  migrate:
+    name: Database migrate
+    needs: [gate, quality]
+    if: always() && needs.gate.result == 'success' && (needs.quality.result == 'success' || needs.quality.result == 'skipped')
+    runs-on: ubuntu-latest
+    environment: ${{ needs.gate.outputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.gate.outputs.sha }}
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile --filter @chronomint/api...
+      - name: prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          pnpm --filter @chronomint/api prisma:generate
+          pnpm --filter @chronomint/api exec prisma migrate deploy
+
+  deploy-api:
+    name: Deploy API (Railway)
+    needs: [gate, migrate]
+    runs-on: ubuntu-latest
+    environment: ${{ needs.gate.outputs.environment }}
+    container: ghcr.io/railwayapp/cli:latest
+    if: >-
+      needs.migrate.result == 'success' &&
+      vars.RAILWAY_SERVICE != '' &&
+      secrets.RAILWAY_TOKEN != ''
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.gate.outputs.sha }}
+      - name: railway up
+        run: railway up --service="${{ vars.RAILWAY_SERVICE }}" --ci --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+  wait-api:
+    name: Wait for API health
+    needs: [gate, migrate, deploy-api]
+    if: always() && needs.migrate.result == 'success' && vars.API_URL != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Wait for healthy API
+        env:
+          API_URL: ${{ vars.API_URL }}
+          # When Railway auto-deploys from GitHub (no CLI deploy), allow warm-up time.
+          INITIAL_DELAY_SEC: ${{ needs.deploy-api.result == 'skipped' && 45 || 15 }}
+          MAX_WAIT_SEC: "600"
+        run: bash scripts/deploy/wait-health.sh "$API_URL"
+
+  deploy-client:
+    name: Deploy client (Vercel)
+    needs: [gate, wait-api]
+    runs-on: ubuntu-latest
+    environment: ${{ needs.gate.outputs.environment }}
+    if: >-
+      needs.wait-api.result == 'success' &&
+      vars.VERCEL_CLIENT_PROJECT != '' &&
+      secrets.VERCEL_TOKEN != ''
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.gate.outputs.sha }}
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile
+      - name: vercel deploy client
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+        run: |
+          pnpm exec vercel deploy --prod \
+            --cwd apps/client \
+            --project "${{ vars.VERCEL_CLIENT_PROJECT }}" \
+            --yes \
+            --token "$VERCEL_TOKEN"
+
+  deploy-admin:
+    name: Deploy admin (Vercel)
+    needs: [gate, wait-api]
+    runs-on: ubuntu-latest
+    environment: ${{ needs.gate.outputs.environment }}
+    if: >-
+      needs.wait-api.result == 'success' &&
+      vars.VERCEL_ADMIN_PROJECT != '' &&
+      secrets.VERCEL_TOKEN != ''
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.gate.outputs.sha }}
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+      - run: pnpm install --frozen-lockfile
+      - name: vercel deploy admin
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+        run: |
+          pnpm exec vercel deploy --prod \
+            --cwd apps/admin \
+            --project "${{ vars.VERCEL_ADMIN_PROJECT }}" \
+            --yes \
+            --token "$VERCEL_TOKEN"
+
+  smoke:
+    name: Post-deploy smoke
+    needs: [gate, wait-api, deploy-client, deploy-admin]
+    if: always() && needs.wait-api.result == 'success'
+    runs-on: ubuntu-latest
+    environment: ${{ needs.gate.outputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: API smoke
+        env:
+          API_URL: ${{ vars.API_URL }}
+        run: bash scripts/deploy/smoke.sh "$API_URL"
+      - name: Frontend reachability (optional)
+        if: vars.CLIENT_URL != '' && vars.ADMIN_URL != ''
+        run: |
+          set -euo pipefail
+          for url in "${{ vars.CLIENT_URL }}" "${{ vars.ADMIN_URL }}"; do
+            code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 "${url%/}/")"
+            if [[ "$code" != "200" && "$code" != "307" && "$code" != "308" ]]; then
+              echo "error: ${url} returned HTTP ${code}" >&2
+              exit 1
+            fi
+            echo "OK: ${url} (HTTP ${code})"
+          done

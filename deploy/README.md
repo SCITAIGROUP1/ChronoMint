@@ -30,9 +30,11 @@ pnpm deploy:vercel login                           # Vercel CLI
 
 Runbooks: [docs/runbooks/deploy.md](../docs/runbooks/deploy.md), [docs/runbooks/railway.md](../docs/runbooks/railway.md), [docs/runbooks/vercel.md](../docs/runbooks/vercel.md).
 
+**Full CI/CD:** push to `main` / `staging` runs [CI](../.github/workflows/ci.yml), then [Deploy](../.github/workflows/deploy.yml) (migrate, Railway, Vercel, smoke). See deploy.md § GitHub Actions full deploy for secrets.
+
 ## GitHub Actions (migrate on deploy)
 
-Workflow: [`.github/workflows/deploy-api.yml`](../.github/workflows/deploy-api.yml)
+Workflow: [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml)
 
 Configure in GitHub → **Settings → Environments**:
 

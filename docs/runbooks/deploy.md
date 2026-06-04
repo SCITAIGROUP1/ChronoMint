@@ -15,7 +15,7 @@ Env templates: [`deploy/env.staging.example`](../../deploy/env.staging.example),
 ## Deployment order
 
 1. Provision Postgres + Redis + API (Railway)
-2. Run `prisma migrate deploy` — [`scripts/deploy/migrate.sh`](../../scripts/deploy/migrate.sh) or [CI workflow](../../.github/workflows/deploy-api.yml)
+2. Run `prisma migrate deploy` — [`scripts/deploy/migrate.sh`](../../scripts/deploy/migrate.sh) or [Deploy workflow](../../.github/workflows/deploy.yml)
 3. Smoke `GET /health` — [`scripts/deploy/smoke.sh`](../../scripts/deploy/smoke.sh)
 4. Deploy Vercel client + admin with `NEXT_PUBLIC_API_BASE_URL`
 5. Set API `FRONTEND_ORIGIN` — [`scripts/deploy/wire-cors.sh`](../../scripts/deploy/wire-cors.sh)
@@ -115,14 +115,40 @@ Health check: `GET /health` — [api/ROUTES.md](../api/ROUTES.md).
 
 ## CI/CD
 
-| Workflow                                                 | Trigger                                | Purpose                 |
-| -------------------------------------------------------- | -------------------------------------- | ----------------------- |
-| [ci.yml](../../.github/workflows/ci.yml)                 | All pushes/PRs                         | Lint, test, build       |
-| [deploy-api.yml](../../.github/workflows/deploy-api.yml) | Push to `main` / `staging` (API paths) | `prisma migrate deploy` |
+| Workflow                                         | Trigger                                         | Purpose                           |
+| ------------------------------------------------ | ----------------------------------------------- | --------------------------------- |
+| [ci.yml](../../.github/workflows/ci.yml)         | All pushes/PRs                                  | Lint, test, build                 |
+| [deploy.yml](../../.github/workflows/deploy.yml) | After CI on `main` / `staging`; manual dispatch | Migrate → API → frontends → smoke |
 
-Configure GitHub **Environments** `staging` and `production` with secret `DATABASE_URL`. Optional variable `API_URL` enables post-migrate smoke in CI.
+### Full automated deploy (recommended)
 
-Railway and Vercel auto-deploy from GitHub on branch push.
+1. **GitHub → Settings → Environments** — create `production` and `staging`.
+2. Per environment, add **secrets** and **variables**:
+
+| Name                    | Type                | Purpose                                                      |
+| ----------------------- | ------------------- | ------------------------------------------------------------ |
+| `DATABASE_URL`          | Secret              | `prisma migrate deploy`                                      |
+| `RAILWAY_TOKEN`         | Secret              | Railway project token (Settings → Tokens)                    |
+| `VERCEL_TOKEN`          | Secret              | Vercel token with deploy scope                               |
+| `VERCEL_ORG_ID`         | Secret              | Team/org id from Vercel account settings                     |
+| `API_URL`               | Variable            | e.g. `https://chronomintapi-production.up.railway.app`       |
+| `RAILWAY_SERVICE`       | Variable            | API service **name** in Railway (for `railway up --service`) |
+| `VERCEL_CLIENT_PROJECT` | Variable            | e.g. `chronomint-client`                                     |
+| `VERCEL_ADMIN_PROJECT`  | Variable            | e.g. `chronomint-admin`                                      |
+| `CLIENT_URL`            | Variable (optional) | Client production URL for HTTP smoke                         |
+| `ADMIN_URL`             | Variable (optional) | Admin production URL for HTTP smoke                          |
+
+3. **Avoid double deploys:** In Railway and Vercel, **disconnect** “deploy on Git push” if you use GitHub Actions to deploy (`RAILWAY_TOKEN` + `VERCEL_TOKEN`). Otherwise both will run on every push.
+
+4. **Hybrid (migrate + smoke only):** Leave platform auto-deploy on; omit `RAILWAY_TOKEN` / `VERCEL_TOKEN`. The workflow still runs migrations and waits for `API_URL` health (45s warm-up), then optional frontend URL checks.
+
+5. **Manual deploy:** Actions → **Deploy** → Run workflow → pick `staging` or `production` (runs quality gate first).
+
+Pipeline order:
+
+```text
+CI (pass) → migrate → railway up (optional) → wait /health → vercel client + admin (optional) → smoke
+```
 
 ---
 

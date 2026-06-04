@@ -161,7 +161,7 @@ GitHub Actions runs `prisma migrate deploy` on pushes to `staging` / `main` when
 - GitHub **Environment** `staging` → secret `DATABASE_URL`
 - GitHub **Environment** `production` → secret `DATABASE_URL`
 
-See [`.github/workflows/deploy-api.yml`](../../.github/workflows/deploy-api.yml).
+See [`.github/workflows/deploy.yml`](../../.github/workflows/deploy.yml).
 
 Run migrations **before** or **with** each API rollout. Railway auto-deploys on push; ensure the migrate workflow completes first (or run migrate manually).
 
