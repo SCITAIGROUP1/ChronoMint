@@ -37,6 +37,71 @@ function formatElapsed(sec: number) {
   return [h, m, s].map((n) => String(n).padStart(2, "0")).join(":");
 }
 
+/** Animated SVG clock ring — advances once per second, full circle = 1 hour */
+function TimerRing({
+  elapsedSec,
+  active,
+  size = 200
+}: {
+  elapsedSec: number;
+  active: boolean;
+  size?: number;
+}) {
+  const radius = (size - 16) / 2;
+  const circumference = 2 * Math.PI * radius;
+  // Progress within the current hour (0–3600 s)
+  const hourProgress = (elapsedSec % 3600) / 3600;
+  const strokeDashoffset = circumference * (1 - hourProgress);
+  const cx = size / 2;
+  const cy = size / 2;
+
+  return (
+    <div
+      className="relative flex items-center justify-center"
+      style={{ width: size, height: size }}
+    >
+      <svg width={size} height={size} className="absolute inset-0 -rotate-90" aria-hidden>
+        {/* Background track */}
+        <circle cx={cx} cy={cy} r={radius} fill="none" className="stroke-muted" strokeWidth={8} />
+        {/* Progress arc */}
+        <circle
+          cx={cx}
+          cy={cy}
+          r={radius}
+          fill="none"
+          className="stroke-primary transition-all duration-1000 ease-linear"
+          strokeWidth={8}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={strokeDashoffset}
+        />
+      </svg>
+
+      {/* Pulse glow when active */}
+      {active && (
+        <span
+          className="absolute inset-0 rounded-full animate-pulse opacity-20 bg-primary"
+          style={{ borderRadius: "50%" }}
+          aria-hidden
+        />
+      )}
+
+      {/* Inner content slot */}
+      <div className="relative z-10 flex flex-col items-center justify-center">
+        <span className="font-mono text-4xl tabular-nums tracking-tight font-semibold">
+          {formatElapsed(elapsedSec)}
+        </span>
+        {active && (
+          <span className="mt-1 flex items-center gap-1 text-xs font-medium text-primary">
+            <span className="size-1.5 rounded-full bg-primary animate-pulse" aria-hidden />
+            Recording
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function TimerPage() {
   const session = useSessionStore((s) => s.session);
   const { active, elapsedSec, setActive, tick } = useTimerStore();
@@ -163,6 +228,43 @@ export function TimerPage() {
     }
   }
 
+  // ── Browser tab title ─────────────────────────────────────────────────────
+  useEffect(() => {
+    if (tracking) {
+      document.title = `⏱️ ${formatElapsed(elapsedSec)} — ChronoMint`;
+    } else {
+      document.title = "ChronoMint";
+    }
+    return () => {
+      document.title = "ChronoMint";
+    };
+  }, [tracking, elapsedSec]);
+
+  // ── Keyboard shortcut: Space / Ctrl+Shift+T → start or stop ────────────────
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)
+        return;
+
+      const isSpaceBar = e.code === "Space" && !e.ctrlKey && !e.metaKey && !e.altKey;
+      const isCtrlShiftT = (e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "t";
+
+      if (isSpaceBar || isCtrlShiftT) {
+        e.preventDefault();
+        if (tracking) {
+          void stopTimer();
+        } else if (canStart) {
+          void startTimer();
+        }
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tracking, canStart, starting, stopping]);
+
   return (
     <div className="mx-auto max-w-lg space-y-4">
       <div>
@@ -191,9 +293,34 @@ export function TimerPage() {
           )}
         </CardHeader>
         <CardContent className="space-y-6">
-          <p className="font-mono text-5xl tabular-nums tracking-tight">
-            {formatElapsed(elapsedSec)}
-          </p>
+          {/* Animated clock ring — centered */}
+          <div className="flex justify-center py-2">
+            <TimerRing elapsedSec={elapsedSec} active={tracking} size={200} />
+          </div>
+
+          {/* Keyboard shortcut hint */}
+          {!tracking && (
+            <p className="text-center text-xs text-muted-foreground">
+              Tip: Press{" "}
+              <kbd className="rounded border border-border px-1 py-0.5 font-mono text-[10px]">
+                Space
+              </kbd>{" "}
+              or{" "}
+              <kbd className="rounded border border-border px-1 py-0.5 font-mono text-[10px]">
+                Ctrl+Shift+T
+              </kbd>{" "}
+              to start
+            </p>
+          )}
+          {tracking && (
+            <p className="text-center text-xs text-muted-foreground">
+              Press{" "}
+              <kbd className="rounded border border-border px-1 py-0.5 font-mono text-[10px]">
+                Space
+              </kbd>{" "}
+              to stop
+            </p>
+          )}
 
           {tracking ? (
             <div className="space-y-4">

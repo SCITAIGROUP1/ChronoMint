@@ -29,6 +29,11 @@ export class MemoryRedis {
     return handlers?.size ?? 0;
   }
 
+  /** Health-check compatibility — always returns "PONG". */
+  async ping(): Promise<string> {
+    return "PONG";
+  }
+
   duplicate() {
     const localHandlers = new Set<MessageHandler>();
     const subscribed = new Set<string>();

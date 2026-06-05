@@ -1,5 +1,6 @@
 import { loginSchema, registerSchema, switchWorkspaceSchema, ROUTES } from "@chronomint/contracts";
 import { Body, Controller, Delete, Get, Post, Req, Res, UseGuards } from "@nestjs/common";
+import { Throttle, SkipThrottle } from "@nestjs/throttler";
 import { type Response, type Request } from "express";
 import {
   accessCookieName,
@@ -20,6 +21,8 @@ const cookieSecure = process.env.NODE_ENV === "production";
 export class AuthController {
   constructor(private auth: AuthService) {}
 
+  // Strict rate limit: 5 attempts per 60 s — prevents credential-stuffing
+  @Throttle({ auth: { limit: 5, ttl: 60_000 } })
   @Post(ROUTES.AUTH.REGISTER)
   async register(
     @Body(new ZodValidationPipe(registerSchema)) body: unknown,
@@ -38,6 +41,8 @@ export class AuthController {
     };
   }
 
+  // Strict rate limit: 5 attempts per 60 s — prevents brute-force attacks
+  @Throttle({ auth: { limit: 5, ttl: 60_000 } })
   @Post(ROUTES.AUTH.LOGIN)
   async login(
     @Body(new ZodValidationPipe(loginSchema)) body: unknown,
@@ -93,12 +98,14 @@ export class AuthController {
     };
   }
 
+  @SkipThrottle()
   @UseGuards(JwtAuthGuard)
   @Get(ROUTES.AUTH.ME)
   me(@CurrentUser() user: RequestUser) {
     return this.auth.getMe(user.userId, user.workspaceId);
   }
 
+  @SkipThrottle()
   @Delete(ROUTES.AUTH.LOGOUT)
   logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const scope = getAuthScope(req);
