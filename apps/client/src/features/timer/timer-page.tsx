@@ -1,7 +1,7 @@
 "use client";
 
 import { ROUTES } from "@chronomint/contracts";
-import type { ActiveTimerDto, TaskDto, ProjectDto } from "@chronomint/contracts";
+import type { ActiveTimerDto, TaskDto, ProjectDto, ListTimeLogsResponseDto } from "@chronomint/contracts";
 import {
   Button,
   Card,
@@ -16,9 +16,14 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
+  EmptyState
 } from "@chronomint/ui";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
+import { toast } from "sonner";
+import { DailyGoalWidget } from "./daily-goal-widget";
+import { QuickActions } from "./quick-actions";
+import { OnboardingOverlay } from "@/features/onboarding/onboarding-overlay";
 import { suggestBillableFromTask } from "@/features/timesheet/time-entry-dialog";
 import { api } from "@/lib/api";
 import { formatProjectLabel, formatTaskLabel } from "@/lib/project-labels";
@@ -117,14 +122,37 @@ export function TimerPage() {
   const [stopping, setStopping] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [todayLogs, setTodayLogs] = useState<any[]>([]);
+
+  const fetchTodayLogs = useCallback(async () => {
+    if (!ws) return;
+    try {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const todayEnd = new Date();
+      todayEnd.setHours(23, 59, 59, 999);
+      const params = new URLSearchParams({
+        from: todayStart.toISOString(),
+        to: todayEnd.toISOString()
+      });
+      const res = await api<ListTimeLogsResponseDto>(`${ROUTES.TIMELOGS.LIST}?${params}`, {
+        workspaceId: ws
+      });
+      setTodayLogs(res.items || []);
+    } catch {
+      // ignore
+    }
+  }, [ws]);
+
   useEffect(() => {
     if (!ws) return;
     void Promise.all([
       api<ProjectDto[]>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects),
       api<TaskDto[]>(ROUTES.TASKS.LIST, { workspaceId: ws }).then(setTasks),
-      api<ActiveTimerDto | null>(ROUTES.TIMER.ACTIVE, { workspaceId: ws }).then(setActive)
+      api<ActiveTimerDto | null>(ROUTES.TIMER.ACTIVE, { workspaceId: ws }).then(setActive),
+      fetchTodayLogs()
     ]);
-  }, [ws, setProjects, setTasks, setActive]);
+  }, [ws, setProjects, setTasks, setActive, fetchTodayLogs]);
 
   useEffect(() => {
     const id = setInterval(tick, 1000);
@@ -189,14 +217,17 @@ export function TimerPage() {
       setActive(res);
       setTaskChoice("");
       setNewTaskName("");
+      toast.success("Timer started successfully!");
+      void fetchTodayLogs();
     } catch (e) {
       const message = e instanceof Error ? e.message : "Could not start timer";
       if (message.toLowerCase().includes("timer already running")) {
-        setError(
-          "A timer is already running in this workspace. Stop it on this device or another device, then try again."
-        );
+        const errMsg = "A timer is already running in this workspace. Stop it first.";
+        setError(errMsg);
+        toast.error(errMsg);
       } else {
         setError(message);
+        toast.error(message);
       }
     } finally {
       setStarting(false);
@@ -217,12 +248,15 @@ export function TimerPage() {
       });
       setActive(null);
       setStopDescription("");
+      toast.success("Timer stopped! Time entry saved.");
+      void fetchTodayLogs();
     } catch (e) {
       const message = e instanceof Error ? e.message : "Could not stop timer";
       if (message.toLowerCase().includes("no active timer")) {
         setActive(null);
       }
       setError(message);
+      toast.error(message);
     } finally {
       setStopping(false);
     }
@@ -265,8 +299,19 @@ export function TimerPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tracking, canStart, starting, stopping]);
 
+  const todayLoggedSec = useMemo(() => {
+    return todayLogs.reduce((sum, log) => {
+      const start = new Date(log.startTime);
+      const end = new Date(log.endTime);
+      return sum + (end.getTime() - start.getTime()) / 1000;
+    }, 0);
+  }, [todayLogs]);
+
+  const totalTodaySec = todayLoggedSec + (tracking ? elapsedSec : 0);
+
   return (
     <div className="mx-auto max-w-lg space-y-4">
+      <OnboardingOverlay />
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Timer</h1>
         <p className="text-sm text-muted-foreground">
@@ -354,9 +399,10 @@ export function TimerPage() {
           ) : (
             <div className="space-y-4">
               {projects.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  You are not on any projects yet. Ask your admin to add you to a project.
-                </p>
+                <EmptyState
+                  title="No projects assigned"
+                  description="You are not on any projects yet. Ask your admin to add you to a project."
+                />
               ) : (
                 <>
                   <div className="space-y-2">
@@ -432,6 +478,17 @@ export function TimerPage() {
           {error && <p className="text-sm text-destructive">{error}</p>}
         </CardContent>
       </Card>
+
+      <DailyGoalWidget totalSeconds={totalTodaySec} />
+
+      <QuickActions
+        onSelect={(pId, tId) => {
+          setProjectId(pId);
+          setTaskChoice(tId);
+        }}
+        currentProjectId={projectId}
+        currentTaskId={taskChoice}
+      />
     </div>
   );
 }

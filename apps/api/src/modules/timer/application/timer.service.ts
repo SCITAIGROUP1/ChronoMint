@@ -5,6 +5,8 @@ import { ProjectAccessService } from "../../../common/access/project-access.serv
 import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { RedisService } from "../../../common/redis/redis.service";
+import { TimelogAuditService } from "../../timelogs/application/timelog-audit.service";
+import { TimesheetLockService } from "../../timelogs/application/timesheet-lock.service";
 
 interface TimerState {
   userId: string;
@@ -18,7 +20,9 @@ export class TimerService {
   constructor(
     private prisma: PrismaService,
     private redis: RedisService,
-    private access: ProjectAccessService
+    private access: ProjectAccessService,
+    private audit: TimelogAuditService,
+    private timesheetLock: TimesheetLockService
   ) {}
 
   private key(workspaceId: string, userId: string) {
@@ -98,18 +102,31 @@ export class TimerService {
     const start = new Date(state.startedAt);
     const end = new Date();
     const task = await this.prisma.task.findUniqueOrThrow({ where: { id: state.taskId } });
+    await this.timesheetLock.assertTaskPeriodEditable(userId, state.taskId, start);
 
-    const log = await this.prisma.timeLog.create({
-      data: {
-        userId,
-        taskId: state.taskId,
-        startTime: start,
-        endTime: end,
-        durationSec: Math.floor((end.getTime() - start.getTime()) / 1000),
-        description: dto.description,
-        isBillable: dto.isBillable ?? task.billableDefault,
-        source: "timer"
-      }
+    const log = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.timeLog.create({
+        data: {
+          userId,
+          taskId: state.taskId,
+          startTime: start,
+          endTime: end,
+          durationSec: Math.floor((end.getTime() - start.getTime()) / 1000),
+          description: dto.description,
+          isBillable: dto.isBillable ?? task.billableDefault,
+          source: "timer"
+        }
+      });
+      await this.audit.recordEvent(tx, {
+        workspaceId,
+        timeLogId: created.id,
+        entryUserId: userId,
+        actorId: userId,
+        action: "CREATE",
+        before: null,
+        after: this.audit.snapshotFromLog(created)
+      });
+      return created;
     });
 
     await this.redis.getClient().del(this.key(workspaceId, userId));

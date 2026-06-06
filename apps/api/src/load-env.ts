@@ -96,7 +96,13 @@ const optionalEnvSchema = z.object({
   FRONTEND_ORIGIN: z.string().optional(),
   JWT_ACCESS_EXPIRES: z.string().optional(),
   JWT_REFRESH_EXPIRES: z.string().optional(),
-  ENABLE_SWAGGER: z.enum(["true", "false"]).optional()
+  ENABLE_SWAGGER: z.enum(["true", "false"]).optional(),
+  // Optional SMTP email delivery (used by ExportScheduleService)
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.string().regex(/^\d+$/, "SMTP_PORT must be a number").optional(),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  SMTP_FROM: z.string().optional()
 });
 
 export function validateRequiredEnv(): void {

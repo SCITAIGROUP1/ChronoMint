@@ -48,6 +48,7 @@ type TimesheetCalendarProps = {
   onEntryResize: (log: TimeLogDto, start: Date, end: Date) => void;
   onEntryMove: (log: TimeLogDto, start: Date, end: Date) => void;
   onEntryDuplicate: (log: TimeLogDto, start: Date, end: Date) => void;
+  readOnly?: boolean;
 };
 
 function findDayColumnAt(clientX: number, clientY: number, days: Date[]): Date | null {
@@ -74,7 +75,8 @@ export function TimesheetCalendar({
   onEntryClick,
   onEntryResize,
   onEntryMove,
-  onEntryDuplicate
+  onEntryDuplicate,
+  readOnly = false
 }: TimesheetCalendarProps) {
   const slotRows = buildSlotRows();
   const today = new Date();
@@ -367,16 +369,19 @@ export function TimesheetCalendar({
               taskName={taskName}
               entryColor={entryColor}
               compact={view === "week"}
+              readOnly={readOnly}
               isSlotSelected={(idx) => isSlotSelected(toDateKey(day), idx)}
               resizePreview={resize && toDateKey(resize.day) === toDateKey(day) ? resize : null}
               movePreview={previewOnDay(move?.preview, day)}
               duplicatePreview={previewOnDay(duplicate?.preview, day)}
               movingLogId={move?.log.id ?? null}
               onSlotPointerDown={(index) => {
+                if (readOnly) return;
                 dragMoved.current = false;
                 setDrag({ dayKey: toDateKey(day), startIndex: index, endIndex: index });
               }}
               onSlotPointerEnter={(index) => {
+                if (readOnly) return;
                 startTransition(() => {
                   setDrag((d) => {
                     if (!d || d.dayKey !== toDateKey(day)) return d;
@@ -386,6 +391,7 @@ export function TimesheetCalendar({
                 });
               }}
               onSlotClick={(hour, minute) => {
+                if (readOnly) return;
                 if (suppressClick.current) {
                   suppressClick.current = false;
                   return;
@@ -400,6 +406,7 @@ export function TimesheetCalendar({
                 deferToParent(() => onEntryClick(log));
               }}
               onResizeStart={(log, clip, edge) => {
+                if (readOnly) return;
                 setResize({
                   log,
                   day,
@@ -430,6 +437,7 @@ function DayColumn({
   movePreview,
   duplicatePreview,
   movingLogId,
+  readOnly,
   onSlotPointerDown,
   onSlotPointerEnter,
   onSlotClick,
@@ -453,6 +461,7 @@ function DayColumn({
   movePreview: EntryPreview | null;
   duplicatePreview: EntryPreview | null;
   movingLogId: string | null;
+  readOnly: boolean;
   onSlotPointerDown: (index: number) => void;
   onSlotPointerEnter: (index: number) => void;
   onSlotClick: (hour: number, minute: number) => void;
@@ -492,17 +501,23 @@ function DayColumn({
           key={`${hour}-${minute}`}
           type="button"
           className={cn(
-            "h-10 w-full touch-none border-b border-border/40 transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+            "h-10 w-full touch-none border-b border-border/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+            !readOnly && "hover:bg-primary/10",
             isSlotSelected(index) && "bg-primary/25"
           )}
           aria-label={`${formatTimeLabel(hour, minute)}`}
           onPointerDown={(e) => {
+            if (readOnly) return;
             if (e.ctrlKey || e.metaKey) return;
             e.currentTarget.setPointerCapture(e.pointerId);
             onSlotPointerDown(index);
           }}
-          onPointerEnter={() => onSlotPointerEnter(index)}
-          onClick={() => onSlotClick(hour, minute)}
+          onPointerEnter={() => {
+            if (!readOnly) onSlotPointerEnter(index);
+          }}
+          onClick={() => {
+            if (!readOnly) onSlotClick(hour, minute);
+          }}
         />
       ))}
       <div className="pointer-events-none absolute inset-0">
@@ -548,23 +563,27 @@ function DayColumn({
                 ...colors
               }}
             >
-              <div
-                className="absolute inset-x-0 top-0 z-10 h-1.5 cursor-ns-resize bg-black/15"
-                onPointerDown={(e) => {
-                  e.stopPropagation();
-                  onResizeStart(log, clip, "start");
-                }}
-              />
+              {!readOnly && (
+                <div
+                  className="absolute inset-x-0 top-0 z-10 h-1.5 cursor-ns-resize bg-black/15"
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                    onResizeStart(log, clip, "start");
+                  }}
+                />
+              )}
               <button
                 type="button"
                 className={cn(
                   "h-full w-full px-1 py-0.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   !isDraggingCopy &&
                     !isDraggingMove &&
+                    !readOnly &&
                     "cursor-grab hover:brightness-95 active:cursor-grabbing"
                 )}
                 onPointerDown={(e) => {
                   e.stopPropagation();
+                  if (readOnly) return;
                   const col = columnRef.current;
                   if (!col) return;
                   const rect = col.getBoundingClientRect();
@@ -591,7 +610,7 @@ function DayColumn({
                   if (e.ctrlKey || e.metaKey) return;
                   onEntryClick(log);
                 }}
-                title={`${taskName(log.taskId)} — drag to move, Ctrl+drag to duplicate`}
+                title={readOnly ? taskName(log.taskId) : `${taskName(log.taskId)} — drag to move, Ctrl+drag to duplicate`}
               >
                 <span
                   className={cn("block truncate font-medium", compact ? "text-[10px]" : "text-xs")}
@@ -602,13 +621,15 @@ function DayColumn({
                   <span className="block truncate text-[10px] opacity-80">{log.description}</span>
                 )}
               </button>
-              <div
-                className="absolute inset-x-0 bottom-0 z-10 h-1.5 cursor-ns-resize bg-black/15"
-                onPointerDown={(e) => {
-                  e.stopPropagation();
-                  onResizeStart(log, clip, "end");
-                }}
-              />
+              {!readOnly && (
+                <div
+                  className="absolute inset-x-0 bottom-0 z-10 h-1.5 cursor-ns-resize bg-black/15"
+                  onPointerDown={(e) => {
+                    e.stopPropagation();
+                    onResizeStart(log, clip, "end");
+                  }}
+                />
+              )}
             </div>
           );
         })}

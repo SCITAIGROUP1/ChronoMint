@@ -3,9 +3,11 @@
 import { ROUTES } from "@chronomint/contracts";
 import type {
   ListTimeLogsResponseDto,
+  ListTimesheetSubmissionsResponseDto,
   TimeLogDto,
   TaskDto,
-  ProjectDto
+  ProjectDto,
+  TimesheetPeriodDto
 } from "@chronomint/contracts";
 import {
   Button,
@@ -19,10 +21,13 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  ProjectColorDot
+  ProjectColorDot,
+  EmptyState,
+  ConfirmDialog
 } from "@chronomint/ui";
 import { toDateInputValue } from "@chronomint/web-shared";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import {
   addDays,
   addMonths,
@@ -47,6 +52,7 @@ import {
 } from "./time-entry-dialog";
 import { TimesheetCalendar } from "./timesheet-calendar";
 import { TimesheetMonth } from "./timesheet-month";
+import { TimesheetStatusCard } from "./timesheet-status-card";
 import { MyWeekSummary } from "@/components/my-week-summary";
 import { TimesheetExport } from "@/components/timesheet-export";
 import { api } from "@/lib/api";
@@ -78,9 +84,71 @@ export function TimesheetPage() {
   const [draft, setDraft] = useState<TimeEntryDraft | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmDeleteLog, setConfirmDeleteLog] = useState<TimeLogDto | null>(null);
 
   const weekStart = useMemo(() => startOfWeek(anchor), [anchor]);
   const monthStart = useMemo(() => startOfMonth(anchor), [anchor]);
+
+  const [submissions, setSubmissions] = useState<TimesheetPeriodDto[]>([]);
+  const [submissionByKey, setSubmissionByKey] = useState<Map<string, TimesheetPeriodDto>>(
+    () => new Map()
+  );
+
+  const refreshSubmissions = useCallback(async () => {
+    if (!ws) return;
+    const dates = new Set<string>([anchor.toISOString()]);
+    for (const log of logs) {
+      dates.add(log.startTime);
+    }
+    try {
+      const merged = new Map<string, TimesheetPeriodDto>();
+      for (const date of dates) {
+        const params = new URLSearchParams({ date });
+        const res = await api<ListTimesheetSubmissionsResponseDto>(
+          `${ROUTES.TIMESHEETS.MY_SUBMISSIONS}?${params}`,
+          { workspaceId: ws }
+        );
+        for (const item of res.items) {
+          merged.set(`${item.projectId}:${item.periodStart}`, item);
+        }
+      }
+      setSubmissionByKey(merged);
+      setSubmissions(Array.from(merged.values()));
+    } catch {
+      setSubmissionByKey(new Map());
+      setSubmissions([]);
+    }
+  }, [ws, anchor, logs]);
+
+  useEffect(() => {
+    void refreshSubmissions();
+  }, [refreshSubmissions]);
+
+  const projectForTask = useCallback(
+    (taskId: string) => {
+      const task = tasks.find((t) => t.id === taskId);
+      if (!task) return undefined;
+      return projects.find((p) => p.id === task.projectId);
+    },
+    [tasks, projects]
+  );
+
+  const isEntryLocked = useCallback(
+    (log: TimeLogDto) => {
+      const project = projectForTask(log.taskId);
+      if (!project?.timesheetApprovalEnabled) return false;
+      const start = new Date(log.startTime);
+      for (const sub of submissionByKey.values()) {
+        if (sub.projectId !== project.id) continue;
+        if (sub.status !== "SUBMITTED" && sub.status !== "APPROVED") continue;
+        const pStart = new Date(sub.periodStart);
+        const pEnd = new Date(sub.periodEnd);
+        if (start >= pStart && start <= pEnd) return true;
+      }
+      return false;
+    },
+    [projectForTask, submissionByKey]
+  );
 
   const calendarDays = useMemo(() => {
     if (view === "day") return [startOfDay(anchor)];
@@ -168,6 +236,10 @@ export function TimesheetPage() {
   }
 
   function openDraft(next: TimeEntryDraft, log: TimeLogDto | null = null) {
+    if (log && isEntryLocked(log)) {
+      setError("This entry is locked (submitted or approved) and cannot be edited.");
+      return;
+    }
     setEditingLog(log);
     setDraft(next);
     setError(null);
@@ -208,6 +280,7 @@ export function TimesheetPage() {
   }
 
   async function saveEntry() {
+    if (editingLog && isEntryLocked(editingLog)) return;
     if (!draft || !canSaveTaskDraft(draft)) {
       setError("Select a project and task (or create a new one).");
       return;
@@ -247,8 +320,11 @@ export function TimesheetPage() {
       }
       await refreshLogs();
       closeDialog();
+      toast.success(editingLog ? "Time entry updated!" : "Time entry created!");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not save entry");
+      const msg = e instanceof Error ? e.message : "Could not save entry";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setSaving(false);
     }
@@ -257,21 +333,33 @@ export function TimesheetPage() {
   async function deleteEntry(log?: TimeLogDto) {
     const target = log ?? editingLog;
     if (!target) return;
-    if (!window.confirm("Delete this time entry?")) return;
+    if (isEntryLocked(target)) return;
+    // Show confirm dialog instead of window.confirm
+    setConfirmDeleteLog(target);
+  }
+
+  async function confirmDelete() {
+    const target = confirmDeleteLog;
+    setConfirmDeleteLog(null);
+    if (!target) return;
     setSaving(true);
     setError(null);
     try {
       await api(`/timelogs/${target.id}`, { method: "DELETE", workspaceId: ws });
       await refreshLogs();
       if (editingLog?.id === target.id) closeDialog();
+      toast.success("Time entry deleted!");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not delete entry");
+      const msg = e instanceof Error ? e.message : "Could not delete entry";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setSaving(false);
     }
   }
 
   async function duplicateEntry(log: TimeLogDto, start: Date, end: Date) {
+    if (isEntryLocked(log)) return;
     if (end <= start) return;
     setError(null);
     try {
@@ -288,12 +376,16 @@ export function TimesheetPage() {
       });
       await refreshLogs();
       openDraft(draftFromLog(created, tasks), created);
+      toast.success("Time entry duplicated!");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not duplicate entry");
+      const msg = e instanceof Error ? e.message : "Could not duplicate entry";
+      setError(msg);
+      toast.error(msg);
     }
   }
 
   async function updateEntryTimes(log: TimeLogDto, start: Date, end: Date, errorLabel: string) {
+    if (isEntryLocked(log)) return;
     if (end <= start) return;
     setError(null);
     try {
@@ -306,8 +398,11 @@ export function TimesheetPage() {
         })
       });
       await refreshLogs();
+      toast.success("Time entry updated!");
     } catch (e) {
-      setError(e instanceof Error ? e.message : errorLabel);
+      const msg = e instanceof Error ? e.message : errorLabel;
+      setError(msg);
+      toast.error(msg);
     }
   }
 
@@ -378,8 +473,16 @@ export function TimesheetPage() {
 
       {error && !dialogOpen && <p className="text-sm text-destructive">{error}</p>}
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <MyWeekSummary />
+        {submissions.map((sub) => (
+          <TimesheetStatusCard
+            key={`${sub.projectId}:${sub.periodStart}`}
+            statusInfo={sub}
+            onSubmitted={refreshSubmissions}
+            anchorDate={anchor}
+          />
+        ))}
         <TimesheetExport
           defaultFrom={visibleRange ? toDateInputValue(visibleRange.from) : undefined}
           defaultTo={
@@ -395,9 +498,10 @@ export function TimesheetPage() {
           </CardHeader>
           <CardContent>
             {logs.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No entries yet. Use the calendar to log time.
-              </p>
+              <EmptyState
+                title="No time entries logged"
+                description="No entries yet. Use the day or week calendar views to log time."
+              />
             ) : (
               <Table>
                 <TableHeader>
@@ -426,7 +530,7 @@ export function TimesheetPage() {
                       <TableCell>{log.isBillable ? "Yes" : "No"}</TableCell>
                       <TableCell>{log.source}</TableCell>
                       <TableCell className="space-x-1">
-                        <Button variant="ghost" size="sm" onClick={() => openEditEntry(log)}>
+                        <Button variant="ghost" size="sm" onClick={() => openEditEntry(log)} disabled={isEntryLocked(log)}>
                           Edit
                         </Button>
                         <Button
@@ -434,6 +538,7 @@ export function TimesheetPage() {
                           size="sm"
                           className="text-destructive hover:text-destructive"
                           onClick={() => void deleteEntry(log)}
+                          disabled={isEntryLocked(log)}
                         >
                           Delete
                         </Button>
@@ -465,6 +570,7 @@ export function TimesheetPage() {
           onEntryResize={resizeEntry}
           onEntryMove={moveEntry}
           onEntryDuplicate={duplicateEntry}
+          readOnly={false}
         />
       )}
 
@@ -479,10 +585,23 @@ export function TimesheetPage() {
         editingLog={editingLog}
         saving={saving}
         error={error}
+        readOnly={editingLog ? isEntryLocked(editingLog) : false}
+        workspaceId={ws}
         onClose={closeDialog}
         onDraftChange={setDraft}
         onSave={saveEntry}
-        onDelete={editingLog ? deleteEntry : undefined}
+        onDelete={editingLog && !isEntryLocked(editingLog) ? deleteEntry : undefined}
+      />
+
+      <ConfirmDialog
+        open={confirmDeleteLog !== null}
+        title="Delete time entry?"
+        description="This action cannot be undone. The time entry will be permanently removed."
+        confirmLabel="Delete"
+        cancelLabel="Keep it"
+        destructive
+        onConfirm={() => void confirmDelete()}
+        onCancel={() => setConfirmDeleteLog(null)}
       />
     </div>
   );

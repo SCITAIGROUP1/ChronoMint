@@ -1,7 +1,9 @@
 import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
 import { APP_GUARD } from "@nestjs/core";
-import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
+import { ThrottlerModule } from "@nestjs/throttler";
 import { CacheModule } from "./common/cache/cache.module";
+import { MailerModule } from "./common/mailer/mailer.module";
+import { CustomThrottlerGuard } from "./common/guards/custom-throttler.guard";
 import { RequestLoggerMiddleware } from "./common/logger/request-logger.middleware";
 import { PrismaModule } from "./common/prisma/prisma.module";
 import { RedisModule } from "./common/redis/redis.module";
@@ -23,7 +25,7 @@ import { WorkspaceModule } from "./modules/workspace/workspace.module";
       {
         name: "default",
         ttl: 60_000, // 60 seconds
-        limit: 100 // 100 requests per 60s globally
+        limit: 300 // 300 requests per 60s globally
       },
       {
         name: "auth",
@@ -34,6 +36,7 @@ import { WorkspaceModule } from "./modules/workspace/workspace.module";
     PrismaModule,
     RedisModule,
     CacheModule,
+    MailerModule,
     HealthModule,
     AuthModule,
     WorkspaceModule,
@@ -48,9 +51,9 @@ import { WorkspaceModule } from "./modules/workspace/workspace.module";
   ],
   providers: [
     {
-      // Apply ThrottlerGuard globally via DI so it has access to ThrottlerStorage
+      // Apply CustomThrottlerGuard globally via DI so it has access to ThrottlerStorage
       provide: APP_GUARD,
-      useClass: ThrottlerGuard
+      useClass: CustomThrottlerGuard
     }
   ]
 })

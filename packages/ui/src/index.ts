@@ -55,3 +55,13 @@ export {
   ProjectColorPicker,
   ProjectNameWithColor
 } from "./components/project-color.js";
+
+export {
+  TimeEntryAuditTrail,
+  type TimeEntryAuditEvent
+} from "./components/time-entry-audit-trail.js";
+
+export {
+  ConfirmDialog,
+  type ConfirmDialogProps
+} from "./components/ui/confirm-dialog.js";

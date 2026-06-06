@@ -16,6 +16,8 @@ import {
 } from "@chronomint/ui";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { BudgetBurnDownWidget } from "./budget-burndown-widget";
+import { TeamUtilizationWidget } from "./team-utilization-widget";
 import {
   DashboardSkeleton,
   EmptyState,
@@ -24,6 +26,7 @@ import {
   StatCard
 } from "@/components/admin-page";
 import { DashboardExtraCharts, ReportVisualsSection } from "@/components/charts-lazy";
+import { LivePresenceBadge } from "@/components/live-presence-badge";
 import { formatDurationClock } from "@/components/report-charts";
 import { api } from "@/lib/api";
 import { apiDownloadPost, saveDownloadResponse } from "@/lib/download";
@@ -211,6 +214,7 @@ export function DashboardPage() {
         }
         actions={
           <>
+            <LivePresenceBadge />
             <Button size="sm" variant="secondary" onClick={quickExport} disabled={exporting}>
               {exporting ? "Exporting…" : "Quick export"}
             </Button>
@@ -320,6 +324,11 @@ export function DashboardPage() {
               value={String(report.workspace.activeMembers)}
               hint="With time logged"
             />
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <BudgetBurnDownWidget projectId={projectId || undefined} />
+            <TeamUtilizationWidget from={report.period.from} to={report.period.to} />
           </div>
 
           <ReportVisualsSection report={report} projectColors={colorByProjectId} />

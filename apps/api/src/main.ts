@@ -3,6 +3,7 @@ import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
 import { AppModule } from "./app.module";
+import { SentryFilter } from "./common/http/sentry-filter";
 import {
   loadPrismaEnvFile,
   logMissingProductionEnv,
@@ -32,6 +33,7 @@ function isAllowedCorsOrigin(origin: string | undefined): boolean {
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.useGlobalFilters(new SentryFilter());
 
   // ── Security ─────────────────────────────────────────────────────────────
   app.use(
@@ -42,7 +44,8 @@ async function bootstrap() {
           scriptSrc: ["'self'", "'unsafe-inline'"], // needed for Swagger UI inline scripts
           styleSrc: ["'self'", "'unsafe-inline'"],
           imgSrc: ["'self'", "data:", "https:"],
-          connectSrc: ["'self'"]
+          connectSrc: ["'self'"],
+          upgradeInsecureRequests: null
         }
       },
       crossOriginEmbedderPolicy: false // allow Swagger UI to load external resources

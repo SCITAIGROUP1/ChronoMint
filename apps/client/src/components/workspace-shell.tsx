@@ -7,6 +7,7 @@ import {
   getAccessToken,
   logoutSession,
   ThemeToggle,
+  tryRefreshSession,
   WorkspaceSwitcher
 } from "@chronomint/web-shared";
 import { CalendarDays, FolderKanban, ListTodo, LogOut, Timer as TimerIcon } from "lucide-react";
@@ -33,10 +34,27 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
   const setWorkspaces = useWorkspacesStore((s) => s.setWorkspaces);
 
   useEffect(() => {
-    if (session) return;
+    const isImpersonatingRequest = typeof window !== "undefined" && window.location.search.includes("impersonate=true");
+    if (isImpersonatingRequest) {
+      useSessionStore.getState().clear();
+      const url = new URL(window.location.href);
+      url.searchParams.delete("impersonate");
+      window.history.replaceState({}, document.title, url.pathname + url.search);
+    } else if (session) {
+      return;
+    }
+
     const token = getAccessToken();
-    if (!token) {
-      router.replace("/login");
+    if (!token || isImpersonatingRequest) {
+      tryRefreshSession()
+        .then((newToken) => {
+          if (!newToken) {
+            router.replace("/login");
+          }
+        })
+        .catch(() => {
+          router.replace("/login");
+        });
       return;
     }
     api<AuthSessionDto>(ROUTES.AUTH.ME)
@@ -47,11 +65,25 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
         });
       })
       .then((list) => {
-        setWorkspaces(list);
-        setWorkspaceNames(list);
+        if (list) {
+          setWorkspaces(list);
+          setWorkspaceNames(list);
+        }
       })
       .catch(() => router.replace("/login"));
   }, [session, setSession, setWorkspaces, setWorkspaceNames, router]);
+
+  async function handleStopImpersonation() {
+    try {
+      await api(ROUTES.AUTH.STOP_IMPERSONATION, { method: "POST" });
+    } catch {
+      // Ignored
+    } finally {
+      useSessionStore.getState().clear();
+      const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL || "http://localhost:3002";
+      window.location.href = `${adminUrl}/workspace`;
+    }
+  }
 
   async function logout() {
     await logoutSession(session?.workspaceId);
@@ -151,6 +183,27 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <main className="min-h-screen min-w-0 flex-1 overflow-y-auto">
+        {session.impersonatorId && (
+          <div className="sticky top-0 z-50 bg-amber-500/10 border-b border-amber-500/20 backdrop-blur-md px-6 py-3 flex items-center justify-between text-xs text-amber-800 dark:text-amber-300">
+            <div className="flex items-center gap-2.5">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+              </span>
+              <span>
+                Viewing workspace as <strong className="font-semibold">{session.user.name}</strong> (impersonated by Admin <strong className="font-semibold">{session.impersonatorName}</strong>)
+              </span>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 px-3 text-xs border-amber-500/30 hover:bg-amber-500/20 text-amber-900 dark:text-amber-200 transition-colors"
+              onClick={handleStopImpersonation}
+            >
+              Return to Admin
+            </Button>
+          </div>
+        )}
         <div className="mx-auto w-full max-w-7xl p-6 lg:p-8">{children}</div>
       </main>
     </div>

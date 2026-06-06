@@ -32,6 +32,7 @@ import {
 } from "@chronomint/ui";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { InvoiceWizard } from "./invoice-wizard";
 import {
   PageHeader,
   PreviewBanner,
@@ -122,6 +123,7 @@ function formatPeriodLabel(from: string, to: string) {
 
 export function ExportsPage() {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
+  const [exportMode, setExportMode] = useState<"standard" | "invoice">("standard");
   const [from, setFrom] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 30);
@@ -428,7 +430,20 @@ export function ExportsPage() {
         }
       />
 
-      <div className="grid gap-8 lg:grid-cols-12">
+      <div className="flex justify-start">
+        <SegmentedControl
+          value={exportMode}
+          onChange={setExportMode}
+          options={[
+            { value: "standard", label: "Workbook Export" },
+            { value: "invoice", label: "Invoice Wizard" }
+          ]}
+        />
+      </div>
+
+      {exportMode === "standard" ? (
+        <>
+          <div className="grid gap-8 lg:grid-cols-12">
         <div className="space-y-6 lg:col-span-8">
           <Card>
             <CardHeader className="pb-4">
@@ -901,7 +916,11 @@ export function ExportsPage() {
         </div>
       </div>
 
-      <ExportSchedulesPanel workspaceId={ws} currentBody={exportBody} />
+          <ExportSchedulesPanel workspaceId={ws} currentBody={exportBody} />
+        </>
+      ) : (
+        <InvoiceWizard />
+      )}
     </div>
   );
 }

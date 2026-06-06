@@ -1,4 +1,4 @@
-# ChronoMint — Level-Up Improvement Plan
+# ChronoMint — Level-Up Improvement Plan (Completed)
 
 ChronoMint is a production-quality time-analytics monorepo (NestJS API, Next.js 15 Client + Admin,
 Tailwind v4, Prisma/Postgres, Redis). The baseline feature set (Phases 1–2) is fully shipped.
@@ -9,16 +9,16 @@ UX/UI Polish, Developer Experience, and Production Readiness.
 
 ## Execution Order (Sprints)
 
-| Sprint | Dimension  | Key Deliverables                                               |
-| ------ | ---------- | -------------------------------------------------------------- |
-| **1**  | Security   | Rate limiting, Helmet, Refresh token rotation, env validation  |
-| **2**  | Features   | Budget burn-down, Workspace settings, Daily goal widget        |
-| **3**  | Features   | Utilization report, Invoice generation                         |
-| **4**  | UX         | Animated timer, Toast system, Empty states, Keyboard shortcuts |
-| **5**  | Features   | Timesheet submit/approve workflow                              |
-| **6**  | DevEx      | OpenAPI docs, Structured logging, Test coverage expansion      |
-| **7**  | Production | Health check, Graceful shutdown, Sentry, Docker hardening      |
-| **8**  | Features   | Email delivery for schedules, Quick actions, PWA               |
+| Sprint | Dimension  | Key Deliverables                                               | Status     |
+| ------ | ---------- | -------------------------------------------------------------- | ---------- |
+| **1**  | Security   | Rate limiting, Helmet, Refresh token rotation, env validation  | Completed  |
+| **2**  | Features   | Budget burn-down, Workspace settings, Daily goal widget        | Completed  |
+| **3**  | Features   | Utilization report, Invoice generation                         | Completed  |
+| **4**  | UX         | Animated timer, Toast system, Empty states, Keyboard shortcuts | Completed  |
+| **5**  | Features   | Timesheet submit/approve workflow                              | Completed  |
+| **6**  | DevEx      | OpenAPI docs, Structured logging, Test coverage expansion      | Completed  |
+| **7**  | Production | Health check, Graceful shutdown, Sentry, Docker hardening      | Completed  |
+| **8**  | Features   | Email delivery for schedules, Quick actions, PWA               | Partial    |
 
 ---
 
