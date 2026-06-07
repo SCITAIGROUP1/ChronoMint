@@ -10,9 +10,10 @@ import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
 interface DailyGoalWidgetProps {
   totalSeconds: number;
+  cardless?: boolean;
 }
 
-export function DailyGoalWidget({ totalSeconds }: DailyGoalWidgetProps) {
+export function DailyGoalWidget({ totalSeconds, cardless = false }: DailyGoalWidgetProps) {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
   const [targetHours, setTargetHours] = useState(8);
   const [editing, setEditing] = useState(false);
@@ -72,6 +73,72 @@ export function DailyGoalWidget({ totalSeconds }: DailyGoalWidgetProps) {
       toast.error("Could not save daily goal");
     }
   }, [ws, editValue]);
+
+  const bodyContent = (
+    <div className="flex flex-row items-center gap-6 py-2 w-full h-full min-w-0">
+      {/* SVG Circular Ring */}
+      <div
+        className="relative flex items-center justify-center shrink-0"
+        style={{ width: size, height: size }}
+      >
+        <svg width={size} height={size} className="-rotate-90" aria-hidden>
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            className="stroke-muted/40"
+            strokeWidth={strokeWidth}
+          />
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            className={`transition-all duration-500 ease-out ${isGoalReached ? "stroke-green-500" : "stroke-primary"}`}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={strokeDashoffset}
+          />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-xl font-bold tracking-tight">{percentage}%</span>
+          <span className="text-[10px] text-muted-foreground">of target</span>
+        </div>
+      </div>
+
+      {/* Text Details */}
+      <div className="space-y-1.5 flex-1 min-w-0">
+        <div className="flex items-center justify-between">
+          <p className="text-2xl font-bold tracking-tight">
+            {hoursLogged}{" "}
+            <span className="text-sm font-medium text-muted-foreground">/ {targetHours} hrs</span>
+          </p>
+          {isGoalReached && !cardless && (
+            <span className="text-[9px] bg-green-500/10 text-green-600 dark:text-green-400 px-1.5 py-0.5 rounded-full font-medium shrink-0 animate-pulse border border-green-500/20">
+              Target Reached!
+            </span>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground leading-snug truncate-multiline">
+          {isGoalReached
+            ? "Goal reached! Keep up the good work!"
+            : `Need ${((targetSeconds - totalSeconds) / 3600).toFixed(1)} more hours today.`}
+        </p>
+        <div className="w-full bg-muted/40 rounded-full h-1.5 overflow-hidden">
+          <div
+            className={`h-full transition-all duration-500 ${isGoalReached ? "bg-green-500" : "bg-primary"}`}
+            style={{ width: `${percentage}%` }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+
+  if (cardless) {
+    return bodyContent;
+  }
 
   return (
     <Card className="relative overflow-hidden transition-all duration-300 hover:shadow-md">
@@ -134,58 +201,7 @@ export function DailyGoalWidget({ totalSeconds }: DailyGoalWidgetProps) {
           </span>
         </CardTitle>
       </CardHeader>
-      <CardContent className="flex items-center gap-6 py-2">
-        {/* SVG Circular Ring */}
-        <div
-          className="relative flex items-center justify-center shrink-0"
-          style={{ width: size, height: size }}
-        >
-          <svg width={size} height={size} className="-rotate-90" aria-hidden>
-            <circle
-              cx={size / 2}
-              cy={size / 2}
-              r={radius}
-              fill="none"
-              className="stroke-muted/40"
-              strokeWidth={strokeWidth}
-            />
-            <circle
-              cx={size / 2}
-              cy={size / 2}
-              r={radius}
-              fill="none"
-              className={`transition-all duration-500 ease-out ${isGoalReached ? "stroke-green-500" : "stroke-primary"}`}
-              strokeWidth={strokeWidth}
-              strokeLinecap="round"
-              strokeDasharray={circumference}
-              strokeDashoffset={strokeDashoffset}
-            />
-          </svg>
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-xl font-bold tracking-tight">{percentage}%</span>
-            <span className="text-[10px] text-muted-foreground">of target</span>
-          </div>
-        </div>
-
-        {/* Text Details */}
-        <div className="space-y-1">
-          <p className="text-2xl font-bold tracking-tight">
-            {hoursLogged}{" "}
-            <span className="text-sm font-medium text-muted-foreground">/ {targetHours} hrs</span>
-          </p>
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            {isGoalReached
-              ? "Great job! You've reached your daily target. Keep up the good work!"
-              : `Keep going! You need ${((targetSeconds - totalSeconds) / 3600).toFixed(1)} more hours to hit your goal today.`}
-          </p>
-          <div className="w-full bg-muted/40 rounded-full h-1.5 overflow-hidden">
-            <div
-              className={`h-full transition-all duration-500 ${isGoalReached ? "bg-green-500" : "bg-primary"}`}
-              style={{ width: `${percentage}%` }}
-            />
-          </div>
-        </div>
-      </CardContent>
+      <CardContent className="flex items-center gap-6 py-2">{bodyContent}</CardContent>
     </Card>
   );
 }

@@ -10,7 +10,14 @@ import {
   tryRefreshSession,
   WorkspaceSwitcher
 } from "@chronomint/web-shared";
-import { CalendarDays, FolderKanban, ListTodo, LogOut, Timer as TimerIcon } from "lucide-react";
+import {
+  CalendarDays,
+  FolderKanban,
+  LayoutGrid,
+  ListTodo,
+  LogOut,
+  Timer as TimerIcon
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { api } from "@/lib/api";
@@ -19,6 +26,7 @@ import { useSessionStore } from "@/stores/session.store";
 import { useWorkspacesStore } from "@/stores/workspaces.store";
 
 const nav = [
+  { href: "/dashboard", label: "Dashboard", Icon: LayoutGrid },
   { href: "/timer", label: "Timer", Icon: TimerIcon },
   { href: "/timesheet", label: "Timesheet", Icon: CalendarDays },
   { href: "/projects", label: "My projects", Icon: FolderKanban },
@@ -106,7 +114,7 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
       logoIcon={<TimerIcon className="h-5 w-5" strokeWidth={2.25} />}
       logoTitle="ChronoMint"
       logoSubtitle={session.user.name}
-      logoLinkHref="/timer"
+      logoLinkHref="/dashboard"
       impersonationBanner={
         session.impersonatorId ? (
           <div className="sticky top-0 z-50 bg-amber-500/10 border-b border-amber-500/20 backdrop-blur-md px-6 py-3 flex items-center justify-between text-xs text-amber-800 dark:text-amber-300">
@@ -145,7 +153,7 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
             </p>
           )}
           <WorkspaceSwitcher
-            defaultRedirect="/timer"
+            defaultRedirect="/dashboard"
             collapsed={collapsed}
             onAfterSwitch={() => {
               useProjectsStore.getState().setProjects([]);

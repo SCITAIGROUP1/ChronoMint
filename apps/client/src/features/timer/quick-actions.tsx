@@ -13,6 +13,7 @@ interface QuickActionsProps {
   onSelect: (projectId: string, taskId: string) => void;
   currentProjectId?: string;
   currentTaskId?: string;
+  mode?: "favorites" | "recents" | "all";
 }
 
 interface FavoriteItem {
@@ -31,7 +32,12 @@ interface RecentItem {
   projectColor: string;
 }
 
-export function QuickActions({ onSelect, currentProjectId, currentTaskId }: QuickActionsProps) {
+export function QuickActions({
+  onSelect,
+  currentProjectId,
+  currentTaskId,
+  mode = "all"
+}: QuickActionsProps) {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
   const { projects, tasks } = useProjectsStore();
 
@@ -177,6 +183,70 @@ export function QuickActions({ onSelect, currentProjectId, currentTaskId }: Quic
     const m = Math.floor((sec % 3600) / 60);
     if (h === 0) return `${m}m`;
     return m === 0 ? `${h}h` : `${h}h ${m}m`;
+  }
+
+  if (mode === "favorites") {
+    return (
+      <div className="w-full h-full select-none">
+        {favorites.length === 0 ? (
+          <p className="text-xs text-muted-foreground py-2">
+            No pinned tasks yet. Select a project and task in the Timer page first, then pin it.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {favorites.map((f) => (
+              <Button
+                key={f.taskId}
+                variant="outline"
+                size="sm"
+                className="w-full py-2 h-auto hover:bg-muted flex items-center justify-between text-xs px-3"
+                onClick={() => onSelect(f.projectId, f.taskId)}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <ProjectColorDot color={f.projectColor} size="sm" className="shrink-0" />
+                  <span className="font-semibold text-foreground truncate">{f.projectName}</span>
+                </div>
+                <span className="text-muted-foreground truncate ml-4 text-xs font-normal">
+                  {f.taskName}
+                </span>
+              </Button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (mode === "recents") {
+    return (
+      <div className="w-full h-full select-none">
+        {recents.length === 0 ? (
+          <p className="text-xs text-muted-foreground py-2">
+            No recent activity found in the last 7 days.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {recents.map((r) => (
+              <Button
+                key={r.taskId}
+                variant="outline"
+                size="sm"
+                className="w-full py-2 h-auto hover:bg-muted flex items-center justify-between text-xs px-3"
+                onClick={() => onSelect(r.projectId, r.taskId)}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <ProjectColorDot color={r.projectColor} size="sm" className="shrink-0" />
+                  <span className="font-semibold text-foreground truncate">{r.projectName}</span>
+                </div>
+                <span className="text-muted-foreground truncate ml-4 text-xs font-normal">
+                  {r.taskName}
+                </span>
+              </Button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
   }
 
   return (

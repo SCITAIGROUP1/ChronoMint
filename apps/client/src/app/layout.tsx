@@ -2,6 +2,8 @@ import { SentryInitializer } from "@chronomint/web-shared/client";
 import type { Metadata } from "next";
 import { Toaster } from "sonner";
 import { Providers } from "@/components/providers";
+import "react-grid-layout/css/styles.css";
+import "react-resizable/css/styles.css";
 import "./globals.css";
 
 export const metadata: Metadata = {

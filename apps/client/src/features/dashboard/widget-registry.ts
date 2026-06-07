@@ -1,0 +1,197 @@
+import {
+  Clock,
+  DollarSign,
+  Folder,
+  Calendar,
+  PieChart,
+  Star,
+  History,
+  ListTodo,
+  Activity
+} from "lucide-react";
+
+export type WidgetGroup = "kpi" | "trends" | "composition" | "workflow";
+
+export interface WidgetDefinition {
+  id: string;
+  label: string;
+  description: string;
+  group: WidgetGroup;
+  defaultSize: { w: number; h: number };
+  minSize: { w: number; h: number };
+  maxSize?: { w: number; h: number };
+  defaultVisible: boolean;
+  iconName: string;
+}
+
+export interface WidgetLayoutItem {
+  i: string; // matches react-grid-layout's format
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  visible: boolean;
+}
+
+export const WIDGET_GROUPS: { value: WidgetGroup; label: string }[] = [
+  { value: "kpi", label: "KPI Stat Cards" },
+  { value: "trends", label: "Time & Trends" },
+  { value: "composition", label: "Composition" },
+  { value: "workflow", label: "Quick Actions & Workflows" }
+];
+
+export const WIDGET_REGISTRY: WidgetDefinition[] = [
+  // KPI Stats
+  {
+    id: "stat_total_hours",
+    label: "Total Hours (Week)",
+    description: "Total duration of logged time in the current week",
+    group: "kpi",
+    defaultSize: { w: 2, h: 2 },
+    minSize: { w: 2, h: 2 },
+    maxSize: { w: 4, h: 2 },
+    defaultVisible: true,
+    iconName: "Clock"
+  },
+  {
+    id: "stat_billable",
+    label: "Billable Hours",
+    description: "Total billable duration logged in the current week",
+    group: "kpi",
+    defaultSize: { w: 2, h: 2 },
+    minSize: { w: 2, h: 2 },
+    maxSize: { w: 4, h: 2 },
+    defaultVisible: true,
+    iconName: "DollarSign"
+  },
+  {
+    id: "stat_projects",
+    label: "Active Projects",
+    description: "Number of active projects assigned in this workspace",
+    group: "kpi",
+    defaultSize: { w: 2, h: 2 },
+    minSize: { w: 2, h: 2 },
+    maxSize: { w: 4, h: 2 },
+    defaultVisible: true,
+    iconName: "Folder"
+  },
+
+  // Trends
+  {
+    id: "weekly_progress",
+    label: "Weekly Progress Chart",
+    description: "Bar chart showing daily logged hours vs your daily goal",
+    group: "trends",
+    defaultSize: { w: 6, h: 3 },
+    minSize: { w: 4, h: 3 },
+    defaultVisible: true,
+    iconName: "Calendar"
+  },
+
+  // Composition
+  {
+    id: "project_split",
+    label: "Project Distribution",
+    description: "Donut chart of time logged across active projects this week",
+    group: "composition",
+    defaultSize: { w: 3, h: 3 },
+    minSize: { w: 3, h: 3 },
+    defaultVisible: true,
+    iconName: "PieChart"
+  },
+
+  // Workflow & Active Widgets
+  {
+    id: "quick_timer",
+    label: "Quick Timer",
+    description: "Fully functional active timer widget to start/stop tracking",
+    group: "workflow",
+    defaultSize: { w: 6, h: 3 },
+    minSize: { w: 4, h: 3 },
+    defaultVisible: true,
+    iconName: "Clock"
+  },
+  {
+    id: "daily_progress",
+    label: "Daily Progress",
+    description: "Goal progress radial ring for today",
+    group: "workflow",
+    defaultSize: { w: 3, h: 3 },
+    minSize: { w: 3, h: 3 },
+    defaultVisible: true,
+    iconName: "Activity"
+  },
+  {
+    id: "pinned_favorites",
+    label: "Pinned Favorites",
+    description: "List of pinned favorite tasks for quick fills",
+    group: "workflow",
+    defaultSize: { w: 3, h: 3 },
+    minSize: { w: 3, h: 3 },
+    defaultVisible: true,
+    iconName: "Star"
+  },
+  {
+    id: "recent_activity",
+    label: "Recent Activity",
+    description: "List of recently logged tasks",
+    group: "workflow",
+    defaultSize: { w: 3, h: 3 },
+    minSize: { w: 3, h: 3 },
+    defaultVisible: true,
+    iconName: "History"
+  },
+  {
+    id: "today_logs",
+    label: "Today's Activity Feed",
+    description: "Interactive timeline of time entries logged today",
+    group: "workflow",
+    defaultSize: { w: 6, h: 4 },
+    minSize: { w: 4, h: 3 },
+    defaultVisible: true,
+    iconName: "ListTodo"
+  },
+  {
+    id: "timesheet_submissions",
+    label: "My Timesheets",
+    description: "Summary of your timesheet submission periods and approval statuses",
+    group: "workflow",
+    defaultSize: { w: 6, h: 3 },
+    minSize: { w: 4, h: 3 },
+    defaultVisible: false,
+    iconName: "ListTodo"
+  }
+];
+
+export const DEFAULT_LAYOUT: WidgetLayoutItem[] = [
+  // y=0: Quick Timer and Daily Progress
+  { i: "quick_timer", x: 0, y: 0, w: 6, h: 3, visible: true },
+  { i: "daily_progress", x: 6, y: 0, w: 3, h: 3, visible: true },
+  { i: "project_split", x: 9, y: 0, w: 3, h: 3, visible: true },
+
+  // y=3: KPI cards & Pinned favorites
+  { i: "stat_total_hours", x: 0, y: 3, w: 2, h: 2, visible: true },
+  { i: "stat_billable", x: 2, y: 3, w: 2, h: 2, visible: true },
+  { i: "stat_projects", x: 4, y: 3, w: 2, h: 2, visible: true },
+  { i: "pinned_favorites", x: 6, y: 3, w: 3, h: 3, visible: true },
+  { i: "recent_activity", x: 9, y: 3, w: 3, h: 3, visible: true },
+
+  // y=6: Weekly progress bar and Today's activity
+  { i: "weekly_progress", x: 0, y: 6, w: 6, h: 3, visible: true },
+  { i: "today_logs", x: 6, y: 6, w: 6, h: 4, visible: true },
+
+  // Hidden by default
+  { i: "timesheet_submissions", x: 0, y: 10, w: 6, h: 3, visible: false }
+];
+
+export const WIDGET_ICONS: Record<string, any> = {
+  Clock,
+  DollarSign,
+  Folder,
+  Calendar,
+  PieChart,
+  Star,
+  History,
+  ListTodo,
+  Activity
+};
