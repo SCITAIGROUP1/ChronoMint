@@ -26,6 +26,9 @@ export class SentryFilter implements ExceptionFilter {
 
     // Log to Sentry if DSN is set and it's a 5xx error
     const dsn = process.env.SENTRY_DSN;
+    if (status >= 500) {
+      console.error("[API Error]", exception);
+    }
     if (dsn && status >= 500) {
       this.sendToSentry(dsn, exception, request).catch((err) => {
         console.error("Failed to send error to Sentry:", err);

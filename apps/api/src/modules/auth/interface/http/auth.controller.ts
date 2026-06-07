@@ -34,6 +34,18 @@ import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe"
 import { AuthService } from "../../application/auth.service";
 
 const cookieSecure = process.env.NODE_ENV === "production";
+const cookieDomain = process.env.COOKIE_DOMAIN?.trim();
+
+const getCookieOpts = () => ({
+  httpOnly: true,
+  sameSite: "lax" as const,
+  secure: cookieSecure,
+  ...(cookieDomain ? { domain: cookieDomain } : {})
+});
+
+const getClearCookieOpts = () => ({
+  ...(cookieDomain ? { domain: cookieDomain } : {})
+});
 
 @Controller()
 export class AuthController {
@@ -96,13 +108,10 @@ export class AuthController {
     const access = this.auth.signAccessToken(
       session.user.id,
       session.workspaceId,
-      session.workspaceRole
+      session.workspaceRole,
+      session.impersonatorId
     );
-    const cookieOpts = {
-      httpOnly: true,
-      sameSite: "lax" as const,
-      secure: cookieSecure
-    };
+    const cookieOpts = getCookieOpts();
     res.cookie(accessCookieName(scope), access, {
       ...cookieOpts,
       maxAge: 15 * 60 * 1000
@@ -124,14 +133,29 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response
   ) {
+    const impersonatorId = user.impersonatorId;
+    let impersonatorName: string | undefined;
+
+    if (impersonatorId) {
+      const imp = await this.auth.verifyImpersonator(impersonatorId, body.workspaceId);
+      impersonatorName = imp.name;
+    }
+
     const session = await this.auth.switchWorkspace(user.userId, body.workspaceId);
-    await this.setCookies(req, res, session);
-    return {
+    const enrichedSession = {
       ...session,
+      impersonatorId,
+      impersonatorName
+    };
+
+    await this.setCookies(req, res, enrichedSession, impersonatorId);
+    return {
+      ...enrichedSession,
       accessToken: this.auth.signAccessToken(
-        session.user.id,
-        session.workspaceId,
-        session.workspaceRole
+        enrichedSession.user.id,
+        enrichedSession.workspaceId,
+        enrichedSession.workspaceRole,
+        impersonatorId
       )
     };
   }
@@ -165,11 +189,7 @@ export class AuthController {
       body.userId
     );
 
-    const cookieOpts = {
-      httpOnly: true,
-      sameSite: "lax" as const,
-      secure: cookieSecure
-    };
+    const cookieOpts = getCookieOpts();
     res.cookie("access_token_client", accessToken, {
       ...cookieOpts,
       maxAge: 15 * 60 * 1000
@@ -190,10 +210,11 @@ export class AuthController {
     if (refresh) {
       await this.auth.revokeRefreshToken(refresh);
     }
-    res.clearCookie("access_token_client");
-    res.clearCookie("refresh_token_client");
-    res.clearCookie("access_token");
-    res.clearCookie("refresh_token");
+    const clearOpts = getClearCookieOpts();
+    res.clearCookie("access_token_client", clearOpts);
+    res.clearCookie("refresh_token_client", clearOpts);
+    res.clearCookie("access_token", clearOpts);
+    res.clearCookie("refresh_token", clearOpts);
     return { ok: true };
   }
 
@@ -205,30 +226,34 @@ export class AuthController {
     if (refresh) {
       await this.auth.revokeRefreshToken(refresh);
     }
-    res.clearCookie(accessCookieName(scope));
-    res.clearCookie(refreshCookieName(scope));
-    res.clearCookie("access_token");
-    res.clearCookie("refresh_token");
+    const clearOpts = getClearCookieOpts();
+    res.clearCookie(accessCookieName(scope), clearOpts);
+    res.clearCookie(refreshCookieName(scope), clearOpts);
+    res.clearCookie("access_token", clearOpts);
+    res.clearCookie("refresh_token", clearOpts);
     return { ok: true };
   }
 
   private async setCookies(
     req: Request,
     res: Response,
-    session: { user: { id: string }; workspaceId: string; workspaceRole: "ADMIN" | "MEMBER" }
+    session: { user: { id: string }; workspaceId: string; workspaceRole: "ADMIN" | "MEMBER" },
+    impersonatorId?: string
   ) {
     const scope = getAuthScope(req);
     const access = this.auth.signAccessToken(
       session.user.id,
       session.workspaceId,
-      session.workspaceRole
+      session.workspaceRole,
+      impersonatorId
     );
-    const refresh = await this.auth.signAndStoreRefreshToken(session.user.id, session.workspaceId);
-    const cookieOpts = {
-      httpOnly: true,
-      sameSite: "lax" as const,
-      secure: cookieSecure
-    };
+    const refresh = await this.auth.signAndStoreRefreshToken(
+      session.user.id,
+      session.workspaceId,
+      undefined,
+      impersonatorId
+    );
+    const cookieOpts = getCookieOpts();
     res.cookie(accessCookieName(scope), access, {
       ...cookieOpts,
       maxAge: 15 * 60 * 1000

@@ -149,6 +149,7 @@ export class AuthService {
         sub: userId,
         workspaceId,
         family: tokenFamily,
+        jti: randomUUID(),
         ...(impersonatorId ? { impersonatorId } : {})
       },
       { secret, expiresIn: process.env.JWT_REFRESH_EXPIRES ?? "7d" }
@@ -423,5 +424,23 @@ export class AuthService {
     );
 
     return { session, accessToken, refreshToken };
+  }
+
+  async verifyImpersonator(
+    impersonatorId: string,
+    workspaceId: string
+  ): Promise<{ id: string; name: string }> {
+    const membership = await this.prisma.workspaceMember.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId: impersonatorId } },
+      include: { user: true }
+    });
+    if (!membership || membership.role !== "ADMIN") {
+      throw new DomainException(
+        ErrorCodes.FORBIDDEN,
+        "Impersonator is not an administrator of the target workspace",
+        HttpStatus.FORBIDDEN
+      );
+    }
+    return { id: membership.userId, name: membership.user.name };
   }
 }
