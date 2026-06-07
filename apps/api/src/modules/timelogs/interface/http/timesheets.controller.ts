@@ -1,17 +1,17 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
 import {
   ROUTES,
   submitTimesheetSchema,
   timesheetStatusQuerySchema,
   timesheetSubmissionsQuerySchema
 } from "@chronomint/contracts";
+import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
+import { z } from "zod";
+import { CurrentUser, RequestUser } from "../../../../common/decorators/current-user.decorator";
+import { Roles } from "../../../../common/decorators/roles.decorator";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../../../common/guards/roles.guard";
-import { Roles } from "../../../../common/decorators/roles.decorator";
-import { CurrentUser, RequestUser } from "../../../../common/decorators/current-user.decorator";
-import { TimesheetsService } from "../../application/timesheets.service";
-import { z } from "zod";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
+import { TimesheetsService } from "../../application/timesheets.service";
 
 const reviewTimesheetSchema = z.object({
   reviewNote: z.string().optional()
@@ -25,9 +25,8 @@ export class TimesheetsController {
   @Get(ROUTES.TIMESHEETS.MY_STATUS)
   async getStatus(
     @CurrentUser() user: RequestUser,
-    @Query(new ZodValidationPipe(timesheetStatusQuerySchema)) query: z.infer<
-      typeof timesheetStatusQuerySchema
-    >
+    @Query(new ZodValidationPipe(timesheetStatusQuerySchema))
+    query: z.infer<typeof timesheetStatusQuerySchema>
   ) {
     const targetDate = query.date || new Date().toISOString();
     return this.timesheets.getStatus(user.workspaceId, user.userId, query.projectId, targetDate);
@@ -36,9 +35,8 @@ export class TimesheetsController {
   @Get(ROUTES.TIMESHEETS.MY_SUBMISSIONS)
   async listSubmissions(
     @CurrentUser() user: RequestUser,
-    @Query(new ZodValidationPipe(timesheetSubmissionsQuerySchema)) query: z.infer<
-      typeof timesheetSubmissionsQuerySchema
-    >
+    @Query(new ZodValidationPipe(timesheetSubmissionsQuerySchema))
+    query: z.infer<typeof timesheetSubmissionsQuerySchema>
   ) {
     const targetDate = query.date || new Date().toISOString();
     return this.timesheets.listSubmissions(user.workspaceId, user.userId, targetDate);

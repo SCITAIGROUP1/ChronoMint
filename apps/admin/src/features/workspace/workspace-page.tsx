@@ -22,14 +22,36 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  SegmentedControl
+  SegmentedControl,
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel
 } from "@chronomint/ui";
+import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 import { useWorkspacesStore } from "@/stores/workspaces.store";
+
+const DEFAULT_TIMEZONES = [
+  { value: "UTC", label: "UTC" },
+  { value: "America/New_York", label: "America/New_York (EST/EDT)" },
+  { value: "America/Los_Angeles", label: "America/Los_Angeles (PST/PDT)" },
+  { value: "America/Chicago", label: "America/Chicago (CST/CDT)" },
+  { value: "Europe/London", label: "Europe/London" },
+  { value: "Europe/Paris", label: "Europe/Paris" },
+  { value: "Asia/Kolkata", label: "Asia/Kolkata (IST)" },
+  { value: "Asia/Colombo", label: "Asia/Colombo (Sri Lanka)" },
+  { value: "Asia/Tokyo", label: "Asia/Tokyo (JST)" },
+  { value: "Australia/Sydney", label: "Australia/Sydney (AEST)" },
+  { value: "Pacific/Auckland", label: "Pacific/Auckland (New Zealand)" }
+];
 
 export function WorkspacePage() {
   const router = useRouter();
@@ -63,7 +85,8 @@ export function WorkspacePage() {
   }
 
   // Tab State
-  const [tab, setTab] = useState<"members" | "settings" | "create">("members");
+  const [tab, setTab] = useState<"members" | "settings">("members");
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   // Settings State
   const [workspaceName, setWorkspaceName] = useState("");
@@ -74,10 +97,23 @@ export function WorkspacePage() {
   const [expectedWeeklyHours, setExpectedWeeklyHours] = useState(40);
   const [dailyTargetHours, setDailyTargetHours] = useState(8);
   const [roundingMinutes, setRoundingMinutes] = useState(0);
-  const [timezone, setTimezone] = useState("UTC");
+  const [timezone, setTimezone] = useState(() => {
+    if (typeof window !== "undefined") {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    }
+    return "UTC";
+  });
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [settingsError, setSettingsError] = useState<string | null>(null);
   const [settingsSuccess, setSettingsSuccess] = useState<string | null>(null);
+
+  const timezoneOptions = useMemo(() => {
+    const list = [...DEFAULT_TIMEZONES];
+    if (timezone && !list.some((opt) => opt.value === timezone)) {
+      list.push({ value: timezone, label: `${timezone} (Detected/Current)` });
+    }
+    return list;
+  }, [timezone]);
 
   // Create Workspace State
   const [newWorkspaceName, setNewWorkspaceName] = useState("");
@@ -103,11 +139,25 @@ export function WorkspacePage() {
           setExpectedWeeklyHours(settings.expectedWeeklyHours || 40);
           setDailyTargetHours(settings.dailyTargetHours || 8);
           setRoundingMinutes(settings.roundingMinutes || 0);
-          setTimezone(settings.timezone || "UTC");
+          setTimezone(
+            settings.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"
+          );
         }
       })
       .catch(() => {});
   }, [ws]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("create") === "true") {
+        setIsCreateOpen(true);
+        // Clear the query parameter so refreshing doesn't re-open it
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, newUrl);
+      }
+    }
+  }, []);
 
   async function saveSettings(e: React.FormEvent) {
     e.preventDefault();
@@ -149,7 +199,10 @@ export function WorkspacePage() {
         workspaceId: ws,
         body: JSON.stringify({
           name: newWorkspaceName.trim(),
-          slug: newWorkspaceName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
+          slug: newWorkspaceName
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-|-$/g, "")
         })
       });
       setCreateSuccess(`Workspace "${res.name}" created! Switching workspace...`);
@@ -166,6 +219,9 @@ export function WorkspacePage() {
       // Load new list of workspaces
       const list = await api<any[]>(ROUTES.WORKSPACES.LIST, { workspaceId: res.id });
       setWorkspaces(list);
+
+      // Close the modal
+      setIsCreateOpen(false);
 
       // Redirect to dashboard
       router.push("/dashboard");
@@ -203,20 +259,24 @@ export function WorkspacePage() {
         <div>
           <h2 className="text-2xl font-bold">Workspace</h2>
           <p className="text-sm text-muted-foreground">
-            Manage members and configure settings for <strong>{session?.workspaceName ?? "this workspace"}</strong>.
+            Manage members and configure settings for{" "}
+            <strong>{session?.workspaceName ?? "this workspace"}</strong>.
           </p>
         </div>
 
-        <div className="shrink-0">
+        <div className="flex flex-wrap items-center gap-3 shrink-0">
           <SegmentedControl
             value={tab}
             onChange={setTab}
             options={[
               { value: "members", label: "Members & Invites" },
-              { value: "settings", label: "Workspace Settings" },
-              { value: "create", label: "Create Workspace" }
+              { value: "settings", label: "Workspace Settings" }
             ]}
           />
+          <Button onClick={() => setIsCreateOpen(true)} className="gap-1.5 shadow-sm">
+            <Plus className="h-4 w-4" />
+            Create Workspace
+          </Button>
         </div>
       </div>
 
@@ -278,7 +338,9 @@ export function WorkspacePage() {
                       <TableCell>{m.userName}</TableCell>
                       <TableCell>{m.userEmail}</TableCell>
                       <TableCell>
-                        <Badge variant={m.role === "ADMIN" ? "default" : "secondary"}>{m.role}</Badge>
+                        <Badge variant={m.role === "ADMIN" ? "default" : "secondary"}>
+                          {m.role}
+                        </Badge>
                       </TableCell>
                       <TableCell className="text-right">
                         {m.userId !== session?.user.id ? (
@@ -292,7 +354,9 @@ export function WorkspacePage() {
                             {impersonatingId === m.userId ? "Entering..." : "View as member"}
                           </Button>
                         ) : (
-                          <span className="text-xs text-muted-foreground italic mr-2">Current User</span>
+                          <span className="text-xs text-muted-foreground italic mr-2">
+                            Current User
+                          </span>
                         )}
                       </TableCell>
                     </TableRow>
@@ -324,28 +388,42 @@ export function WorkspacePage() {
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="timezone">Timezone</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="timezone">Timezone</Label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const localTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                        if (localTz) {
+                          setTimezone(localTz);
+                          toast.info(`Detected timezone: ${localTz}`);
+                        }
+                      }}
+                      className="text-xs text-primary hover:underline font-medium cursor-pointer bg-transparent border-0 p-0"
+                    >
+                      Use System Timezone
+                    </button>
+                  </div>
                   <Select value={timezone} onValueChange={setTimezone}>
                     <SelectTrigger id="timezone">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="UTC">UTC</SelectItem>
-                      <SelectItem value="America/New_York">America/New_York (EST/EDT)</SelectItem>
-                      <SelectItem value="America/Los_Angeles">America/Los_Angeles (PST/PDT)</SelectItem>
-                      <SelectItem value="America/Chicago">America/Chicago (CST/CDT)</SelectItem>
-                      <SelectItem value="Europe/London">Europe/London</SelectItem>
-                      <SelectItem value="Europe/Paris">Europe/Paris</SelectItem>
-                      <SelectItem value="Asia/Kolkata">Asia/Kolkata (IST)</SelectItem>
-                      <SelectItem value="Asia/Tokyo">Asia/Tokyo (JST)</SelectItem>
-                      <SelectItem value="Australia/Sydney">Australia/Sydney (AEST)</SelectItem>
+                      {timezoneOptions.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="weekStart">Week Starts On</Label>
-                  <Select value={weekStart} onValueChange={(v) => setWeekStart(v as "monday" | "sunday")}>
+                  <Select
+                    value={weekStart}
+                    onValueChange={(v) => setWeekStart(v as "monday" | "sunday")}
+                  >
                     <SelectTrigger id="weekStart">
                       <SelectValue />
                     </SelectTrigger>
@@ -410,7 +488,10 @@ export function WorkspacePage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="roundingMinutes">Time Rounding</Label>
-                  <Select value={String(roundingMinutes)} onValueChange={(v) => setRoundingMinutes(Number(v))}>
+                  <Select
+                    value={String(roundingMinutes)}
+                    onValueChange={(v) => setRoundingMinutes(Number(v))}
+                  >
                     <SelectTrigger id="roundingMinutes">
                       <SelectValue />
                     </SelectTrigger>
@@ -435,34 +516,50 @@ export function WorkspacePage() {
         </Card>
       )}
 
-      {tab === "create" && (
-        <Card className="max-w-2xl border-primary/10 shadow-lg animate-fade-in">
-          <CardHeader>
-            <CardTitle>Create Workspace</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleCreateWorkspace} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="newWorkspaceName">Workspace Name</Label>
-                <Input
-                  id="newWorkspaceName"
-                  value={newWorkspaceName}
-                  onChange={(e) => setNewWorkspaceName(e.target.value)}
-                  placeholder="e.g. Design Agency"
-                  required
-                />
-              </div>
+      {/* Create Workspace Modal */}
+      <AlertDialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+        <AlertDialogContent className="sm:max-w-[425px]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Create Workspace</AlertDialogTitle>
+            <AlertDialogDescription>
+              Create a new workspace to manage a different set of projects, members, and settings.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <form onSubmit={handleCreateWorkspace} className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="newWorkspaceName">Workspace Name</Label>
+              <Input
+                id="newWorkspaceName"
+                value={newWorkspaceName}
+                onChange={(e) => setNewWorkspaceName(e.target.value)}
+                placeholder="e.g. Design Agency"
+                required
+                autoFocus
+              />
+            </div>
 
-              {createError && <p className="text-sm text-destructive">{createError}</p>}
-              {createSuccess && <p className="text-sm text-primary">{createSuccess}</p>}
+            {createError && <p className="text-sm text-destructive font-medium">{createError}</p>}
+            {createSuccess && <p className="text-sm text-primary font-medium">{createSuccess}</p>}
 
-              <Button type="submit" disabled={createLoading} className="w-full">
-                {createLoading ? "Creating workspace..." : "Create Workspace"}
+            <AlertDialogFooter className="pt-2">
+              <AlertDialogCancel
+                type="button"
+                onClick={() => {
+                  setIsCreateOpen(false);
+                  setCreateError(null);
+                  setCreateSuccess(null);
+                  setNewWorkspaceName("");
+                }}
+              >
+                Cancel
+              </AlertDialogCancel>
+              <Button type="submit" disabled={createLoading}>
+                {createLoading ? "Creating..." : "Create Workspace"}
               </Button>
-            </form>
-          </CardContent>
-        </Card>
-      )}
+            </AlertDialogFooter>
+          </form>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

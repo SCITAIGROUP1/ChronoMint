@@ -379,12 +379,7 @@ export class ReportingService {
           billableHours,
           targetHours,
           utilizationPct,
-          status:
-            utilizationPct >= 90
-              ? "on_track"
-              : utilizationPct >= 60
-                ? "low"
-                : "critical"
+          status: utilizationPct >= 90 ? "on_track" : utilizationPct >= 60 ? "low" : "critical"
         };
       })
       .sort((a, b) => b.utilizationPct - a.utilizationPct);
@@ -395,5 +390,102 @@ export class ReportingService {
       targetHours,
       members: rows
     };
+  }
+
+  async heatmap(workspaceId: string, query: ReportQueryDto) {
+    const from = new Date(query.from);
+    const to = new Date(query.to);
+    const logs = await this.aggregation.fetchLogs(workspaceId, {
+      from,
+      to,
+      userId: query.userId,
+      projectId: query.projectId
+    });
+
+    const slotsMap = new Map<string, number>();
+    for (let dayOfWeek = 0; dayOfWeek < 7; dayOfWeek++) {
+      for (let hour = 0; hour < 24; hour++) {
+        slotsMap.set(`${dayOfWeek}:${hour}`, 0);
+      }
+    }
+
+    for (const log of logs) {
+      const dayOfWeek = log.startTime.getUTCDay();
+      const hour = log.startTime.getUTCHours();
+      const hours = log.durationSec / 3600;
+      const key = `${dayOfWeek}:${hour}`;
+      slotsMap.set(key, (slotsMap.get(key) ?? 0) + hours);
+    }
+
+    const slots = [];
+    for (const [key, value] of slotsMap.entries()) {
+      const [dayOfWeek, hour] = key.split(":").map(Number);
+      slots.push({
+        dayOfWeek,
+        hour,
+        hours: roundExport(value)
+      });
+    }
+
+    return { slots };
+  }
+
+  async tasks(workspaceId: string, query: ReportQueryDto) {
+    const from = new Date(query.from);
+    const to = new Date(query.to);
+    const logs = await this.aggregation.fetchLogs(workspaceId, {
+      from,
+      to,
+      userId: query.userId,
+      projectId: query.projectId
+    });
+
+    const tasksMap = new Map<
+      string,
+      { taskId: string | null; taskName: string; totalHours: number; billableHours: number }
+    >();
+
+    for (const log of logs) {
+      const name = log.task.taskName || "General Work";
+      const key = name.toLowerCase().trim();
+      const entry = tasksMap.get(key) ?? {
+        taskId: log.taskId,
+        taskName: name,
+        totalHours: 0,
+        billableHours: 0
+      };
+
+      const hours = log.durationSec / 3600;
+      entry.totalHours += hours;
+      if (log.isBillable) {
+        entry.billableHours += hours;
+      }
+      tasksMap.set(key, entry);
+    }
+
+    const sortedTasks = [...tasksMap.values()]
+      .map((t) => ({
+        taskId: t.taskId,
+        taskName: t.taskName,
+        totalHours: roundExport(t.totalHours),
+        billableHours: roundExport(t.billableHours)
+      }))
+      .sort((a, b) => b.totalHours - a.totalHours);
+
+    const top = sortedTasks.slice(0, 8);
+    const rest = sortedTasks.slice(8);
+
+    if (rest.length > 0) {
+      const restTotal = rest.reduce((s, r) => s + r.totalHours, 0);
+      const restBillable = rest.reduce((s, r) => s + r.billableHours, 0);
+      top.push({
+        taskId: null,
+        taskName: "Other Tasks",
+        totalHours: roundExport(restTotal),
+        billableHours: roundExport(restBillable)
+      });
+    }
+
+    return { tasks: top };
   }
 }

@@ -54,7 +54,11 @@ export const ROUTES = {
   TIMER: {
     START: "/timer/start",
     STOP: "/timer/stop",
-    ACTIVE: "/timer/active"
+    ACTIVE: "/timer/active",
+    ACTIVE_COUNT: "/timer/active-count",
+    PAUSE: "/timer/pause",
+    RESUME: "/timer/resume",
+    DISCARD: "/timer/discard"
   },
   BILLING: {
     RATES: "/billing/rates",
@@ -64,7 +68,9 @@ export const ROUTES = {
     DASHBOARD: "/reporting/dashboard",
     ME: "/reporting/me",
     BUDGET: (id: string) => `/reporting/projects/${id}/budget`,
-    UTILIZATION: "/reporting/utilization"
+    UTILIZATION: "/reporting/utilization",
+    HEATMAP: "/reporting/heatmap",
+    TASKS: "/reporting/tasks"
   },
   PRESENCE: {
     STREAM: "/presence/stream",

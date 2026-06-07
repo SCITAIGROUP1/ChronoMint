@@ -41,11 +41,32 @@ export class ReportingController {
 
   @Roles("ADMIN")
   @Get(ROUTES.REPORTING.BUDGET(":id"))
-  budgetBurnDown(
-    @CurrentUser() user: RequestUser,
-    @Param("id") id: string
-  ) {
+  budgetBurnDown(@CurrentUser() user: RequestUser, @Param("id") id: string) {
     return this.reporting.budgetBurnDown(user.workspaceId, id);
+  }
+
+  @Roles("ADMIN")
+  @Get(ROUTES.REPORTING.HEATMAP)
+  heatmap(
+    @CurrentUser() user: RequestUser,
+    @Query(new ZodValidationPipe(reportQuerySchema)) query: unknown
+  ) {
+    return this.reporting.heatmap(
+      user.workspaceId,
+      query as Parameters<ReportingService["heatmap"]>[1]
+    );
+  }
+
+  @Roles("ADMIN")
+  @Get(ROUTES.REPORTING.TASKS)
+  tasks(
+    @CurrentUser() user: RequestUser,
+    @Query(new ZodValidationPipe(reportQuerySchema)) query: unknown
+  ) {
+    return this.reporting.tasks(
+      user.workspaceId,
+      query as Parameters<ReportingService["tasks"]>[1]
+    );
   }
 
   @Roles("ADMIN", "MEMBER")

@@ -1,6 +1,11 @@
 "use client";
 
-import type { TimeLogDto, TaskDto, ProjectDto, ListTimelogAuditEventsResponseDto } from "@chronomint/contracts";
+import type {
+  TimeLogDto,
+  TaskDto,
+  ProjectDto,
+  ListTimelogAuditEventsResponseDto
+} from "@chronomint/contracts";
 import { ROUTES } from "@chronomint/contracts";
 import {
   Button,
@@ -17,12 +22,13 @@ import {
 } from "@chronomint/ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  combineDayAndTime,
   formatDraftDateLabel,
   formatDuration,
   timeFromSlotIndex,
   toDateKey,
-  toTimeValue
+  toDateKeyInZone,
+  toTimeValueInZone,
+  combineDayAndTimeInZone
 } from "./calendar-utils";
 import { api } from "@/lib/api";
 import { formatProjectLabel } from "@/lib/project-labels";
@@ -62,9 +68,12 @@ export function taskSaveHint(draft: TimeEntryDraft): string | null {
   return null;
 }
 
-export function draftToIsoRange(draft: TimeEntryDraft): { startTime: string; endTime: string } {
-  const start = combineDayAndTime(draft.date, draft.startTime);
-  const end = combineDayAndTime(draft.date, draft.endTime);
+export function draftToIsoRange(
+  draft: TimeEntryDraft,
+  timezone: string = "UTC"
+): { startTime: string; endTime: string } {
+  const start = combineDayAndTimeInZone(draft.date, draft.startTime, timezone);
+  const end = combineDayAndTimeInZone(draft.date, draft.endTime, timezone);
   return { startTime: start.toISOString(), endTime: end.toISOString() };
 }
 
@@ -85,6 +94,7 @@ type TimeEntryDialogProps = {
   onDelete?: () => void;
   readOnly?: boolean;
   workspaceId?: string;
+  timezone?: string;
 };
 
 export function TimeEntryDialog({
@@ -103,7 +113,8 @@ export function TimeEntryDialog({
   onSave,
   onDelete,
   readOnly = false,
-  workspaceId
+  workspaceId,
+  timezone = "UTC"
 }: TimeEntryDialogProps) {
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<"details" | "history">("details");
@@ -142,7 +153,7 @@ export function TimeEntryDialog({
 
   let durationHint = "";
   try {
-    const { startTime, endTime } = draftToIsoRange(draft);
+    const { startTime, endTime } = draftToIsoRange(draft, timezone);
     const sec = (new Date(endTime).getTime() - new Date(startTime).getTime()) / 1000;
     if (sec > 0) durationHint = formatDuration(sec);
   } catch {
@@ -398,28 +409,27 @@ export function draftFromSlot(
   day: Date,
   hour: number,
   minute: number,
+  _timezone: string = "UTC",
   endHour?: number,
   endMinute?: number
 ): TimeEntryDraft {
-  const start = new Date(day);
-  start.setHours(hour, minute, 0, 0);
-  const end = new Date(day);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  let endH = hour;
+  let endM = minute + 30;
   if (endHour !== undefined && endMinute !== undefined) {
-    end.setHours(endHour, endMinute, 0, 0);
-    const endIdx = endHour * 60 + endMinute;
-    const startIdx = hour * 60 + minute;
-    if (endIdx <= startIdx) {
-      end.setMinutes(end.getMinutes() + 30);
-    }
+    endH = endHour;
+    endM = endMinute;
   } else {
-    end.setTime(start.getTime());
-    end.setMinutes(end.getMinutes() + 30);
+    if (endM >= 60) {
+      endH += 1;
+      endM = 0;
+    }
   }
   return {
     ...emptyTaskFields(),
     date: toDateKey(day),
-    startTime: toTimeValue(start),
-    endTime: toTimeValue(end),
+    startTime: `${pad(hour)}:${pad(minute)}`,
+    endTime: `${pad(endH)}:${pad(endM)}`,
     description: "",
     isBillable: true
   };
@@ -428,17 +438,29 @@ export function draftFromSlot(
 export function draftFromSlotRange(
   day: Date,
   startIndex: number,
-  endIndex: number
+  endIndex: number,
+  _timezone: string = "UTC"
 ): TimeEntryDraft {
   const startSlot = timeFromSlotIndex(Math.min(startIndex, endIndex));
   const endSlot = timeFromSlotIndex(Math.max(startIndex, endIndex));
   const endMinute = endSlot.minute + 30;
   const endHour = endMinute >= 60 ? endSlot.hour + 1 : endSlot.hour;
   const normalizedEndMinute = endMinute >= 60 ? 0 : endMinute;
-  return draftFromSlot(day, startSlot.hour, startSlot.minute, endHour, normalizedEndMinute);
+  return draftFromSlot(
+    day,
+    startSlot.hour,
+    startSlot.minute,
+    _timezone,
+    endHour,
+    normalizedEndMinute
+  );
 }
 
-export function draftFromLog(log: TimeLogDto, tasks: TaskDto[]): TimeEntryDraft {
+export function draftFromLog(
+  log: TimeLogDto,
+  tasks: TaskDto[],
+  timezone: string = "UTC"
+): TimeEntryDraft {
   const start = new Date(log.startTime);
   const end = new Date(log.endTime);
   const task = tasks.find((t) => t.id === log.taskId);
@@ -446,9 +468,9 @@ export function draftFromLog(log: TimeLogDto, tasks: TaskDto[]): TimeEntryDraft 
     projectId: task?.projectId ?? "",
     taskSelection: log.taskId,
     newTaskName: "",
-    date: toDateKey(start),
-    startTime: toTimeValue(start),
-    endTime: toTimeValue(end),
+    date: toDateKeyInZone(start, timezone),
+    startTime: toTimeValueInZone(start, timezone),
+    endTime: toTimeValueInZone(end, timezone),
     description: log.description ?? "",
     isBillable: log.isBillable
   };

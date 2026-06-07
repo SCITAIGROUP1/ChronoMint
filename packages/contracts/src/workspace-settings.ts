@@ -15,7 +15,8 @@ export const workspaceSettingsSchema = z
     expectedWeeklyHours: z.number().positive().optional(),
     dailyTargetHours: z.number().positive().max(24).optional(),
     roundingMinutes: z.number().int().nonnegative().optional(),
-    timezone: z.string().optional()
+    timezone: z.string().optional(),
+    timerStaleWarningHours: z.number().positive().max(24).optional()
   })
   .passthrough();
 
@@ -27,3 +28,5 @@ export function parseWorkspaceSettings(raw: unknown): WorkspaceSettings {
 }
 
 export const DEFAULT_EXPECTED_WEEKLY_HOURS = 40;
+export const DEFAULT_STALE_WARNING_HOURS = 8;
+export const HARD_AUTO_STOP_HOURS = 14;

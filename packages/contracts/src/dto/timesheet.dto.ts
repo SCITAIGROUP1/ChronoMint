@@ -1,13 +1,8 @@
 import { z } from "zod";
-import { isoDatetimeSchema, uuidSchema } from "./common.dto";
 import { timesheetApprovalPeriodSchema } from "../workspace-settings";
+import { isoDatetimeSchema, uuidSchema } from "./common.dto";
 
-export const timesheetPeriodStatusSchema = z.enum([
-  "DRAFT",
-  "SUBMITTED",
-  "APPROVED",
-  "REJECTED"
-]);
+export const timesheetPeriodStatusSchema = z.enum(["DRAFT", "SUBMITTED", "APPROVED", "REJECTED"]);
 
 export const timesheetPeriodSchema = z.object({
   id: uuidSchema,

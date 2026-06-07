@@ -23,22 +23,25 @@ import {
   TableRow,
   ProjectColorDot,
   EmptyState,
-  ConfirmDialog
+  ConfirmDialog,
+  Badge
 } from "@chronomint/ui";
 import { toDateInputValue } from "@chronomint/web-shared";
+import { Eye, EyeOff } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   addDays,
   addMonths,
-  endOfMonth,
   formatDuration,
   formatMonthYear,
   formatWeekRange,
   getWeekDays,
   startOfMonth,
   startOfWeek,
-  startOfDay
+  startOfDay,
+  localMidnightUtcInZone,
+  todayInZone
 } from "./calendar-utils";
 import {
   TimeEntryDialog,
@@ -61,6 +64,7 @@ import { formatTaskLabel } from "@/lib/project-labels";
 import { useProjectsStore } from "@/stores/projects.store";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 import { useTimesheetStore } from "@/stores/timesheet.store";
+import { useWorkspacesStore } from "@/stores/workspaces.store";
 
 type ViewMode = "day" | "week" | "month" | "list";
 
@@ -74,6 +78,13 @@ function buildLogsQuery(from: Date, to: Date): string {
 
 export function TimesheetPage() {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
+  const workspaces = useWorkspacesStore((s) => s.workspaces);
+  const activeWorkspace = workspaces.find((w) => w.id === ws);
+  const timezone =
+    typeof activeWorkspace?.settings?.timezone === "string"
+      ? activeWorkspace.settings.timezone
+      : "UTC";
+
   const { logs, setLogs } = useTimesheetStore();
   const { tasks, projects, workspaceNamesById, setTasks, setProjects } = useProjectsStore();
 
@@ -85,6 +96,22 @@ export function TimesheetPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmDeleteLog, setConfirmDeleteLog] = useState<TimeLogDto | null>(null);
+
+  const [showSummary, setShowSummary] = useState(true);
+  useEffect(() => {
+    const saved = localStorage.getItem("chronomint-show-timesheet-summary");
+    if (saved === "false") {
+      setShowSummary(false);
+    }
+  }, []);
+
+  const toggleSummary = useCallback(() => {
+    setShowSummary((prev) => {
+      const next = !prev;
+      localStorage.setItem("chronomint-show-timesheet-summary", String(next));
+      return next;
+    });
+  }, []);
 
   const weekStart = useMemo(() => startOfWeek(anchor), [anchor]);
   const monthStart = useMemo(() => startOfMonth(anchor), [anchor]);
@@ -158,18 +185,33 @@ export function TimesheetPage() {
 
   const visibleRange = useMemo(() => {
     if (view === "day") {
-      const from = startOfDay(anchor);
-      return { from, to: addDays(from, 1) };
+      const y = anchor.getFullYear();
+      const m = anchor.getMonth() + 1;
+      const d = anchor.getDate();
+      const from = localMidnightUtcInZone(y, m, d, timezone);
+      const to = new Date(from.getTime() + 24 * 60 * 60 * 1000);
+      return { from, to };
     }
     if (view === "week") {
-      return { from: weekStart, to: addDays(weekStart, 7) };
+      const y = weekStart.getFullYear();
+      const m = weekStart.getMonth() + 1;
+      const d = weekStart.getDate();
+      const from = localMidnightUtcInZone(y, m, d, timezone);
+      const to = new Date(from.getTime() + 7 * 24 * 60 * 60 * 1000);
+      return { from, to };
     }
     if (view === "month") {
-      const from = startOfMonth(anchor);
-      return { from, to: addDays(endOfMonth(anchor), 1) };
+      const y = monthStart.getFullYear();
+      const m = monthStart.getMonth() + 1;
+      const from = localMidnightUtcInZone(y, m, 1, timezone);
+      const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
+      const to = new Date(
+        localMidnightUtcInZone(y, m, lastDay, timezone).getTime() + 24 * 60 * 60 * 1000
+      );
+      return { from, to };
     }
     return null;
-  }, [view, anchor, weekStart]);
+  }, [view, anchor, weekStart, monthStart, timezone]);
 
   const rangeLabel = useMemo(() => {
     if (view === "day") {
@@ -214,13 +256,19 @@ export function TimesheetPage() {
   }, [ws, refreshLogs]);
 
   useEffect(() => {
+    if (timezone) {
+      setAnchor(todayInZone(timezone));
+    }
+  }, [timezone]);
+
+  useEffect(() => {
     if (!ws) return;
     api<TaskDto[]>(ROUTES.TASKS.LIST, { workspaceId: ws }).then(setTasks);
     api<ProjectDto[]>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects);
   }, [ws, setTasks, setProjects]);
 
   function goToday() {
-    setAnchor(startOfDay(new Date()));
+    setAnchor(todayInZone(timezone));
   }
 
   function goPrev() {
@@ -247,15 +295,15 @@ export function TimesheetPage() {
   }
 
   function openCreateSlot(day: Date, hour: number, minute: number) {
-    openDraft(draftFromSlot(day, hour, minute));
+    openDraft(draftFromSlot(day, hour, minute, timezone));
   }
 
   function openCreateRange(day: Date, startIndex: number, endIndex: number) {
-    openDraft(draftFromSlotRange(day, startIndex, endIndex));
+    openDraft(draftFromSlotRange(day, startIndex, endIndex, timezone));
   }
 
   function openEditEntry(log: TimeLogDto) {
-    openDraft(draftFromLog(log, tasks), log);
+    openDraft(draftFromLog(log, tasks, timezone), log);
   }
 
   function closeDialog() {
@@ -285,7 +333,7 @@ export function TimesheetPage() {
       setError("Select a project and task (or create a new one).");
       return;
     }
-    const { startTime, endTime } = draftToIsoRange(draft);
+    const { startTime, endTime } = draftToIsoRange(draft, timezone);
     if (new Date(endTime) <= new Date(startTime)) {
       setError("End time must be after start time.");
       return;
@@ -375,7 +423,7 @@ export function TimesheetPage() {
         })
       });
       await refreshLogs();
-      openDraft(draftFromLog(created, tasks), created);
+      openDraft(draftFromLog(created, tasks, timezone), created);
       toast.success("Time entry duplicated!");
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Could not duplicate entry";
@@ -421,7 +469,12 @@ export function TimesheetPage() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Timesheet</h1>
+          <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
+            Timesheet
+            <Badge variant="secondary" className="font-normal text-xs">
+              {timezone}
+            </Badge>
+          </h1>
           <p className="text-sm text-muted-foreground">
             Drag slots, drag blocks to move, resize edges, Ctrl+drag to duplicate.
           </p>
@@ -443,53 +496,77 @@ export function TimesheetPage() {
       </div>
 
       {view !== "list" && (
-        <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" variant="outline" size="sm" onClick={goToday}>
-            Today
-          </Button>
-          <div className="flex items-center gap-1">
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="h-8 w-8"
-              onClick={goPrev}
-            >
-              ‹
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={goToday}>
+              Today
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="h-8 w-8"
-              onClick={goNext}
-            >
-              ›
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={goPrev}
+              >
+                ‹
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                onClick={goNext}
+              >
+                ›
+              </Button>
+            </div>
+            <span className="text-sm font-medium">{rangeLabel}</span>
           </div>
-          <span className="text-sm font-medium">{rangeLabel}</span>
+
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={toggleSummary}
+            className="text-muted-foreground hover:text-foreground text-xs flex items-center gap-1.5 h-8"
+          >
+            {showSummary ? (
+              <>
+                <EyeOff className="h-3.5 w-3.5" />
+                Hide summary
+              </>
+            ) : (
+              <>
+                <Eye className="h-3.5 w-3.5" />
+                Show summary
+              </>
+            )}
+          </Button>
         </div>
       )}
 
       {error && !dialogOpen && <p className="text-sm text-destructive">{error}</p>}
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <MyWeekSummary />
-        {submissions.map((sub) => (
-          <TimesheetStatusCard
-            key={`${sub.projectId}:${sub.periodStart}`}
-            statusInfo={sub}
-            onSubmitted={refreshSubmissions}
-            anchorDate={anchor}
+      {showSummary && (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <MyWeekSummary />
+          {submissions.map((sub) => (
+            <TimesheetStatusCard
+              key={`${sub.projectId}:${sub.periodStart}`}
+              statusInfo={sub}
+              onSubmitted={refreshSubmissions}
+              anchorDate={anchor}
+            />
+          ))}
+          <TimesheetExport
+            defaultFrom={visibleRange ? toDateInputValue(visibleRange.from) : undefined}
+            defaultTo={
+              visibleRange ? toDateInputValue(new Date(visibleRange.to.getTime() - 1)) : undefined
+            }
           />
-        ))}
-        <TimesheetExport
-          defaultFrom={visibleRange ? toDateInputValue(visibleRange.from) : undefined}
-          defaultTo={
-            visibleRange ? toDateInputValue(new Date(visibleRange.to.getTime() - 1)) : undefined
-          }
-        />
-      </div>
+        </div>
+      )}
 
       {view === "list" ? (
         <Card>
@@ -530,7 +607,12 @@ export function TimesheetPage() {
                       <TableCell>{log.isBillable ? "Yes" : "No"}</TableCell>
                       <TableCell>{log.source}</TableCell>
                       <TableCell className="space-x-1">
-                        <Button variant="ghost" size="sm" onClick={() => openEditEntry(log)} disabled={isEntryLocked(log)}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openEditEntry(log)}
+                          disabled={isEntryLocked(log)}
+                        >
                           Edit
                         </Button>
                         <Button
@@ -556,6 +638,7 @@ export function TimesheetPage() {
           logs={logs}
           entryColor={entryColor}
           onDayClick={onMonthDayClick}
+          timezone={timezone}
         />
       ) : (
         <TimesheetCalendar
@@ -571,6 +654,8 @@ export function TimesheetPage() {
           onEntryMove={moveEntry}
           onEntryDuplicate={duplicateEntry}
           readOnly={false}
+          timezone={timezone}
+          showSummary={showSummary}
         />
       )}
 
@@ -591,6 +676,7 @@ export function TimesheetPage() {
         onDraftChange={setDraft}
         onSave={saveEntry}
         onDelete={editingLog && !isEntryLocked(editingLog) ? deleteEntry : undefined}
+        timezone={timezone}
       />
 
       <ConfirmDialog

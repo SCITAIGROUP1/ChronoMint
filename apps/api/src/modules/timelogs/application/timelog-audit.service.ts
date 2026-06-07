@@ -5,9 +5,9 @@ import type {
 } from "@chronomint/contracts";
 import { ErrorCodes } from "@chronomint/contracts";
 import { Injectable, HttpStatus } from "@nestjs/common";
+import type { Prisma } from "@prisma/client";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
-import type { Prisma } from "@prisma/client";
 
 @Injectable()
 export class TimelogAuditService {

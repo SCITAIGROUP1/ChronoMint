@@ -14,8 +14,8 @@ import {
   type OnModuleDestroy,
   type OnModuleInit
 } from "@nestjs/common";
-import { MailerService } from "../../../common/mailer/mailer.service";
 import { DomainException } from "../../../common/errors/domain.exception";
+import { MailerService } from "../../../common/mailer/mailer.service";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { ExportService } from "./export.service";
 
