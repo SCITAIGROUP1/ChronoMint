@@ -101,6 +101,15 @@ jobs:
         with:
           node-version: "20"
           cache: "pnpm"
+      - name: Cache Next.js build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            apps/admin/.next/cache
+            apps/client/.next/cache
+          key: ${{ runner.os }}-nextjs-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-
       - run: pnpm install --frozen-lockfile
       - run: pnpm prisma:generate
       - run: pnpm --filter @chronomint/api exec prisma migrate deploy

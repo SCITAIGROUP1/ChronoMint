@@ -2,9 +2,19 @@ name: CI
 
 on:
   push:
-    branches: ["**"]
+    branches: [main, staging]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
   pull_request:
     branches: ["**"]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   ci:
@@ -39,6 +49,7 @@ jobs:
       JWT_ACCESS_SECRET: ci-access-secret-min-32-chars-long
       JWT_REFRESH_SECRET: ci-refresh-secret-min-32-chars-long
       FRONTEND_ORIGIN: http://localhost:3000
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:3001
 
     steps:
       - uses: actions/checkout@v4
@@ -49,6 +60,15 @@ jobs:
         with:
           node-version: "20"
           cache: "pnpm"
+      - name: Cache Next.js build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            apps/admin/.next/cache
+            apps/client/.next/cache
+          key: ${{ runner.os }}-nextjs-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-
       - run: pnpm install --frozen-lockfile
       - run: pnpm prisma:generate
       - run: pnpm --filter @chronomint/api exec prisma migrate deploy
@@ -61,3 +81,25 @@ jobs:
       - name: Bundle analysis (admin, non-blocking)
         continue-on-error: true
         run: pnpm --filter @chronomint/admin analyze
+
+      - name: Seed database for E2E tests
+        run: pnpm prisma:seed
+
+      - name: Cache Playwright Browsers
+        id: cache-playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
+      - name: Install Playwright Browsers
+        if: steps.cache-playwright.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install --with-deps
+
+      - name: Run E2E tests (Playwright)
+        run: |
+          pnpm --filter @chronomint/api dev &
+          for i in {1..30}; do curl -s http://localhost:3001/api/docs && break || sleep 1; done
+          pnpm --filter @chronomint/client test:e2e
