@@ -495,8 +495,8 @@ export function DashboardPage() {
                               <span className="text-2xl font-bold tracking-tight text-foreground">
                                 {weekStats.totalHours}h
                               </span>
-                              <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mt-1">
-                                Logged this week
+                              <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mt-1.5">
+                                {weekStats.billableHours}h billable
                               </span>
                             </div>
                           );
@@ -506,8 +506,13 @@ export function DashboardPage() {
                               <span className="text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
                                 {weekStats.billableHours}h
                               </span>
-                              <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mt-1">
-                                Billable hours
+                              <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mt-1.5">
+                                {weekStats.totalHours > 0
+                                  ? Math.round(
+                                      (weekStats.billableHours / weekStats.totalHours) * 100
+                                    )
+                                  : 0}
+                                % of weekly total
                               </span>
                             </div>
                           );
@@ -517,8 +522,8 @@ export function DashboardPage() {
                               <span className="text-2xl font-bold tracking-tight text-foreground">
                                 {weekStats.assignedProjects}
                               </span>
-                              <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mt-1">
-                                Assigned Projects
+                              <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mt-1.5">
+                                Assigned projects
                               </span>
                             </div>
                           );

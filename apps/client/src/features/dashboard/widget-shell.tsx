@@ -16,7 +16,7 @@ export interface WidgetShellProps {
 }
 
 export const WidgetShell = forwardRef<HTMLDivElement, WidgetShellProps>(
-  ({ label, isEditing, onHide, children, className, style, headerActions }, ref) => {
+  ({ id, label, isEditing, onHide, children, className, style, headerActions }, ref) => {
     const [menuOpen, setMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
 
@@ -117,7 +117,13 @@ export const WidgetShell = forwardRef<HTMLDivElement, WidgetShellProps>(
             </div>
           </div>
         </CardHeader>
-        <CardContent className="flex-1 p-4 overflow-auto min-h-0 min-w-0">{children}</CardContent>
+        <CardContent
+          className={`flex-1 overflow-auto min-h-0 min-w-0 ${
+            id.startsWith("stat_") ? "px-4 py-2.5" : "p-4"
+          }`}
+        >
+          {children}
+        </CardContent>
       </Card>
     );
   }

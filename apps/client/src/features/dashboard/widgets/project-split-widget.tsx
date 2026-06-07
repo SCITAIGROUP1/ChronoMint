@@ -99,7 +99,7 @@ export function ProjectSplitWidget({ logs, projects, tasks }: ProjectSplitWidget
             <Legend wrapperStyle={{ fontSize: 9 }} />
           </PieChart>
         </ChartContainer>
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center pb-6">
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center pb-3">
           <p className="text-xl font-bold tracking-tight">{totalHours}h</p>
           <p className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider">
             Logged Week
