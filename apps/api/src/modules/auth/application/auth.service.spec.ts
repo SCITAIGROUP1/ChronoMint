@@ -24,9 +24,9 @@ describe("AuthService unit tests", () => {
   describe("signAccessToken", () => {
     it("throws an error if JWT_ACCESS_SECRET is not set", () => {
       delete process.env.JWT_ACCESS_SECRET;
-      expect(() =>
-        authService.signAccessToken("user-1", "workspace-1", "ADMIN")
-      ).toThrow("JWT_ACCESS_SECRET is not set on the API service");
+      expect(() => authService.signAccessToken("user-1", "workspace-1", "ADMIN")).toThrow(
+        "JWT_ACCESS_SECRET is not set on the API service"
+      );
     });
 
     it("signs a token correctly if JWT_ACCESS_SECRET is set", () => {

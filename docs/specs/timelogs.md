@@ -9,20 +9,20 @@
 
 ## API
 
-| Method | Route           | Contract                                                          |
-| ------ | --------------- | ----------------------------------------------------------------- |
-| GET    | `/timelogs`     | [timelog.dto.ts](../../packages/contracts/src/dto/timelog.dto.ts) |
-| POST   | `/timelogs`     | timelog.dto                                                       |
-| PATCH  | `/timelogs/:id` | timelog.dto                                                       |
-| DELETE | `/timelogs/:id` | timelog.dto                                                       |
+| Method | Route                        | Contract                                                                      |
+| ------ | ---------------------------- | ----------------------------------------------------------------------------- |
+| GET    | `/timelogs`                  | [timelog.dto.ts](../../packages/contracts/src/dto/timelog.dto.ts)             |
+| POST   | `/timelogs`                  | timelog.dto                                                                   |
+| PATCH  | `/timelogs/:id`              | timelog.dto                                                                   |
+| DELETE | `/timelogs/:id`              | timelog.dto                                                                   |
 | GET    | `/timelogs/:id/audit-events` | [timelog-audit.dto.ts](../../packages/contracts/src/dto/timelog-audit.dto.ts) |
 
-| Method | Route | Contract |
-| ------ | ----- | -------- |
-| GET | `/timesheets/status?projectId=&date=` | [timesheet.dto.ts](../../packages/contracts/src/dto/timesheet.dto.ts) |
-| GET | `/timesheets/submissions?date=` | timesheet.dto |
-| POST | `/timesheets/submit` | timesheet.dto |
-| GET | `/timesheets/pending` | timesheet.dto (admin) |
+| Method | Route                                 | Contract                                                              |
+| ------ | ------------------------------------- | --------------------------------------------------------------------- |
+| GET    | `/timesheets/status?projectId=&date=` | [timesheet.dto.ts](../../packages/contracts/src/dto/timesheet.dto.ts) |
+| GET    | `/timesheets/submissions?date=`       | timesheet.dto                                                         |
+| POST   | `/timesheets/submit`                  | timesheet.dto                                                         |
+| GET    | `/timesheets/pending`                 | timesheet.dto (admin)                                                 |
 
 Controller: [timelogs.controller.ts](../../apps/api/src/modules/timelogs/interface/http/timelogs.controller.ts)
 

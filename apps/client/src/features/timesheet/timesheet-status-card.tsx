@@ -2,15 +2,7 @@
 
 import { ROUTES } from "@chronomint/contracts";
 import type { TimesheetPeriodDto } from "@chronomint/contracts";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Button,
-  Input,
-  Label
-} from "@chronomint/ui";
+import { Card, CardContent, CardHeader, CardTitle, Button, Input, Label } from "@chronomint/ui";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
@@ -24,7 +16,11 @@ interface TimesheetStatusCardProps {
 function periodLabel(info: TimesheetPeriodDto): string {
   const start = new Date(info.periodStart);
   if (info.approvalPeriod === "daily") {
-    return start.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+    return start.toLocaleDateString(undefined, {
+      weekday: "short",
+      month: "short",
+      day: "numeric"
+    });
   }
   if (info.approvalPeriod === "monthly") {
     return start.toLocaleDateString(undefined, { month: "long", year: "numeric" });

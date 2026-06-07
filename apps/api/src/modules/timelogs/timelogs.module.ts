@@ -10,12 +10,7 @@ import { TimesheetsController } from "./interface/http/timesheets.controller";
 @Module({
   imports: [AuthModule],
   controllers: [TimelogsController, TimesheetsController],
-  providers: [
-    TimelogsService,
-    TimesheetsService,
-    TimelogAuditService,
-    TimesheetLockService
-  ],
+  providers: [TimelogsService, TimesheetsService, TimelogAuditService, TimesheetLockService],
   exports: [TimelogsService, TimesheetsService, TimelogAuditService, TimesheetLockService]
 })
 export class TimelogsModule {}

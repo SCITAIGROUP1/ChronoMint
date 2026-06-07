@@ -61,7 +61,10 @@ export function InvoiceWizard() {
   const [companyName, setCompanyName] = useState("ChronoMint Workspace");
   const [clientName, setClientName] = useState("");
 
-  const selectedProject = useMemo(() => projects.find((p) => p.id === projectId), [projects, projectId]);
+  const selectedProject = useMemo(
+    () => projects.find((p) => p.id === projectId),
+    [projects, projectId]
+  );
 
   // Load projects
   useEffect(() => {
@@ -202,12 +205,7 @@ export function InvoiceWizard() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="to">End Date</Label>
-                <Input
-                  id="to"
-                  type="date"
-                  value={to}
-                  onChange={(e) => setTo(e.target.value)}
-                />
+                <Input id="to" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
               </div>
             </div>
 
@@ -316,7 +314,9 @@ export function InvoiceWizard() {
               <div className="flex justify-between border-b pb-3">
                 <div>
                   <h4 className="font-bold text-base text-primary">{companyName}</h4>
-                  <p className="text-xs text-muted-foreground">Invoice Date: {new Date().toLocaleDateString()}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Invoice Date: {new Date().toLocaleDateString()}
+                  </p>
                 </div>
                 <div className="text-right">
                   <h4 className="font-bold text-base text-primary">INVOICE</h4>
@@ -326,21 +326,32 @@ export function InvoiceWizard() {
 
               <div className="grid grid-cols-2 gap-4 text-xs border-b pb-3">
                 <div>
-                  <span className="font-semibold text-muted-foreground uppercase tracking-wider block mb-1">Bill To</span>
+                  <span className="font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
+                    Bill To
+                  </span>
                   <span className="font-bold text-primary block">{clientName}</span>
                   <span className="text-muted-foreground">Project: {selectedProject?.name}</span>
                 </div>
                 <div>
-                  <span className="font-semibold text-muted-foreground uppercase tracking-wider block mb-1">Details</span>
+                  <span className="font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
+                    Details
+                  </span>
                   <span className="block">Due Date: {new Date(dueDate).toLocaleDateString()}</span>
-                  <span className="block">Range: {new Date(from).toLocaleDateString()} - {new Date(to).toLocaleDateString()}</span>
+                  <span className="block">
+                    Range: {new Date(from).toLocaleDateString()} -{" "}
+                    {new Date(to).toLocaleDateString()}
+                  </span>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <span className="font-semibold text-xs text-muted-foreground uppercase tracking-wider block">Logged billable hours</span>
+                <span className="font-semibold text-xs text-muted-foreground uppercase tracking-wider block">
+                  Logged billable hours
+                </span>
                 <div className="flex justify-between font-medium py-1.5 px-3 bg-muted/30 rounded-lg">
-                  <span>{selectedProject?.name} (Total: {logs.length} entries)</span>
+                  <span>
+                    {selectedProject?.name} (Total: {logs.length} entries)
+                  </span>
                   <span className="font-bold">{totalHours.toFixed(2)} hrs</span>
                 </div>
               </div>
@@ -349,15 +360,16 @@ export function InvoiceWizard() {
             {error && <p className="text-sm text-destructive">{error}</p>}
 
             <div className="flex gap-2">
-              <Button variant="outline" className="w-1/2" onClick={handlePrevStep} disabled={loading}>
+              <Button
+                variant="outline"
+                className="w-1/2"
+                onClick={handlePrevStep}
+                disabled={loading}
+              >
                 <ArrowLeft className="size-4 mr-1.5" />
                 <span>Back</span>
               </Button>
-              <Button
-                className="w-1/2"
-                onClick={runInvoiceGeneration}
-                disabled={loading}
-              >
+              <Button className="w-1/2" onClick={runInvoiceGeneration} disabled={loading}>
                 <Download className="size-4 mr-1.5" />
                 <span>{loading ? "Generating PDF..." : "Download PDF"}</span>
               </Button>

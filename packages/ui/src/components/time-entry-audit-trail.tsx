@@ -140,7 +140,9 @@ export function TimeEntryAuditTrail({
     return <p className={cn("text-xs text-destructive", className)}>{error}</p>;
   }
   if (events.length === 0) {
-    return <p className={cn("text-xs text-muted-foreground", className)}>No changes recorded yet.</p>;
+    return (
+      <p className={cn("text-xs text-muted-foreground", className)}>No changes recorded yet.</p>
+    );
   }
 
   return (

@@ -47,4 +47,3 @@ export type InviteMemberDto = z.infer<typeof inviteMemberSchema>;
 export type SwitchWorkspaceDto = z.infer<typeof switchWorkspaceSchema>;
 export type UpdateWorkspaceDto = z.infer<typeof updateWorkspaceSchema>;
 export type CreateWorkspaceDto = z.infer<typeof createWorkspaceSchema>;
-

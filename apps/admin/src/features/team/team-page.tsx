@@ -36,15 +36,17 @@ function formatDateRange(startStr: string, endStr: string) {
 
 function periodHeading(t: PendingTimesheetDto) {
   const label =
-    t.approvalPeriod === "daily"
-      ? "Day"
-      : t.approvalPeriod === "monthly"
-        ? "Month"
-        : "Week";
+    t.approvalPeriod === "daily" ? "Day" : t.approvalPeriod === "monthly" ? "Month" : "Week";
   return `${t.projectName} · ${label}: ${formatDateRange(t.periodStart, t.periodEnd)}`;
 }
 
-function PendingActivity({ item, workspaceId }: { item: PendingTimesheetDto; workspaceId: string }) {
+function PendingActivity({
+  item,
+  workspaceId
+}: {
+  item: PendingTimesheetDto;
+  workspaceId: string;
+}) {
   const [open, setOpen] = useState(false);
   const [logIds, setLogIds] = useState<string[]>([]);
   const [tasks, setTasks] = useState<TaskDto[]>([]);
@@ -74,7 +76,13 @@ function PendingActivity({ item, workspaceId }: { item: PendingTimesheetDto; wor
 
   return (
     <div className="space-y-2">
-      <Button type="button" variant="ghost" size="sm" className="h-7 text-xs px-0" onClick={() => setOpen((v) => !v)}>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="h-7 text-xs px-0"
+        onClick={() => setOpen((v) => !v)}
+      >
         {open ? "Hide entry activity" : "View entry activity"}
       </Button>
       {open && (
@@ -260,7 +268,9 @@ export function TeamPage() {
                   <CardHeader className="pb-3 border-b border-border/40">
                     <div className="flex items-start justify-between">
                       <div>
-                        <CardTitle className="text-base font-bold text-primary">{t.userName}</CardTitle>
+                        <CardTitle className="text-base font-bold text-primary">
+                          {t.userName}
+                        </CardTitle>
                         <p className="text-xs text-muted-foreground mt-0.5">{t.userEmail}</p>
                       </div>
                       <Badge

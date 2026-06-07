@@ -60,7 +60,12 @@ export class TimelogsController {
     const yesterdayEnd = new Date(yesterdayStart);
     yesterdayEnd.setHours(23, 59, 59, 999);
 
-    return this.timelogs.yesterdaySummary(user.workspaceId, user.userId, yesterdayStart, yesterdayEnd);
+    return this.timelogs.yesterdaySummary(
+      user.workspaceId,
+      user.userId,
+      yesterdayStart,
+      yesterdayEnd
+    );
   }
 
   @Post(ROUTES.TIMELOGS.CREATE)

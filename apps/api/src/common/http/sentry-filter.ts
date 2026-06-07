@@ -9,9 +9,7 @@ export class SentryFilter implements ExceptionFilter {
     const request = ctx.getRequest<any>();
 
     const status =
-      exception instanceof HttpException
-        ? exception.getStatus()
-        : HttpStatus.INTERNAL_SERVER_ERROR;
+      exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
 
     let body: any;
     if (exception instanceof HttpException) {
@@ -97,7 +95,8 @@ export class SentryFilter implements ExceptionFilter {
       .split("\n")
       .slice(1)
       .map((line) => {
-        const match = line.match(/at\s+(.+)\s+\((.+):(\d+):(\d+)\)/) || line.match(/at\s+(.+):(\d+):(\d+)/);
+        const match =
+          line.match(/at\s+(.+)\s+\((.+):(\d+):(\d+)\)/) || line.match(/at\s+(.+):(\d+):(\d+)/);
         if (!match) return { filename: line.trim() };
         if (match.length === 5) {
           return {

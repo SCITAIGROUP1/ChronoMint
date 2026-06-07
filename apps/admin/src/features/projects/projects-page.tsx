@@ -53,9 +53,9 @@ export function AdminProjectsPage() {
   const [editClient, setEditClient] = useState("");
   const [editIsActive, setEditIsActive] = useState(true);
   const [editApprovalEnabled, setEditApprovalEnabled] = useState(false);
-  const [editApprovalPeriod, setEditApprovalPeriod] = useState<
-    "daily" | "weekly" | "monthly" | ""
-  >("");
+  const [editApprovalPeriod, setEditApprovalPeriod] = useState<"daily" | "weekly" | "monthly" | "">(
+    ""
+  );
   const [error, setError] = useState<string | null>(null);
   const [savingColor, setSavingColor] = useState(false);
   const [savingProject, setSavingProject] = useState(false);

@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [0.3.0] - 2026-06-06
 
 ### Added
+
 - **Security Hardening**: Global rate limiting on sensitive routes, Helmet HTTP security headers, database-backed refresh token rotation/revocation, and strict startup environment variable Zod validation schema.
 - **Finance & Ops Features**: Budget burn-down calculations and radial widget, weekly team utilization report API and heatmap, custom PDF Invoice Generator API, and multi-step Invoice Wizard under the Exports panel.
 - **UX & UI Polish**: Keyboard shortcuts (`Space`, `Ctrl+Shift+T`), browser tab title sync for active timers, animated SVG clock ring, Daily Goal widget, global Sonner toast notifications, and unified Empty State illustrations.

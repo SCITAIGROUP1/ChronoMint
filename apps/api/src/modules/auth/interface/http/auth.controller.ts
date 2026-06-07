@@ -1,5 +1,22 @@
-import { loginSchema, registerSchema, switchWorkspaceSchema, impersonateSchema, ROUTES, ErrorCodes } from "@chronomint/contracts";
-import { Body, Controller, Delete, Get, Post, Req, Res, UseGuards, HttpStatus } from "@nestjs/common";
+import {
+  loginSchema,
+  registerSchema,
+  switchWorkspaceSchema,
+  impersonateSchema,
+  ROUTES,
+  ErrorCodes
+} from "@chronomint/contracts";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Post,
+  Req,
+  Res,
+  UseGuards,
+  HttpStatus
+} from "@nestjs/common";
 import { Throttle, SkipThrottle } from "@nestjs/throttler";
 import { type Response, type Request } from "express";
 import {
@@ -167,10 +184,7 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @Post(ROUTES.AUTH.STOP_IMPERSONATION)
-  async stopImpersonation(
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response
-  ) {
+  async stopImpersonation(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const scope = getAuthScope(req);
     const refresh = req.cookies?.[refreshCookieName(scope)] ?? req.cookies?.refresh_token_client;
     if (refresh) {

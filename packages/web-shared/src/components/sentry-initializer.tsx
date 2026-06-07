@@ -15,7 +15,8 @@ export function SentryInitializer() {
     const sendToSentry = async (error: Error, isUnhandledRejection = false) => {
       try {
         const event = {
-          event_id: Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2),
+          event_id:
+            Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2),
           timestamp: new Date().toISOString().split(".")[0],
           platform: "javascript",
           sdk: {
@@ -29,7 +30,12 @@ export function SentryInitializer() {
                 type: error.name || (isUnhandledRejection ? "UnhandledRejection" : "Error"),
                 value: error.message || String(error),
                 stacktrace: {
-                  frames: error.stack ? error.stack.split("\n").map((line) => ({ filename: line.trim() })).reverse() : []
+                  frames: error.stack
+                    ? error.stack
+                        .split("\n")
+                        .map((line) => ({ filename: line.trim() }))
+                        .reverse()
+                    : []
                 }
               }
             ]
@@ -60,7 +66,10 @@ export function SentryInitializer() {
     };
 
     const handleRejection = (event: PromiseRejectionEvent) => {
-      sendToSentry(event.reason instanceof Error ? event.reason : new Error(String(event.reason)), true);
+      sendToSentry(
+        event.reason instanceof Error ? event.reason : new Error(String(event.reason)),
+        true
+      );
     };
 
     window.addEventListener("error", handleError);

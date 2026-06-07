@@ -72,7 +72,8 @@ export class WorkspaceService {
           HttpStatus.NOT_FOUND
         );
       }
-      const existingSettings = typeof ws.settings === "object" && ws.settings !== null ? ws.settings : {};
+      const existingSettings =
+        typeof ws.settings === "object" && ws.settings !== null ? ws.settings : {};
       data.settings = {
         ...existingSettings,
         ...dto.settings
@@ -125,4 +126,3 @@ export class WorkspaceService {
     });
   }
 }
-

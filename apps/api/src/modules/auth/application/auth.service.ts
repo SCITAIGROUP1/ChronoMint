@@ -114,7 +114,12 @@ export class AuthService {
     );
   }
 
-  signAccessToken(userId: string, workspaceId: string, role: "ADMIN" | "MEMBER", impersonatorId?: string): string {
+  signAccessToken(
+    userId: string,
+    workspaceId: string,
+    role: "ADMIN" | "MEMBER",
+    impersonatorId?: string
+  ): string {
     const secret = process.env.JWT_ACCESS_SECRET?.trim();
     if (!secret) {
       throw new Error("JWT_ACCESS_SECRET is not set on the API service");
@@ -140,7 +145,12 @@ export class AuthService {
 
     const tokenFamily = family ?? randomUUID();
     const raw = this.jwt.sign(
-      { sub: userId, workspaceId, family: tokenFamily, ...(impersonatorId ? { impersonatorId } : {}) },
+      {
+        sub: userId,
+        workspaceId,
+        family: tokenFamily,
+        ...(impersonatorId ? { impersonatorId } : {})
+      },
       { secret, expiresIn: process.env.JWT_REFRESH_EXPIRES ?? "7d" }
     );
 
@@ -175,14 +185,24 @@ export class AuthService {
     );
   }
 
-  verifyRefresh(token: string): { userId: string; workspaceId?: string; family?: string; impersonatorId?: string } {
+  verifyRefresh(token: string): {
+    userId: string;
+    workspaceId?: string;
+    family?: string;
+    impersonatorId?: string;
+  } {
     const payload = this.jwt.verify(token, { secret: process.env.JWT_REFRESH_SECRET }) as {
       sub: string;
       workspaceId?: string;
       family?: string;
       impersonatorId?: string;
     };
-    return { userId: payload.sub, workspaceId: payload.workspaceId, family: payload.family, impersonatorId: payload.impersonatorId };
+    return {
+      userId: payload.sub,
+      workspaceId: payload.workspaceId,
+      family: payload.family,
+      impersonatorId: payload.impersonatorId
+    };
   }
 
   /**
@@ -271,7 +291,11 @@ export class AuthService {
     }
   }
 
-  async refreshSession(userId: string, workspaceId?: string, impersonatorId?: string): Promise<AuthSessionDto | null> {
+  async refreshSession(
+    userId: string,
+    workspaceId?: string,
+    impersonatorId?: string
+  ): Promise<AuthSessionDto | null> {
     const membership = workspaceId
       ? await this.prisma.workspaceMember.findUnique({
           where: { workspaceId_userId: { workspaceId, userId } },
@@ -282,13 +306,13 @@ export class AuthService {
           include: { user: true, workspace: true }
         });
     if (!membership) return null;
-    
+
     let impersonatorName: string | undefined;
     if (impersonatorId) {
       const impUser = await this.prisma.user.findUnique({ where: { id: impersonatorId } });
       impersonatorName = impUser?.name;
     }
-    
+
     return this.buildSession(
       membership.user,
       membership.workspaceId,
@@ -299,18 +323,22 @@ export class AuthService {
     );
   }
 
-  async getMe(userId: string, workspaceId: string, impersonatorId?: string): Promise<AuthSessionDto> {
+  async getMe(
+    userId: string,
+    workspaceId: string,
+    impersonatorId?: string
+  ): Promise<AuthSessionDto> {
     const dbUser = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
     const workspace = await this.prisma.workspace.findUniqueOrThrow({
       where: { id: workspaceId }
     });
-    
+
     let impersonatorName: string | undefined;
     if (impersonatorId) {
       const impUser = await this.prisma.user.findUnique({ where: { id: impersonatorId } });
       impersonatorName = impUser?.name;
     }
-    
+
     return this.buildSession(
       dbUser,
       workspaceId,

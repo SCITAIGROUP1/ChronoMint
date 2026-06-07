@@ -219,9 +219,7 @@ export class TimelogsService {
     });
 
     const totalSec = logs.reduce((sum, l) => sum + l.durationSec, 0);
-    const billableSec = logs
-      .filter((l) => l.isBillable)
-      .reduce((sum, l) => sum + l.durationSec, 0);
+    const billableSec = logs.filter((l) => l.isBillable).reduce((sum, l) => sum + l.durationSec, 0);
 
     // Find top task by total duration
     const byTask: Record<string, { name: string; sec: number }> = {};
@@ -230,8 +228,7 @@ export class TimelogsService {
       if (!byTask[id]) byTask[id] = { name: log.task.taskName, sec: 0 };
       byTask[id].sec += log.durationSec;
     }
-    const topTask =
-      Object.values(byTask).sort((a, b) => b.sec - a.sec)[0]?.name ?? null;
+    const topTask = Object.values(byTask).sort((a, b) => b.sec - a.sec)[0]?.name ?? null;
 
     return { totalSec, billableSec, topTask, logCount: logs.length };
   }

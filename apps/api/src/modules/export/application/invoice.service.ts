@@ -22,7 +22,10 @@ export class InvoiceService {
     private aggregation: TimeAggregationService
   ) {}
 
-  async generate(workspaceId: string, dto: GenerateInvoiceDto): Promise<{ buffer: Buffer; filename: string }> {
+  async generate(
+    workspaceId: string,
+    dto: GenerateInvoiceDto
+  ): Promise<{ buffer: Buffer; filename: string }> {
     const project = await this.prisma.project.findFirst({
       where: { id: dto.projectId, workspaceId }
     });
@@ -119,7 +122,10 @@ export class InvoiceService {
 
     // Header Title
     doc.fillColor(primaryColor).fontSize(28).text("INVOICE", 50, 50, { align: "right" });
-    doc.fillColor(accentColor).fontSize(10).text(`Invoice #: ${dto.invoiceNumber}`, { align: "right" });
+    doc
+      .fillColor(accentColor)
+      .fontSize(10)
+      .text(`Invoice #: ${dto.invoiceNumber}`, { align: "right" });
 
     // Logo / Brand
     doc.fillColor(primaryColor).fontSize(16).text(dto.companyName, 50, 50, { align: "left" });
@@ -130,14 +136,28 @@ export class InvoiceService {
     // Bill to / Info
     const currentY = doc.y;
     doc.fillColor(secondaryColor).fontSize(10).text("BILL TO:", 50, currentY);
-    doc.fillColor(primaryColor).fontSize(12).font("Helvetica-Bold").text(dto.clientName, 50, currentY + 14).font("Helvetica");
-    doc.fillColor(secondaryColor).fontSize(9).text(`Project: ${project.name}`, 50, currentY + 30);
+    doc
+      .fillColor(primaryColor)
+      .fontSize(12)
+      .font("Helvetica-Bold")
+      .text(dto.clientName, 50, currentY + 14)
+      .font("Helvetica");
+    doc
+      .fillColor(secondaryColor)
+      .fontSize(9)
+      .text(`Project: ${project.name}`, 50, currentY + 30);
 
     doc.fillColor(secondaryColor).fontSize(10).text("INVOICE DETAILS:", 350, currentY);
-    doc.fillColor(primaryColor).fontSize(9)
+    doc
+      .fillColor(primaryColor)
+      .fontSize(9)
       .text(`Issue Date: ${new Date().toLocaleDateString()}`, 350, currentY + 14)
       .text(`Due Date: ${new Date(dto.dueDate).toLocaleDateString()}`, 350, currentY + 26)
-      .text(`Project Period: ${fromDate.toLocaleDateString()} - ${toDate.toLocaleDateString()}`, 350, currentY + 38);
+      .text(
+        `Project Period: ${fromDate.toLocaleDateString()} - ${toDate.toLocaleDateString()}`,
+        350,
+        currentY + 38
+      );
 
     doc.moveDown(3);
 
@@ -149,7 +169,12 @@ export class InvoiceService {
     doc.text("Rate", 390, tableHeaderY, { width: 60, align: "right" });
     doc.text("Line Total", 460, tableHeaderY, { width: 80, align: "right" });
 
-    doc.strokeColor(primaryColor).lineWidth(1).moveTo(50, tableHeaderY + 15).lineTo(540, tableHeaderY + 15).stroke();
+    doc
+      .strokeColor(primaryColor)
+      .lineWidth(1)
+      .moveTo(50, tableHeaderY + 15)
+      .lineTo(540, tableHeaderY + 15)
+      .stroke();
 
     doc.font("Helvetica").fontSize(9).fillColor(primaryColor);
     let rowY = tableHeaderY + 25;
@@ -168,7 +193,12 @@ export class InvoiceService {
       doc.text(`$${item.subtotal.toFixed(2)}`, 460, rowY, { width: 80, align: "right" });
 
       rowY += 20;
-      doc.strokeColor(borderColor).lineWidth(0.5).moveTo(50, rowY - 5).lineTo(540, rowY - 5).stroke();
+      doc
+        .strokeColor(borderColor)
+        .lineWidth(0.5)
+        .moveTo(50, rowY - 5)
+        .lineTo(540, rowY - 5)
+        .stroke();
     }
 
     // Totals section
@@ -180,12 +210,23 @@ export class InvoiceService {
     rowY += 10;
     doc.font("Helvetica-Bold").fontSize(11);
     doc.text("Total Due:", 350, rowY);
-    doc.fillColor(accentColor).fontSize(14).text(`$${totalAmount.toFixed(2)}`, 450, rowY, { align: "right" });
+    doc
+      .fillColor(accentColor)
+      .fontSize(14)
+      .text(`$${totalAmount.toFixed(2)}`, 450, rowY, { align: "right" });
 
-    doc.strokeColor(accentColor).lineWidth(2).moveTo(350, rowY + 18).lineTo(540, rowY + 18).stroke();
+    doc
+      .strokeColor(accentColor)
+      .lineWidth(2)
+      .moveTo(350, rowY + 18)
+      .lineTo(540, rowY + 18)
+      .stroke();
 
     // Footer
-    doc.fillColor(secondaryColor).fontSize(8).text("Thank you for your business!", 50, 750, { align: "center" });
+    doc
+      .fillColor(secondaryColor)
+      .fontSize(8)
+      .text("Thank you for your business!", 50, 750, { align: "center" });
 
     doc.end();
 

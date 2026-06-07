@@ -1,8 +1,5 @@
 import type { TimesheetApprovalPeriod, WorkspaceSettings } from "@chronomint/contracts";
-import {
-  DEFAULT_TIMESHEET_APPROVAL_PERIOD,
-  parseWorkspaceSettings
-} from "@chronomint/contracts";
+import { DEFAULT_TIMESHEET_APPROVAL_PERIOD, parseWorkspaceSettings } from "@chronomint/contracts";
 import { getWeekStartDate } from "./week.util";
 
 export type PeriodRange = {

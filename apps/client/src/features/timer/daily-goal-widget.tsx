@@ -136,7 +136,10 @@ export function DailyGoalWidget({ totalSeconds }: DailyGoalWidgetProps) {
       </CardHeader>
       <CardContent className="flex items-center gap-6 py-2">
         {/* SVG Circular Ring */}
-        <div className="relative flex items-center justify-center shrink-0" style={{ width: size, height: size }}>
+        <div
+          className="relative flex items-center justify-center shrink-0"
+          style={{ width: size, height: size }}
+        >
           <svg width={size} height={size} className="-rotate-90" aria-hidden>
             <circle
               cx={size / 2}
@@ -167,7 +170,8 @@ export function DailyGoalWidget({ totalSeconds }: DailyGoalWidgetProps) {
         {/* Text Details */}
         <div className="space-y-1">
           <p className="text-2xl font-bold tracking-tight">
-            {hoursLogged} <span className="text-sm font-medium text-muted-foreground">/ {targetHours} hrs</span>
+            {hoursLogged}{" "}
+            <span className="text-sm font-medium text-muted-foreground">/ {targetHours} hrs</span>
           </p>
           <p className="text-xs text-muted-foreground leading-relaxed">
             {isGoalReached

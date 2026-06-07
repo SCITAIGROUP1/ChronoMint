@@ -1,4 +1,9 @@
-import { inviteMemberSchema, updateWorkspaceSchema, createWorkspaceSchema, ROUTES } from "@chronomint/contracts";
+import {
+  inviteMemberSchema,
+  updateWorkspaceSchema,
+  createWorkspaceSchema,
+  ROUTES
+} from "@chronomint/contracts";
 import { Controller, Get, Param, Post, Patch, Body, UseGuards } from "@nestjs/common";
 import {
   CurrentUser,

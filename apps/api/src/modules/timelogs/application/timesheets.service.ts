@@ -136,9 +136,7 @@ export class TimesheetsService {
       distinct: ["taskId"]
     });
 
-    const uniqueProjectIds = [
-      ...new Set(projectIds.map((row) => row.task.projectId))
-    ];
+    const uniqueProjectIds = [...new Set(projectIds.map((row) => row.task.projectId))];
 
     const items: TimesheetPeriodDto[] = [];
     for (const projectId of uniqueProjectIds) {
