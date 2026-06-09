@@ -194,6 +194,7 @@ jobs:
       - run: pnpm prisma:generate
       - run: pnpm --filter @chronomint/api exec prisma migrate deploy
       - run: pnpm prisma:seed
+      - run: pnpm --filter @chronomint/contracts --filter @chronomint/ui build
       - name: Cache Playwright Browsers
         id: cache-playwright
         uses: actions/cache@v4
