@@ -14,7 +14,7 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   JWT_ACCESS_SECRET: ci-access-secret-min-32-chars-long
@@ -196,16 +196,14 @@ jobs:
       - run: pnpm prisma:seed
       - run: pnpm --filter @chronomint/contracts --filter @chronomint/ui build
       - name: Cache Playwright Browsers
-        id: cache-playwright
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('**/pnpm-lock.yaml') }}
+          key: ${{ runner.os }}-playwright-chromium-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: |
-            ${{ runner.os }}-playwright-
-      - name: Install Playwright Browsers
-        if: steps.cache-playwright.outputs.cache-hit != 'true'
-        run: pnpm --filter @chronomint/client exec playwright install --with-deps
+            ${{ runner.os }}-playwright-chromium-
+      - name: Install Playwright Chromium
+        run: pnpm --filter @chronomint/client exec playwright install chromium --with-deps
       - name: Run E2E tests (Playwright)
         run: |
           pnpm --filter @chronomint/api dev &
