@@ -11,6 +11,7 @@ import {
   type ExportReportType,
   type CategoryDto,
   type ProjectDto,
+  type TaskDto,
   type ReportShareDto,
   type WorkspaceMemberDto
 } from "@chronomint/contracts";
@@ -24,13 +25,13 @@ import {
   CardTitle,
   Input,
   Label,
-  ProjectColorDot,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue
 } from "@chronomint/ui";
+import { ReportScopeFilters } from "@chronomint/web-shared";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { InvoiceWizard } from "./invoice-wizard";
@@ -135,6 +136,7 @@ export function ExportsPage() {
   const [projectId, setProjectId] = useState("");
   const [userId, setUserId] = useState("");
   const [categoryId, setCategoryId] = useState("");
+  const [taskId, setTaskId] = useState("");
   const [teamOnly, setTeamOnly] = useState(false);
   const [billable, setBillable] = useState<ExportBodyDto["billable"]>("all");
   const [format, setFormat] = useState<ExportBodyDto["format"]>("xlsx");
@@ -145,6 +147,7 @@ export function ExportsPage() {
   const [expandedReport, setExpandedReport] = useState<ExportReportType | null>("time_entries");
   const [projects, setProjects] = useState<ProjectDto[]>([]);
   const [categories, setCategories] = useState<CategoryDto[]>([]);
+  const [tasks, setTasks] = useState<TaskDto[]>([]);
   const [members, setMembers] = useState<WorkspaceMemberDto[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -177,6 +180,26 @@ export function ExportsPage() {
       .catch(() => {});
   }, [ws]);
 
+  useEffect(() => {
+    if (!ws || !projectId) {
+      setTasks([]);
+      setTaskId("");
+      return;
+    }
+    const params = new URLSearchParams({ projectId });
+    if (categoryId) params.set("categoryId", categoryId);
+    api<TaskDto[]>(`${ROUTES.TASKS.LIST}?${params}`, { workspaceId: ws })
+      .then(setTasks)
+      .catch(() => setTasks([]));
+  }, [ws, projectId, categoryId]);
+
+  useEffect(() => {
+    if (!taskId) return;
+    if (!tasks.some((t) => t.id === taskId)) {
+      setTaskId("");
+    }
+  }, [tasks, taskId]);
+
   const safeReportTypes = useMemo(
     () => (Array.isArray(reportTypes) ? reportTypes : []),
     [reportTypes]
@@ -204,6 +227,7 @@ export function ExportsPage() {
       ...(projectId ? { projectId } : {}),
       ...(userId ? { userId } : {}),
       ...(categoryId ? { categoryId } : {}),
+      ...(taskId ? { taskId } : {}),
       ...(teamOnly && projectId ? { teamOnly: true } : {})
     };
   }, [
@@ -217,6 +241,7 @@ export function ExportsPage() {
     projectId,
     userId,
     categoryId,
+    taskId,
     teamOnly,
     columnsPayload
   ]);
@@ -232,6 +257,7 @@ export function ExportsPage() {
       ...(exportBody.projectId ? { projectId: exportBody.projectId } : {}),
       ...(exportBody.userId ? { userId: exportBody.userId } : {}),
       ...(exportBody.categoryId ? { categoryId: exportBody.categoryId } : {}),
+      ...(exportBody.taskId ? { taskId: exportBody.taskId } : {}),
       ...(exportBody.teamOnly ? { teamOnly: true } : {})
     }),
     [exportBody]
@@ -337,6 +363,7 @@ export function ExportsPage() {
     setProjectId(body.projectId ?? "");
     setUserId(body.userId ?? "");
     setCategoryId(body.categoryId ?? "");
+    setTaskId(body.taskId ?? "");
     setTeamOnly(body.teamOnly ?? false);
     if (body.columns) {
       setColumnsByReport((prev) => {
@@ -348,6 +375,24 @@ export function ExportsPage() {
       });
     }
     setExpandedReport(body.reportTypes[0] ?? null);
+  }
+
+  function onExportProjectChange(nextId: string) {
+    setProjectId(nextId);
+    setTaskId("");
+  }
+
+  function onExportCategoryChange(nextId: string) {
+    setCategoryId(nextId);
+    setTaskId("");
+  }
+
+  function clearScopeFilters() {
+    setProjectId("");
+    setUserId("");
+    setCategoryId("");
+    setTaskId("");
+    setTeamOnly(false);
   }
 
   const saveLocalPreset = () => {
@@ -483,7 +528,7 @@ export function ExportsPage() {
                     </div>
                   </Section>
 
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="grid gap-4 sm:grid-cols-3">
                     <div className="space-y-2">
                       <Label htmlFor="from">From</Label>
                       <Input
@@ -518,79 +563,34 @@ export function ExportsPage() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="space-y-2">
-                      <Label>Project</Label>
-                      <Select
-                        value={projectId || "__all__"}
-                        onValueChange={(v) => setProjectId(v === "__all__" ? "" : v)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="All projects" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__all__">All projects</SelectItem>
-                          {projects.map((p) => (
-                            <SelectItem key={p.id} value={p.id}>
-                              <span className="flex items-center gap-2">
-                                <ProjectColorDot color={p.color} />
-                                {p.name}
-                              </span>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Member</Label>
-                      <Select
-                        value={userId || "__all__"}
-                        onValueChange={(v) => setUserId(v === "__all__" ? "" : v)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="All members" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__all__">All members</SelectItem>
-                          {members.map((m) => (
-                            <SelectItem key={m.userId} value={m.userId}>
-                              {m.userName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Category</Label>
-                      <Select
-                        value={categoryId || "__all__"}
-                        onValueChange={(v) => setCategoryId(v === "__all__" ? "" : v)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="All categories" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__all__">All categories</SelectItem>
-                          {categories.map((c) => (
-                            <SelectItem key={c.id} value={c.id}>
-                              {c.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
                   </div>
 
-                  {projectId ? (
-                    <label className="flex items-center gap-2.5 rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-sm cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={teamOnly}
-                        onChange={(e) => setTeamOnly(e.target.checked)}
-                        className="h-4 w-4 rounded border-border"
-                      />
-                      Only include project team members
-                    </label>
-                  ) : null}
+                  <ReportScopeFilters
+                    taskRequiresProject
+                    values={{ projectId, categoryId, taskId, userId }}
+                    projects={projects}
+                    categories={categories}
+                    tasks={tasks}
+                    members={members.map((m) => ({ userId: m.userId, userName: m.userName }))}
+                    onProjectChange={onExportProjectChange}
+                    onCategoryChange={onExportCategoryChange}
+                    onTaskChange={setTaskId}
+                    onUserChange={setUserId}
+                    onClearAll={clearScopeFilters}
+                    footer={
+                      projectId ? (
+                        <label className="flex items-center gap-2.5 rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-sm cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={teamOnly}
+                            onChange={(e) => setTeamOnly(e.target.checked)}
+                            className="h-4 w-4 rounded border-border"
+                          />
+                          Only include project team members
+                        </label>
+                      ) : undefined
+                    }
+                  />
                 </CardContent>
               </Card>
 

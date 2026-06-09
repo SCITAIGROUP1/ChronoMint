@@ -111,6 +111,17 @@ describe("contracts", () => {
     expect(r.success).toBe(true);
   });
 
+  it("accepts taskId on report query", () => {
+    const r = reportQuerySchema.safeParse({
+      from: "2025-01-01T00:00:00.000Z",
+      to: "2025-01-31T23:59:59.000Z",
+      projectId: UUID,
+      categoryId: UUID_2,
+      taskId: "550e8400-e29b-41d4-a716-446655440002"
+    });
+    expect(r.success).toBe(true);
+  });
+
   it("validates create category payload", () => {
     const r = createCategorySchema.safeParse({
       name: "Software Development",

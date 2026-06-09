@@ -113,7 +113,8 @@ export class ReportingService {
       query.to,
       query.userId,
       query.projectId,
-      query.categoryId
+      query.categoryId,
+      query.taskId
     );
     const cached = await this.reportCache.getDashboard(cacheKey);
     if (cached) return cached;
@@ -135,7 +136,8 @@ export class ReportingService {
       to,
       userId: query.userId,
       projectId: query.projectId,
-      categoryId: query.categoryId
+      categoryId: query.categoryId,
+      taskId: query.taskId
     });
     const { resolveRate } = await this.aggregation.resolveRateMaps(workspaceId);
     const { workspaceAgg, byProject, byUser, byCategory } = this.aggregation.buildAggregates(
@@ -438,7 +440,8 @@ export class ReportingService {
       to,
       userId: query.userId,
       projectId: query.projectId,
-      categoryId: query.categoryId
+      categoryId: query.categoryId,
+      taskId: query.taskId
     });
 
     const slotsMap = new Map<string, number>();
@@ -477,7 +480,8 @@ export class ReportingService {
       to,
       userId: query.userId,
       projectId: query.projectId,
-      categoryId: query.categoryId
+      categoryId: query.categoryId,
+      taskId: query.taskId
     });
 
     const tasksMap = new Map<
@@ -555,7 +559,8 @@ export class ReportingService {
       to,
       userId: query.userId,
       projectId: query.projectId,
-      categoryId: query.categoryId
+      categoryId: query.categoryId,
+      taskId: query.taskId
     });
 
     const TOP_N = 8;

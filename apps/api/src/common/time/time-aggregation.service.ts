@@ -11,6 +11,7 @@ export type ExportFilters = {
   userId?: string;
   userIds?: string[];
   categoryId?: string;
+  taskId?: string;
   billable?: ExportBillableFilter;
 };
 
@@ -51,6 +52,7 @@ export class TimeAggregationService {
 
     return this.prisma.timeLog.findMany({
       where: {
+        ...(filters.taskId ? { taskId: filters.taskId } : {}),
         task: {
           ...(filters.categoryId ? { categoryId: filters.categoryId } : {}),
           project: {

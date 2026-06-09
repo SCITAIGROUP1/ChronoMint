@@ -17,11 +17,19 @@ test.describe("Admin projects", () => {
     const projectName = `E2E Project ${Date.now()}`;
     const clientName = "Acme Corp";
 
+    await page.getByRole("button", { name: "New project" }).click();
     await page.locator("#name").fill(projectName);
     await page.locator("#client").fill(clientName);
-    await page.getByRole("button", { name: "Create" }).click();
+    await page.getByRole("button", { name: "Create project" }).click();
 
     await expect(page.getByRole("row", { name: new RegExp(projectName) })).toBeVisible();
     await expect(page.getByText(clientName).first()).toBeVisible();
+  });
+
+  test("opens project tasks tab from list", async ({ page }) => {
+    await page.locator("table tbody tr").first().click();
+    await expect(page.getByRole("navigation", { name: "Project sections" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Tasks" })).toBeVisible();
+    await expect(page).toHaveURL(/\/projects\/[^/]+\/tasks$/);
   });
 });

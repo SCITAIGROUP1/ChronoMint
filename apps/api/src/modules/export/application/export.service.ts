@@ -70,6 +70,7 @@ export class ExportService {
         to: body.to,
         projectId: body.projectId,
         categoryId: body.categoryId,
+        taskId: body.taskId,
         userId,
         billable: body.billable,
         groupBy: [],
@@ -167,6 +168,7 @@ export class ExportService {
       userId: filters.userId,
       userIds,
       categoryId: filters.categoryId,
+      taskId: filters.taskId,
       billable: filters.billable
     });
 

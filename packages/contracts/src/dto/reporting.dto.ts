@@ -7,7 +7,8 @@ export const reportQuerySchema = z
     to: isoDatetimeSchema,
     projectId: uuidSchema.optional(),
     userId: uuidSchema.optional(),
-    categoryId: uuidSchema.optional()
+    categoryId: uuidSchema.optional(),
+    taskId: uuidSchema.optional()
   })
   .superRefine((v, ctx) => assertMaxDateRange(v.from, v.to, ctx));
 

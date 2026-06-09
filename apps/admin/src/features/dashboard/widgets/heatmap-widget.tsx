@@ -12,6 +12,7 @@ interface HeatmapWidgetProps {
   projectId?: string;
   userId?: string;
   categoryId?: string;
+  taskId?: string;
 }
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -20,7 +21,7 @@ const HOURS_LABELS = ["12am", "3am", "6am", "9am", "12pm", "3pm", "6pm", "9pm"];
 function rangeQuery(
   start: string,
   end: string,
-  filters?: { projectId?: string; userId?: string; categoryId?: string }
+  filters?: { projectId?: string; userId?: string; categoryId?: string; taskId?: string }
 ) {
   const from = new Date(start + "T00:00:00");
   const to = new Date(end + "T23:59:59.999");
@@ -31,10 +32,18 @@ function rangeQuery(
   if (filters?.projectId) params.set("projectId", filters.projectId);
   if (filters?.userId) params.set("userId", filters.userId);
   if (filters?.categoryId) params.set("categoryId", filters.categoryId);
+  if (filters?.taskId) params.set("taskId", filters.taskId);
   return params;
 }
 
-export function HeatmapWidget({ from, to, projectId, userId, categoryId }: HeatmapWidgetProps) {
+export function HeatmapWidget({
+  from,
+  to,
+  projectId,
+  userId,
+  categoryId,
+  taskId
+}: HeatmapWidgetProps) {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
   const [data, setData] = useState<HeatmapResponseDto | null>(null);
   const [loading, setLoading] = useState(true);
@@ -45,7 +54,7 @@ export function HeatmapWidget({ from, to, projectId, userId, categoryId }: Heatm
     setLoading(true);
     setError(null);
     try {
-      const params = rangeQuery(from, to, { projectId, userId, categoryId });
+      const params = rangeQuery(from, to, { projectId, userId, categoryId, taskId });
       const res = await api<HeatmapResponseDto>(`${ROUTES.REPORTING.HEATMAP}?${params}`, {
         workspaceId: ws
       });
@@ -55,7 +64,7 @@ export function HeatmapWidget({ from, to, projectId, userId, categoryId }: Heatm
     } finally {
       setLoading(false);
     }
-  }, [ws, from, to, projectId, userId, categoryId]);
+  }, [ws, from, to, projectId, userId, categoryId, taskId]);
 
   useEffect(() => {
     void fetchHeatmap();

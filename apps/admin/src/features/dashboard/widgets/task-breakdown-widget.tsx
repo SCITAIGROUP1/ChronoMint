@@ -20,6 +20,7 @@ interface TaskBreakdownWidgetProps {
   projectId?: string;
   userId?: string;
   categoryId?: string;
+  taskId?: string;
 }
 
 const CHART_PALETTE = [
@@ -36,7 +37,7 @@ const CHART_PALETTE = [
 function rangeQuery(
   start: string,
   end: string,
-  filters?: { projectId?: string; userId?: string; categoryId?: string }
+  filters?: { projectId?: string; userId?: string; categoryId?: string; taskId?: string }
 ) {
   const from = new Date(start + "T00:00:00");
   const to = new Date(end + "T23:59:59.999");
@@ -47,6 +48,7 @@ function rangeQuery(
   if (filters?.projectId) params.set("projectId", filters.projectId);
   if (filters?.userId) params.set("userId", filters.userId);
   if (filters?.categoryId) params.set("categoryId", filters.categoryId);
+  if (filters?.taskId) params.set("taskId", filters.taskId);
   return params;
 }
 
@@ -55,7 +57,8 @@ export function TaskBreakdownWidget({
   to,
   projectId,
   userId,
-  categoryId
+  categoryId,
+  taskId
 }: TaskBreakdownWidgetProps) {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
   const [data, setData] = useState<TaskBreakdownResponseDto | null>(null);
@@ -67,7 +70,7 @@ export function TaskBreakdownWidget({
     setLoading(true);
     setError(null);
     try {
-      const params = rangeQuery(from, to, { projectId, userId, categoryId });
+      const params = rangeQuery(from, to, { projectId, userId, categoryId, taskId });
       const res = await api<TaskBreakdownResponseDto>(`${ROUTES.REPORTING.TASKS}?${params}`, {
         workspaceId: ws
       });
@@ -77,7 +80,7 @@ export function TaskBreakdownWidget({
     } finally {
       setLoading(false);
     }
-  }, [ws, from, to, projectId, userId, categoryId]);
+  }, [ws, from, to, projectId, userId, categoryId, taskId]);
 
   useEffect(() => {
     void fetchTasks();

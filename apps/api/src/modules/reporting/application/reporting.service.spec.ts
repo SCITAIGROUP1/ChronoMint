@@ -83,3 +83,61 @@ describe("ReportingService myWeekSummary", () => {
     );
   });
 });
+
+describe("ReportingService dashboard", () => {
+  let service: ReportingService;
+  let mockAggregation: {
+    fetchLogs: ReturnType<typeof vi.fn>;
+    resolveRateMaps: ReturnType<typeof vi.fn>;
+    buildAggregates: ReturnType<typeof vi.fn>;
+  };
+  let mockReportCache: {
+    dashboardKey: ReturnType<typeof vi.fn>;
+    getDashboard: ReturnType<typeof vi.fn>;
+    setDashboard: ReturnType<typeof vi.fn>;
+  };
+
+  const workspaceId = "ws-1";
+  const taskId = "550e8400-e29b-41d4-a716-446655440000";
+
+  beforeEach(() => {
+    mockAggregation = {
+      fetchLogs: vi.fn().mockResolvedValue([]),
+      resolveRateMaps: vi.fn().mockResolvedValue({ resolveRate: () => 0 }),
+      buildAggregates: vi.fn().mockReturnValue({
+        workspaceAgg: { totalHours: 0, billableHours: 0, billableAmount: 0 },
+        byProject: new Map(),
+        byUser: new Map(),
+        byCategory: new Map()
+      })
+    };
+    mockReportCache = {
+      dashboardKey: vi.fn().mockReturnValue("cache-key"),
+      getDashboard: vi.fn().mockResolvedValue(null),
+      setDashboard: vi.fn().mockResolvedValue(undefined)
+    };
+    service = new ReportingService({} as never, mockAggregation as never, mockReportCache as never);
+  });
+
+  it("passes taskId filter to fetchLogs and cache key", async () => {
+    await service.dashboard(workspaceId, {
+      from: "2025-06-01",
+      to: "2025-06-07",
+      taskId
+    });
+
+    expect(mockReportCache.dashboardKey).toHaveBeenCalledWith(
+      workspaceId,
+      "2025-06-01",
+      "2025-06-07",
+      undefined,
+      undefined,
+      undefined,
+      taskId
+    );
+    expect(mockAggregation.fetchLogs).toHaveBeenCalledWith(
+      workspaceId,
+      expect.objectContaining({ taskId })
+    );
+  });
+});

@@ -12,12 +12,13 @@ interface CategoryProjectHeatmapWidgetProps {
   projectId?: string;
   userId?: string;
   categoryId?: string;
+  taskId?: string;
 }
 
 function rangeQuery(
   start: string,
   end: string,
-  filters?: { projectId?: string; userId?: string; categoryId?: string }
+  filters?: { projectId?: string; userId?: string; categoryId?: string; taskId?: string }
 ) {
   const from = new Date(start + "T00:00:00");
   const to = new Date(end + "T23:59:59.999");
@@ -28,6 +29,7 @@ function rangeQuery(
   if (filters?.projectId) params.set("projectId", filters.projectId);
   if (filters?.userId) params.set("userId", filters.userId);
   if (filters?.categoryId) params.set("categoryId", filters.categoryId);
+  if (filters?.taskId) params.set("taskId", filters.taskId);
   return params;
 }
 
@@ -36,7 +38,8 @@ export function CategoryProjectHeatmapWidget({
   to,
   projectId,
   userId,
-  categoryId
+  categoryId,
+  taskId
 }: CategoryProjectHeatmapWidgetProps) {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
   const [data, setData] = useState<CategoryProjectHeatmapResponseDto | null>(null);
@@ -48,7 +51,7 @@ export function CategoryProjectHeatmapWidget({
     setLoading(true);
     setError(null);
     try {
-      const params = rangeQuery(from, to, { projectId, userId, categoryId });
+      const params = rangeQuery(from, to, { projectId, userId, categoryId, taskId });
       const res = await api<CategoryProjectHeatmapResponseDto>(
         `${ROUTES.REPORTING.CATEGORIES_HEATMAP}?${params}`,
         { workspaceId: ws }
@@ -59,7 +62,7 @@ export function CategoryProjectHeatmapWidget({
     } finally {
       setLoading(false);
     }
-  }, [ws, from, to, projectId, userId, categoryId]);
+  }, [ws, from, to, projectId, userId, categoryId, taskId]);
 
   useEffect(() => {
     void fetchHeatmap();
