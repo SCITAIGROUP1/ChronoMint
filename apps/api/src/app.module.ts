@@ -17,6 +17,7 @@ import { ReportingModule } from "./modules/reporting/reporting.module";
 import { TasksModule } from "./modules/tasks/tasks.module";
 import { TimelogsModule } from "./modules/timelogs/timelogs.module";
 import { TimerModule } from "./modules/timer/timer.module";
+import { UsersModule } from "./modules/users/users.module";
 import { WorkspaceModule } from "./modules/workspace/workspace.module";
 
 @Module({
@@ -39,6 +40,7 @@ import { WorkspaceModule } from "./modules/workspace/workspace.module";
     MailerModule,
     HealthModule,
     AuthModule,
+    UsersModule,
     WorkspaceModule,
     ProjectsModule,
     TasksModule,

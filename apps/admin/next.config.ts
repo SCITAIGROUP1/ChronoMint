@@ -6,7 +6,7 @@ const withBundleAnalyzer = bundleAnalyzer({
 });
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@chronomint/ui", "@chronomint/contracts"],
+  transpilePackages: ["@chronomint/ui", "@chronomint/contracts", "@chronomint/web-shared"],
   experimental: {
     optimizePackageImports: ["@chronomint/ui", "lucide-react", "recharts"]
   }

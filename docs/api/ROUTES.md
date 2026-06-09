@@ -21,6 +21,15 @@ Paths are defined in [packages/contracts/src/routes.ts](../../packages/contracts
 | GET    | `/auth/me`               | Auth   | —                                                           | auth.controller                                                                         |
 | DELETE | `/auth/logout`           | —      | —                                                           | auth.controller                                                                         |
 
+## Users
+
+| Method | Path                    | Roles | DTO                                                                         | Controller                                                                                 |
+| ------ | ----------------------- | ----- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| GET    | `/users/me`             | Auth  | [user-profile.dto.ts](../../packages/contracts/src/dto/user-profile.dto.ts) | [users.controller.ts](../../apps/api/src/modules/users/interface/http/users.controller.ts) |
+| PATCH  | `/users/me`             | Auth  | user-profile.dto                                                            | users.controller                                                                           |
+| PATCH  | `/users/me/preferences` | Auth  | user-profile.dto                                                            | users.controller                                                                           |
+| POST   | `/users/me/password`    | Auth  | user-profile.dto                                                            | users.controller                                                                           |
+
 ## Workspaces
 
 | Method | Path                             | Roles | DTO                                                                   | Controller                                                                                             |
@@ -56,12 +65,13 @@ Paths are defined in [packages/contracts/src/routes.ts](../../packages/contracts
 
 ## Time logs
 
-| Method | Path            | Roles | DTO                                                               | Controller                                                                                          |
-| ------ | --------------- | ----- | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| GET    | `/timelogs`     | Auth  | [timelog.dto.ts](../../packages/contracts/src/dto/timelog.dto.ts) | [timelogs.controller.ts](../../apps/api/src/modules/timelogs/interface/http/timelogs.controller.ts) |
-| POST   | `/timelogs`     | Auth  | timelog.dto                                                       | timelogs.controller                                                                                 |
-| PATCH  | `/timelogs/:id` | Auth  | timelog.dto                                                       | timelogs.controller                                                                                 |
-| DELETE | `/timelogs/:id` | Auth  | —                                                                 | timelogs.controller                                                                                 |
+| Method | Path                  | Roles         | DTO                                                                                   | Controller                                                                                          |
+| ------ | --------------------- | ------------- | ------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| GET    | `/timelogs`           | Auth          | [timelog.dto.ts](../../packages/contracts/src/dto/timelog.dto.ts)                     | [timelogs.controller.ts](../../apps/api/src/modules/timelogs/interface/http/timelogs.controller.ts) |
+| GET    | `/timelogs/occupancy` | Auth (member) | [timelog-occupancy.dto.ts](../../packages/contracts/src/dto/timelog-occupancy.dto.ts) | timelogs.controller                                                                                 |
+| POST   | `/timelogs`           | Auth          | timelog.dto                                                                           | timelogs.controller                                                                                 |
+| PATCH  | `/timelogs/:id`       | Auth          | timelog.dto                                                                           | timelogs.controller                                                                                 |
+| DELETE | `/timelogs/:id`       | Auth          | —                                                                                     | timelogs.controller                                                                                 |
 
 ## Timer
 

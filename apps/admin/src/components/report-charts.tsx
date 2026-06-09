@@ -23,6 +23,8 @@ import {
 } from "@chronomint/ui";
 import {
   ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig
@@ -34,7 +36,6 @@ import {
   CartesianGrid,
   Cell,
   LabelList,
-  Legend,
   Pie,
   PieChart,
   XAxis,
@@ -144,7 +145,7 @@ export function DailyStackedBarChart({ report, chartBy, projectColors }: DailyBa
           />
           <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 12 }} unit="h" />
           <ChartTooltip content={<ChartTooltipContent />} />
-          <Legend />
+          <ChartLegend content={<ChartLegendContent />} />
           <Bar
             dataKey="billableHours"
             stackId="stack"
@@ -185,7 +186,7 @@ export function DailyStackedBarChart({ report, chartBy, projectColors }: DailyBa
         />
         <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 12 }} unit="h" />
         <ChartTooltip content={<ChartTooltipContent />} />
-        <Legend />
+        <ChartLegend content={<ChartLegendContent />} />
         {topProjects.map((p, i) => (
           <Bar
             key={p.projectId}
@@ -305,7 +306,7 @@ export function ReportDonutChart({ report, groupBy, projectColors }: DonutProps)
               <Cell key={entry.id} fill={entry.fill} />
             ))}
           </Pie>
-          <Legend />
+          <ChartLegend content={<ChartLegendContent nameKey="name" />} />
         </PieChart>
       </ChartContainer>
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">

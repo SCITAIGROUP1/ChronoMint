@@ -18,3 +18,5 @@ export {
 } from "./stores/session.store";
 export { useWorkspacesStore } from "./stores/workspaces.store";
 export { toDateInputValue } from "./utils/date-input";
+export { AccountSettingsPage } from "./features/account/account-settings-page";
+export { useUserProfile } from "./features/account/use-user-profile";

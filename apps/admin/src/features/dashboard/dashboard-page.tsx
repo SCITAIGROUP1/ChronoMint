@@ -676,7 +676,7 @@ export function DashboardPage() {
                 Full-Width Edit Mode
               </span>
               <span className="text-[10px] text-muted-foreground hidden md:inline ml-2">
-                Drag widget headers to move; drag bottom-right corner handles to resize.
+                Drag anywhere on a widget to move; drag edges or the corner to resize.
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -800,7 +800,8 @@ export function DashboardPage() {
               rowHeight={80}
               isDraggable={isArranging}
               isResizable={isArranging}
-              draggableHandle=".drag-handle"
+              draggableCancel="button, a, input, select, textarea, [role='menu'], [role='menuitem'], .widget-no-drag"
+              resizeHandles={["s", "e", "se"]}
               onLayoutChange={(currentLayout) => {
                 if (isArranging) {
                   updateLayout(ws, currentLayout);

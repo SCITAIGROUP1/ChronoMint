@@ -1,17 +1,24 @@
 "use client";
 
-import type { TimeLogDto } from "@chronomint/contracts";
+import type { TimeLogDto, TimeLogOccupancyItemDto } from "@chronomint/contracts";
 import { cn } from "@chronomint/ui";
-import { startTransition, useCallback, useEffect, useRef, useState } from "react";
+import { Building2, Clock, Lock } from "lucide-react";
+import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  buildDayOccupancySegments,
   buildSlotRows,
+  calendarDateKey,
   clipLogToDay,
   blockStyle,
+  computeLogMoveRange,
+  findOccupancyConflict,
   formatDayHeader,
+  formatSegmentTimeRange,
   formatTimeLabel,
+  isSlotOccupiedElsewhere,
   pointerYToTime,
+  slotIntervalForIndex,
   SLOT_MINUTES,
-  toDateKey,
   isSameDayInZone,
   getZoneHourAndMinute,
   CALENDAR_START_HOUR,
@@ -44,8 +51,19 @@ type TimesheetCalendarProps = {
   view: "day" | "week";
   days: Date[];
   logs: TimeLogDto[];
+  occupancy: TimeLogOccupancyItemDto[];
+  workspaceId: string;
+  showOccupancyOverlay: boolean;
   taskName: (taskId: string) => string;
   entryColor: (taskId: string) => string;
+  isEntryLocked: (log: TimeLogDto) => boolean;
+  isTimerEntry: (log: TimeLogDto) => boolean;
+  overlapConflictMessage: (conflict: {
+    workspaceName: string;
+    label: string;
+    startTime: string;
+    endTime: string;
+  }) => string;
   onSlotClick: (day: Date, hour: number, minute: number) => void;
   onSlotRangeSelect: (day: Date, startIndex: number, endIndex: number) => void;
   onEntryClick: (log: TimeLogDto) => void;
@@ -57,16 +75,21 @@ type TimesheetCalendarProps = {
   showSummary?: boolean;
 };
 
-function findDayColumnAt(clientX: number, clientY: number, days: Date[]): Date | null {
+function findDayColumnAt(
+  clientX: number,
+  clientY: number,
+  days: Date[],
+  timezone: string
+): Date | null {
   const el = document.elementFromPoint(clientX, clientY);
   const col = el?.closest("[data-day-column]");
   if (!col) return null;
   const key = col.getAttribute("data-day-column");
-  return days.find((d) => toDateKey(d) === key) ?? null;
+  return days.find((d) => calendarDateKey(d, timezone) === key) ?? null;
 }
 
-function columnRect(day: Date): DOMRect | null {
-  const col = document.querySelector(`[data-day-column="${toDateKey(day)}"]`);
+function columnRect(day: Date, timezone: string): DOMRect | null {
+  const col = document.querySelector(`[data-day-column="${calendarDateKey(day, timezone)}"]`);
   return col?.getBoundingClientRect() ?? null;
 }
 
@@ -74,8 +97,14 @@ export function TimesheetCalendar({
   view,
   days,
   logs,
+  occupancy,
+  workspaceId,
+  showOccupancyOverlay,
   taskName,
   entryColor,
+  isEntryLocked,
+  isTimerEntry,
+  overlapConflictMessage,
   onSlotClick,
   onSlotRangeSelect,
   onEntryClick,
@@ -88,6 +117,25 @@ export function TimesheetCalendar({
 }: TimesheetCalendarProps) {
   const slotRows = buildSlotRows();
   const today = todayInZone(timezone);
+
+  const occupancyByDay = useMemo(() => {
+    const map = new Map<string, ReturnType<typeof buildDayOccupancySegments>>();
+    for (const day of days) {
+      const dateKey = calendarDateKey(day, timezone);
+      map.set(dateKey, buildDayOccupancySegments(dateKey, occupancy, timezone, workspaceId));
+    }
+    return map;
+  }, [days, occupancy, timezone, workspaceId]);
+
+  function previewConflict(
+    logId: string,
+    start: Date,
+    end: Date
+  ): { invalid: boolean; message?: string } {
+    const conflict = findOccupancyConflict(occupancy, start, end, logId);
+    if (!conflict) return { invalid: false };
+    return { invalid: true, message: overlapConflictMessage(conflict) };
+  }
   const [drag, setDrag] = useState<SlotSelect | null>(null);
   const dragMoved = useRef(false);
   const suppressClick = useRef(false);
@@ -128,7 +176,7 @@ export function TimesheetCalendar({
   const endDrag = useCallback(
     (selection: SlotSelect | null) => {
       if (!selection || !dragMoved.current) return;
-      const day = days.find((d) => toDateKey(d) === selection.dayKey);
+      const day = days.find((d) => calendarDateKey(d, timezone) === selection.dayKey);
       if (day) {
         suppressClick.current = true;
         deferToParent(() => onSlotRangeSelect(day, selection.startIndex, selection.endIndex));
@@ -152,7 +200,7 @@ export function TimesheetCalendar({
   useEffect(() => {
     if (!resize) return;
     const onMove = (e: PointerEvent) => {
-      const rect = columnRect(resize.day);
+      const rect = columnRect(resize.day, timezone);
       if (!rect) return;
       const t = pointerYToTime(resize.day, e.clientY, rect.top, rect.height, timezone);
       setResize((r) => {
@@ -211,9 +259,9 @@ export function TimesheetCalendar({
       }
 
       if (!move) return;
-      const day = findDayColumnAt(e.clientX, e.clientY, days);
+      const day = findDayColumnAt(e.clientX, e.clientY, days, timezone);
       if (!day) return;
-      const rect = columnRect(day);
+      const rect = columnRect(day, timezone);
       if (!rect) return;
       const blockTop = e.clientY - move.grabOffsetY;
       const start = pointerYToTime(day, blockTop + 4, rect.top, rect.height, timezone);
@@ -231,10 +279,16 @@ export function TimesheetCalendar({
 
       if (move && e.pointerId !== undefined) {
         const { log, preview, anchorClipStart } = move;
-        if (preview.end > preview.start) {
-          const delta = preview.start.getTime() - anchorClipStart.getTime();
-          const newStart = new Date(new Date(log.startTime).getTime() + delta);
-          const newEnd = new Date(new Date(log.endTime).getTime() + delta);
+        const { start: newStart, end: newEnd } = computeLogMoveRange(
+          log,
+          anchorClipStart,
+          preview.start,
+          timezone
+        );
+        const moved =
+          newStart.getTime() !== new Date(log.startTime).getTime() ||
+          newEnd.getTime() !== new Date(log.endTime).getTime();
+        if (moved && newEnd > newStart) {
           suppressClick.current = true;
           deferToParent(() => onEntryMove(log, newStart, newEnd));
         }
@@ -253,9 +307,9 @@ export function TimesheetCalendar({
   useEffect(() => {
     if (!duplicate) return;
     const onMove = (e: PointerEvent) => {
-      const day = findDayColumnAt(e.clientX, e.clientY, days);
+      const day = findDayColumnAt(e.clientX, e.clientY, days, timezone);
       if (!day) return;
-      const rect = columnRect(day);
+      const rect = columnRect(day, timezone);
       if (!rect) return;
       const blockTop = e.clientY - duplicate.grabOffsetY;
       const start = pointerYToTime(day, blockTop + 4, rect.top, rect.height, timezone);
@@ -304,7 +358,9 @@ export function TimesheetCalendar({
   }
 
   function previewOnDay(preview: EntryPreview | undefined, day: Date): EntryPreview | null {
-    if (!preview || toDateKey(preview.day) !== toDateKey(day)) return null;
+    if (!preview || calendarDateKey(preview.day, timezone) !== calendarDateKey(day, timezone)) {
+      return null;
+    }
     return preview;
   }
 
@@ -410,27 +466,40 @@ export function TimesheetCalendar({
               key={day.toISOString()}
               day={day}
               logs={logs}
+              elsewhereSegments={occupancyByDay.get(calendarDateKey(day, timezone)) ?? []}
+              showOccupancyOverlay={showOccupancyOverlay}
               slotRows={slotRows}
               taskName={taskName}
               entryColor={entryColor}
               compact={view === "week"}
               readOnly={readOnly}
               timezone={timezone}
-              isSlotSelected={(idx) => isSlotSelected(toDateKey(day), idx)}
-              resizePreview={resize && toDateKey(resize.day) === toDateKey(day) ? resize : null}
+              isEntryLocked={isEntryLocked}
+              isTimerEntry={isTimerEntry}
+              previewConflict={previewConflict}
+              isSlotSelected={(idx) => isSlotSelected(calendarDateKey(day, timezone), idx)}
+              resizePreview={
+                resize && calendarDateKey(resize.day, timezone) === calendarDateKey(day, timezone)
+                  ? resize
+                  : null
+              }
               movePreview={previewOnDay(move?.preview, day)}
               duplicatePreview={previewOnDay(duplicate?.preview, day)}
               movingLogId={move?.log.id ?? null}
               onSlotPointerDown={(index) => {
                 if (readOnly) return;
                 dragMoved.current = false;
-                setDrag({ dayKey: toDateKey(day), startIndex: index, endIndex: index });
+                setDrag({
+                  dayKey: calendarDateKey(day, timezone),
+                  startIndex: index,
+                  endIndex: index
+                });
               }}
               onSlotPointerEnter={(index) => {
                 if (readOnly) return;
                 startTransition(() => {
                   setDrag((d) => {
-                    if (!d || d.dayKey !== toDateKey(day)) return d;
+                    if (!d || d.dayKey !== calendarDateKey(day, timezone)) return d;
                     dragMoved.current = dragMoved.current || index !== d.startIndex;
                     return { ...d, endIndex: index };
                   });
@@ -452,7 +521,7 @@ export function TimesheetCalendar({
                 deferToParent(() => onEntryClick(log));
               }}
               onResizeStart={(log, clip, edge) => {
-                if (readOnly) return;
+                if (readOnly || isEntryLocked(log) || isTimerEntry(log)) return;
                 setResize({
                   log,
                   day,
@@ -474,6 +543,8 @@ export function TimesheetCalendar({
 function DayColumn({
   day,
   logs,
+  elsewhereSegments,
+  showOccupancyOverlay,
   slotRows,
   taskName,
   entryColor,
@@ -485,6 +556,9 @@ function DayColumn({
   movingLogId,
   readOnly,
   timezone,
+  isEntryLocked,
+  isTimerEntry,
+  previewConflict,
   onSlotPointerDown,
   onSlotPointerEnter,
   onSlotClick,
@@ -495,6 +569,8 @@ function DayColumn({
 }: {
   day: Date;
   logs: TimeLogDto[];
+  elsewhereSegments: ReturnType<typeof buildDayOccupancySegments>;
+  showOccupancyOverlay: boolean;
   slotRows: { hour: number; minute: number }[];
   taskName: (taskId: string) => string;
   entryColor: (taskId: string) => string;
@@ -510,6 +586,13 @@ function DayColumn({
   movingLogId: string | null;
   readOnly: boolean;
   timezone: string;
+  isEntryLocked: (log: TimeLogDto) => boolean;
+  isTimerEntry: (log: TimeLogDto) => boolean;
+  previewConflict: (
+    logId: string,
+    start: Date,
+    end: Date
+  ) => { invalid: boolean; message?: string };
   onSlotPointerDown: (index: number) => void;
   onSlotPointerEnter: (index: number) => void;
   onSlotClick: (hour: number, minute: number) => void;
@@ -533,7 +616,7 @@ function DayColumn({
     originY: number
   ) => void;
 }) {
-  const dayKey = toDateKey(day);
+  const dayKey = calendarDateKey(day, timezone);
   const columnRef = useRef<HTMLDivElement>(null);
   const dayLogs = logs
     .map((log) => ({ log, clip: clipLogToDay(log, day, timezone) }))
@@ -544,55 +627,128 @@ function DayColumn({
 
   return (
     <div ref={columnRef} className="relative border-l border-border" data-day-column={dayKey}>
-      {slotRows.map(({ hour, minute }, index) => (
-        <button
-          key={`${hour}-${minute}`}
-          type="button"
-          className={cn(
-            "block h-10 w-full touch-none border-b border-border/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
-            !readOnly && "hover:bg-primary/10",
-            isSlotSelected(index) && "bg-primary/25"
-          )}
-          aria-label={`${formatTimeLabel(hour, minute)}`}
-          onPointerDown={(e) => {
-            if (readOnly) return;
-            if (e.ctrlKey || e.metaKey) return;
-            e.currentTarget.setPointerCapture(e.pointerId);
-            onSlotPointerDown(index);
-          }}
-          onPointerEnter={() => {
-            if (!readOnly) onSlotPointerEnter(index);
-          }}
-          onClick={() => {
-            if (!readOnly) onSlotClick(hour, minute);
-          }}
-        />
-      ))}
+      {slotRows.map(({ hour, minute }, index) => {
+        const { start: slotStart, end: slotEnd } = slotIntervalForIndex(dayKey, index, timezone);
+        const elsewhereConflict =
+          showOccupancyOverlay && !readOnly
+            ? isSlotOccupiedElsewhere(slotStart, slotEnd, elsewhereSegments)
+            : undefined;
+        const slotBlocked = Boolean(elsewhereConflict);
+
+        return (
+          <button
+            key={`${hour}-${minute}`}
+            type="button"
+            className={cn(
+              "block h-10 w-full touch-none border-b border-border/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+              !readOnly && !slotBlocked && "hover:bg-primary/10",
+              isSlotSelected(index) && "bg-primary/25",
+              slotBlocked && "cursor-not-allowed"
+            )}
+            aria-label={`${formatTimeLabel(hour, minute)}`}
+            aria-disabled={slotBlocked || undefined}
+            title={
+              elsewhereConflict
+                ? `Logged in ${elsewhereConflict.workspaceName}: ${elsewhereConflict.label}`
+                : undefined
+            }
+            onPointerDown={(e) => {
+              if (readOnly || slotBlocked) return;
+              if (e.ctrlKey || e.metaKey) return;
+              e.currentTarget.setPointerCapture(e.pointerId);
+              onSlotPointerDown(index);
+            }}
+            onPointerEnter={() => {
+              if (!readOnly && !slotBlocked) onSlotPointerEnter(index);
+            }}
+            onClick={() => {
+              if (!readOnly && !slotBlocked) onSlotClick(hour, minute);
+            }}
+          />
+        );
+      })}
       <div className="pointer-events-none absolute inset-0">
-        {movePreview && (
-          <EntryGhost
-            preview={movePreview}
-            taskName={taskName}
-            entryColor={entryColor}
-            compact={compact}
-            variant="move"
-            timezone={timezone}
-          />
-        )}
-        {duplicatePreview && (
-          <EntryGhost
-            preview={duplicatePreview}
-            taskName={taskName}
-            entryColor={entryColor}
-            compact={compact}
-            variant="duplicate"
-            timezone={timezone}
-          />
-        )}
+        {showOccupancyOverlay &&
+          elsewhereSegments.map((seg) => (
+            <OccupancyElsewhereBand
+              key={`elsewhere-${seg.id}-${seg.start.toISOString()}`}
+              segment={seg}
+              timezone={timezone}
+            />
+          ))}
+        {movePreview &&
+          (() => {
+            const conflict = previewConflict(
+              movePreview.log.id,
+              movePreview.start,
+              movePreview.end
+            );
+            return (
+              <EntryGhost
+                preview={movePreview}
+                taskName={taskName}
+                entryColor={entryColor}
+                compact={compact}
+                variant="move"
+                timezone={timezone}
+                invalid={conflict.invalid}
+                invalidMessage={conflict.message}
+              />
+            );
+          })()}
+        {duplicatePreview &&
+          (() => {
+            const conflict = previewConflict(
+              duplicatePreview.log.id,
+              duplicatePreview.start,
+              duplicatePreview.end
+            );
+            return (
+              <EntryGhost
+                preview={duplicatePreview}
+                taskName={taskName}
+                entryColor={entryColor}
+                compact={compact}
+                variant="duplicate"
+                timezone={timezone}
+                invalid={conflict.invalid}
+                invalidMessage={conflict.message}
+              />
+            );
+          })()}
+        {resizePreview &&
+          (() => {
+            const conflict = previewConflict(
+              resizePreview.log.id,
+              resizePreview.previewStart,
+              resizePreview.previewEnd
+            );
+            if (!conflict.invalid) return null;
+            const style = blockStyle(
+              resizePreview.previewStart,
+              resizePreview.previewEnd,
+              timezone
+            );
+            return (
+              <div
+                className="absolute left-0.5 right-0.5 z-20 rounded border border-destructive/70 ring-1 ring-destructive/25"
+                style={{
+                  top: style.top,
+                  height: style.height,
+                  minHeight: style.height === "0%" ? "0px" : "1.25rem",
+                  display: style.display
+                }}
+                title={conflict.message}
+              />
+            );
+          })()}
         {dayLogs.map(({ log, clip }) => {
           const isResizing = resizePreview?.log.id === log.id;
           const isDraggingCopy = isDuplicatingThis === log.id;
           const isDraggingMove = isMovingThis === log.id;
+          const locked = isEntryLocked(log);
+          const timer = isTimerEntry(log);
+          const entryReadOnly = readOnly || locked || timer;
           const display = isResizing
             ? { start: resizePreview.previewStart, end: resizePreview.previewEnd }
             : clip;
@@ -603,8 +759,10 @@ function DayColumn({
             <div
               key={`${log.id}-${clip.start.toISOString()}`}
               className={cn(
-                "pointer-events-auto absolute left-0.5 right-0.5 overflow-hidden rounded border shadow-sm",
-                (isDraggingCopy || isDraggingMove) && "opacity-40"
+                "pointer-events-auto absolute left-0.5 right-0.5 overflow-hidden rounded-md border shadow-sm",
+                (isDraggingCopy || isDraggingMove) && "opacity-40",
+                locked && "border-dashed border-muted-foreground/40 opacity-95",
+                timer && !locked && "border-dotted border-muted-foreground/35"
               )}
               style={{
                 top: style.top,
@@ -614,7 +772,7 @@ function DayColumn({
                 ...colors
               }}
             >
-              {!readOnly && (
+              {!entryReadOnly && (
                 <div
                   className="absolute inset-x-0 top-0 z-10 h-1.5 cursor-ns-resize bg-black/15"
                   onPointerDown={(e) => {
@@ -626,15 +784,15 @@ function DayColumn({
               <button
                 type="button"
                 className={cn(
-                  "h-full w-full px-1 py-0.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  "relative z-10 h-full w-full px-1.5 py-0.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   !isDraggingCopy &&
                     !isDraggingMove &&
-                    !readOnly &&
+                    !entryReadOnly &&
                     "cursor-grab hover:brightness-95 active:cursor-grabbing"
                 )}
                 onPointerDown={(e) => {
                   e.stopPropagation();
-                  if (readOnly) return;
+                  if (entryReadOnly) return;
                   const col = columnRef.current;
                   if (!col) return;
                   const rect = col.getBoundingClientRect();
@@ -662,21 +820,34 @@ function DayColumn({
                   onEntryClick(log);
                 }}
                 title={
-                  readOnly
-                    ? taskName(log.taskId)
-                    : `${taskName(log.taskId)} — drag to move, Ctrl+drag to duplicate`
+                  locked
+                    ? `${taskName(log.taskId)} — locked (submitted or approved)`
+                    : timer
+                      ? `${taskName(log.taskId)} — timer entry (view only)`
+                      : readOnly
+                        ? taskName(log.taskId)
+                        : `${taskName(log.taskId)} — drag to move, Ctrl+drag to duplicate`
                 }
               >
                 <span
-                  className={cn("block truncate font-medium", compact ? "text-[10px]" : "text-xs")}
+                  className={cn(
+                    "flex items-center gap-1 truncate font-medium",
+                    compact ? "text-[10px]" : "text-xs"
+                  )}
                 >
-                  {taskName(log.taskId)}
+                  {locked && (
+                    <Lock className="h-2.5 w-2.5 shrink-0 text-muted-foreground" aria-hidden />
+                  )}
+                  {timer && !locked && (
+                    <Clock className="h-2.5 w-2.5 shrink-0 text-muted-foreground" aria-hidden />
+                  )}
+                  <span className="truncate">{taskName(log.taskId)}</span>
                 </span>
                 {!compact && log.description && (
                   <span className="block truncate text-[10px] opacity-80">{log.description}</span>
                 )}
               </button>
-              {!readOnly && (
+              {!entryReadOnly && (
                 <div
                   className="absolute inset-x-0 bottom-0 z-10 h-1.5 cursor-ns-resize bg-black/15"
                   onPointerDown={(e) => {
@@ -747,13 +918,55 @@ function LiveIndicatorLine({
   );
 }
 
+function OccupancyElsewhereBand({
+  segment,
+  timezone
+}: {
+  segment: {
+    workspaceName: string;
+    label: string;
+    start: Date;
+    end: Date;
+  };
+  timezone: string;
+}) {
+  const style = blockStyle(segment.start, segment.end, timezone);
+  const heightPct = parseFloat(style.height);
+  const showLabel = Number.isFinite(heightPct) && heightPct >= 3.5;
+  const timeRange = formatSegmentTimeRange(segment.start, segment.end, timezone);
+
+  return (
+    <div
+      className="absolute inset-x-1 overflow-hidden rounded-sm border border-dashed border-muted-foreground/20 border-l-[3px] border-l-muted-foreground/35 bg-muted/10"
+      style={{
+        top: style.top,
+        height: style.height,
+        minHeight: style.height === "0%" ? "0px" : "1.25rem",
+        display: style.display
+      }}
+      title={`${segment.workspaceName}: ${segment.label} (${timeRange})`}
+    >
+      {showLabel && (
+        <div className="flex h-full min-h-[1.25rem] items-center gap-1 px-1.5">
+          <Building2 className="h-2.5 w-2.5 shrink-0 text-muted-foreground/60" aria-hidden />
+          <span className="truncate text-[10px] font-medium text-muted-foreground">
+            {segment.workspaceName}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function EntryGhost({
   preview,
   taskName,
   entryColor,
   compact,
   variant,
-  timezone = "UTC"
+  timezone = "UTC",
+  invalid = false,
+  invalidMessage
 }: {
   preview: EntryPreview;
   taskName: (taskId: string) => string;
@@ -761,6 +974,8 @@ function EntryGhost({
   compact: boolean;
   variant: "move" | "duplicate";
   timezone?: string;
+  invalid?: boolean;
+  invalidMessage?: string;
 }) {
   const style = blockStyle(preview.start, preview.end, timezone);
   const colors = entryColorsFromProject(entryColor(preview.log.taskId));
@@ -768,7 +983,8 @@ function EntryGhost({
     <div
       className={cn(
         "absolute left-0.5 right-0.5 z-20 overflow-hidden rounded border-2 px-1 py-0.5 shadow-md",
-        variant === "duplicate" && "border-dashed opacity-70"
+        variant === "duplicate" && !invalid && "border-dashed opacity-70",
+        invalid && "border-destructive/70 ring-1 ring-destructive/25"
       )}
       style={{
         top: style.top,
@@ -776,8 +992,10 @@ function EntryGhost({
         minHeight: style.height === "0%" ? "0px" : "1.25rem",
         display: style.display,
         ...colors,
-        ...(variant === "move" ? { opacity: 0.85 } : {})
+        ...(variant === "move" && !invalid ? { opacity: 0.85 } : {}),
+        ...(invalid ? { opacity: 0.9 } : {})
       }}
+      title={invalid ? invalidMessage : undefined}
     >
       <span className={cn("block truncate font-medium", compact ? "text-[10px]" : "text-xs")}>
         {taskName(preview.log.taskId)}

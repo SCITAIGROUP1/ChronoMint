@@ -23,7 +23,7 @@ import {
   SegmentedControl
 } from "@chronomint/ui";
 import { toDateInputValue } from "@chronomint/web-shared";
-import { Play, Pause, Square, LayoutGrid, Move } from "lucide-react";
+import { Play, Pause, Square, LayoutGrid, Move, RotateCcw, Check } from "lucide-react";
 import React, { useCallback, useEffect, useState, useMemo } from "react";
 import { WidthProvider, Responsive } from "react-grid-layout";
 import { toast } from "sonner";
@@ -48,12 +48,13 @@ const NEW_TASK = "__new__";
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
 const RANGE_OPTIONS: { value: RangeDays; label: string }[] = [
+  { value: 1, label: "Today" },
   { value: 7, label: "7 days" },
   { value: 30, label: "30 days" },
   { value: 90, label: "90 days" }
 ];
 
-type RangeDays = 7 | 30 | 90;
+type RangeDays = 1 | 7 | 30 | 90;
 
 function formatElapsed(sec: number) {
   if (!Number.isFinite(sec) || sec < 0) return "00:00:00";
@@ -83,6 +84,12 @@ export function DashboardPage() {
   function handleRangePresetChange(newRange: RangeDays) {
     setRange(newRange);
     const to = new Date();
+    if (newRange === 1) {
+      const today = toDateInputValue(to);
+      setStartDate(today);
+      setEndDate(today);
+      return;
+    }
     const from = new Date();
     from.setDate(from.getDate() - newRange);
     setStartDate(toDateInputValue(from));
@@ -93,8 +100,12 @@ export function DashboardPage() {
     setStartDate(newStart);
     setEndDate(newEnd);
 
-    // Check if it matches a preset
     const todayStr = toDateInputValue(new Date());
+    if (newStart === newEnd && newStart === todayStr) {
+      setRange(1);
+      return;
+    }
+
     if (newEnd === todayStr) {
       const fromDate = new Date(newStart + "T12:00:00");
       const toDate = new Date(newEnd + "T12:00:00");
@@ -517,21 +528,37 @@ export function DashboardPage() {
       )}
 
       {isArranging && (
-        <div className="sticky top-0 z-40 w-full border border-border bg-card/85 backdrop-blur-md rounded-lg shadow-sm px-4 py-3 flex items-center justify-between animate-in slide-in-from-top-2 fade-in duration-200">
-          <div className="flex items-center gap-2">
-            <Move className="size-4 text-primary animate-pulse shrink-0" />
-            <span className="text-xs font-semibold">Rearranging Layout</span>
-            <span className="text-[10px] text-muted-foreground hidden sm:inline ml-2">
-              Drag headers to move, drag bottom-right corner handles to resize.
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button size="sm" variant="outline" onClick={handleResetLayout} className="h-7 text-xs">
-              Reset
-            </Button>
-            <Button size="sm" onClick={() => setIsArranging(false)} className="h-7 text-xs">
-              Done
-            </Button>
+        <div className="sticky top-0 z-40 w-full border-b border-border/60 bg-card/85 backdrop-blur-md shadow-sm animate-in slide-in-from-top-2 fade-in duration-200">
+          <div className="flex items-center justify-between px-4 py-3">
+            <div className="flex items-center gap-2">
+              <Move className="size-4 text-primary animate-pulse shrink-0" />
+              <span className="text-sm font-semibold">Rearranging Layout</span>
+              <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full font-mono hidden sm:inline">
+                Edit Mode
+              </span>
+              <span className="text-[10px] text-muted-foreground hidden md:inline ml-1">
+                Drag anywhere on a widget to move; drag edges or the corner to resize.
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleResetLayout}
+                className="h-8 gap-1.5 text-xs font-semibold hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30"
+              >
+                <RotateCcw className="size-3.5" />
+                Reset Layout
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => setIsArranging(false)}
+                className="h-8 gap-1.5 text-xs font-semibold shadow-sm"
+              >
+                <Check className="size-3.5" />
+                Done
+              </Button>
+            </div>
           </div>
         </div>
       )}
@@ -604,7 +631,8 @@ export function DashboardPage() {
             rowHeight={80}
             isDraggable={isArranging}
             isResizable={isArranging}
-            draggableHandle=".drag-handle"
+            draggableCancel="button, a, input, select, textarea, [role='menu'], [role='menuitem'], .widget-no-drag"
+            resizeHandles={["s", "e", "se"]}
             onLayoutChange={(currentLayout) => {
               if (isArranging) {
                 updateLayout(ws, currentLayout);
@@ -616,11 +644,13 @@ export function DashboardPage() {
             {visibleItems.map((item) => {
               const widgetDef = WIDGET_REGISTRY.find((w) => w.id === item.i);
               let label = widgetDef?.label ?? "Widget";
-              if (item.i === "stat_total_hours" && range !== 7) {
-                label = "Total Hours (Period)";
+              if (item.i === "stat_total_hours") {
+                if (range === 1) label = "Total Hours (Today)";
+                else if (range !== 7) label = "Total Hours (Period)";
               }
-              if (item.i === "weekly_progress" && range !== 7) {
-                label = "Progress Chart";
+              if (item.i === "weekly_progress") {
+                if (range === 1) label = "Today's Progress";
+                else if (range !== 7) label = "Progress Chart";
               }
 
               return (

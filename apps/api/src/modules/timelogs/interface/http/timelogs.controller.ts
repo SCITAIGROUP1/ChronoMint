@@ -1,10 +1,11 @@
 import {
   createTimeLogSchema,
   listTimeLogsQuerySchema,
+  listTimeLogOccupancyQuerySchema,
   updateTimeLogSchema,
   ROUTES
 } from "@chronomint/contracts";
-import type { ListTimeLogsQueryDto } from "@chronomint/contracts";
+import type { ListTimeLogsQueryDto, ListTimeLogOccupancyQueryDto } from "@chronomint/contracts";
 import {
   Body,
   Controller,
@@ -43,6 +44,18 @@ export class TimelogsController {
       user.userId,
       user.role,
       query as ListTimeLogsQueryDto
+    );
+  }
+
+  @Get(ROUTES.TIMELOGS.OCCUPANCY)
+  occupancy(
+    @CurrentUser() user: RequestUser,
+    @Query(new ZodValidationPipe(listTimeLogOccupancyQuerySchema)) query: unknown
+  ) {
+    return this.timelogs.listOccupancy(
+      user.userId,
+      user.role,
+      query as ListTimeLogOccupancyQueryDto
     );
   }
 

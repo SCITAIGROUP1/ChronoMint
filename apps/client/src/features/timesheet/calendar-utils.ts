@@ -16,8 +16,19 @@ export function addDays(d: Date, days: number): Date {
 
 /** Monday-based week start */
 export function startOfWeek(d: Date): Date {
+  return startOfWeekWithPreference(d, "monday");
+}
+
+export function startOfWeekWithPreference(
+  d: Date,
+  weekStart: "monday" | "sunday" = "monday"
+): Date {
   const x = startOfDay(d);
   const day = x.getDay();
+  if (weekStart === "sunday") {
+    x.setDate(x.getDate() - day);
+    return x;
+  }
   const diff = day === 0 ? -6 : 1 - day;
   x.setDate(x.getDate() + diff);
   return x;
@@ -169,20 +180,35 @@ export function getZoneHourAndMinute(
   date: Date,
   timezone: string
 ): { hour: number; minute: number } {
+  const tz = timezone?.trim() || "UTC";
   try {
     const formatter = new Intl.DateTimeFormat("en-US", {
-      timeZone: timezone,
-      hour: "numeric",
-      minute: "numeric",
-      hour12: false
+      timeZone: tz,
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23"
+    });
+    const parts = formatter.formatToParts(date);
+    const getVal = (type: string) => Number(parts.find((p) => p.type === type)?.value);
+    let hour = getVal("hour");
+    const minute = getVal("minute");
+    if (!Number.isFinite(hour) || !Number.isFinite(minute)) {
+      throw new Error("Invalid timezone parts");
+    }
+    if (hour === 24) hour = 0;
+    return { hour, minute };
+  } catch {
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: "UTC",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23"
     });
     const parts = formatter.formatToParts(date);
     const getVal = (type: string) => Number(parts.find((p) => p.type === type)?.value);
     let hour = getVal("hour");
     if (hour === 24) hour = 0;
     return { hour, minute: getVal("minute") };
-  } catch {
-    return { hour: date.getHours(), minute: date.getMinutes() };
   }
 }
 
@@ -238,16 +264,42 @@ export function minutesFromCalendarStart(d: Date, timezone: string = "UTC"): num
   return hour * 60 + minute - CALENDAR_START_HOUR * 60;
 }
 
+/** Calendar date key (YYYY-MM-DD) in the user's timezone — use for column identity and clipping. */
+export function calendarDateKey(day: Date, timezone: string = "UTC"): string {
+  return toDateKeyInZone(day, timezone);
+}
+
+export function dayBoundsFromDateKey(
+  dateKey: string,
+  timezone: string = "UTC"
+): { dayStart: Date; dayEnd: Date } {
+  const [y, m, d] = dateKey.split("-").map(Number);
+  const dayStart = localMidnightUtcInZone(y, m, d, timezone);
+  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+  return { dayStart, dayEnd };
+}
+
 export function clipLogToDay(
   log: { startTime: string; endTime: string },
   day: Date,
   timezone: string = "UTC"
 ): { start: Date; end: Date } | null {
-  const y = day.getFullYear();
-  const m = day.getMonth() + 1;
-  const d = day.getDate();
-  const dayStart = localMidnightUtcInZone(y, m, d, timezone);
-  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+  const dateKey = calendarDateKey(day, timezone);
+  const { dayStart, dayEnd } = dayBoundsFromDateKey(dateKey, timezone);
+  const logStart = new Date(log.startTime);
+  const logEnd = new Date(log.endTime);
+  const start = new Date(Math.max(logStart.getTime(), dayStart.getTime()));
+  const end = new Date(Math.min(logEnd.getTime(), dayEnd.getTime()));
+  if (end <= start) return null;
+  return { start, end };
+}
+
+export function clipLogToDateKey(
+  log: { startTime: string; endTime: string },
+  dateKey: string,
+  timezone: string = "UTC"
+): { start: Date; end: Date } | null {
+  const { dayStart, dayEnd } = dayBoundsFromDateKey(dateKey, timezone);
   const logStart = new Date(log.startTime);
   const logEnd = new Date(log.endTime);
   const start = new Date(Math.max(logStart.getTime(), dayStart.getTime()));
@@ -381,6 +433,188 @@ export function getMonthGrid(month: Date): (Date | null)[][] {
     weeks.push(cells.slice(i, i + 7));
   }
   return weeks;
+}
+
+export function snapInstantToSlot(instant: Date, timezone: string = "UTC"): Date {
+  const key = toDateKeyInZone(instant, timezone);
+  const { hour, minute } = getZoneHourAndMinute(instant, timezone);
+  const totalMin = hour * 60 + minute;
+  const snappedMin = Math.round(totalMin / SLOT_MINUTES) * SLOT_MINUTES;
+  const snappedHour = Math.floor(snappedMin / 60);
+  const snappedMinute = snappedMin % 60;
+  const hh = String(snappedHour).padStart(2, "0");
+  const mm = String(snappedMinute).padStart(2, "0");
+  return combineDayAndTimeInZone(key, `${hh}:${mm}`, timezone);
+}
+
+/** Shift a log by a calendar drag, snapping to the same 30-minute grid as slot selection. */
+export function findOverlappingLog(
+  logs: { id: string; startTime: string; endTime: string }[],
+  start: Date,
+  end: Date,
+  excludeId?: string
+) {
+  return logs.find(
+    (log) => log.id !== excludeId && new Date(log.startTime) < end && new Date(log.endTime) > start
+  );
+}
+
+export type OccupancySegment = {
+  id: string;
+  start: Date;
+  end: Date;
+  workspaceId: string;
+  workspaceName: string;
+  label: string;
+};
+
+export function buildDayOccupancySegments(
+  dateKey: string,
+  occupancy: {
+    id: string;
+    startTime: string;
+    endTime: string;
+    workspaceId: string;
+    workspaceName: string;
+    label: string;
+  }[],
+  timezone: string,
+  currentWorkspaceId: string
+): OccupancySegment[] {
+  return occupancy
+    .filter((item) => item.workspaceId !== currentWorkspaceId)
+    .map((item) => {
+      const clip = clipLogToDateKey(item, dateKey, timezone);
+      if (!clip) return null;
+      return {
+        id: item.id,
+        start: clip.start,
+        end: clip.end,
+        workspaceId: item.workspaceId,
+        workspaceName: item.workspaceName,
+        label: item.label
+      };
+    })
+    .filter((s): s is OccupancySegment => s !== null);
+}
+
+export function intervalsOverlap(startA: Date, endA: Date, startB: Date, endB: Date): boolean {
+  return startA < endB && endA > startB;
+}
+
+export function isSlotOccupiedElsewhere(
+  slotStart: Date,
+  slotEnd: Date,
+  segments: OccupancySegment[],
+  excludeLogId?: string
+): OccupancySegment | undefined {
+  return segments.find(
+    (seg) => seg.id !== excludeLogId && intervalsOverlap(slotStart, slotEnd, seg.start, seg.end)
+  );
+}
+
+export function findOccupancyConflict(
+  occupancy: {
+    id: string;
+    startTime: string;
+    endTime: string;
+    workspaceName: string;
+    label: string;
+  }[],
+  start: Date,
+  end: Date,
+  excludeId?: string
+) {
+  return occupancy.find(
+    (item) =>
+      item.id !== excludeId && new Date(item.startTime) < end && new Date(item.endTime) > start
+  );
+}
+
+export function occupancyConflictLabel(item: { workspaceName: string; label: string }): string {
+  return `${item.workspaceName}: ${item.label}`;
+}
+
+export function slotIntervalForIndex(
+  dateKey: string,
+  index: number,
+  timezone: string
+): { start: Date; end: Date } {
+  const { hour, minute } = timeFromSlotIndex(index);
+  const hh = String(hour).padStart(2, "0");
+  const mm = String(minute).padStart(2, "0");
+  const start = combineDayAndTimeInZone(dateKey, `${hh}:${mm}`, timezone);
+  const end = new Date(start.getTime() + SLOT_MINUTES * 60_000);
+  return { start, end };
+}
+
+export function slotRangeInterval(
+  dateKey: string,
+  startIndex: number,
+  endIndex: number,
+  timezone: string
+): { start: Date; end: Date } {
+  const lo = Math.min(startIndex, endIndex);
+  const hi = Math.max(startIndex, endIndex);
+  const start = slotIntervalForIndex(dateKey, lo, timezone).start;
+  const end = slotIntervalForIndex(dateKey, hi, timezone).end;
+  return { start, end };
+}
+
+export function rangeOccupiedElsewhere(
+  dateKey: string,
+  startIndex: number,
+  endIndex: number,
+  segments: OccupancySegment[],
+  timezone: string,
+  excludeLogId?: string
+): OccupancySegment | undefined {
+  const { start, end } = slotRangeInterval(dateKey, startIndex, endIndex, timezone);
+  return isSlotOccupiedElsewhere(start, end, segments, excludeLogId);
+}
+
+export function formatSegmentTimeRange(start: Date, end: Date, timezone: string): string {
+  const opts: Intl.DateTimeFormatOptions = {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: timezone
+  };
+  return `${start.toLocaleTimeString(undefined, opts)} – ${end.toLocaleTimeString(undefined, opts)}`;
+}
+
+/** User-facing overlap explanation (one person, one timeline — any project/workspace). */
+export function formatOverlapError(
+  conflictLabel: string,
+  start: Date,
+  end: Date,
+  timezone: string
+): string {
+  const timeOpts: Intl.DateTimeFormatOptions = {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: timezone
+  };
+  const range = `${start.toLocaleTimeString(undefined, timeOpts)} – ${end.toLocaleTimeString(undefined, timeOpts)}`;
+  return `You can't log time for two projects at once — even across workspaces. This slot overlaps "${conflictLabel}" (${range}). Check List view for all entries that day.`;
+}
+
+export function computeLogMoveRange(
+  log: { startTime: string; endTime: string },
+  anchorClipStart: Date,
+  previewStart: Date,
+  timezone: string = "UTC"
+): { start: Date; end: Date } {
+  const logStart = new Date(log.startTime);
+  const logEnd = new Date(log.endTime);
+  const durationMs = logEnd.getTime() - logStart.getTime();
+
+  const snappedAnchor = snapInstantToSlot(anchorClipStart, timezone);
+  const snappedPreview = snapInstantToSlot(previewStart, timezone);
+  const deltaMs = snappedPreview.getTime() - snappedAnchor.getTime();
+
+  const start = new Date(logStart.getTime() + deltaMs);
+  const end = new Date(start.getTime() + durationMs);
+  return { start, end };
 }
 
 export function pointerYToTime(

@@ -43,8 +43,8 @@ export function WidgetControlPanel({
               </h3>
             </div>
             <p className="text-[11px] text-muted-foreground leading-normal max-w-[320px]">
-              Toggle widgets on/off below. Click and drag widget headers to move, or drag
-              bottom-right corner brackets to resize.
+              Toggle widgets on/off below. Drag anywhere on a widget to reposition it, or drag edges
+              or the corner to resize.
             </p>
           </div>
           <button

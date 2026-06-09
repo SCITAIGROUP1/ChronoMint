@@ -1,4 +1,89 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { DomainException } from "../../../common/errors/domain.exception";
+import { TimelogsService } from "./timelogs.service";
+
+describe("TimelogsService listOccupancy", () => {
+  let service: TimelogsService;
+  let mockPrisma: {
+    timeLog: { findMany: ReturnType<typeof vi.fn> };
+  };
+  let mockTimesheetLock: { getPeriodStatus: ReturnType<typeof vi.fn> };
+
+  beforeEach(() => {
+    mockPrisma = {
+      timeLog: { findMany: vi.fn() }
+    };
+    mockTimesheetLock = {
+      getPeriodStatus: vi.fn().mockResolvedValue("DRAFT")
+    };
+    service = new TimelogsService(
+      mockPrisma as never,
+      {} as never,
+      {} as never,
+      mockTimesheetLock as never
+    );
+  });
+
+  it("rejects admin role", async () => {
+    await expect(
+      service.listOccupancy("user-1", "ADMIN", {
+        from: "2025-01-01T00:00:00.000Z",
+        to: "2025-01-08T00:00:00.000Z"
+      })
+    ).rejects.toSatisfy(
+      (err: unknown) => err instanceof DomainException && err.getStatus() === 403
+    );
+  });
+
+  it("maps logs to occupancy items with labels", async () => {
+    mockPrisma.timeLog.findMany.mockResolvedValue([
+      {
+        id: "log-1",
+        startTime: new Date("2025-01-02T09:00:00.000Z"),
+        endTime: new Date("2025-01-02T10:00:00.000Z"),
+        source: "manual",
+        task: {
+          projectId: "proj-1",
+          taskName: "Design",
+          project: {
+            name: "Website",
+            workspace: { id: "ws-2", name: "Other Co" }
+          }
+        }
+      }
+    ]);
+    mockTimesheetLock.getPeriodStatus.mockResolvedValue("SUBMITTED");
+
+    const res = await service.listOccupancy("user-1", "MEMBER", {
+      from: "2025-01-01T00:00:00.000Z",
+      to: "2025-01-08T00:00:00.000Z"
+    });
+
+    expect(mockPrisma.timeLog.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          userId: "user-1",
+          task: {
+            project: {
+              workspace: { members: { some: { userId: "user-1" } } }
+            }
+          }
+        })
+      })
+    );
+    expect(res.items).toHaveLength(1);
+    expect(res.items[0]).toEqual({
+      id: "log-1",
+      startTime: "2025-01-02T09:00:00.000Z",
+      endTime: "2025-01-02T10:00:00.000Z",
+      workspaceId: "ws-2",
+      workspaceName: "Other Co",
+      label: "Website — Design",
+      source: "manual",
+      isLocked: true
+    });
+  });
+});
 
 describe("TimelogsService", () => {
   it("duration calculation", () => {

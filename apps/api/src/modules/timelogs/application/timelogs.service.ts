@@ -2,7 +2,9 @@ import type {
   CreateTimeLogDto,
   UpdateTimeLogDto,
   ListTimeLogsQueryDto,
-  ListTimeLogsResponseDto
+  ListTimeLogsResponseDto,
+  ListTimeLogOccupancyQueryDto,
+  ListTimeLogOccupancyResponseDto
 } from "@chronomint/contracts";
 import { ErrorCodes } from "@chronomint/contracts";
 import { Injectable, HttpStatus } from "@nestjs/common";
@@ -91,6 +93,73 @@ export class TimelogsService {
       items: page.map((l) => this.toDto(l)),
       nextCursor: hasMore ? page[page.length - 1]!.id : undefined
     };
+  }
+
+  async listOccupancy(
+    userId: string,
+    role: string,
+    query: ListTimeLogOccupancyQueryDto
+  ): Promise<ListTimeLogOccupancyResponseDto> {
+    if (role === "ADMIN") {
+      throw new DomainException(
+        ErrorCodes.FORBIDDEN,
+        "Occupancy is only available for members",
+        HttpStatus.FORBIDDEN
+      );
+    }
+
+    const from = new Date(query.from);
+    const to = new Date(query.to);
+
+    const logs = await this.prisma.timeLog.findMany({
+      where: {
+        userId,
+        startTime: { lt: to },
+        endTime: { gt: from },
+        task: {
+          project: {
+            workspace: { members: { some: { userId } } }
+          }
+        }
+      },
+      include: {
+        task: {
+          include: {
+            project: {
+              include: { workspace: { select: { id: true, name: true } } }
+            }
+          }
+        }
+      },
+      orderBy: { startTime: "asc" }
+    });
+
+    const lockCache = new Map<string, boolean>();
+    const items = await Promise.all(
+      logs.map(async (log) => {
+        const projectId = log.task.projectId;
+        const cacheKey = `${projectId}:${log.startTime.toISOString()}`;
+        let isLocked = lockCache.get(cacheKey);
+        if (isLocked === undefined) {
+          const status = await this.timesheetLock.getPeriodStatus(userId, projectId, log.startTime);
+          isLocked = status === "SUBMITTED" || status === "APPROVED";
+          lockCache.set(cacheKey, isLocked);
+        }
+
+        return {
+          id: log.id,
+          startTime: log.startTime.toISOString(),
+          endTime: log.endTime.toISOString(),
+          workspaceId: log.task.project.workspace.id,
+          workspaceName: log.task.project.workspace.name,
+          label: `${log.task.project.name} — ${log.task.taskName}`,
+          source: log.source as "manual" | "timer",
+          isLocked
+        };
+      })
+    );
+
+    return { items };
   }
 
   async create(workspaceId: string, userId: string, dto: CreateTimeLogDto, actorId?: string) {
@@ -271,19 +340,47 @@ export class TimelogsService {
       throw new DomainException(ErrorCodes.NOT_FOUND, "Task not found", HttpStatus.NOT_FOUND);
   }
 
+  private formatOverlapTimeRange(start: Date, end: Date): string {
+    const opts: Intl.DateTimeFormatOptions = { hour: "numeric", minute: "2-digit" };
+    return `${start.toLocaleTimeString("en-US", opts)} – ${end.toLocaleTimeString("en-US", opts)}`;
+  }
+
   private async assertNoOverlap(userId: string, start: Date, end: Date, excludeId?: string) {
     const overlap = await this.prisma.timeLog.findFirst({
       where: {
         userId,
-        id: excludeId ? { not: excludeId } : undefined,
+        ...(excludeId ? { id: { not: excludeId } } : {}),
         startTime: { lt: end },
-        endTime: { gt: start }
+        endTime: { gt: start },
+        task: {
+          project: {
+            workspace: { members: { some: { userId } } }
+          }
+        }
+      },
+      select: {
+        description: true,
+        startTime: true,
+        endTime: true,
+        source: true,
+        task: {
+          select: {
+            taskName: true,
+            project: { select: { name: true } }
+          }
+        }
       }
     });
     if (overlap) {
+      const label = overlap.task
+        ? `${overlap.task.project.name} · ${overlap.task.taskName}`
+        : overlap.description?.trim() || "another entry";
+      const range = this.formatOverlapTimeRange(overlap.startTime, overlap.endTime);
+      const sourceHint =
+        overlap.source !== "manual" ? " (from timer — edit or remove that entry first)" : "";
       throw new DomainException(
         ErrorCodes.TIMELOG_OVERLAP,
-        "Overlapping time entry",
+        `You can't log time for two projects at once. This overlaps "${label}" (${range})${sourceHint}.`,
         HttpStatus.CONFLICT
       );
     }

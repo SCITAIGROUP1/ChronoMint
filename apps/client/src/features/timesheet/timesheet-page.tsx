@@ -1,13 +1,15 @@
 "use client";
 
-import { ROUTES } from "@chronomint/contracts";
+import { ROUTES, resolveEffectiveTimezone } from "@chronomint/contracts";
 import type {
+  ListTimeLogOccupancyResponseDto,
   ListTimeLogsResponseDto,
   ListTimesheetSubmissionsResponseDto,
   TimeLogDto,
   TaskDto,
   ProjectDto,
-  TimesheetPeriodDto
+  TimesheetPeriodDto,
+  UserProfileDto
 } from "@chronomint/contracts";
 import {
   Button,
@@ -26,8 +28,8 @@ import {
   ConfirmDialog,
   Badge
 } from "@chronomint/ui";
-import { toDateInputValue } from "@chronomint/web-shared";
-import { Eye, EyeOff } from "lucide-react";
+import { api as sharedApi, toDateInputValue } from "@chronomint/web-shared";
+import { Clock, Eye, EyeOff, Lock } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -38,10 +40,18 @@ import {
   formatWeekRange,
   getWeekDays,
   startOfMonth,
-  startOfWeek,
+  startOfWeekWithPreference,
   startOfDay,
   localMidnightUtcInZone,
-  todayInZone
+  todayInZone,
+  buildDayOccupancySegments,
+  calendarDateKey,
+  findOccupancyConflict,
+  formatOverlapError,
+  occupancyConflictLabel,
+  rangeOccupiedElsewhere,
+  slotIndexFromTime,
+  slotIntervalForIndex
 } from "./calendar-utils";
 import {
   TimeEntryDialog,
@@ -64,7 +74,6 @@ import { formatTaskLabel } from "@/lib/project-labels";
 import { useProjectsStore } from "@/stores/projects.store";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 import { useTimesheetStore } from "@/stores/timesheet.store";
-import { useWorkspacesStore } from "@/stores/workspaces.store";
 
 type ViewMode = "day" | "week" | "month" | "list";
 
@@ -76,16 +85,37 @@ function buildLogsQuery(from: Date, to: Date): string {
   return `${ROUTES.TIMELOGS.LIST}?${params}`;
 }
 
+function buildOccupancyQuery(from: Date, to: Date): string {
+  const params = new URLSearchParams({
+    from: from.toISOString(),
+    to: to.toISOString()
+  });
+  return `${ROUTES.TIMELOGS.OCCUPANCY}?${params}`;
+}
+
 export function TimesheetPage() {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
-  const workspaces = useWorkspacesStore((s) => s.workspaces);
-  const activeWorkspace = workspaces.find((w) => w.id === ws);
-  const timezone =
-    typeof activeWorkspace?.settings?.timezone === "string"
-      ? activeWorkspace.settings.timezone
-      : "UTC";
+  const [userPreferences, setUserPreferences] = useState<{
+    timezone?: string;
+    weekStart?: "monday" | "sunday";
+  }>({});
+
+  useEffect(() => {
+    if (!ws) return;
+    sharedApi<UserProfileDto>(ROUTES.USERS.ME, { workspaceId: ws })
+      .then((profile) => setUserPreferences(profile.preferences ?? {}))
+      .catch(() => {});
+  }, [ws]);
+
+  const timezone = resolveEffectiveTimezone(
+    userPreferences,
+    Intl.DateTimeFormat().resolvedOptions().timeZone
+  );
+
+  const weekStartPref = userPreferences.weekStart ?? "monday";
 
   const { logs, setLogs } = useTimesheetStore();
+  const [occupancy, setOccupancy] = useState<ListTimeLogOccupancyResponseDto["items"]>([]);
   const { tasks, projects, workspaceNamesById, setTasks, setProjects } = useProjectsStore();
 
   const [view, setView] = useState<ViewMode>("week");
@@ -98,10 +128,15 @@ export function TimesheetPage() {
   const [confirmDeleteLog, setConfirmDeleteLog] = useState<TimeLogDto | null>(null);
 
   const [showSummary, setShowSummary] = useState(true);
+  const [showOccupancyOverlay, setShowOccupancyOverlay] = useState(true);
   useEffect(() => {
     const saved = localStorage.getItem("chronomint-show-timesheet-summary");
     if (saved === "false") {
       setShowSummary(false);
+    }
+    const overlaySaved = localStorage.getItem("chronomint-show-occupancy-overlay");
+    if (overlaySaved === "false") {
+      setShowOccupancyOverlay(false);
     }
   }, []);
 
@@ -113,7 +148,18 @@ export function TimesheetPage() {
     });
   }, []);
 
-  const weekStart = useMemo(() => startOfWeek(anchor), [anchor]);
+  const toggleOccupancyOverlay = useCallback(() => {
+    setShowOccupancyOverlay((prev) => {
+      const next = !prev;
+      localStorage.setItem("chronomint-show-occupancy-overlay", String(next));
+      return next;
+    });
+  }, []);
+
+  const weekStart = useMemo(
+    () => startOfWeekWithPreference(anchor, weekStartPref),
+    [anchor, weekStartPref]
+  );
   const monthStart = useMemo(() => startOfMonth(anchor), [anchor]);
 
   const [submissions, setSubmissions] = useState<TimesheetPeriodDto[]>([]);
@@ -159,6 +205,8 @@ export function TimesheetPage() {
     },
     [tasks, projects]
   );
+
+  const isTimerEntry = useCallback((log: TimeLogDto) => log.source === "timer", []);
 
   const isEntryLocked = useCallback(
     (log: TimeLogDto) => {
@@ -250,10 +298,42 @@ export function TimesheetPage() {
     setLogs(res.items);
   }, [ws, setLogs, visibleRange]);
 
+  const refreshOccupancy = useCallback(async () => {
+    if (!visibleRange) {
+      setOccupancy([]);
+      return;
+    }
+    try {
+      const res = await api<ListTimeLogOccupancyResponseDto>(
+        buildOccupancyQuery(visibleRange.from, visibleRange.to),
+        { workspaceId: ws }
+      );
+      setOccupancy(res.items);
+    } catch (e) {
+      setOccupancy([]);
+      if (e instanceof Error && e.message.includes("404")) {
+        toast.error("Occupied slots unavailable — restart the API (pnpm serve).");
+      }
+    }
+  }, [ws, visibleRange]);
+
+  const overlapConflictMessage = useCallback(
+    (conflict: { workspaceName: string; label: string; startTime: string; endTime: string }) => {
+      return formatOverlapError(
+        occupancyConflictLabel(conflict),
+        new Date(conflict.startTime),
+        new Date(conflict.endTime),
+        timezone
+      );
+    },
+    [timezone]
+  );
+
   useEffect(() => {
     if (!ws) return;
     void refreshLogs();
-  }, [ws, refreshLogs]);
+    void refreshOccupancy();
+  }, [ws, refreshLogs, refreshOccupancy]);
 
   useEffect(() => {
     if (timezone) {
@@ -295,10 +375,46 @@ export function TimesheetPage() {
   }
 
   function openCreateSlot(day: Date, hour: number, minute: number) {
+    if (showOccupancyOverlay) {
+      const index = slotIndexFromTime(hour, minute);
+      if (index >= 0) {
+        const dateKey = calendarDateKey(day, timezone);
+        const segments = buildDayOccupancySegments(dateKey, occupancy, timezone, ws);
+        const { start, end } = slotIntervalForIndex(dateKey, index, timezone);
+        const conflict = segments.find((seg) => start < seg.end && end > seg.start);
+        if (conflict) {
+          const msg = formatOverlapError(
+            `${conflict.workspaceName}: ${conflict.label}`,
+            conflict.start,
+            conflict.end,
+            timezone
+          );
+          setError(msg);
+          toast.error(msg);
+          return;
+        }
+      }
+    }
     openDraft(draftFromSlot(day, hour, minute, timezone));
   }
 
   function openCreateRange(day: Date, startIndex: number, endIndex: number) {
+    if (showOccupancyOverlay) {
+      const dateKey = calendarDateKey(day, timezone);
+      const segments = buildDayOccupancySegments(dateKey, occupancy, timezone, ws);
+      const conflict = rangeOccupiedElsewhere(dateKey, startIndex, endIndex, segments, timezone);
+      if (conflict) {
+        const msg = formatOverlapError(
+          `${conflict.workspaceName}: ${conflict.label}`,
+          conflict.start,
+          conflict.end,
+          timezone
+        );
+        setError(msg);
+        toast.error(msg);
+        return;
+      }
+    }
     openDraft(draftFromSlotRange(day, startIndex, endIndex, timezone));
   }
 
@@ -334,8 +450,17 @@ export function TimesheetPage() {
       return;
     }
     const { startTime, endTime } = draftToIsoRange(draft, timezone);
-    if (new Date(endTime) <= new Date(startTime)) {
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    if (end <= start) {
       setError("End time must be after start time.");
+      return;
+    }
+    const conflict = findOccupancyConflict(occupancy, start, end, editingLog?.id);
+    if (conflict) {
+      const msg = overlapConflictMessage(conflict);
+      setError(msg);
+      toast.error(msg);
       return;
     }
     setSaving(true);
@@ -366,7 +491,7 @@ export function TimesheetPage() {
           body: JSON.stringify(body)
         });
       }
-      await refreshLogs();
+      await Promise.all([refreshLogs(), refreshOccupancy()]);
       closeDialog();
       toast.success(editingLog ? "Time entry updated!" : "Time entry created!");
     } catch (e) {
@@ -394,7 +519,7 @@ export function TimesheetPage() {
     setError(null);
     try {
       await api(`/timelogs/${target.id}`, { method: "DELETE", workspaceId: ws });
-      await refreshLogs();
+      await Promise.all([refreshLogs(), refreshOccupancy()]);
       if (editingLog?.id === target.id) closeDialog();
       toast.success("Time entry deleted!");
     } catch (e) {
@@ -409,6 +534,13 @@ export function TimesheetPage() {
   async function duplicateEntry(log: TimeLogDto, start: Date, end: Date) {
     if (isEntryLocked(log)) return;
     if (end <= start) return;
+    const conflict = findOccupancyConflict(occupancy, start, end);
+    if (conflict) {
+      const msg = overlapConflictMessage(conflict);
+      setError(msg);
+      toast.error(msg);
+      return;
+    }
     setError(null);
     try {
       const created = await api<TimeLogDto>(ROUTES.TIMELOGS.CREATE, {
@@ -422,7 +554,7 @@ export function TimesheetPage() {
           isBillable: log.isBillable
         })
       });
-      await refreshLogs();
+      await Promise.all([refreshLogs(), refreshOccupancy()]);
       openDraft(draftFromLog(created, tasks, timezone), created);
       toast.success("Time entry duplicated!");
     } catch (e) {
@@ -433,8 +565,17 @@ export function TimesheetPage() {
   }
 
   async function updateEntryTimes(log: TimeLogDto, start: Date, end: Date, errorLabel: string) {
-    if (isEntryLocked(log)) return;
+    if (isEntryLocked(log) || isTimerEntry(log)) return;
     if (end <= start) return;
+
+    const conflict = findOccupancyConflict(occupancy, start, end, log.id);
+    if (conflict) {
+      const msg = overlapConflictMessage(conflict);
+      setError(msg);
+      toast.error(msg);
+      return;
+    }
+
     setError(null);
     try {
       await api(`/timelogs/${log.id}`, {
@@ -445,7 +586,7 @@ export function TimesheetPage() {
           endTime: end.toISOString()
         })
       });
-      await refreshLogs();
+      await Promise.all([refreshLogs(), refreshOccupancy()]);
       toast.success("Time entry updated!");
     } catch (e) {
       const msg = e instanceof Error ? e.message : errorLabel;
@@ -524,25 +665,65 @@ export function TimesheetPage() {
             <span className="text-sm font-medium">{rangeLabel}</span>
           </div>
 
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={toggleSummary}
-            className="text-muted-foreground hover:text-foreground text-xs flex items-center gap-1.5 h-8"
-          >
-            {showSummary ? (
-              <>
-                <EyeOff className="h-3.5 w-3.5" />
-                Hide summary
-              </>
-            ) : (
-              <>
-                <Eye className="h-3.5 w-3.5" />
-                Show summary
-              </>
+          <div className="flex items-center gap-1">
+            {(view === "day" || view === "week") && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={toggleOccupancyOverlay}
+                className="text-muted-foreground hover:text-foreground text-xs flex items-center gap-1.5 h-8"
+              >
+                {showOccupancyOverlay ? (
+                  <>
+                    <EyeOff className="h-3.5 w-3.5" />
+                    Hide occupied slots
+                  </>
+                ) : (
+                  <>
+                    <Eye className="h-3.5 w-3.5" />
+                    Show occupied slots
+                  </>
+                )}
+              </Button>
             )}
-          </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={toggleSummary}
+              className="text-muted-foreground hover:text-foreground text-xs flex items-center gap-1.5 h-8"
+            >
+              {showSummary ? (
+                <>
+                  <EyeOff className="h-3.5 w-3.5" />
+                  Hide summary
+                </>
+              ) : (
+                <>
+                  <Eye className="h-3.5 w-3.5" />
+                  Show summary
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {showOccupancyOverlay && (view === "day" || view === "week") && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/30 px-2.5 py-0.5 text-[11px] text-muted-foreground">
+            <span className="occupancy-legend-swatch inline-block h-2.5 w-3 rounded-[2px]" />
+            Busy elsewhere
+          </span>
+          <span className="inline-flex items-center gap-1 rounded-full border border-dashed border-muted-foreground/30 px-2.5 py-0.5 text-[11px] text-muted-foreground">
+            <Lock className="h-3 w-3" />
+            Locked
+          </span>
+          <span className="inline-flex items-center gap-1 rounded-full border border-dotted border-muted-foreground/30 px-2.5 py-0.5 text-[11px] text-muted-foreground">
+            <Clock className="h-3 w-3" />
+            Timer
+          </span>
         </div>
       )}
 
@@ -645,8 +826,14 @@ export function TimesheetPage() {
           view={view}
           days={calendarDays}
           logs={logs}
+          occupancy={occupancy}
+          workspaceId={ws}
+          showOccupancyOverlay={showOccupancyOverlay}
           taskName={(id) => taskLabel(id)}
           entryColor={entryColor}
+          isEntryLocked={isEntryLocked}
+          isTimerEntry={isTimerEntry}
+          overlapConflictMessage={overlapConflictMessage}
           onSlotClick={openCreateSlot}
           onSlotRangeSelect={openCreateRange}
           onEntryClick={openEditEntry}

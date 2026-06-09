@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
+  changePasswordSchema,
   createTimeLogSchema,
   loginSchema,
   reportQuerySchema,
+  resolveEffectiveDailyTargetHours,
+  resolveEffectiveTimezone,
   ROUTES,
   startTimerSchema,
-  dashboardReportSchema
+  dashboardReportSchema,
+  updateUserPreferencesSchema
 } from "./index";
 
 describe("contracts", () => {
@@ -18,8 +22,45 @@ describe("contracts", () => {
     expect(ROUTES.TIMELOGS.AUDIT_EVENTS("abc")).toBe("/timelogs/abc/audit-events");
   });
 
+  it("exposes timelog occupancy route", () => {
+    expect(ROUTES.TIMELOGS.OCCUPANCY).toBe("/timelogs/occupancy");
+  });
+
   it("exposes timesheet submissions route", () => {
     expect(ROUTES.TIMESHEETS.MY_SUBMISSIONS).toBe("/timesheets/submissions");
+  });
+
+  it("exposes user profile routes", () => {
+    expect(ROUTES.USERS.ME).toBe("/users/me");
+    expect(ROUTES.USERS.PREFERENCES).toBe("/users/me/preferences");
+    expect(ROUTES.USERS.PASSWORD).toBe("/users/me/password");
+  });
+
+  it("validates change password", () => {
+    const r = changePasswordSchema.safeParse({
+      currentPassword: "old-secret",
+      newPassword: "new-secret"
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("validates user preferences partial update", () => {
+    const r = updateUserPreferencesSchema.safeParse({ dailyTargetHours: 6 });
+    expect(r.success).toBe(true);
+  });
+
+  it("resolves effective daily target hours", () => {
+    expect(resolveEffectiveDailyTargetHours({ dailyTargetHours: 6 }, 8)).toBe(6);
+    expect(resolveEffectiveDailyTargetHours({}, 7)).toBe(7);
+    expect(resolveEffectiveDailyTargetHours({}, undefined)).toBe(8);
+  });
+
+  it("resolves effective timezone from preference or browser default", () => {
+    expect(resolveEffectiveTimezone({ timezone: "Asia/Colombo" }, "America/Los_Angeles")).toBe(
+      "Asia/Colombo"
+    );
+    expect(resolveEffectiveTimezone({}, "Asia/Colombo")).toBe("Asia/Colombo");
+    expect(resolveEffectiveTimezone({}, undefined)).toBe("UTC");
   });
 
   it("rejects timelog when end before start", () => {

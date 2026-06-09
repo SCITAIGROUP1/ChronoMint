@@ -9,13 +9,14 @@
 
 ## API
 
-| Method | Route                        | Contract                                                                      |
-| ------ | ---------------------------- | ----------------------------------------------------------------------------- |
-| GET    | `/timelogs`                  | [timelog.dto.ts](../../packages/contracts/src/dto/timelog.dto.ts)             |
-| POST   | `/timelogs`                  | timelog.dto                                                                   |
-| PATCH  | `/timelogs/:id`              | timelog.dto                                                                   |
-| DELETE | `/timelogs/:id`              | timelog.dto                                                                   |
-| GET    | `/timelogs/:id/audit-events` | [timelog-audit.dto.ts](../../packages/contracts/src/dto/timelog-audit.dto.ts) |
+| Method | Route                        | Contract                                                                              |
+| ------ | ---------------------------- | ------------------------------------------------------------------------------------- |
+| GET    | `/timelogs`                  | [timelog.dto.ts](../../packages/contracts/src/dto/timelog.dto.ts)                     |
+| GET    | `/timelogs/occupancy`        | [timelog-occupancy.dto.ts](../../packages/contracts/src/dto/timelog-occupancy.dto.ts) |
+| POST   | `/timelogs`                  | timelog.dto                                                                           |
+| PATCH  | `/timelogs/:id`              | timelog.dto                                                                           |
+| DELETE | `/timelogs/:id`              | timelog.dto                                                                           |
+| GET    | `/timelogs/:id/audit-events` | [timelog-audit.dto.ts](../../packages/contracts/src/dto/timelog-audit.dto.ts)         |
 
 | Method | Route                                 | Contract                                                              |
 | ------ | ------------------------------------- | --------------------------------------------------------------------- |
@@ -36,6 +37,18 @@ Controller: [timelogs.controller.ts](../../apps/api/src/modules/timelogs/interfa
 
 - **MEMBER:** only their logs are returned (`userId` filter ignored).
 - **ADMIN:** all workspace logs; optional `userId` filter applies.
+
+### Occupancy (member calendar)
+
+**Given** an authenticated **MEMBER**  
+**When** they GET `/timelogs/occupancy` with required `from` and `to`  
+**Then** their time logs in that interval are returned for **workspaces they belong to** only (same list as the workspace switcher). Logs in projects/workspaces they cannot access are excluded.
+
+**When** checking overlap on create/update  
+**Then** only entries in accessible workspaces count toward the one-timeline rule.
+
+**When** an **ADMIN** calls the same route  
+**Then** `403 FORBIDDEN` (client calendar uses workspace-scoped list for admins).
 
 ### Create manual entry
 

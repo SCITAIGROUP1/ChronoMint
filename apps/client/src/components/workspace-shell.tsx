@@ -16,8 +16,10 @@ import {
   LayoutGrid,
   ListTodo,
   LogOut,
-  Timer as TimerIcon
+  Timer as TimerIcon,
+  User
 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { api } from "@/lib/api";
@@ -181,6 +183,21 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
             collapsed ? "p-1.5 border-none bg-transparent" : "p-3"
           )}
         >
+          <Button
+            variant="outline"
+            size="sm"
+            className={cn(
+              "transition-all duration-300",
+              collapsed ? "h-9 w-9 p-0 mx-auto justify-center" : "w-full justify-start gap-2"
+            )}
+            title={collapsed ? "Account" : undefined}
+            asChild
+          >
+            <Link href="/settings">
+              <User className="h-4 w-4" aria-hidden />
+              {!collapsed && <span>Account</span>}
+            </Link>
+          </Button>
           <div>
             {!collapsed && (
               <p className="mb-2 px-0.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
