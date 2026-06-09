@@ -13,8 +13,9 @@ test.describe("Client dashboard", () => {
 
   test("shows collapsible scope filters for project, category, and task", async ({ page }) => {
     await page.getByRole("button", { name: /scope filters/i }).click();
-    await expect(page.getByText("Project", { exact: true })).toBeVisible();
-    await expect(page.getByText("Category", { exact: true })).toBeVisible();
-    await expect(page.getByText("Task", { exact: true })).toBeVisible();
+    const panel = page.locator("div.grid.gap-4.rounded-lg.border");
+    await expect(panel.getByText("Project", { exact: true })).toBeVisible();
+    await expect(panel.getByText("Category", { exact: true })).toBeVisible();
+    await expect(panel.getByText("Task", { exact: true })).toBeVisible();
   });
 });

@@ -172,6 +172,8 @@ jobs:
     env:
       DATABASE_URL: postgresql://chronomint:chronomint@localhost:5432/chronomint_test
       REDIS_URL: redis://localhost:6379
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:3001
+      NEXT_PUBLIC_AUTH_SCOPE: client
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -206,8 +208,8 @@ jobs:
         run: pnpm --filter @chronomint/client exec playwright install chromium --with-deps
       - name: Run E2E tests (Playwright)
         run: |
-          pnpm --filter @chronomint/api dev &
-          pnpm --filter @chronomint/admin dev &
+          NEXT_PUBLIC_AUTH_SCOPE=admin pnpm --filter @chronomint/api dev &
+          NEXT_PUBLIC_AUTH_SCOPE=admin pnpm --filter @chronomint/admin dev &
           for i in {1..60}; do
             curl -sf http://localhost:3001/api/docs >/dev/null &&
             curl -sf http://localhost:3002/login >/dev/null &&
