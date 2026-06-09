@@ -48,6 +48,10 @@ Controller: [workspace.controller.ts](../../apps/api/src/modules/workspace/inter
 **When** authenticated GET `/auth/me`  
 **Then** current user and active workspace context are returned.
 
+### User profile (extended)
+
+See [user-profile.md](./user-profile.md) for `/users/me`, preferences, and password change.
+
 ## Security
 
 See [AUTH.md](../architecture/AUTH.md) and [SECURITY.md](../development/SECURITY.md).

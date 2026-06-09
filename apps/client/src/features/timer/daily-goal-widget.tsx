@@ -1,12 +1,15 @@
 "use client";
 
 import { ROUTES } from "@chronomint/contracts";
+import type { UserProfileDto } from "@chronomint/contracts";
 import { Card, CardContent, CardHeader, CardTitle } from "@chronomint/ui";
+import { api } from "@chronomint/web-shared";
 import { Pencil, Check, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { api } from "@/lib/api";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
+
+const dailyTargetStorageKey = (userId: string) => `chronomint:daily-target-hours:${userId}`;
 
 interface DailyGoalWidgetProps {
   totalSeconds: number;
@@ -15,24 +18,41 @@ interface DailyGoalWidgetProps {
 
 export function DailyGoalWidget({ totalSeconds, cardless = false }: DailyGoalWidgetProps) {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
+  const userId = useSessionStore((s) => s.session?.user.id);
+  const isImpersonating = Boolean(useSessionStore((s) => s.session?.impersonatorId));
   const [targetHours, setTargetHours] = useState(8);
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState("8");
 
-  // Load dailyTargetHours from workspace settings
+  const loadProfile = useCallback(async () => {
+    if (!ws || !userId) return;
+    try {
+      let profile = await api<UserProfileDto>(ROUTES.USERS.ME, { workspaceId: ws });
+
+      const legacyKey = dailyTargetStorageKey(userId);
+      const legacyRaw = localStorage.getItem(legacyKey);
+      const legacyHours = legacyRaw ? parseFloat(legacyRaw) : NaN;
+      const hasServerPref = typeof profile.preferences.dailyTargetHours === "number";
+
+      if (!hasServerPref && !Number.isNaN(legacyHours) && legacyHours >= 0.5 && legacyHours <= 24) {
+        profile = await api<UserProfileDto>(ROUTES.USERS.PREFERENCES, {
+          method: "PATCH",
+          workspaceId: ws,
+          body: JSON.stringify({ dailyTargetHours: legacyHours })
+        });
+        localStorage.removeItem(legacyKey);
+      }
+
+      setTargetHours(profile.effectiveDailyTargetHours);
+      setEditValue(String(profile.effectiveDailyTargetHours));
+    } catch {
+      /* keep defaults */
+    }
+  }, [ws, userId]);
+
   useEffect(() => {
-    if (!ws) return;
-    api<any[]>(ROUTES.WORKSPACES.LIST, { workspaceId: ws })
-      .then((list) => {
-        const current = list.find((w) => w.id === ws);
-        const hours = current?.settings?.dailyTargetHours;
-        if (typeof hours === "number" && hours > 0) {
-          setTargetHours(hours);
-          setEditValue(String(hours));
-        }
-      })
-      .catch(() => {});
-  }, [ws]);
+    void loadProfile();
+  }, [loadProfile]);
 
   const targetSeconds = targetHours * 3600;
   const percentage = Math.min(100, Math.round((totalSeconds / targetSeconds) * 100));
@@ -40,7 +60,6 @@ export function DailyGoalWidget({ totalSeconds, cardless = false }: DailyGoalWid
 
   const hoursLogged = (totalSeconds / 3600).toFixed(1);
 
-  // SVG parameters
   const size = 120;
   const strokeWidth = 8;
   const radius = (size - strokeWidth) / 2;
@@ -49,24 +68,18 @@ export function DailyGoalWidget({ totalSeconds, cardless = false }: DailyGoalWid
 
   const saveGoal = useCallback(async () => {
     const parsed = parseFloat(editValue);
-    if (isNaN(parsed) || parsed < 0.5 || parsed > 24) {
+    if (Number.isNaN(parsed) || parsed < 0.5 || parsed > 24) {
       toast.error("Enter a value between 0.5 and 24 hours");
       return;
     }
+    if (!ws) return;
     try {
-      // Load current settings first
-      const list = await api<any[]>(ROUTES.WORKSPACES.LIST, { workspaceId: ws });
-      const current = list.find((w) => w.id === ws);
-      const currentSettings = current?.settings ?? {};
-
-      await api(ROUTES.WORKSPACES.BY_ID(ws), {
+      const updated = await api<UserProfileDto>(ROUTES.USERS.PREFERENCES, {
         method: "PATCH",
         workspaceId: ws,
-        body: JSON.stringify({
-          settings: { ...currentSettings, dailyTargetHours: parsed }
-        })
+        body: JSON.stringify({ dailyTargetHours: parsed })
       });
-      setTargetHours(parsed);
+      setTargetHours(updated.effectiveDailyTargetHours);
       setEditing(false);
       toast.success(`Daily goal updated to ${parsed} hrs`);
     } catch {
@@ -76,7 +89,6 @@ export function DailyGoalWidget({ totalSeconds, cardless = false }: DailyGoalWid
 
   const bodyContent = (
     <div className="flex flex-row items-center gap-6 py-2 w-full h-full min-w-0">
-      {/* SVG Circular Ring */}
       <div
         className="relative flex items-center justify-center shrink-0"
         style={{ width: size, height: size }}
@@ -108,7 +120,6 @@ export function DailyGoalWidget({ totalSeconds, cardless = false }: DailyGoalWid
         </div>
       </div>
 
-      {/* Text Details */}
       <div className="space-y-1.5 flex-1 min-w-0">
         <div className="flex items-center justify-between">
           <p className="text-2xl font-bold tracking-tight">
@@ -148,55 +159,59 @@ export function DailyGoalWidget({ totalSeconds, cardless = false }: DailyGoalWid
           <span className="flex items-center gap-1">
             {isGoalReached && (
               <span className="text-[10px] bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300 px-2 py-0.5 rounded-full border border-green-200 dark:border-green-800/30 animate-pulse font-medium">
-                🎉 Target Reached!
+                Target Reached!
               </span>
             )}
-            {editing ? (
-              <span className="flex items-center gap-1">
-                <input
-                  type="number"
-                  min={0.5}
-                  max={24}
-                  step={0.5}
-                  className="w-14 rounded border border-input bg-background px-1.5 py-0.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                  value={editValue}
-                  onChange={(e) => setEditValue(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") void saveGoal();
-                    if (e.key === "Escape") setEditing(false);
-                  }}
-                  autoFocus
-                />
-                <span className="text-[10px] text-muted-foreground">hrs</span>
-                <button
-                  type="button"
-                  className="rounded p-0.5 hover:bg-primary/10 text-primary"
-                  onClick={() => void saveGoal()}
-                  title="Save"
-                >
-                  <Check className="size-3" />
-                </button>
-                <button
-                  type="button"
-                  className="rounded p-0.5 hover:bg-muted text-muted-foreground"
-                  onClick={() => setEditing(false)}
-                  title="Cancel"
-                >
-                  <X className="size-3" />
-                </button>
-              </span>
-            ) : (
-              <button
-                type="button"
-                className="rounded p-0.5 hover:bg-muted text-muted-foreground opacity-60 hover:opacity-100 transition-opacity"
-                onClick={() => {
-                  setEditValue(String(targetHours));
-                  setEditing(true);
-                }}
-                title="Edit daily goal"
-              >
-                <Pencil className="size-3" />
-              </button>
+            {!isImpersonating && (
+              <>
+                {editing ? (
+                  <span className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      min={0.5}
+                      max={24}
+                      step={0.5}
+                      className="w-14 rounded border border-input bg-background px-1.5 py-0.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") void saveGoal();
+                        if (e.key === "Escape") setEditing(false);
+                      }}
+                      autoFocus
+                    />
+                    <span className="text-[10px] text-muted-foreground">hrs</span>
+                    <button
+                      type="button"
+                      className="rounded p-0.5 hover:bg-primary/10 text-primary"
+                      onClick={() => void saveGoal()}
+                      title="Save"
+                    >
+                      <Check className="size-3" />
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded p-0.5 hover:bg-muted text-muted-foreground"
+                      onClick={() => setEditing(false)}
+                      title="Cancel"
+                    >
+                      <X className="size-3" />
+                    </button>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    className="rounded p-0.5 hover:bg-muted text-muted-foreground opacity-60 hover:opacity-100 transition-opacity"
+                    onClick={() => {
+                      setEditValue(String(targetHours));
+                      setEditing(true);
+                    }}
+                    title="Edit daily goal"
+                  >
+                    <Pencil className="size-3" />
+                  </button>
+                )}
+              </>
             )}
           </span>
         </CardTitle>

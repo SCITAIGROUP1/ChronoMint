@@ -14,6 +14,7 @@ model User {
   passwordHash          String            @map("password_hash")
   name                  String
   defaultHourlyRate     Decimal?          @map("default_hourly_rate") @db.Decimal(10, 2)
+  preferences           Json              @default("{}")
   createdAt             DateTime          @default(now()) @map("created_at")
   updatedAt             DateTime          @updatedAt @map("updated_at")
   memberships           WorkspaceMember[]

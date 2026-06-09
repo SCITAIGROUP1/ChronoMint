@@ -10,6 +10,11 @@ export const ROUTES = {
     IMPERSONATE: "/auth/impersonate",
     STOP_IMPERSONATION: "/auth/stop-impersonation"
   },
+  USERS: {
+    ME: "/users/me",
+    PREFERENCES: "/users/me/preferences",
+    PASSWORD: "/users/me/password"
+  },
   WORKSPACES: {
     LIST: "/workspaces",
     CREATE: "/workspaces",
@@ -51,6 +56,7 @@ export const ROUTES = {
   },
   TIMELOGS: {
     LIST: "/timelogs",
+    OCCUPANCY: "/timelogs/occupancy",
     CREATE: "/timelogs",
     BY_ID: (id: string) => `/timelogs/${id}`,
     AUDIT_EVENTS: (id: string) => `/timelogs/${id}/audit-events`,

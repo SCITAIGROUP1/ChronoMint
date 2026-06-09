@@ -1,10 +1,20 @@
-/** Supplemental demo users and projects — merged in seed.ts */
+/** Rich analytics seed — 13 users, 3 workspaces, 4 projects each */
 
 export type SeedUserSpec = {
   email: string;
   name: string;
-  defaultHourlyRate: number;
   role: "ADMIN" | "MEMBER";
+  defaultHourlyRate: number;
+  /** Days of time-log history (30–90) */
+  historyDays: number;
+  /** 0–1 daily logging intensity */
+  intensity: number;
+  preferences?: { dailyTargetHours?: number; timezone?: string };
+};
+
+export type SeedTaskSpec = {
+  name: string;
+  billableDefault: boolean;
 };
 
 export type SeedProjectSpec = {
@@ -13,442 +23,446 @@ export type SeedProjectSpec = {
   clientName: string | null;
   budgetHours: number | null;
   budgetBurnPct?: number;
-  tasks: { name: string; billableDefault: boolean }[];
+  tasks: SeedTaskSpec[];
+  memberEmails: string[];
+  timesheetApproval?: boolean;
+};
+
+export type SeedWorkspaceSpec = {
+  name: string;
+  slug: string;
+  settings: Record<string, unknown>;
+  projects: SeedProjectSpec[];
+  /** Up to 10 member emails per workspace (admins always included) */
   memberEmails: string[];
 };
 
-export const CORE_USERS: SeedUserSpec[] = [
-  { email: "admin@chronomint.dev", name: "Admin User", defaultHourlyRate: 150, role: "ADMIN" },
-  { email: "ops@chronomint.dev", name: "Morgan Blake", defaultHourlyRate: 140, role: "ADMIN" },
-  { email: "member@chronomint.dev", name: "Sam Rivera", defaultHourlyRate: 100, role: "MEMBER" },
-  { email: "alex@chronomint.dev", name: "Alex Chen", defaultHourlyRate: 95, role: "MEMBER" },
-  { email: "jordan@chronomint.dev", name: "Jordan Lee", defaultHourlyRate: 110, role: "MEMBER" },
-  { email: "taylor@chronomint.dev", name: "Taylor Brooks", defaultHourlyRate: 88, role: "MEMBER" },
-  { email: "riley@chronomint.dev", name: "Riley Kim", defaultHourlyRate: 105, role: "MEMBER" },
-  { email: "casey@chronomint.dev", name: "Casey Nguyen", defaultHourlyRate: 92, role: "MEMBER" },
-  { email: "jamie@chronomint.dev", name: "Jamie Ortiz", defaultHourlyRate: 98, role: "MEMBER" },
-  { email: "onboarding@chronomint.dev", name: "Pat Harper", defaultHourlyRate: 85, role: "MEMBER" },
+export const SEED_PASSWORD = "password123";
+
+/** 2 admins + 11 members = 13 accounts */
+export const SEED_USERS: SeedUserSpec[] = [
   {
-    email: "contractor@chronomint.dev",
+    email: "admin@chronomint.dev",
+    name: "Avery Admin",
+    role: "ADMIN",
+    defaultHourlyRate: 150,
+    historyDays: 90,
+    intensity: 0.95,
+    preferences: { dailyTargetHours: 8, timezone: "America/New_York" }
+  },
+  {
+    email: "ops@chronomint.dev",
+    name: "Morgan Blake",
+    role: "ADMIN",
+    defaultHourlyRate: 140,
+    historyDays: 90,
+    intensity: 0.9,
+    preferences: { dailyTargetHours: 7.5, timezone: "America/Chicago" }
+  },
+  {
+    email: "member@chronomint.dev",
+    name: "Sam Rivera",
+    role: "MEMBER",
+    defaultHourlyRate: 100,
+    historyDays: 90,
+    intensity: 0.92
+  },
+  {
+    email: "alex@chronomint.dev",
+    name: "Alex Chen",
+    role: "MEMBER",
+    defaultHourlyRate: 95,
+    historyDays: 85,
+    intensity: 0.88
+  },
+  {
+    email: "jordan@chronomint.dev",
+    name: "Jordan Lee",
+    role: "MEMBER",
+    defaultHourlyRate: 110,
+    historyDays: 80,
+    intensity: 0.9
+  },
+  {
+    email: "taylor@chronomint.dev",
+    name: "Taylor Brooks",
+    role: "MEMBER",
+    defaultHourlyRate: 88,
+    historyDays: 75,
+    intensity: 0.85
+  },
+  {
+    email: "riley@chronomint.dev",
+    name: "Riley Kim",
+    role: "MEMBER",
+    defaultHourlyRate: 105,
+    historyDays: 70,
+    intensity: 0.87
+  },
+  {
+    email: "casey@chronomint.dev",
+    name: "Casey Nguyen",
+    role: "MEMBER",
+    defaultHourlyRate: 92,
+    historyDays: 65,
+    intensity: 0.84
+  },
+  {
+    email: "drew@chronomint.dev",
+    name: "Drew Martinez",
+    role: "MEMBER",
+    defaultHourlyRate: 102,
+    historyDays: 60,
+    intensity: 0.82
+  },
+  {
+    email: "sage@chronomint.dev",
+    name: "Sage Patel",
+    role: "MEMBER",
+    defaultHourlyRate: 94,
+    historyDays: 55,
+    intensity: 0.8
+  },
+  {
+    email: "blake@chronomint.dev",
+    name: "Blake Wilson",
+    role: "MEMBER",
+    defaultHourlyRate: 108,
+    historyDays: 45,
+    intensity: 0.78
+  },
+  {
+    email: "rowan@chronomint.dev",
+    name: "Rowan Adams",
+    role: "MEMBER",
+    defaultHourlyRate: 107,
+    historyDays: 35,
+    intensity: 0.75
+  },
+  {
+    email: "quinn@chronomint.dev",
     name: "Quinn Ellis",
+    role: "MEMBER",
     defaultHourlyRate: 120,
-    role: "MEMBER"
+    historyDays: 30,
+    intensity: 0.35,
+    preferences: { dailyTargetHours: 6 }
   }
 ];
 
-export const EXTRA_USERS: SeedUserSpec[] = [
-  { email: "drew@chronomint.dev", name: "Drew Martinez", defaultHourlyRate: 102, role: "MEMBER" },
-  { email: "sage@chronomint.dev", name: "Sage Patel", defaultHourlyRate: 94, role: "MEMBER" },
-  { email: "blake@chronomint.dev", name: "Blake Wilson", defaultHourlyRate: 108, role: "MEMBER" },
-  { email: "morgan.c@chronomint.dev", name: "Morgan Chen", defaultHourlyRate: 91, role: "MEMBER" },
-  { email: "avery@chronomint.dev", name: "Avery Johnson", defaultHourlyRate: 87, role: "MEMBER" },
-  { email: "reese@chronomint.dev", name: "Reese Thompson", defaultHourlyRate: 99, role: "MEMBER" },
-  { email: "skyler@chronomint.dev", name: "Skyler Davis", defaultHourlyRate: 103, role: "MEMBER" },
-  { email: "quinn.m@chronomint.dev", name: "Quinn Morgan", defaultHourlyRate: 96, role: "MEMBER" },
-  { email: "harper@chronomint.dev", name: "Harper Lewis", defaultHourlyRate: 89, role: "MEMBER" },
-  { email: "emery@chronomint.dev", name: "Emery Clark", defaultHourlyRate: 101, role: "MEMBER" },
-  { email: "finley@chronomint.dev", name: "Finley Scott", defaultHourlyRate: 93, role: "MEMBER" },
-  { email: "rowan@chronomint.dev", name: "Rowan Adams", defaultHourlyRate: 107, role: "MEMBER" },
-  { email: "inactive@chronomint.dev", name: "Lane Brooks", defaultHourlyRate: 90, role: "MEMBER" },
-  { email: "newhire@chronomint.dev", name: "Dakota Reed", defaultHourlyRate: 82, role: "MEMBER" }
-];
+const ADMINS = ["admin@chronomint.dev", "ops@chronomint.dev"];
 
-/** Members who barely log time (users_without_time report) */
-export const SPARSE_LOG_EMAILS = new Set([
-  "onboarding@chronomint.dev",
-  "inactive@chronomint.dev",
-  "newhire@chronomint.dev"
-]);
-
-const TEAM_POOL = [
-  "admin@chronomint.dev",
-  "ops@chronomint.dev",
-  "member@chronomint.dev",
-  "alex@chronomint.dev",
-  "jordan@chronomint.dev",
-  "taylor@chronomint.dev",
-  "riley@chronomint.dev",
-  "casey@chronomint.dev",
-  "jamie@chronomint.dev",
-  "contractor@chronomint.dev",
-  "drew@chronomint.dev",
-  "sage@chronomint.dev",
-  "blake@chronomint.dev",
-  "morgan.c@chronomint.dev",
-  "avery@chronomint.dev",
-  "reese@chronomint.dev",
-  "skyler@chronomint.dev",
-  "quinn.m@chronomint.dev",
-  "harper@chronomint.dev",
-  "emery@chronomint.dev",
-  "finley@chronomint.dev",
-  "rowan@chronomint.dev"
-];
-
-function team(offset: number, count: number): string[] {
-  const out: string[] = [];
-  for (let i = 0; i < count; i++) {
-    out.push(TEAM_POOL[(offset + i) % TEAM_POOL.length]!);
-  }
-  return [...new Set(out)];
+function wsMembers(...members: string[]): string[] {
+  return [...new Set([...ADMINS, ...members])].slice(0, 10);
 }
 
-export const CORE_PROJECTS: SeedProjectSpec[] = [
+export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
   {
-    name: "Acme Website",
-    color: "#6366f1",
-    clientName: "Acme Corp",
-    budgetHours: 520,
-    budgetBurnPct: 0.78,
-    tasks: [
-      { name: "Frontend development", billableDefault: true },
-      { name: "API integration", billableDefault: true },
-      { name: "Design review", billableDefault: true },
-      { name: "Sprint planning", billableDefault: true },
-      { name: "Accessibility audit", billableDefault: true },
-      { name: "Performance tuning", billableDefault: true }
-    ],
-    memberEmails: team(0, 8)
+    name: "Northwind Agency",
+    slug: "northwind",
+    settings: {
+      weekStart: "monday",
+      expectedWeeklyHours: 40,
+      dailyTargetHours: 8,
+      timezone: "America/New_York",
+      exportFooterNote: "Northwind Agency — confidential billing export"
+    },
+    memberEmails: wsMembers(
+      "member@chronomint.dev",
+      "alex@chronomint.dev",
+      "jordan@chronomint.dev",
+      "taylor@chronomint.dev",
+      "riley@chronomint.dev",
+      "casey@chronomint.dev",
+      "drew@chronomint.dev",
+      "sage@chronomint.dev"
+    ),
+    projects: [
+      {
+        name: "Client Portal Redesign",
+        color: "#6366f1",
+        clientName: "Northwind Traders",
+        budgetHours: 480,
+        budgetBurnPct: 0.82,
+        memberEmails: wsMembers(
+          "member@chronomint.dev",
+          "alex@chronomint.dev",
+          "jordan@chronomint.dev"
+        ),
+        tasks: [
+          { name: "UX research", billableDefault: true },
+          { name: "Component build", billableDefault: true },
+          { name: "API integration", billableDefault: true },
+          { name: "QA pass", billableDefault: true },
+          { name: "Stakeholder review", billableDefault: true }
+        ]
+      },
+      {
+        name: "Brand Campaign Q2",
+        color: "#f59e0b",
+        clientName: "Fabrikam Media",
+        budgetHours: 220,
+        budgetBurnPct: 0.94,
+        memberEmails: wsMembers(
+          "taylor@chronomint.dev",
+          "riley@chronomint.dev",
+          "casey@chronomint.dev"
+        ),
+        tasks: [
+          { name: "Creative direction", billableDefault: true },
+          { name: "Asset production", billableDefault: true },
+          { name: "Media buying analysis", billableDefault: true },
+          { name: "Performance report", billableDefault: true }
+        ]
+      },
+      {
+        name: "Support Retainer",
+        color: "#10b981",
+        clientName: "Contoso Retail",
+        budgetHours: 160,
+        budgetBurnPct: 1.08,
+        memberEmails: wsMembers(
+          "drew@chronomint.dev",
+          "sage@chronomint.dev",
+          "blake@chronomint.dev"
+        ),
+        tasks: [
+          { name: "Ticket triage", billableDefault: true },
+          { name: "Hotfix deployment", billableDefault: true },
+          { name: "SLA reporting", billableDefault: true }
+        ],
+        timesheetApproval: true
+      },
+      {
+        name: "Annual Audit",
+        color: "#64748b",
+        clientName: "Adventure Works",
+        budgetHours: 120,
+        budgetBurnPct: 0.55,
+        memberEmails: wsMembers(
+          "member@chronomint.dev",
+          "rowan@chronomint.dev",
+          "quinn@chronomint.dev"
+        ),
+        tasks: [
+          { name: "Evidence collection", billableDefault: true },
+          { name: "Reconciliation", billableDefault: true },
+          { name: "Executive summary", billableDefault: true }
+        ]
+      }
+    ]
   },
   {
-    name: "Beta Mobile App",
-    color: "#0ea5e9",
-    clientName: "Beta Inc",
-    budgetHours: 680,
-    budgetBurnPct: 0.55,
-    tasks: [
-      { name: "iOS features", billableDefault: true },
-      { name: "Push notifications", billableDefault: true },
-      { name: "Android parity", billableDefault: true },
-      { name: "App Store submission", billableDefault: true },
-      { name: "Crash analytics", billableDefault: true }
-    ],
-    memberEmails: team(2, 7)
+    name: "Meridian Product Co",
+    slug: "meridian",
+    settings: {
+      weekStart: "monday",
+      expectedWeeklyHours: 40,
+      dailyTargetHours: 8,
+      timezone: "America/Los_Angeles",
+      timesheetApprovalPeriod: "weekly"
+    },
+    memberEmails: wsMembers(
+      "member@chronomint.dev",
+      "jordan@chronomint.dev",
+      "riley@chronomint.dev",
+      "casey@chronomint.dev",
+      "drew@chronomint.dev",
+      "blake@chronomint.dev",
+      "rowan@chronomint.dev",
+      "quinn@chronomint.dev"
+    ),
+    projects: [
+      {
+        name: "Mobile App v3",
+        color: "#0ea5e9",
+        clientName: null,
+        budgetHours: 620,
+        budgetBurnPct: 0.68,
+        memberEmails: wsMembers(
+          "member@chronomint.dev",
+          "jordan@chronomint.dev",
+          "riley@chronomint.dev"
+        ),
+        tasks: [
+          { name: "iOS features", billableDefault: false },
+          { name: "Android parity", billableDefault: false },
+          { name: "Push notifications", billableDefault: false },
+          { name: "Release candidate", billableDefault: false }
+        ]
+      },
+      {
+        name: "Platform API",
+        color: "#8b5cf6",
+        clientName: null,
+        budgetHours: 400,
+        budgetBurnPct: 0.76,
+        memberEmails: wsMembers(
+          "alex@chronomint.dev",
+          "casey@chronomint.dev",
+          "drew@chronomint.dev"
+        ),
+        tasks: [
+          { name: "Endpoint design", billableDefault: false },
+          { name: "Auth hardening", billableDefault: false },
+          { name: "Rate limiting", billableDefault: false },
+          { name: "OpenAPI docs", billableDefault: false }
+        ]
+      },
+      {
+        name: "Internal Tools",
+        color: "#22c55e",
+        clientName: null,
+        budgetHours: 280,
+        budgetBurnPct: 0.48,
+        memberEmails: wsMembers(
+          "taylor@chronomint.dev",
+          "sage@chronomint.dev",
+          "blake@chronomint.dev"
+        ),
+        tasks: [
+          { name: "Admin dashboard", billableDefault: false },
+          { name: "Data export jobs", billableDefault: false },
+          { name: "On-call runbooks", billableDefault: false }
+        ]
+      },
+      {
+        name: "Security Hardening",
+        color: "#ef4444",
+        clientName: null,
+        budgetHours: 200,
+        budgetBurnPct: 0.91,
+        memberEmails: wsMembers(
+          "rowan@chronomint.dev",
+          "quinn@chronomint.dev",
+          "riley@chronomint.dev"
+        ),
+        tasks: [
+          { name: "Pen test remediation", billableDefault: false },
+          { name: "Secrets rotation", billableDefault: false },
+          { name: "SOC2 evidence", billableDefault: false }
+        ],
+        timesheetApproval: true
+      }
+    ]
   },
   {
-    name: "Internal R&D",
-    color: "#10b981",
-    clientName: null,
-    budgetHours: null,
-    tasks: [
-      { name: "Spike research", billableDefault: false },
-      { name: "Team sync", billableDefault: false },
-      { name: "Prototype", billableDefault: false },
-      { name: "Tech debt", billableDefault: false },
-      { name: "Architecture review", billableDefault: false }
-    ],
-    memberEmails: team(0, 10)
-  },
-  {
-    name: "Gamma Rebrand",
-    color: "#f59e0b",
-    clientName: "Gamma LLC",
-    budgetHours: 260,
-    budgetBurnPct: 0.92,
-    tasks: [
-      { name: "Brand guidelines", billableDefault: true },
-      { name: "Marketing site", billableDefault: true },
-      { name: "Asset export", billableDefault: true },
-      { name: "Social templates", billableDefault: true }
-    ],
-    memberEmails: team(4, 6)
-  },
-  {
-    name: "Delta Support",
-    color: "#a855f7",
-    clientName: "Delta Co",
-    budgetHours: 220,
-    budgetBurnPct: 1.05,
-    tasks: [
-      { name: "Ticket triage", billableDefault: true },
-      { name: "Hotfix", billableDefault: true },
-      { name: "SLA reporting", billableDefault: true },
-      { name: "Knowledge base", billableDefault: true }
-    ],
-    memberEmails: team(6, 6)
-  },
-  {
-    name: "Epsilon Docs",
-    color: "#ec4899",
-    clientName: "Epsilon Ltd",
-    budgetHours: 140,
-    budgetBurnPct: 0.4,
-    tasks: [
-      { name: "API reference", billableDefault: true },
-      { name: "Tutorial videos", billableDefault: false },
-      { name: "Release notes", billableDefault: true }
-    ],
-    memberEmails: team(8, 5)
-  },
-  {
-    name: "Zeta Data Pipeline",
-    color: "#22c55e",
-    clientName: "Zeta Analytics",
-    budgetHours: 440,
-    budgetBurnPct: 0.65,
-    tasks: [
-      { name: "ETL jobs", billableDefault: true },
-      { name: "Warehouse modeling", billableDefault: true },
-      { name: "Dashboard specs", billableDefault: true },
-      { name: "Data QA", billableDefault: true }
-    ],
-    memberEmails: team(10, 7)
-  },
-  {
-    name: "Horizon Payroll",
-    color: "#eab308",
-    clientName: "Horizon HR",
-    budgetHours: 360,
-    budgetBurnPct: 0.72,
-    tasks: [
-      { name: "Compliance review", billableDefault: true },
-      { name: "Export mappings", billableDefault: true },
-      { name: "UAT sessions", billableDefault: true }
-    ],
-    memberEmails: team(12, 6)
-  },
-  {
-    name: "Iota Security Audit",
-    color: "#ef4444",
-    clientName: "Iota Financial",
-    budgetHours: 180,
-    budgetBurnPct: 0.88,
-    tasks: [
-      { name: "Pen test prep", billableDefault: true },
-      { name: "Remediation", billableDefault: true },
-      { name: "Stakeholder readout", billableDefault: true }
-    ],
-    memberEmails: team(14, 5)
-  },
-  {
-    name: "Kappa Onboarding",
-    color: "#06b6d4",
-    clientName: "Kappa SaaS",
-    budgetHours: 100,
-    budgetBurnPct: 0.25,
-    tasks: [
-      { name: "Training materials", billableDefault: true },
-      { name: "Kickoff workshops", billableDefault: true }
-    ],
-    memberEmails: ["alex@chronomint.dev", "onboarding@chronomint.dev", "newhire@chronomint.dev"]
-  },
-  {
-    name: "Lambda Legacy Migration",
-    color: "#64748b",
-    clientName: "Lambda Industries",
-    budgetHours: 720,
-    budgetBurnPct: 0.48,
-    tasks: [
-      { name: "Discovery", billableDefault: true },
-      { name: "Cutover planning", billableDefault: true },
-      { name: "Regression suite", billableDefault: true },
-      { name: "Runbook", billableDefault: true },
-      { name: "Hypercare", billableDefault: true }
-    ],
-    memberEmails: team(1, 9)
-  },
-  {
-    name: "Mu Partner Portal",
-    color: "#8b5cf6",
-    clientName: "Mu Networks",
-    budgetHours: 320,
-    budgetBurnPct: 0.61,
-    tasks: [
-      { name: "Partner API", billableDefault: true },
-      { name: "Billing hooks", billableDefault: true },
-      { name: "Partner docs", billableDefault: false }
-    ],
-    memberEmails: team(16, 6)
+    name: "Apex Consulting",
+    slug: "apex",
+    settings: {
+      weekStart: "monday",
+      expectedWeeklyHours: 40,
+      dailyTargetHours: 7.5,
+      timezone: "Europe/London",
+      exportFooterNote: "Apex Consulting — billable hours summary"
+    },
+    memberEmails: wsMembers(
+      "alex@chronomint.dev",
+      "taylor@chronomint.dev",
+      "riley@chronomint.dev",
+      "casey@chronomint.dev",
+      "sage@chronomint.dev",
+      "blake@chronomint.dev",
+      "rowan@chronomint.dev",
+      "quinn@chronomint.dev"
+    ),
+    projects: [
+      {
+        name: "ERP Migration",
+        color: "#eab308",
+        clientName: "Litware Inc",
+        budgetHours: 720,
+        budgetBurnPct: 0.61,
+        memberEmails: wsMembers(
+          "alex@chronomint.dev",
+          "jordan@chronomint.dev",
+          "casey@chronomint.dev"
+        ),
+        tasks: [
+          { name: "Discovery workshops", billableDefault: true },
+          { name: "Data mapping", billableDefault: true },
+          { name: "Cutover planning", billableDefault: true },
+          { name: "Hypercare support", billableDefault: true },
+          { name: "Training sessions", billableDefault: true }
+        ]
+      },
+      {
+        name: "Data Warehouse",
+        color: "#06b6d4",
+        clientName: "Wide World Importers",
+        budgetHours: 540,
+        budgetBurnPct: 0.73,
+        memberEmails: wsMembers(
+          "riley@chronomint.dev",
+          "drew@chronomint.dev",
+          "sage@chronomint.dev"
+        ),
+        tasks: [
+          { name: "Source ingestion", billableDefault: true },
+          { name: "Dimensional model", billableDefault: true },
+          { name: "BI dashboards", billableDefault: true },
+          { name: "Data quality rules", billableDefault: true }
+        ]
+      },
+      {
+        name: "Change Management",
+        color: "#ec4899",
+        clientName: "Tailspin Toys",
+        budgetHours: 180,
+        budgetBurnPct: 0.42,
+        memberEmails: wsMembers(
+          "taylor@chronomint.dev",
+          "blake@chronomint.dev",
+          "rowan@chronomint.dev"
+        ),
+        tasks: [
+          { name: "Stakeholder interviews", billableDefault: true },
+          { name: "Comms plan", billableDefault: true },
+          { name: "Training rollout", billableDefault: false }
+        ]
+      },
+      {
+        name: "Compliance Review",
+        color: "#1e3a8a",
+        clientName: "Gov Sector Client",
+        budgetHours: 260,
+        budgetBurnPct: 0.88,
+        memberEmails: wsMembers("quinn@chronomint.dev", "casey@chronomint.dev"),
+        tasks: [
+          { name: "Policy gap analysis", billableDefault: true },
+          { name: "Control testing", billableDefault: true },
+          { name: "Audit response", billableDefault: true }
+        ],
+        timesheetApproval: true
+      }
+    ]
   }
 ];
 
-export const EXTRA_PROJECTS: SeedProjectSpec[] = [
-  {
-    name: "Nu Commerce Platform",
-    color: "#0d9488",
-    clientName: "Nu Retail",
-    budgetHours: 400,
-    budgetBurnPct: 0.7,
-    tasks: [
-      { name: "Checkout flow", billableDefault: true },
-      { name: "Inventory sync", billableDefault: true },
-      { name: "Promo engine", billableDefault: true },
-      { name: "Load testing", billableDefault: true }
-    ],
-    memberEmails: team(3, 7)
-  },
-  {
-    name: "Xi CRM Integration",
-    color: "#7c3aed",
-    clientName: "Xi Systems",
-    budgetHours: 280,
-    budgetBurnPct: 0.83,
-    tasks: [
-      { name: "Salesforce sync", billableDefault: true },
-      { name: "Field mapping", billableDefault: true },
-      { name: "Webhook handlers", billableDefault: true }
-    ],
-    memberEmails: team(5, 6)
-  },
-  {
-    name: "Omicron Observability",
-    color: "#db2777",
-    clientName: "Omicron Cloud",
-    budgetHours: 200,
-    budgetBurnPct: 0.58,
-    tasks: [
-      { name: "Metrics pipeline", billableDefault: true },
-      { name: "Alerting rules", billableDefault: true },
-      { name: "Dashboards", billableDefault: true }
-    ],
-    memberEmails: team(7, 7)
-  },
-  {
-    name: "Pi Design System",
-    color: "#ca8a04",
-    clientName: "Pi Studio",
-    budgetHours: 160,
-    budgetBurnPct: 0.95,
-    tasks: [
-      { name: "Component library", billableDefault: true },
-      { name: "Figma tokens", billableDefault: true },
-      { name: "Storybook", billableDefault: true }
-    ],
-    memberEmails: team(9, 5)
-  },
-  {
-    name: "Rho Infrastructure",
-    color: "#475569",
-    clientName: "Rho Hosting",
-    budgetHours: 500,
-    budgetBurnPct: 0.52,
-    tasks: [
-      { name: "K8s migration", billableDefault: true },
-      { name: "CI/CD pipelines", billableDefault: true },
-      { name: "Cost optimization", billableDefault: true },
-      { name: "DR drill", billableDefault: true }
-    ],
-    memberEmails: team(11, 8)
-  },
-  {
-    name: "Sigma AI Assistant",
-    color: "#2563eb",
-    clientName: "Sigma Labs",
-    budgetHours: 350,
-    budgetBurnPct: 0.67,
-    tasks: [
-      { name: "Prompt tuning", billableDefault: true },
-      { name: "RAG pipeline", billableDefault: true },
-      { name: "Safety review", billableDefault: true }
-    ],
-    memberEmails: team(13, 6)
-  },
-  {
-    name: "Tau Field Service",
-    color: "#16a34a",
-    clientName: "Tau Logistics",
-    budgetHours: 300,
-    budgetBurnPct: 0.74,
-    tasks: [
-      { name: "Mobile offline", billableDefault: true },
-      { name: "Route optimization", billableDefault: true },
-      { name: "Technician portal", billableDefault: true }
-    ],
-    memberEmails: team(15, 7)
-  },
-  {
-    name: "Upsilon Legal Hold",
-    color: "#78716c",
-    clientName: "Upsilon Legal",
-    budgetHours: 120,
-    budgetBurnPct: 0.41,
-    tasks: [
-      { name: "eDiscovery export", billableDefault: true },
-      { name: "Chain of custody", billableDefault: true }
-    ],
-    memberEmails: team(17, 4)
-  },
-  {
-    name: "Phi Healthcare Portal",
-    color: "#0891b2",
-    clientName: "Phi Health",
-    budgetHours: 420,
-    budgetBurnPct: 0.69,
-    tasks: [
-      { name: "HIPAA review", billableDefault: true },
-      { name: "Patient scheduling", billableDefault: true },
-      { name: "HL7 integration", billableDefault: true },
-      { name: "Audit logging", billableDefault: true }
-    ],
-    memberEmails: team(19, 8)
-  },
-  {
-    name: "Chi Event Platform",
-    color: "#c026d3",
-    clientName: "Chi Events",
-    budgetHours: 240,
-    budgetBurnPct: 0.8,
-    tasks: [
-      { name: "Ticketing API", billableDefault: true },
-      { name: "Check-in app", billableDefault: true },
-      { name: "Sponsor portal", billableDefault: true }
-    ],
-    memberEmails: team(2, 7)
-  },
-  {
-    name: "Psi Media Streaming",
-    color: "#dc2626",
-    clientName: "Psi Media",
-    budgetHours: 380,
-    budgetBurnPct: 0.56,
-    tasks: [
-      { name: "CDN rollout", billableDefault: true },
-      { name: "DRM integration", billableDefault: true },
-      { name: "Analytics beacon", billableDefault: true }
-    ],
-    memberEmails: team(4, 7)
-  },
-  {
-    name: "Omega Gov Contract",
-    color: "#1e3a8a",
-    clientName: "Omega Public Sector",
-    budgetHours: 600,
-    budgetBurnPct: 0.45,
-    tasks: [
-      { name: "Security clearance docs", billableDefault: true },
-      { name: "Section 508", billableDefault: true },
-      { name: "FedRAMP gap analysis", billableDefault: true },
-      { name: "Quarterly reporting", billableDefault: true }
-    ],
-    memberEmails: team(0, 9)
-  },
-  {
-    name: "Atlas Training LMS",
-    color: "#65a30d",
-    clientName: "Atlas Learning",
-    budgetHours: 180,
-    budgetBurnPct: 0.63,
-    tasks: [
-      { name: "Course authoring", billableDefault: true },
-      { name: "SCORM packaging", billableDefault: true },
-      { name: "Certification flows", billableDefault: false }
-    ],
-    memberEmails: team(6, 6)
-  },
-  {
-    name: "Nova Subscription Billing",
-    color: "#e11d48",
-    clientName: "Nova SaaS",
-    budgetHours: 290,
-    budgetBurnPct: 1.02,
-    tasks: [
-      { name: "Stripe migration", billableDefault: true },
-      { name: "Proration logic", billableDefault: true },
-      { name: "Revenue recognition", billableDefault: true }
-    ],
-    memberEmails: team(8, 7)
-  }
+export const LOG_DESCRIPTIONS = [
+  "Sprint planning",
+  "Implementation",
+  "Code review",
+  "Bug fix",
+  "Client call",
+  "Documentation",
+  "Refactor",
+  "QA pass",
+  "Design handoff",
+  "Deployment prep",
+  "Stakeholder sync",
+  "Scope refinement",
+  "Integration testing",
+  "Incident response",
+  "Backlog grooming",
+  "Pairing session",
+  "Release validation",
+  "Invoice prep",
+  "Capacity planning",
+  "Vendor review",
+  "Regression testing",
+  "Status update",
+  "Workshop facilitation",
+  "Data migration",
+  "Contract review"
 ];
-
-export const ALL_USERS = [...CORE_USERS, ...EXTRA_USERS];
-export const ALL_PROJECTS = [...CORE_PROJECTS, ...EXTRA_PROJECTS];

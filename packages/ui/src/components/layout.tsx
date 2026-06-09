@@ -72,7 +72,7 @@ export function SegmentedControl<T extends string | number>({
       className={cn(
         "rounded-lg border border-border bg-muted/40",
         size === "md" ? "p-1.5" : "p-1",
-        fullWidth ? "grid w-full gap-2" : "inline-flex w-full flex-wrap gap-1.5 sm:w-auto"
+        fullWidth ? "grid w-full gap-2" : "inline-flex w-full flex-wrap gap-2 sm:w-auto"
       )}
       style={
         fullWidth ? { gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` } : undefined
@@ -89,8 +89,8 @@ export function SegmentedControl<T extends string | number>({
             fullWidth && "min-w-0 flex-1",
             size === "sm" ? "px-3 py-1.5 text-xs" : "px-4 py-2.5 text-sm",
             value === opt.value
-              ? "bg-background text-foreground shadow-sm ring-1 ring-border/80"
-              : "text-muted-foreground hover:bg-background/60 hover:text-foreground"
+              ? "bg-background text-foreground shadow-sm border border-border"
+              : "border border-transparent text-muted-foreground hover:bg-background/60 hover:text-foreground"
           )}
         >
           {opt.label}

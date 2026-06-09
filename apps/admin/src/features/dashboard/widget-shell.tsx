@@ -1,7 +1,7 @@
 "use client";
 
 import { Card, CardHeader, CardTitle, CardContent } from "@chronomint/ui";
-import { GripVertical, MoreVertical, EyeOff } from "lucide-react";
+import { MoreVertical, EyeOff } from "lucide-react";
 import React, { forwardRef, useState, useRef, useEffect } from "react";
 
 export interface WidgetShellProps {
@@ -56,27 +56,18 @@ export const WidgetShell = forwardRef<HTMLDivElement, WidgetShellProps>(
       <Card
         ref={ref}
         style={style}
-        className={`relative flex flex-col h-full w-full overflow-hidden transition-all duration-300 hover:shadow-md border border-border/80 bg-card/90 backdrop-blur-sm animate-in fade-in zoom-in-95 duration-300 ${
-          isEditing ? "ring-2 ring-primary/20 cursor-default" : ""
+        className={`widget-shell relative flex flex-col h-full w-full overflow-hidden transition-all duration-300 hover:shadow-md border border-border/80 bg-card/90 backdrop-blur-sm animate-in fade-in zoom-in-95 duration-300 ${
+          isEditing ? "ring-1 ring-primary/30 shadow-sm cursor-grab active:cursor-grabbing" : ""
         } ${className || ""}`}
       >
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 px-4 py-3 shrink-0 border-b border-border/40 select-none">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 px-4 py-3 shrink-0 border-b border-border/40 select-none cursor-inherit">
           <div className="flex items-center gap-2 min-w-0">
-            {isEditing && (
-              <div
-                className="drag-handle p-1 -ml-1 rounded hover:bg-muted text-muted-foreground cursor-grab active:cursor-grabbing shrink-0"
-                title="Drag to reposition"
-                aria-roledescription="sortable"
-              >
-                <GripVertical className="size-4" />
-              </div>
-            )}
             <CardTitle className="text-sm font-semibold tracking-tight text-foreground truncate">
               {label}
             </CardTitle>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="widget-no-drag flex items-center gap-2 shrink-0">
             {headerActions}
 
             {/* Reusable, accessible custom Dropdown Menu */}
@@ -117,7 +108,14 @@ export const WidgetShell = forwardRef<HTMLDivElement, WidgetShellProps>(
             </div>
           </div>
         </CardHeader>
-        <CardContent className="flex-1 p-4 overflow-auto min-h-0 min-w-0">{children}</CardContent>
+        <CardContent className="relative flex-1 p-4 overflow-auto min-h-0 min-w-0">
+          {isEditing ? (
+            <div className="absolute inset-0 z-20 cursor-grab active:cursor-grabbing" aria-hidden />
+          ) : null}
+          <div className={isEditing ? "pointer-events-none select-none" : undefined}>
+            {children}
+          </div>
+        </CardContent>
       </Card>
     );
   }
