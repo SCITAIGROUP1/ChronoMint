@@ -101,5 +101,10 @@ jobs:
       - name: Run E2E tests (Playwright)
         run: |
           pnpm --filter @chronomint/api dev &
-          for i in {1..30}; do curl -s http://localhost:3001/api/docs && break || sleep 1; done
+          pnpm --filter @chronomint/admin dev &
+          for i in {1..60}; do
+            curl -sf http://localhost:3001/api/docs >/dev/null &&
+            curl -sf http://localhost:3002/login >/dev/null &&
+            break || sleep 2
+          done
           pnpm --filter @chronomint/client test:e2e
