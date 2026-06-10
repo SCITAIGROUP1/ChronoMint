@@ -1,3 +1,4 @@
+import type { ProjectDto } from "@kloqra/contracts";
 import { type INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import cookieParser from "cookie-parser";
@@ -30,11 +31,11 @@ describe("Timesheets E2E", () => {
 
     const projectsRes = await authedAgent(app, memberSession).get("/projects");
     expect(projectsRes.status).toBe(200);
-    const approvalProject = listItems(projectsRes.body).find(
-      (p: { timesheetApprovalEnabled?: boolean }) => p.timesheetApprovalEnabled
+    const approvalProject = listItems<ProjectDto>(projectsRes.body).find(
+      (p) => p.timesheetApprovalEnabled
     );
     expect(approvalProject?.id).toBeTruthy();
-    approvalProjectId = approvalProject.id;
+    approvalProjectId = approvalProject!.id;
   });
 
   afterAll(async () => {

@@ -1,3 +1,4 @@
+import type { PaginatedResponse } from "@kloqra/contracts";
 import { describe, expect, it } from "vitest";
 import { normalizePaginatedListResponse } from "./fetch-list-items";
 
@@ -20,11 +21,15 @@ describe("normalizePaginatedListResponse", () => {
   });
 
   it("defaults missing items to an empty array", () => {
-    const normalized = normalizePaginatedListResponse(
-      { page: 1, limit: 20, total: 0, totalPages: 0 },
-      1,
-      20
-    );
+    const malformed = {
+      page: 1,
+      limit: 20,
+      total: 0,
+      totalPages: 0
+    } as unknown as PaginatedResponse<{
+      id: string;
+    }>;
+    const normalized = normalizePaginatedListResponse(malformed, 1, 20);
     expect(normalized.items).toEqual([]);
   });
 });

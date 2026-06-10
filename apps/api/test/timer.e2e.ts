@@ -1,3 +1,4 @@
+import type { ProjectDto, TaskDto } from "@kloqra/contracts";
 import { type INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import cookieParser from "cookie-parser";
@@ -21,12 +22,12 @@ describe("Timer E2E", () => {
 
     const projectsRes = await authedAgent(app, memberSession).get("/projects");
     expect(projectsRes.status).toBe(200);
-    const projectId = listItems(projectsRes.body)[0]?.id;
+    const projectId = listItems<ProjectDto>(projectsRes.body)[0]?.id;
     expect(projectId).toBeTruthy();
 
     const tasksRes = await authedAgent(app, memberSession).get("/tasks").query({ projectId });
     expect(tasksRes.status).toBe(200);
-    taskId = listItems(tasksRes.body)[0]?.id;
+    taskId = listItems<TaskDto>(tasksRes.body)[0]?.id;
     expect(taskId).toBeTruthy();
   });
 

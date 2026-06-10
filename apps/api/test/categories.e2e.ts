@@ -1,3 +1,4 @@
+import type { CategoryDto } from "@kloqra/contracts";
 import { type INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import cookieParser from "cookie-parser";
@@ -28,7 +29,7 @@ describe("Categories E2E", () => {
   it("GET /categories lists workspace categories for admin", async () => {
     const res = await authedAgent(app, adminSession).get("/categories");
     expect(res.status).toBe(200);
-    const items = listItems(res.body);
+    const items = listItems<CategoryDto>(res.body);
     expect(items.length).toBeGreaterThan(0);
     expect(items[0]).toHaveProperty("name");
   });
@@ -60,12 +61,10 @@ describe("Categories E2E", () => {
 
   it("DELETE /categories returns 409 when tasks reference the category", async () => {
     const listRes = await authedAgent(app, adminSession).get("/categories");
-    const withTasks = listItems(listRes.body).find(
-      (c: { taskCount?: number }) => (c.taskCount ?? 0) > 0
-    );
+    const withTasks = listItems<CategoryDto>(listRes.body).find((c) => (c.taskCount ?? 0) > 0);
     expect(withTasks).toBeTruthy();
 
-    const deleteRes = await authedAgent(app, adminSession).del(`/categories/${withTasks.id}`);
+    const deleteRes = await authedAgent(app, adminSession).del(`/categories/${withTasks!.id}`);
     expect(deleteRes.status).toBe(409);
   });
 });
