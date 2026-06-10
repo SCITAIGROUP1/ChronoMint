@@ -25,4 +25,21 @@ describe("ConfirmDialog", () => {
     await user.click(screen.getByRole("button", { name: "Confirm" }));
     expect(onConfirm).toHaveBeenCalledOnce();
   });
+
+  it("renders destructive mode with custom labels", () => {
+    render(
+      <ConfirmDialog
+        open
+        title="Remove member?"
+        destructive
+        confirmLabel="Remove"
+        cancelLabel="Keep"
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Keep" })).toBeInTheDocument();
+  });
 });
