@@ -1,11 +1,12 @@
 "use client";
 
 import type { UserProfileDto, UserSessionDto } from "@kloqra/contracts";
-import { AppModal, Button, Input, Label, Spinner } from "@kloqra/ui";
+import { AppModal, Button, DialogClose, Input, Label, Spinner } from "@kloqra/ui";
 import { Activity, KeyRound, Shield } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ChangePasswordSection } from "../../change-password-section";
+import { formatSessionDevice } from "../format-session-device";
 import { SettingsCard } from "../settings-card";
 
 export function SecuritySection({
@@ -204,13 +205,19 @@ export function SecuritySection({
         icon={<Activity className="size-5" />}
         size="lg"
         footer={
-          <Button type="button" variant="outline" onClick={() => setSessionsOpen(false)}>
-            Close
-          </Button>
+          <DialogClose asChild>
+            <Button type="button" variant="outline">
+              Close
+            </Button>
+          </DialogClose>
         }
       >
         {loadingSessions ? (
           <Spinner label="Loading sessions…" className="justify-center py-6" />
+        ) : sessions.length === 0 ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            No active sessions found.
+          </p>
         ) : (
           <ul className="space-y-3">
             {sessions.map((session) => (
@@ -218,20 +225,26 @@ export function SecuritySection({
                 key={session.id}
                 className="flex items-start justify-between gap-3 rounded-lg border border-border/70 bg-muted/20 p-3"
               >
-                <div className="min-w-0">
-                  <p className="text-sm font-medium truncate">
-                    {session.userAgent ?? "Unknown device"}
-                    {session.isCurrent ? " (current)" : ""}
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium">
+                    {formatSessionDevice(session.userAgent)}
+                    {session.isCurrent ? (
+                      <span className="ml-1 text-xs font-normal text-primary">(current)</span>
+                    ) : null}
                   </p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="mt-0.5 text-xs text-muted-foreground">
                     Last used {new Date(session.lastUsedAt).toLocaleString()}
                   </p>
+                  {session.ipAddress ? (
+                    <p className="mt-0.5 text-xs text-muted-foreground">IP {session.ipAddress}</p>
+                  ) : null}
                 </div>
                 {!session.isCurrent ? (
                   <Button
                     type="button"
                     size="sm"
                     variant="outline"
+                    className="shrink-0"
                     onClick={() =>
                       void onRevokeSession(session.id)
                         .then(() => {

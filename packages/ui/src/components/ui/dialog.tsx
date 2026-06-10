@@ -41,7 +41,7 @@ const DialogContent = React.forwardRef<
     <DialogOverlay />
     <DialogPrimitive.Content
       ref={ref}
-      className={cn(modalContentVariants({ size }), "gap-0 p-0", className)}
+      className={cn(modalContentVariants({ size }), "p-0", className)}
       {...props}
     >
       <div className={modalAccentBarClass} aria-hidden />

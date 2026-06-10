@@ -42,7 +42,7 @@ const AlertDialogContent = React.forwardRef<
     <AlertDialogOverlay />
     <AlertDialogPrimitive.Content
       ref={ref}
-      className={cn(modalContentVariants({ size }), "gap-0 p-0", className)}
+      className={cn(modalContentVariants({ size }), "p-0", className)}
       {...props}
     >
       <div className={modalAccentBarClass} aria-hidden />
@@ -133,7 +133,12 @@ export function ConfirmDialog({
   onCancel
 }: ConfirmDialogProps) {
   return (
-    <AlertDialog open={open}>
+    <AlertDialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onCancel();
+      }}
+    >
       <AlertDialogContent size="sm">
         <AlertDialogHeader>
           {destructive ? (
@@ -145,7 +150,7 @@ export function ConfirmDialog({
           {description ? <AlertDialogDescription>{description}</AlertDialogDescription> : null}
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={onCancel}>{cancelLabel}</AlertDialogCancel>
+          <AlertDialogCancel>{cancelLabel}</AlertDialogCancel>
           <AlertDialogAction
             className={destructive ? buttonVariants({ variant: "destructive" }) : undefined}
             onClick={onConfirm}

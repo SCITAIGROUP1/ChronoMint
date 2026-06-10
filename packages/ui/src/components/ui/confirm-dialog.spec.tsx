@@ -26,6 +26,16 @@ describe("ConfirmDialog", () => {
     expect(onConfirm).toHaveBeenCalledOnce();
   });
 
+  it("calls onCancel when escape is pressed", async () => {
+    const user = userEvent.setup();
+    const onCancel = vi.fn();
+
+    render(<ConfirmDialog open title="Delete project?" onConfirm={vi.fn()} onCancel={onCancel} />);
+
+    await user.keyboard("{Escape}");
+    expect(onCancel).toHaveBeenCalledOnce();
+  });
+
   it("renders destructive mode with custom labels", () => {
     render(
       <ConfirmDialog
