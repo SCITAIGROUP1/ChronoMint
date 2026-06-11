@@ -117,5 +117,25 @@ export const ROUTES = {
     LIST_PENDING: "/timesheets/pending",
     APPROVE: (id: string) => `/timesheets/${id}/approve`,
     REJECT: (id: string) => `/timesheets/${id}/reject`
+  },
+  JIRA: {
+    AUTH_STATUS: "/jira/auth/status",
+    AUTH_CONNECT: "/jira/auth/connect",
+    AUTH_CALLBACK: "/jira/auth/callback",
+    AUTH_DISCONNECT: "/jira/auth/disconnect",
+    PROJECTS: "/jira/projects",
+    PROJECT_MAPPINGS: "/jira/projects/mappings",
+    PROJECT_MAPPING: (id: string) => `/jira/projects/mappings/${id}`,
+    PROJECTS_SYNC: "/jira/projects/sync",
+    ISSUES: "/jira/issues",
+    MY_ISSUES: "/jira/issues/my",
+    ISSUES_SYNC: "/jira/issues/sync",
+    USERS: "/jira/users",
+    USER_MAPPINGS: "/jira/users/mappings",
+    USERS_AUTO_MAP: "/jira/users/auto-map",
+    WORKLOGS: "/jira/worklogs",
+    WORKLOGS_SYNC: "/jira/worklogs/sync",
+    SPRINTS: "/jira/sprints",
+    LOGS: "/jira/logs"
   }
 } as const;

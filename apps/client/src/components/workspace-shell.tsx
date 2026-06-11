@@ -15,6 +15,7 @@ import {
   Clock,
   FolderKanban,
   LayoutGrid,
+  Link2,
   ListTodo,
   Timer as TimerIcon
 } from "lucide-react";
@@ -33,7 +34,8 @@ const baseNav = [
   { href: "/timesheet", label: "Timesheet", Icon: CalendarDays },
   { href: "/approvals", label: "Approvals", Icon: ClipboardCheck },
   { href: "/projects", label: "My projects", Icon: FolderKanban },
-  { href: "/tasks", label: "Tasks", Icon: ListTodo }
+  { href: "/tasks", label: "Tasks", Icon: ListTodo },
+  { href: "/jira", label: "Jira", Icon: Link2 }
 ] as const;
 
 export function WorkspaceShell({ children }: { children: React.ReactNode }) {
