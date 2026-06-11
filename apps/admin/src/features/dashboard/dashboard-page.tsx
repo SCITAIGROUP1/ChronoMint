@@ -25,15 +25,20 @@ import {
 } from "@kloqra/ui";
 import {
   applyDashboardPeriodPreset,
+  buildWidgetMinSizeMap,
   DashboardArrangeBanner,
+  DASHBOARD_GRID_BREAKPOINTS,
+  DASHBOARD_GRID_COLS,
+  generateResponsiveLayouts,
   fetchProjectTeam,
   matchDashboardPeriodPreset,
   ReportScopeFilters,
+  type DashboardBreakpoint,
   type DashboardPeriodPreset,
   fetchListItems
 } from "@kloqra/web-shared";
 import { Clock, DollarSign, Folder, LayoutGrid, Move, Users } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { WidthProvider, Responsive } from "react-grid-layout";
 import { toast } from "sonner";
 import { BudgetBurnDownWidget } from "./budget-burndown-widget";
@@ -141,6 +146,7 @@ export function DashboardPage() {
   const [mounted, setMounted] = useState(false);
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
   const [isArranging, setIsArranging] = useState(false);
+  const [gridBreakpoint, setGridBreakpoint] = useState<DashboardBreakpoint>("lg");
   const [widgetHeaderActions, setWidgetHeaderActions] = useState<Record<string, React.ReactNode>>(
     {}
   );
@@ -324,6 +330,16 @@ export function DashboardPage() {
       updateHeaderAction("pending_timesheets", node);
     },
     [updateHeaderAction]
+  );
+
+  const activeLayout = layoutsByWorkspace[ws] || [];
+  const visibleItems = activeLayout.filter((item) => item.visible);
+
+  const widgetMinSizes = useMemo(() => buildWidgetMinSizeMap(WIDGET_REGISTRY), []);
+
+  const responsiveLayouts = useMemo(
+    () => generateResponsiveLayouts(visibleItems, DASHBOARD_GRID_COLS, widgetMinSizes),
+    [visibleItems, widgetMinSizes]
   );
 
   if (loading) {
@@ -651,10 +667,6 @@ export function DashboardPage() {
     return widgetHeaderActions[id] || null;
   }
 
-  // Filter layouts
-  const activeLayout = layoutsByWorkspace[ws] || [];
-  const visibleItems = activeLayout.filter((item) => item.visible);
-
   return (
     <div className="space-y-8 min-h-screen pb-16">
       <AppBar
@@ -720,25 +732,26 @@ export function DashboardPage() {
         <CardContent className="flex flex-col gap-4 py-4">
           <div className="space-y-2">
             <Label className="text-xs font-medium text-muted-foreground">Period</Label>
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
               <SegmentedControl
+                fullWidth
                 value={range as AdminPeriodPreset}
                 onChange={(v) => handleRangePresetChange(v as AdminPeriodPreset)}
                 options={RANGE_OPTIONS}
               />
-              <div className="flex items-center gap-1.5">
+              <div className="flex w-full items-center gap-1.5 sm:w-auto">
                 <Input
                   type="date"
                   value={startDate}
                   onChange={(e) => handleCustomDateChange(e.target.value, endDate)}
-                  className="h-9 bg-background w-[145px] text-xs px-2.5"
+                  className="h-9 flex-1 bg-background text-xs px-2.5 sm:w-[145px] sm:flex-none"
                 />
                 <span className="text-muted-foreground text-xs font-medium">—</span>
                 <Input
                   type="date"
                   value={endDate}
                   onChange={(e) => handleCustomDateChange(startDate, e.target.value)}
-                  className="h-9 bg-background w-[145px] text-xs px-2.5"
+                  className="h-9 flex-1 bg-background text-xs px-2.5 sm:w-[145px] sm:flex-none"
                 />
               </div>
             </div>
@@ -776,22 +789,26 @@ export function DashboardPage() {
             <DashboardSkeleton />
           ) : (
             <ResponsiveGridLayout
-              className={`layout -mx-4 ${isArranging ? "layout-customizing" : ""}`}
-              layouts={{ lg: visibleItems }}
-              breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
-              cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
+              className={`layout ${isArranging ? "layout-customizing" : ""}`}
+              layouts={responsiveLayouts}
+              breakpoints={DASHBOARD_GRID_BREAKPOINTS}
+              cols={DASHBOARD_GRID_COLS}
               rowHeight={80}
+              compactType="vertical"
               isDraggable={isArranging}
               isResizable={isArranging}
               draggableCancel="button, a, input, select, textarea, [role='menu'], [role='menuitem'], .widget-no-drag"
               resizeHandles={["s", "e", "se"]}
+              onBreakpointChange={(breakpoint) =>
+                setGridBreakpoint(breakpoint as DashboardBreakpoint)
+              }
               onLayoutChange={(currentLayout) => {
-                if (isArranging) {
+                if (isArranging && gridBreakpoint === "lg") {
                   updateLayout(ws, currentLayout, { persist: false });
                 }
               }}
               margin={[16, 16]}
-              containerPadding={[16, 0]}
+              containerPadding={[0, 0]}
             >
               {visibleItems.map((item) => {
                 const widgetDef = WIDGET_REGISTRY.find((w) => w.id === item.i);

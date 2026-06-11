@@ -18,6 +18,19 @@ export function formatDayHeader(date: Date, format: TimesheetDisplayFormat): str
   return `${weekday} ${formatUserDate(date, format.dateFormat, format.timezone)}`;
 }
 
+/** Compact day header for narrow calendar columns — e.g. "Mon 6". */
+export function formatDayHeaderShort(date: Date, format: TimesheetDisplayFormat): string {
+  const weekday = new Intl.DateTimeFormat("en-US", {
+    timeZone: format.timezone,
+    weekday: "short"
+  }).format(date);
+  const day = new Intl.DateTimeFormat("en-US", {
+    timeZone: format.timezone,
+    day: "numeric"
+  }).format(date);
+  return `${weekday} ${day}`;
+}
+
 export function formatWeekRangeLabel(weekStart: Date, format: TimesheetDisplayFormat): string {
   const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekEnd.getDate() + 6);

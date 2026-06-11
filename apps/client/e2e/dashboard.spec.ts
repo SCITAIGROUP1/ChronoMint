@@ -13,4 +13,15 @@ test.describe("Client dashboard", () => {
     await expect(panel.getByText("Category", { exact: true })).toBeVisible();
     await expect(panel.getByText("Task", { exact: true })).toBeVisible();
   });
+
+  test("renders without horizontal overflow on a mobile viewport", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await expect(page.getByRole("heading", { name: "Dashboard", exact: true })).toBeVisible();
+
+    const overflow = await page.evaluate(() => {
+      const doc = document.documentElement;
+      return doc.scrollWidth > doc.clientWidth + 1;
+    });
+    expect(overflow).toBe(false);
+  });
 });

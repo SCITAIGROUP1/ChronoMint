@@ -9,6 +9,15 @@ export {
   resolveApiWorkspaceId
 } from "./auth/workspace-context";
 export { api, getApiBase, publicFetch } from "./api/client";
+export {
+  buildWidgetMinSizeMap,
+  DASHBOARD_GRID_BREAKPOINTS,
+  DASHBOARD_GRID_COLS,
+  generateResponsiveLayouts,
+  type DashboardBreakpoint,
+  type DashboardGridLayouts,
+  type WidgetMinSize
+} from "./dashboard/generate-responsive-layouts";
 export { createWidgetLayoutStore } from "./dashboard/create-widget-layout-store";
 export type {
   WidgetLayoutItem,
