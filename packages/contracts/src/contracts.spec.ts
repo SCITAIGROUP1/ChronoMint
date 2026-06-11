@@ -63,6 +63,7 @@ describe("contracts", () => {
   it("exposes user profile routes", () => {
     expect(ROUTES.USERS.ME).toBe("/users/me");
     expect(ROUTES.USERS.PREFERENCES).toBe("/users/me/preferences");
+    expect(ROUTES.USERS.DASHBOARD_LAYOUT).toBe("/users/me/dashboard-layout");
     expect(ROUTES.USERS.PASSWORD).toBe("/users/me/password");
     expect(ROUTES.USERS.SESSIONS).toBe("/users/me/sessions");
     expect(ROUTES.USERS.SESSION("abc")).toBe("/users/me/sessions/abc");

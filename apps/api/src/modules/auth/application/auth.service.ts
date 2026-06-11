@@ -204,14 +204,25 @@ export class AuthService {
     userId: string,
     workspaceId: string,
     role: "ADMIN" | "MEMBER",
-    impersonatorId?: string
+    impersonatorId?: string,
+    scope?: "client" | "admin",
+    family?: string
   ): string {
     const secret = process.env.JWT_ACCESS_SECRET?.trim();
     if (!secret) {
       throw new Error("JWT_ACCESS_SECRET is not set on the API service");
     }
     return this.jwt.sign(
-      { sub: userId, userId, workspaceId, role, ...(impersonatorId ? { impersonatorId } : {}) },
+      {
+        sub: userId,
+        userId,
+        workspaceId,
+        role,
+        typ: "access",
+        ...(family ? { family } : {}),
+        ...(scope ? { scope } : {}),
+        ...(impersonatorId ? { impersonatorId } : {})
+      },
       { secret, expiresIn: process.env.JWT_ACCESS_EXPIRES ?? "15m" }
     );
   }
@@ -225,8 +236,9 @@ export class AuthService {
     workspaceId: string,
     family?: string,
     impersonatorId?: string,
-    sessionMeta?: { userAgent?: string; ipAddress?: string }
-  ): Promise<string> {
+    sessionMeta?: { userAgent?: string; ipAddress?: string },
+    scope?: "client" | "admin"
+  ): Promise<{ raw: string; family: string }> {
     const secret = process.env.JWT_REFRESH_SECRET?.trim();
     if (!secret) throw new Error("JWT_REFRESH_SECRET is not set on the API service");
 
@@ -237,6 +249,8 @@ export class AuthService {
         workspaceId,
         family: tokenFamily,
         jti: randomUUID(),
+        typ: "refresh",
+        ...(scope ? { scope } : {}),
         ...(impersonatorId ? { impersonatorId } : {})
       },
       { secret, expiresIn: process.env.JWT_REFRESH_EXPIRES ?? "7d" }
@@ -264,7 +278,7 @@ export class AuthService {
       .deleteMany({ where: { userId, expiresAt: { lt: new Date() } } })
       .catch(() => undefined);
 
-    return raw;
+    return { raw, family: tokenFamily };
   }
 
   /** Legacy signing for code paths that don't yet use DB rotation */
@@ -282,18 +296,29 @@ export class AuthService {
     workspaceId?: string;
     family?: string;
     impersonatorId?: string;
+    scope?: "client" | "admin";
   } {
     const payload = this.jwt.verify(token, { secret: process.env.JWT_REFRESH_SECRET }) as {
       sub: string;
       workspaceId?: string;
       family?: string;
       impersonatorId?: string;
+      typ?: string;
+      scope?: string;
     };
+    if (payload.typ === "access") {
+      throw new DomainException(
+        ErrorCodes.UNAUTHORIZED,
+        "Wrong token type",
+        HttpStatus.UNAUTHORIZED
+      );
+    }
     return {
       userId: payload.sub,
       workspaceId: payload.workspaceId,
       family: payload.family,
-      impersonatorId: payload.impersonatorId
+      impersonatorId: payload.impersonatorId,
+      scope: payload.scope === "client" || payload.scope === "admin" ? payload.scope : undefined
     };
   }
 
@@ -304,9 +329,10 @@ export class AuthService {
    * - On success: revokes old token, issues new token in same family.
    */
   async rotateRefreshToken(
-    rawToken: string
-  ): Promise<{ session: AuthSessionDto | null; newRefreshToken: string | null }> {
-    const { userId, workspaceId, family, impersonatorId } = this.verifyRefresh(rawToken);
+    rawToken: string,
+    requestMeta?: { userAgent?: string }
+  ): Promise<{ session: AuthSessionDto | null; newRefreshToken: string | null; family?: string }> {
+    const { userId, workspaceId, family, impersonatorId, scope } = this.verifyRefresh(rawToken);
     const hash = hashToken(rawToken);
 
     const stored = await this.prisma.refreshToken.findUnique({ where: { tokenHash: hash } });
@@ -319,6 +345,34 @@ export class AuthService {
     }
 
     if (stored.revokedAt !== null) {
+      const graceMs = Number(process.env.REFRESH_ROTATION_GRACE_MS ?? 10_000);
+      const revokedMs = stored.revokedAt.getTime();
+      const withinGrace = Date.now() - revokedMs <= graceMs;
+
+      if (withinGrace && family) {
+        const active = await this.prisma.refreshToken.findFirst({
+          where: {
+            userId: stored.userId,
+            family,
+            revokedAt: null,
+            expiresAt: { gt: new Date() }
+          },
+          orderBy: { createdAt: "desc" }
+        });
+        const uaMatch =
+          !requestMeta?.userAgent ||
+          !active?.userAgent ||
+          active.userAgent === requestMeta.userAgent;
+        if (active && uaMatch) {
+          const session = await this.refreshSession(
+            stored.userId,
+            stored.workspaceId,
+            impersonatorId
+          );
+          return { session, newRefreshToken: null, family: family ?? stored.family };
+        }
+      }
+
       // Token reuse detected! Revoke entire family (prevents replay attacks)
       if (family) {
         await this.prisma.refreshToken.updateMany({
@@ -358,12 +412,13 @@ export class AuthService {
       family,
       impersonatorId,
       {
-        userAgent: stored.userAgent ?? undefined,
+        userAgent: requestMeta?.userAgent ?? stored.userAgent ?? undefined,
         ipAddress: stored.ipAddress ?? undefined
-      }
+      },
+      scope
     );
 
-    return { session, newRefreshToken: newToken };
+    return { session, newRefreshToken: newToken.raw, family: family ?? stored.family };
   }
 
   /** Revoke all refresh tokens for a user (logout all devices) */
@@ -505,21 +560,25 @@ export class AuthService {
       adminUser.name
     );
 
+    const issued = await this.signAndStoreRefreshToken(
+      targetMembership.userId,
+      targetMembership.workspaceId,
+      undefined,
+      adminUser.id,
+      undefined,
+      "client"
+    );
+
     const accessToken = this.signAccessToken(
       targetMembership.userId,
       targetMembership.workspaceId,
       targetMembership.role as "ADMIN" | "MEMBER",
-      adminUser.id
+      adminUser.id,
+      "client",
+      issued.family
     );
 
-    const refreshToken = await this.signAndStoreRefreshToken(
-      targetMembership.userId,
-      targetMembership.workspaceId,
-      undefined,
-      adminUser.id
-    );
-
-    return { session, accessToken, refreshToken };
+    return { session, accessToken, refreshToken: issued.raw };
   }
 
   async verifyImpersonator(

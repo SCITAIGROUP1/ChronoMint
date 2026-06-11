@@ -25,9 +25,17 @@ Every mutating and listing operation is scoped by `workspaceId` from the JWT/hea
 
 Do not accept `workspaceId` from request body for authorization — use `req.user.workspaceId` from the guard.
 
-## CORS
+## CORS and cookies
 
 `FRONTEND_ORIGIN` must list exact frontend origins. The API enables credentials for cookie-based refresh.
+
+**Vercel + Railway (cross-site):** set `AUTH_COOKIE_SAME_SITE=none` and `AUTH_COOKIE_SECURE=true` on the API. Without this, browsers do not send refresh cookies on cross-origin `fetch`.
+
+Refresh tokens are rotated in Postgres. A short **grace window** (`REFRESH_ROTATION_GRACE_MS`, default 10s) tolerates concurrent tab refresh; reuse after the grace window revokes the token family.
+
+**CSRF (SameSite=None):** `login`, `register`, `refresh`, and `logout` require an `Origin` header on allowed frontend domains in production. Browsers always send `Origin` on cross-site `fetch`; simple form POSTs cannot forge auth requests.
+
+**Startup gates:** Production API refuses to start without `FRONTEND_ORIGIN`, with wrong cookie SameSite for cross-site Vercel+Railway, or with `COOKIE_DOMAIN` set in that topology.
 
 ## RBAC
 

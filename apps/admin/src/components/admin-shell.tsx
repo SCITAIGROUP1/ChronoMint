@@ -1,12 +1,11 @@
 "use client";
 
 import { BRAND_NAME, ROUTES } from "@kloqra/contracts";
-import type { AuthSessionDto, PendingTimesheetDto, WorkspaceWithRoleDto } from "@kloqra/contracts";
+import type { PendingTimesheetDto } from "@kloqra/contracts";
 import { ResponsiveLayoutShell, SidebarUserFooter, type SidebarNavItem } from "@kloqra/ui";
 import {
-  applyDefaultWorkspaceIfNeeded,
+  bootstrapSession,
   BrandMark,
-  getAccessToken,
   logoutSession,
   ShellHeaderActions,
   WorkspaceSwitcher
@@ -42,7 +41,7 @@ const baseNav = [
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { session, setSession } = useSessionStore();
+  const session = useSessionStore((s) => s.session);
   const setWorkspaces = useWorkspacesStore((s) => s.setWorkspaces);
   const [pendingCount, setPendingCount] = useState(0);
 
@@ -51,32 +50,17 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       if (session.workspaceRole !== "ADMIN") router.replace("/login?error=admin");
       return;
     }
-    const token = getAccessToken();
-    if (!token) {
-      router.replace("/login");
-      return;
-    }
-    api<AuthSessionDto>(ROUTES.AUTH.ME)
-      .then(async (s) => {
-        if (s.workspaceRole !== "ADMIN") {
+
+    void bootstrapSession({ requiredRole: "ADMIN" })
+      .then((result) => {
+        if (!result.ok) {
           router.replace("/login?error=admin");
           return;
         }
-        const switched = await applyDefaultWorkspaceIfNeeded(s, token);
-        if (switched.session.workspaceRole !== "ADMIN") {
-          router.replace("/login?error=admin");
-          return;
-        }
-        setSession(switched.session, switched.accessToken);
-        return api<WorkspaceWithRoleDto[]>(ROUTES.WORKSPACES.LIST, {
-          workspaceId: switched.session.workspaceId
-        });
+        setWorkspaces(result.workspaces);
       })
-      .then((list) => {
-        if (list) setWorkspaces(list);
-      })
-      .catch(() => router.replace("/login"));
-  }, [session, setSession, setWorkspaces, router]);
+      .catch(() => router.replace("/login?error=admin"));
+  }, [session, setWorkspaces, router]);
 
   useEffect(() => {
     if (!session?.workspaceId || session.workspaceRole !== "ADMIN") return;

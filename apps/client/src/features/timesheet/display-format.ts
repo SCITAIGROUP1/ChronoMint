@@ -1,6 +1,5 @@
 import {
   formatUserDate,
-  formatUserTime,
   type DateFormatPreference,
   type TimeFormatPreference
 } from "@kloqra/contracts";
@@ -39,13 +38,20 @@ export function formatMonthYearLabel(date: Date, format: TimesheetDisplayFormat)
   }).format(date);
 }
 
+/** Format a calendar grid slot (wall-clock hour/minute) for the Y-axis. */
 export function formatClockLabel(
   hour: number,
   minute: number,
   format: TimesheetDisplayFormat
 ): string {
-  const sample = new Date(Date.UTC(2000, 0, 1, hour, minute));
-  return formatUserTime(sample, format.timeFormat, format.timezone);
+  // Slot indices are already the user's local day hours — do not run through
+  // formatUserTime(timezone), which would shift labels vs entry positions.
+  const sample = new Date(2000, 0, 1, hour, minute);
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: minute === 0 ? undefined : "2-digit",
+    hour12: format.timeFormat === "12h"
+  }).format(sample);
 }
 
 export function formatEntryDateLabel(date: Date, format: TimesheetDisplayFormat): string {

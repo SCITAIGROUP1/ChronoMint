@@ -20,11 +20,13 @@ import {
 } from "@nestjs/common";
 import { Throttle, SkipThrottle } from "@nestjs/throttler";
 import { type Response, type Request } from "express";
+import { assertAllowedAuthOrigin } from "../../../../common/auth/allowed-origins";
 import {
   accessCookieName,
   getAuthScope,
   refreshCookieName
 } from "../../../../common/auth/auth-scope";
+import { getClearCookieOpts, getCookieOpts } from "../../../../common/auth/cookie-options";
 import {
   CurrentUser,
   type RequestUser
@@ -34,25 +36,28 @@ import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
 import { AuthService } from "../../application/auth.service";
 
-const cookieSecure = process.env.NODE_ENV === "production";
-const cookieDomain = process.env.COOKIE_DOMAIN?.trim();
+function requireProductionAuthScope(req: Request): string {
+  const scope = getAuthScope(req);
+  if (scope === "client" || scope === "admin") return scope;
+  if (process.env.NODE_ENV === "production") {
+    throw new DomainException(
+      ErrorCodes.UNAUTHORIZED,
+      "X-Auth-Scope header required (client or admin)",
+      HttpStatus.UNAUTHORIZED
+    );
+  }
+  return scope;
+}
 
-const getCookieOpts = () => ({
-  httpOnly: true,
-  sameSite: "lax" as const,
-  secure: cookieSecure,
-  ...(cookieDomain ? { domain: cookieDomain } : {})
-});
-
-const getClearCookieOpts = () => ({
-  ...(cookieDomain ? { domain: cookieDomain } : {})
-});
+function guardCookieAuthRequest(req: Request): void {
+  assertAllowedAuthOrigin(req);
+  requireProductionAuthScope(req);
+}
 
 @Controller()
 export class AuthController {
   constructor(private auth: AuthService) {}
 
-  // Strict rate limit: 5 attempts per 60 s — prevents credential-stuffing
   @Throttle({ auth: { limit: 5, ttl: 60_000 } })
   @Post(ROUTES.AUTH.REGISTER)
   async register(
@@ -60,19 +65,12 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response
   ) {
+    guardCookieAuthRequest(req);
     const session = await this.auth.register(body as Parameters<AuthService["register"]>[0]);
-    await this.setCookies(req, res, session);
-    return {
-      ...session,
-      accessToken: this.auth.signAccessToken(
-        session.user.id,
-        session.workspaceId,
-        session.workspaceRole
-      )
-    };
+    const accessToken = await this.setCookies(req, res, session);
+    return { ...session, accessToken };
   }
 
-  // Strict rate limit: 5 attempts per 60 s — prevents brute-force attacks
   @Throttle({ auth: { limit: 5, ttl: 60_000 } })
   @Post(ROUTES.AUTH.LOGIN)
   async login(
@@ -80,24 +78,20 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response
   ) {
+    guardCookieAuthRequest(req);
     const result = await this.auth.login(body as Parameters<AuthService["login"]>[0]);
     if ("requires2fa" in result && result.requires2fa) {
       return result;
     }
     const session = result as AuthSessionDto;
-    await this.setCookies(req, res, session);
-    return {
-      ...session,
-      accessToken: this.auth.signAccessToken(
-        session.user.id,
-        session.workspaceId,
-        session.workspaceRole
-      )
-    };
+    const accessToken = await this.setCookies(req, res, session);
+    return { ...session, accessToken };
   }
 
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Post(ROUTES.AUTH.REFRESH)
   async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    guardCookieAuthRequest(req);
     const scope = getAuthScope(req);
     const refresh = req.cookies?.[refreshCookieName(scope)] ?? req.cookies?.refresh_token;
     if (!refresh) {
@@ -107,14 +101,19 @@ export class AuthController {
         HttpStatus.UNAUTHORIZED
       );
     }
-    const { session, newRefreshToken } = await this.auth.rotateRefreshToken(refresh);
+    const { session, newRefreshToken, family } = await this.auth.rotateRefreshToken(refresh, {
+      userAgent: req.headers["user-agent"]
+    });
     if (!session) return { error: "No workspace" };
 
+    const tokenScope = scope === "client" || scope === "admin" ? scope : undefined;
     const access = this.auth.signAccessToken(
       session.user.id,
       session.workspaceId,
       session.workspaceRole,
-      session.impersonatorId
+      session.impersonatorId,
+      tokenScope,
+      family
     );
     const cookieOpts = getCookieOpts();
     res.cookie(accessCookieName(scope), access, {
@@ -153,16 +152,8 @@ export class AuthController {
       impersonatorName
     };
 
-    await this.setCookies(req, res, enrichedSession, impersonatorId);
-    return {
-      ...enrichedSession,
-      accessToken: this.auth.signAccessToken(
-        enrichedSession.user.id,
-        enrichedSession.workspaceId,
-        enrichedSession.workspaceRole,
-        impersonatorId
-      )
-    };
+    const accessToken = await this.setCookies(req, res, enrichedSession, impersonatorId);
+    return { ...enrichedSession, accessToken };
   }
 
   @SkipThrottle()
@@ -194,12 +185,13 @@ export class AuthController {
       body.userId
     );
 
+    const clientScope = "client" as const;
     const cookieOpts = getCookieOpts();
-    res.cookie("access_token_client", accessToken, {
+    res.cookie(accessCookieName(clientScope), accessToken, {
       ...cookieOpts,
       maxAge: 15 * 60 * 1000
     });
-    res.cookie("refresh_token_client", refreshToken, {
+    res.cookie(refreshCookieName(clientScope), refreshToken, {
       ...cookieOpts,
       maxAge: 7 * 24 * 60 * 60 * 1000
     });
@@ -210,22 +202,25 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Post(ROUTES.AUTH.STOP_IMPERSONATION)
   async stopImpersonation(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const scope = getAuthScope(req);
-    const refresh = req.cookies?.[refreshCookieName(scope)] ?? req.cookies?.refresh_token_client;
+    guardCookieAuthRequest(req);
+    const refresh =
+      req.cookies?.[refreshCookieName("client")] ??
+      req.cookies?.refresh_token_client ??
+      req.cookies?.refresh_token;
     if (refresh) {
       await this.auth.revokeRefreshToken(refresh);
     }
     const clearOpts = getClearCookieOpts();
-    res.clearCookie("access_token_client", clearOpts);
-    res.clearCookie("refresh_token_client", clearOpts);
+    res.clearCookie(accessCookieName("client"), clearOpts);
+    res.clearCookie(refreshCookieName("client"), clearOpts);
     res.clearCookie("access_token", clearOpts);
     res.clearCookie("refresh_token", clearOpts);
     return { ok: true };
   }
 
-  @SkipThrottle()
   @Delete(ROUTES.AUTH.LOGOUT)
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    guardCookieAuthRequest(req);
     const scope = getAuthScope(req);
     const refresh = req.cookies?.[refreshCookieName(scope)] ?? req.cookies?.refresh_token;
     if (refresh) {
@@ -251,29 +246,34 @@ export class AuthController {
     res: Response,
     session: { user: { id: string }; workspaceId: string; workspaceRole: "ADMIN" | "MEMBER" },
     impersonatorId?: string
-  ) {
-    const scope = getAuthScope(req);
-    const access = this.auth.signAccessToken(
-      session.user.id,
-      session.workspaceId,
-      session.workspaceRole,
-      impersonatorId
-    );
-    const refresh = await this.auth.signAndStoreRefreshToken(
+  ): Promise<string> {
+    const scope = requireProductionAuthScope(req);
+    const tokenScope = scope === "client" || scope === "admin" ? scope : undefined;
+    const issued = await this.auth.signAndStoreRefreshToken(
       session.user.id,
       session.workspaceId,
       undefined,
       impersonatorId,
-      this.sessionMetaFromRequest(req)
+      this.sessionMetaFromRequest(req),
+      tokenScope
+    );
+    const access = this.auth.signAccessToken(
+      session.user.id,
+      session.workspaceId,
+      session.workspaceRole,
+      impersonatorId,
+      tokenScope,
+      issued.family
     );
     const cookieOpts = getCookieOpts();
     res.cookie(accessCookieName(scope), access, {
       ...cookieOpts,
       maxAge: 15 * 60 * 1000
     });
-    res.cookie(refreshCookieName(scope), refresh, {
+    res.cookie(refreshCookieName(scope), issued.raw, {
       ...cookieOpts,
       maxAge: 7 * 24 * 60 * 60 * 1000
     });
+    return access;
   }
 }

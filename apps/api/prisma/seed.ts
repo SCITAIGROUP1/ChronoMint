@@ -8,6 +8,10 @@ import {
 } from "@prisma/client";
 import * as bcrypt from "bcrypt";
 import {
+  buildPreferencesWithDashboardLayouts,
+  SEED_DASHBOARD_LAYOUT_ASSIGNMENTS
+} from "./seed-dashboard-layouts";
+import {
   CATEGORY_LOG_DESCRIPTIONS,
   DAY_CATEGORY_BOOST,
   LOG_DESCRIPTIONS,
@@ -108,6 +112,9 @@ async function main() {
   const logCount = await seedTimeLogs(allProjectCtx, users);
   console.log(`  time logs: ${logCount} (non-overlapping per user)`);
 
+  const dashboardLayoutCount = await seedDashboardLayouts(users, workspaces);
+  console.log(`  dashboard layouts: ${dashboardLayoutCount} user/workspace assignments`);
+
   printCredentials();
   await printSummary(workspaces, users);
 }
@@ -131,6 +138,38 @@ async function resetDatabase() {
   await prisma.workspaceMember.deleteMany();
   await prisma.workspace.deleteMany();
   await prisma.user.deleteMany();
+}
+
+async function seedDashboardLayouts(
+  users: Map<string, User>,
+  workspaces: Workspace[]
+): Promise<number> {
+  const workspaceBySlug = new Map(workspaces.map((workspace) => [workspace.slug, workspace]));
+  let updated = 0;
+
+  for (const assignment of SEED_DASHBOARD_LAYOUT_ASSIGNMENTS) {
+    const user = users.get(assignment.email);
+    const workspace = workspaceBySlug.get(assignment.workspaceSlug);
+    if (!user || !workspace) continue;
+
+    const merged = buildPreferencesWithDashboardLayouts(
+      user.preferences,
+      workspace.id,
+      assignment.app,
+      assignment.layout,
+      assignment.defaultLayout
+    );
+
+    const saved = await prisma.user.update({
+      where: { id: user.id },
+      data: { preferences: merged as Prisma.InputJsonValue }
+    });
+
+    users.set(assignment.email, saved);
+    updated++;
+  }
+
+  return updated;
 }
 
 async function seedUsers(passwordHash: string): Promise<Map<string, User>> {

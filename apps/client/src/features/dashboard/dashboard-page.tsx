@@ -166,7 +166,7 @@ export function DashboardPage() {
   // Initialize layout store
   useEffect(() => {
     if (ws) {
-      initialize(ws);
+      void initialize(ws);
     }
   }, [ws, initialize]);
 
@@ -427,20 +427,21 @@ export function DashboardPage() {
   };
 
   const handleResetLayout = () => {
-    resetLayout(ws);
+    void resetLayout(ws);
     toast.success("Dashboard layout reset");
   };
 
   const handleDoneArranging = () => {
-    persistLayout(ws);
-    setIsArranging(false);
+    void persistLayout(ws).finally(() => setIsArranging(false));
   };
 
   const handleDoneAndSaveAsDefault = () => {
-    persistLayout(ws);
-    saveLayoutAsDefault(ws);
-    setIsArranging(false);
-    toast.success("Layout saved as default");
+    void (async () => {
+      await persistLayout(ws);
+      await saveLayoutAsDefault(ws);
+      setIsArranging(false);
+      toast.success("Layout saved as default");
+    })();
   };
 
   const handleQuickSelect = (pId: string, tId: string) => {

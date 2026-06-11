@@ -44,7 +44,8 @@ describe("UsersService", () => {
     mockAuth = {
       revokeAllRefreshTokens: vi.fn()
     };
-    service = new UsersService(mockPrisma, mockAuth);
+    const mockAuthRevocation = { revokeUser: vi.fn() };
+    service = new UsersService(mockPrisma, mockAuth, mockAuthRevocation as never);
   });
 
   it("returns profile with effective daily target from user preference", async () => {
@@ -145,5 +146,59 @@ describe("UsersService", () => {
       })
     );
     expect(profile.name).toBe("Samuel Rivera");
+  });
+
+  it("returns saved dashboard layout for workspace and app", async () => {
+    const workspaceId = "00000000-0000-4000-8000-000000000001";
+    const layout = [{ i: "stat_total_hours", x: 0, y: 0, w: 3, h: 2, visible: true }];
+    mockPrisma.user.findUniqueOrThrow.mockResolvedValue({
+      preferences: {
+        dashboardLayouts: {
+          [workspaceId]: {
+            client: { layout, defaultLayout: layout }
+          }
+        }
+      }
+    });
+
+    const result = await service.getDashboardLayout("user-1", workspaceId, "client");
+
+    expect(result.layout).toEqual(layout);
+    expect(result.defaultLayout).toEqual(layout);
+  });
+
+  it("persists dashboard layout updates in user preferences", async () => {
+    const workspaceId = "00000000-0000-4000-8000-000000000001";
+    const layout = [{ i: "stat_total_hours", x: 0, y: 0, w: 3, h: 2, visible: true }];
+    mockPrisma.user.findUniqueOrThrow
+      .mockResolvedValueOnce({ preferences: {} })
+      .mockResolvedValueOnce({
+        preferences: {
+          dashboardLayouts: {
+            [workspaceId]: { admin: { layout } }
+          }
+        }
+      });
+    mockPrisma.user.update.mockResolvedValue(baseUser);
+
+    const result = await service.updateDashboardLayout("user-1", workspaceId, {
+      app: "admin",
+      layout
+    });
+
+    expect(mockPrisma.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          preferences: expect.objectContaining({
+            dashboardLayouts: expect.objectContaining({
+              [workspaceId]: expect.objectContaining({
+                admin: expect.objectContaining({ layout })
+              })
+            })
+          })
+        })
+      })
+    );
+    expect(result.layout).toEqual(layout);
   });
 });

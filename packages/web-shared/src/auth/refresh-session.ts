@@ -2,11 +2,13 @@ import { ROUTES } from "@kloqra/contracts";
 import type { AuthSessionDto } from "@kloqra/contracts";
 import { getApiBase } from "../api/base";
 import { useSessionStore } from "../stores/session.store";
+import { configureProactiveRefresh } from "./token-scheduler";
 
 const AUTH_SCOPE = process.env.NEXT_PUBLIC_AUTH_SCOPE?.trim() || "app";
 
-/** Silent refresh using httpOnly cookie; returns new access token or null. */
-export async function tryRefreshSession(): Promise<string | null> {
+let refreshPromise: Promise<string | null> | null = null;
+
+async function performRefresh(): Promise<string | null> {
   const res = await fetch(`${getApiBase()}${ROUTES.AUTH.REFRESH}`, {
     method: "POST",
     credentials: "include",
@@ -21,3 +23,14 @@ export async function tryRefreshSession(): Promise<string | null> {
   useSessionStore.getState().setSession(body, body.accessToken);
   return body.accessToken;
 }
+
+/** Silent refresh using httpOnly cookie; returns new access token or null. */
+export async function tryRefreshSession(): Promise<string | null> {
+  if (refreshPromise) return refreshPromise;
+  refreshPromise = performRefresh().finally(() => {
+    refreshPromise = null;
+  });
+  return refreshPromise;
+}
+
+configureProactiveRefresh(() => tryRefreshSession());

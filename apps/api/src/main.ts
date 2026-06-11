@@ -3,6 +3,8 @@ import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
 import { AppModule } from "./app.module";
+import { isAllowedBrowserOrigin } from "./common/auth/allowed-origins";
+import { validateProductionCookieConfig } from "./common/auth/cookie-options";
 import { SentryFilter } from "./common/http/sentry-filter";
 import {
   loadPrismaEnvFile,
@@ -16,19 +18,10 @@ loadPrismaEnvFile();
 normalizeEnvQuotes();
 validateRequiredEnv(); // exits process if critical env vars are missing
 logMissingProductionEnv();
+validateProductionCookieConfig();
 
 function isAllowedCorsOrigin(origin: string | undefined): boolean {
-  if (!origin) return true;
-  const allowed = (process.env.FRONTEND_ORIGIN ?? "http://localhost:3000,http://localhost:3002")
-    .split(",")
-    .map((value) => value.trim())
-    .filter(Boolean);
-  if (allowed.includes(origin)) return true;
-  try {
-    return new URL(origin).hostname.endsWith(".vercel.app");
-  } catch {
-    return false;
-  }
+  return isAllowedBrowserOrigin(origin);
 }
 
 async function bootstrap() {

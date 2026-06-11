@@ -1,5 +1,7 @@
 import type { AuthSessionDto } from "@kloqra/contracts";
 import { create } from "zustand";
+import { broadcastSessionUpdate, subscribeSessionUpdates } from "../auth/auth-channel";
+import { cancelProactiveRefresh, scheduleProactiveRefresh } from "../auth/token-scheduler";
 
 /** Per-app scope (e.g. `client` / `admin`) so tokens are not mixed on the same origin. */
 const AUTH_SCOPE = process.env.NEXT_PUBLIC_AUTH_SCOPE?.trim() || "app";
@@ -41,11 +43,14 @@ export const useSessionStore = create<SessionState>((set) => ({
       migrateLegacyStorage();
       localStorage.setItem(tokenKey(), accessToken);
       localStorage.setItem(workspaceKey(), session.workspaceId);
+      broadcastSessionUpdate(session, accessToken);
+      scheduleProactiveRefresh(accessToken);
     }
     set({ session, accessToken });
   },
   clear: () => {
     if (typeof window !== "undefined") {
+      cancelProactiveRefresh();
       localStorage.removeItem(tokenKey());
       localStorage.removeItem(workspaceKey());
       localStorage.removeItem("cm-access-token");
@@ -72,4 +77,21 @@ export function getAccessToken(): string | null {
   if (typeof window === "undefined") return null;
   migrateLegacyStorage();
   return localStorage.getItem(tokenKey());
+}
+
+/** Sync session from other tabs without re-broadcasting. */
+export function applySessionFromPeer(session: AuthSessionDto, accessToken: string): void {
+  if (typeof window !== "undefined") {
+    migrateLegacyStorage();
+    localStorage.setItem(tokenKey(), accessToken);
+    localStorage.setItem(workspaceKey(), session.workspaceId);
+    scheduleProactiveRefresh(accessToken);
+  }
+  useSessionStore.setState({ session, accessToken });
+}
+
+if (typeof window !== "undefined") {
+  subscribeSessionUpdates((session, accessToken) => {
+    applySessionFromPeer(session, accessToken);
+  });
 }

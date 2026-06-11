@@ -13,6 +13,7 @@ export const ROUTES = {
   USERS: {
     ME: "/users/me",
     PREFERENCES: "/users/me/preferences",
+    DASHBOARD_LAYOUT: "/users/me/dashboard-layout",
     PASSWORD: "/users/me/password",
     SESSIONS: "/users/me/sessions",
     SESSION: (id: string) => `/users/me/sessions/${id}`,

@@ -1,15 +1,12 @@
 "use client";
 
 import { BRAND_NAME, ROUTES } from "@kloqra/contracts";
-import type { AuthSessionDto, WorkspaceWithRoleDto } from "@kloqra/contracts";
 import { Button, ResponsiveLayoutShell, SidebarUserFooter, type SidebarNavItem } from "@kloqra/ui";
 import {
-  applyDefaultWorkspaceIfNeeded,
+  bootstrapSession,
   BrandMark,
-  getAccessToken,
   logoutSession,
   ShellHeaderActions,
-  tryRefreshSession,
   WorkspaceSwitcher
 } from "@kloqra/web-shared";
 import {
@@ -41,7 +38,7 @@ const baseNav = [
 
 export function WorkspaceShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { session, setSession } = useSessionStore();
+  const session = useSessionStore((s) => s.session);
   const [anchorDate] = useState(() => new Date());
   const wsId = session?.workspaceId ?? "";
   const { actionableCount } = useMySubmissions(wsId, anchorDate, "assigned", Boolean(wsId));
@@ -49,46 +46,28 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
   const setWorkspaces = useWorkspacesStore((s) => s.setWorkspaces);
 
   useEffect(() => {
+    if (session) return;
+
     const isImpersonatingRequest =
       typeof window !== "undefined" && window.location.search.includes("impersonate=true");
+
     if (isImpersonatingRequest) {
-      useSessionStore.getState().clear();
       const url = new URL(window.location.href);
       url.searchParams.delete("impersonate");
       window.history.replaceState({}, document.title, url.pathname + url.search);
-    } else if (session) {
-      return;
     }
 
-    const token = getAccessToken();
-    if (!token || isImpersonatingRequest) {
-      tryRefreshSession()
-        .then((newToken) => {
-          if (!newToken) {
-            router.replace("/login");
-          }
-        })
-        .catch(() => {
+    void bootstrapSession({ clearBeforeRefresh: isImpersonatingRequest })
+      .then((result) => {
+        if (!result.ok) {
           router.replace("/login");
-        });
-      return;
-    }
-    api<AuthSessionDto>(ROUTES.AUTH.ME)
-      .then(async (s) => {
-        const switched = await applyDefaultWorkspaceIfNeeded(s, token);
-        setSession(switched.session, switched.accessToken);
-        return api<WorkspaceWithRoleDto[]>(ROUTES.WORKSPACES.LIST, {
-          workspaceId: switched.session.workspaceId
-        });
-      })
-      .then((list) => {
-        if (list) {
-          setWorkspaces(list);
-          setWorkspaceNames(list);
+          return;
         }
+        setWorkspaces(result.workspaces);
+        setWorkspaceNames(result.workspaces);
       })
       .catch(() => router.replace("/login"));
-  }, [session, setSession, setWorkspaces, setWorkspaceNames, router]);
+  }, [session, setWorkspaces, setWorkspaceNames, router]);
 
   async function handleStopImpersonation() {
     try {

@@ -1,5 +1,7 @@
 import {
   ErrorCodes,
+  getWorkspaceDashboardLayout,
+  mergeDashboardLayoutUpdate,
   mergeUserPreferences,
   parseUserPreferences,
   parseWorkspaceSettings,
@@ -9,6 +11,9 @@ import {
   resolveEffectiveTimeFormat,
   resolveEffectiveTimezone,
   type ChangePasswordDto,
+  type DashboardApp,
+  type DashboardLayoutResponseDto,
+  type UpdateDashboardLayoutDto,
   type UpdateUserPreferencesDto,
   type UpdateUserProfileDto,
   type UserProfileDto
@@ -16,6 +21,7 @@ import {
 import { Injectable, HttpStatus } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import * as bcrypt from "bcrypt";
+import { AuthRevocationService } from "../../../common/auth/auth-revocation.service";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 // eslint-disable-next-line no-restricted-imports
@@ -62,7 +68,8 @@ type UserProfileRecord = {
 export class UsersService {
   constructor(
     private prisma: PrismaService,
-    private auth: AuthService
+    private auth: AuthService,
+    private authRevocation: AuthRevocationService
   ) {}
 
   async getProfile(userId: string, workspaceId: string): Promise<UserProfileDto> {
@@ -137,6 +144,43 @@ export class UsersService {
     return this.toProfileDto(user, workspace.settings, activityStats);
   }
 
+  async getDashboardLayout(
+    userId: string,
+    workspaceId: string,
+    app: DashboardApp
+  ): Promise<DashboardLayoutResponseDto> {
+    const user = (await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { preferences: true } as Prisma.UserSelect
+    })) as unknown as { preferences: Prisma.JsonValue };
+    const preferences = parseUserPreferences(user.preferences);
+    const stored = getWorkspaceDashboardLayout(preferences, workspaceId, app);
+    return {
+      layout: stored.layout ?? null,
+      defaultLayout: stored.defaultLayout ?? null
+    };
+  }
+
+  async updateDashboardLayout(
+    userId: string,
+    workspaceId: string,
+    dto: UpdateDashboardLayoutDto
+  ): Promise<DashboardLayoutResponseDto> {
+    const existing = (await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { preferences: true } as Prisma.UserSelect
+    })) as unknown as { preferences: Prisma.JsonValue };
+    const currentPreferences = parseUserPreferences(existing.preferences);
+    const merged = mergeDashboardLayoutUpdate(currentPreferences, workspaceId, dto);
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { preferences: merged as Prisma.InputJsonValue } as Prisma.UserUpdateInput
+    });
+
+    return this.getDashboardLayout(userId, workspaceId, dto.app);
+  }
+
   async changePassword(userId: string, dto: ChangePasswordDto): Promise<{ ok: true }> {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
     const valid = await bcrypt.compare(dto.currentPassword, user.passwordHash);
@@ -154,6 +198,7 @@ export class UsersService {
       data: { passwordHash }
     });
     await this.auth.revokeAllRefreshTokens(userId);
+    await this.authRevocation.revokeUser(userId);
     return { ok: true };
   }
 

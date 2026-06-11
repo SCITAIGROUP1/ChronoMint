@@ -33,7 +33,8 @@ export function ChangePasswordSection({ onChangePassword }: ChangePasswordSectio
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-      toast.success("Password updated. Sign in again on other devices.");
+      toast.success("Password updated. Redirecting to sign in…");
+      window.location.assign("/login?reason=password-changed");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not change password");
     } finally {

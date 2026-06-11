@@ -6,6 +6,12 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { AppModule } from "../src/app.module";
 import { authedAgent, loginAs } from "./helpers/auth";
 
+function setCookieHeaders(headers: request.Response["headers"]): string[] {
+  const value = headers["set-cookie"];
+  if (value == null) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
 describe("Auth E2E", () => {
   let app: INestApplication;
 
@@ -47,5 +53,47 @@ describe("Auth E2E", () => {
     const logoutRes = await authedAgent(app, session).del("/auth/logout");
     expect(logoutRes.status).toBe(200);
     expect(logoutRes.body.ok).toBe(true);
+  });
+
+  it("POST /auth/refresh rotates session with scoped cookie", async () => {
+    const loginRes = await request(app.getHttpServer())
+      .post("/auth/login")
+      .set("X-Auth-Scope", "client")
+      .send({ email: "member@kloqra.dev", password: "password123" });
+    expect(loginRes.status).toBe(201);
+    const cookies = setCookieHeaders(loginRes.headers);
+    expect(cookies.length).toBeGreaterThan(0);
+
+    const refreshRes = await request(app.getHttpServer())
+      .post("/auth/refresh")
+      .set("X-Auth-Scope", "client")
+      .set("Cookie", cookies);
+    expect(refreshRes.status).toBe(201);
+    expect(refreshRes.body.accessToken).toBeTruthy();
+    expect(refreshRes.body.user.email).toBe("member@kloqra.dev");
+  });
+
+  it("POST /auth/refresh returns grace response for duplicate in-flight reuse", async () => {
+    const loginRes = await request(app.getHttpServer())
+      .post("/auth/login")
+      .set("X-Auth-Scope", "client")
+      .send({ email: "admin@kloqra.dev", password: "password123" });
+    const cookies = setCookieHeaders(loginRes.headers);
+    const refreshCookie = cookies.find((c) => c.startsWith("refresh_token_client="));
+    expect(refreshCookie).toBeTruthy();
+    const rawRefresh = refreshCookie!.split(";")[0]!.split("=")[1]!;
+
+    const first = await request(app.getHttpServer())
+      .post("/auth/refresh")
+      .set("X-Auth-Scope", "client")
+      .set("Cookie", cookies);
+    expect(first.status).toBe(201);
+
+    const second = await request(app.getHttpServer())
+      .post("/auth/refresh")
+      .set("X-Auth-Scope", "client")
+      .set("Cookie", [`refresh_token_client=${rawRefresh}`]);
+    expect(second.status).toBe(201);
+    expect(second.body.accessToken).toBeTruthy();
   });
 });

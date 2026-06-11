@@ -21,5 +21,6 @@ export * from "./project-colors";
 export * from "./export-filename";
 export * from "./workspace-settings";
 export * from "./user-preferences";
+export * from "./dashboard-layout";
 export * from "./errors";
 export * from "./routes";

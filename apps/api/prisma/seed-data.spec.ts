@@ -12,4 +12,8 @@ describe("seed-data", () => {
     expect(SEED_WORKSPACES[0]?.name).toBe("Acme Corporation");
     expect(SEED_WORKSPACES[0]?.slug).toBe("acme");
   });
+
+  it("includes Meridian and Apex demo workspaces", () => {
+    expect(SEED_WORKSPACES.map((ws) => ws.slug)).toEqual(["acme", "meridian", "apex"]);
+  });
 });

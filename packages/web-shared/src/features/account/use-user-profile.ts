@@ -10,6 +10,7 @@ import {
 } from "@kloqra/contracts";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../../api/client";
+import { logoutSession } from "../../auth/logout";
 import { getWorkspaceId, useSessionStore } from "../../stores/session.store";
 
 export function useUserProfile() {
@@ -81,6 +82,7 @@ export function useUserProfile() {
         workspaceId: ws,
         body: JSON.stringify({ currentPassword, newPassword })
       });
+      await logoutSession(ws);
     },
     [ws]
   );

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { formatEntryDateLabel, formatEntryShortDate, formatWeekRangeLabel } from "./display-format";
+import {
+  formatClockLabel,
+  formatEntryDateLabel,
+  formatEntryShortDate,
+  formatWeekRangeLabel
+} from "./display-format";
 
 const format = {
   timezone: "America/New_York",
@@ -21,5 +26,17 @@ describe("display-format", () => {
     const label = formatWeekRangeLabel(new Date("2026-06-08T12:00:00.000Z"), format);
     expect(label).toContain("–");
     expect(label).toContain("2026");
+  });
+
+  it("formats Y-axis clock labels as wall-clock hours without timezone shift", () => {
+    const nineAm = formatClockLabel(9, 0, format);
+    expect(nineAm).toMatch(/9(:00)?\s*AM/i);
+
+    const tokyoNine = formatClockLabel(9, 0, {
+      timezone: "Asia/Tokyo",
+      dateFormat: "MDY",
+      timeFormat: "24h"
+    });
+    expect(tokyoNine).toMatch(/^0?9(:00)?$/);
   });
 });

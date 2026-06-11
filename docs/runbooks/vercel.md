@@ -178,6 +178,7 @@ The API is a **NestJS** server with **Prisma**, **PostgreSQL**, **Redis** (timer
 | Build can’t find `@kloqra/ui`                | Turn on “Include source files outside Root Directory”; ensure `vercel.json` build uses `...` filter                                                |
 | `pnpm: command not found`                    | Vercel project Settings → enable pnpm (`packageManager` in root `package.json` is `pnpm@9.15.0`)                                                   |
 | Login works locally, fails in prod           | Check `NEXT_PUBLIC_API_BASE_URL`, API `FRONTEND_ORIGIN`, and API logs                                                                              |
+| Invalid token / refresh fails after ~15m     | Set Railway `AUTH_COOKIE_SAME_SITE=none` and `AUTH_COOKIE_SECURE=true` (Vercel + Railway are cross-site)                                           |
 | 404 to `vercel.app/your-api.railway.app/...` | `NEXT_PUBLIC_API_BASE_URL` is missing `https://` (e.g. set to `api.up.railway.app` only). Use `https://api.up.railway.app`, redeploy client/admin. |
 | CORS error in browser                        | `FRONTEND_ORIGIN` must list exact frontend origins (scheme + host)                                                                                 |
 

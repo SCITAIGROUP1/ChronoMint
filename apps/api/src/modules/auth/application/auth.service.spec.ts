@@ -47,7 +47,13 @@ describe("AuthService unit tests", () => {
 
       expect(token).toBe("mocked-token");
       expect(mockJwt.sign).toHaveBeenCalledWith(
-        { sub: "user-1", userId: "user-1", workspaceId: "workspace-1", role: "MEMBER" },
+        {
+          sub: "user-1",
+          userId: "user-1",
+          workspaceId: "workspace-1",
+          role: "MEMBER",
+          typ: "access"
+        },
         { secret: "my-secret-key-32-chars-long-or-more", expiresIn: "10m" }
       );
     });
@@ -96,14 +102,18 @@ describe("AuthService unit tests", () => {
         })
       };
 
-      const session = await authService.login({
+      const result = await authService.login({
         email: "admin@kloqra.dev",
         password: "password123"
       });
 
-      expect(session.workspaceId).toBe("ws-1");
-      expect(session.workspaceRole).toBe("ADMIN");
-      expect(session.user.email).toBe("admin@kloqra.dev");
+      if ("requires2fa" in result) {
+        expect.fail("expected session, got 2FA challenge");
+      }
+
+      expect(result.workspaceId).toBe("ws-1");
+      expect(result.workspaceRole).toBe("ADMIN");
+      expect(result.user.email).toBe("admin@kloqra.dev");
       expect(mockPrisma.user.findUnique).toHaveBeenCalledWith(
         expect.objectContaining({
           include: expect.objectContaining({

@@ -1,8 +1,21 @@
 export { applyDefaultWorkspaceIfNeeded } from "./auth/apply-default-workspace";
+export { bootstrapSession, type BootstrapResult } from "./auth/bootstrap-session";
 export { logoutSession } from "./auth/logout";
 export { tryRefreshSession } from "./auth/refresh-session";
-export { getEffectiveWorkspaceId, isWorkspaceMismatchError } from "./auth/workspace-context";
+export { isAccessTokenExpired } from "./auth/jwt-payload";
+export {
+  getEffectiveWorkspaceId,
+  isWorkspaceMismatchError,
+  resolveApiWorkspaceId
+} from "./auth/workspace-context";
 export { api, getApiBase, publicFetch } from "./api/client";
+export { createWidgetLayoutStore } from "./dashboard/create-widget-layout-store";
+export type {
+  WidgetLayoutItem,
+  WidgetLayoutState,
+  WidgetLayoutStore,
+  WidgetRegistryEntry
+} from "./dashboard/create-widget-layout-store";
 export {
   fetchListItems,
   fetchPaginatedList,

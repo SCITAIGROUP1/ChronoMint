@@ -17,3 +17,12 @@ export function readWorkspaceIdFromToken(token: string | null): string | null {
   const ws = payload?.workspaceId;
   return typeof ws === "string" && ws.length > 0 ? ws : null;
 }
+
+/** Client-side expiry hint only — API always verifies signatures. */
+export function isAccessTokenExpired(token: string | null): boolean {
+  if (!token) return true;
+  const payload = readJwtPayload(token);
+  const exp = payload?.exp;
+  if (typeof exp !== "number") return false;
+  return exp * 1000 <= Date.now();
+}

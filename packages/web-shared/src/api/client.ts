@@ -1,5 +1,6 @@
+import { isAccessTokenExpired } from "../auth/jwt-payload";
 import { tryRefreshSession } from "../auth/refresh-session";
-import { getEffectiveWorkspaceId, isWorkspaceMismatchError } from "../auth/workspace-context";
+import { isWorkspaceMismatchError, resolveApiWorkspaceId } from "../auth/workspace-context";
 import { getAccessToken, useSessionStore } from "../stores/session.store";
 import { getApiBase } from "./base";
 
@@ -13,14 +14,30 @@ type ApiOptions = RequestInit & {
   _retry?: boolean;
 };
 
-async function parseApiError(res: Response): Promise<string> {
+type ApiErrorBody = {
+  message?: string | string[];
+  code?: string;
+  details?: {
+    reason?: string;
+    fieldErrors?: Record<string, string[]>;
+    formErrors?: string[];
+  };
+};
+
+const FATAL_AUTH_REASONS = new Set([
+  "token_invalid",
+  "token_malformed",
+  "token_wrong_type",
+  "missing_claims",
+  "scope_mismatch",
+  "session_revoked"
+]);
+
+async function parseApiErrorBody(res: Response): Promise<{ message: string; body: ApiErrorBody }> {
   let message = `Request failed (${res.status})`;
+  let body: ApiErrorBody = {};
   try {
-    const body = (await res.json()) as {
-      message?: string | string[];
-      code?: string;
-      details?: { fieldErrors?: Record<string, string[]>; formErrors?: string[] };
-    };
+    body = (await res.json()) as ApiErrorBody;
     if (typeof body.message === "string") message = body.message;
     else if (Array.isArray(body.message)) message = body.message.join(", ");
     const fieldMsgs = body.details?.fieldErrors
@@ -34,18 +51,34 @@ async function parseApiError(res: Response): Promise<string> {
   } catch {
     /* non-JSON */
   }
-  return message;
+  return { message, body };
 }
 
 function handleSessionFailure(message: string): void {
   if (typeof window === "undefined") return;
   if (isWorkspaceMismatchError(message)) {
     useSessionStore.getState().clear();
-    const loginPath = AUTH_SCOPE === "admin" ? "/login" : "/login";
+    const loginPath = "/login";
     if (!window.location.pathname.startsWith(loginPath)) {
       window.location.assign(`${loginPath}?reason=workspace`);
     }
   }
+}
+
+function handleFatalAuthFailure(): void {
+  if (typeof window === "undefined") return;
+  useSessionStore.getState().clear();
+  const loginPath = "/login";
+  if (!window.location.pathname.startsWith(loginPath)) {
+    window.location.assign(loginPath);
+  }
+}
+
+function shouldAttemptRefresh(status: number, body: ApiErrorBody): boolean {
+  if (status !== 401) return false;
+  const reason = body.details?.reason;
+  if (reason && FATAL_AUTH_REASONS.has(reason)) return false;
+  return true;
 }
 
 export async function api<T>(path: string, options: ApiOptions = {}): Promise<T> {
@@ -55,11 +88,13 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
     ...(options.headers as Record<string, string>)
   };
 
-  const ws = options.workspaceId ?? getEffectiveWorkspaceId();
+  const ws = resolveApiWorkspaceId(options.workspaceId);
   if (ws) headers["X-Workspace-Id"] = ws;
 
   const token = typeof window !== "undefined" ? getAccessToken() : null;
-  if (token) headers.Authorization = `Bearer ${token}`;
+  if (token && !isAccessTokenExpired(token)) {
+    headers.Authorization = `Bearer ${token}`;
+  }
 
   const res = await fetch(`${getApiBase()}${path}`, {
     ...options,
@@ -67,15 +102,24 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
     credentials: "include"
   });
 
-  if (res.status === 401 && !options._retry && typeof window !== "undefined") {
-    const refreshed = await tryRefreshSession();
-    if (refreshed) {
-      return api<T>(path, { ...options, _retry: true });
-    }
-  }
-
   if (!res.ok) {
-    const message = await parseApiError(res);
+    const { message, body } = await parseApiErrorBody(res);
+
+    if (
+      !options._retry &&
+      typeof window !== "undefined" &&
+      shouldAttemptRefresh(res.status, body)
+    ) {
+      const refreshed = await tryRefreshSession();
+      if (refreshed) {
+        return api<T>(path, { ...options, _retry: true });
+      }
+    }
+
+    if (res.status === 401 && body.details?.reason && FATAL_AUTH_REASONS.has(body.details.reason)) {
+      handleFatalAuthFailure();
+    }
+
     if (res.status === 403 && isWorkspaceMismatchError(message)) {
       handleSessionFailure(message);
     }

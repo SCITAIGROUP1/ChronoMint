@@ -60,17 +60,20 @@ In the project, click **+ New**:
 
 On the **API service** → **Variables**:
 
-| Variable             | Value                                                               |
-| -------------------- | ------------------------------------------------------------------- |
-| `DATABASE_URL`       | `${{Postgres.DATABASE_URL}}` (reference your Postgres service name) |
-| `REDIS_URL`          | From Redis plugin                                                   |
-| `JWT_ACCESS_SECRET`  | `bash scripts/deploy/generate-secrets.sh`                           |
-| `JWT_REFRESH_SECRET` | Same script — unique per environment                                |
-| `FRONTEND_ORIGIN`    | Staging Vercel URLs (update after [vercel.md](./vercel.md))         |
-| `PUBLIC_ADMIN_URL`   | `https://kloqra-admin-staging.vercel.app`                           |
-| `NODE_ENV`           | `production`                                                        |
+| Variable                    | Value                                                               |
+| --------------------------- | ------------------------------------------------------------------- |
+| `DATABASE_URL`              | `${{Postgres.DATABASE_URL}}` (reference your Postgres service name) |
+| `REDIS_URL`                 | From Redis plugin                                                   |
+| `JWT_ACCESS_SECRET`         | `bash scripts/deploy/generate-secrets.sh`                           |
+| `JWT_REFRESH_SECRET`        | Same script — unique per environment                                |
+| `FRONTEND_ORIGIN`           | Staging Vercel URLs (update after [vercel.md](./vercel.md))         |
+| `PUBLIC_ADMIN_URL`          | `https://kloqra-admin-staging.vercel.app`                           |
+| `AUTH_COOKIE_SAME_SITE`     | `none` (required for Vercel `*.vercel.app` → Railway API)           |
+| `AUTH_COOKIE_SECURE`        | `true`                                                              |
+| `REFRESH_ROTATION_GRACE_MS` | `10000`                                                             |
+| `NODE_ENV`                  | `production`                                                        |
 
-Do **not** set `PORT` — Railway injects it. Do **not** set `REDIS_USE_MEMORY`.
+Do **not** set `PORT` — Railway injects it. Do **not** set `REDIS_USE_MEMORY`. Do **not** set `COOKIE_DOMAIN` for Vercel + Railway (cookies live on the API host).
 
 Template: [`deploy/env.staging.example`](../../deploy/env.staging.example).
 

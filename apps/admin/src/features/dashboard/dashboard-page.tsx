@@ -219,7 +219,7 @@ export function DashboardPage() {
   // Initialize Layout from Store
   useEffect(() => {
     if (ws) {
-      initialize(ws);
+      void initialize(ws);
     }
   }, [ws, initialize]);
 
@@ -281,20 +281,21 @@ export function DashboardPage() {
   }, [load]);
 
   const handleResetLayout = () => {
-    resetLayout(ws);
+    void resetLayout(ws);
     toast.success("Dashboard layout reset to default");
   };
 
   const handleDoneArranging = () => {
-    persistLayout(ws);
-    setIsArranging(false);
+    void persistLayout(ws).finally(() => setIsArranging(false));
   };
 
   const handleDoneAndSaveAsDefault = () => {
-    persistLayout(ws);
-    saveLayoutAsDefault(ws);
-    setIsArranging(false);
-    toast.success("Layout saved as default");
+    void (async () => {
+      await persistLayout(ws);
+      await saveLayoutAsDefault(ws);
+      setIsArranging(false);
+      toast.success("Layout saved as default");
+    })();
   };
 
   const updateHeaderAction = useCallback((id: string, node: React.ReactNode) => {

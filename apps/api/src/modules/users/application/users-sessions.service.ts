@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type { UserSessionDto } from "@kloqra/contracts";
 import { ErrorCodes } from "@kloqra/contracts";
 import { Injectable, HttpStatus } from "@nestjs/common";
+import { AuthRevocationService } from "../../../common/auth/auth-revocation.service";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 
@@ -11,7 +12,10 @@ function hashToken(raw: string): string {
 
 @Injectable()
 export class UsersSessionsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private authRevocation: AuthRevocationService
+  ) {}
 
   async listSessions(userId: string, currentRefreshToken?: string): Promise<UserSessionDto[]> {
     const currentHash = currentRefreshToken ? hashToken(currentRefreshToken) : null;
@@ -42,10 +46,14 @@ export class UsersSessionsService {
     if (!session) {
       throw new DomainException(ErrorCodes.NOT_FOUND, "Session not found", HttpStatus.NOT_FOUND);
     }
-    await this.prisma.refreshToken.update({
-      where: { id: sessionId },
+
+    await this.prisma.refreshToken.updateMany({
+      where: { userId, family: session.family, revokedAt: null },
       data: { revokedAt: new Date() }
     });
+
+    await this.authRevocation.revokeFamily(session.family);
+
     return { ok: true };
   }
 }

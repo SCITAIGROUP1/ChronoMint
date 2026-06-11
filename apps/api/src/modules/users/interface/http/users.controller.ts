@@ -1,9 +1,11 @@
 import {
   changePasswordSchema,
+  dashboardLayoutQuerySchema,
   ErrorCodes,
   ROUTES,
   twoFactorDisableSchema,
   twoFactorVerifySchema,
+  updateDashboardLayoutSchema,
   updateUserPreferencesSchema,
   updateUserProfileSchema
 } from "@kloqra/contracts";
@@ -16,6 +18,8 @@ import {
   Param,
   Patch,
   Post,
+  Put,
+  Query,
   Req,
   UseGuards
 } from "@nestjs/common";
@@ -57,6 +61,27 @@ export class UsersController {
       user.userId,
       user.workspaceId,
       body as Parameters<UsersService["updateProfile"]>[2]
+    );
+  }
+
+  @Get(ROUTES.USERS.DASHBOARD_LAYOUT)
+  getDashboardLayout(
+    @CurrentUser() user: RequestUser,
+    @Query(new ZodValidationPipe(dashboardLayoutQuerySchema)) query: { app: "client" | "admin" }
+  ) {
+    return this.users.getDashboardLayout(user.userId, user.workspaceId, query.app);
+  }
+
+  @Put(ROUTES.USERS.DASHBOARD_LAYOUT)
+  updateDashboardLayout(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodValidationPipe(updateDashboardLayoutSchema)) body: unknown
+  ) {
+    this.assertNotImpersonating(user);
+    return this.users.updateDashboardLayout(
+      user.userId,
+      user.workspaceId,
+      body as Parameters<UsersService["updateDashboardLayout"]>[2]
     );
   }
 

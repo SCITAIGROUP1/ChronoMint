@@ -1,4 +1,5 @@
 /** Rich analytics seed — 13 users, 3 workspaces, 4 projects each, category-aware logs (Kloqra demo). */
+/** Dashboard widget layouts for demo users are applied in seed-dashboard-layouts.ts (stored in users.preferences.dashboardLayouts). */
 
 export const SEED_EMAIL_DOMAIN = "kloqra.dev";
 

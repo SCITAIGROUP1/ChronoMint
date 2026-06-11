@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { userDashboardLayoutsSchema } from "./dashboard-layout";
 import { uuidSchema } from "./dto/common.dto";
 
 export const themePreferenceSchema = z.enum(["light", "dark", "system"]);
@@ -70,7 +71,9 @@ export const userPreferencesSchema = z
     language: z.string().min(2).max(10).optional(),
     defaultWorkspaceId: uuidSchema.optional(),
     startupPage: startupPagePreferenceSchema.optional(),
-    notifications: userNotificationsSchema.partial().optional()
+    notifications: userNotificationsSchema.partial().optional(),
+    /** Per-workspace dashboard widget layouts (client + admin apps). */
+    dashboardLayouts: userDashboardLayoutsSchema.optional()
   })
   .passthrough();
 

@@ -24,7 +24,9 @@ sequenceDiagram
 - **Body:** `accessToken`, `user`, `workspaceId`, `workspaceName`, `workspaceRole`
 - **Cookies:** `access_token` (short-lived), `refresh_token` (7 days)
 
-Each frontend stores `accessToken` in **scoped** `localStorage` keys (`cm-client-*` / `cm-admin-*` via `NEXT_PUBLIC_AUTH_SCOPE`) and sends `Authorization: Bearer <token>`. The API guard prefers the Bearer header over cookies when both are present.
+Each frontend stores `accessToken` in **scoped** `localStorage` keys (`cm-client-*` / `cm-admin-*` via `NEXT_PUBLIC_AUTH_SCOPE`) and sends `Authorization: Bearer <token>` when the token is not expired. The API guard prefers a **valid** Bearer token; if Bearer is expired, it falls back to the scoped access cookie.
+
+401 responses include `details.reason` when applicable (`token_expired`, `token_invalid`, etc.) so the client can refresh vs force re-login.
 
 **Two apps (client + admin):** Auth cookies are scoped per app via `X-Auth-Scope` (`client` / `admin`): `access_token_client`, `refresh_token_admin`, etc. Admin and client can stay logged in on the same browser without overwriting each other's refresh cookie. Legacy unscoped `access_token` / `refresh_token` cookies are still read until cleared.
 
@@ -84,10 +86,24 @@ Enforced via `@Roles("ADMIN")` and `RolesGuard` on controllers, plus service-lev
 | Client (`:3000`) | `MEMBER` (admins may use it but admin features live in admin app) |
 | Admin (`:3002`)  | `ADMIN` — member accounts should use the client app               |
 
-## Production hardening
+## Production hardening (Vercel + Railway)
 
-- Set cookie `secure: true` behind HTTPS.
+Frontends on `*.vercel.app` and API on `*.up.railway.app` are **cross-site**. Refresh cookies must use `SameSite=None; Secure` or browsers will not send them on `fetch` with `credentials: "include"`.
+
+| Railway API variable        | Value for Vercel + Railway cross-site                           |
+| --------------------------- | --------------------------------------------------------------- |
+| `AUTH_COOKIE_SAME_SITE`     | `none` (auto-detected in production if omitted when cross-site) |
+| `AUTH_COOKIE_SECURE`        | `true`                                                          |
+| `FRONTEND_ORIGIN`           | Exact client + admin Vercel URLs (comma-separated)              |
+| `REFRESH_ROTATION_GRACE_MS` | `10000` (concurrent tab refresh tolerance)                      |
+
+Do **not** set `COOKIE_DOMAIN` for Vercel + Railway — cookies are stored on the API host only.
+
 - Use strong `JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET` (see [SECURITY.md](../development/SECURITY.md)).
-- Restrict `FRONTEND_ORIGIN` to known domains.
+- `POST /auth/refresh` requires `X-Auth-Scope: client` or `admin` in production.
+- Cookie auth endpoints (`login`, `register`, `refresh`, `logout`) require a valid **`Origin`** header matching `FRONTEND_ORIGIN` in production (CSRF mitigation when `SameSite=None`).
+- API **fails startup** in production if cross-site setup lacks `AUTH_COOKIE_SAME_SITE=none` or `FRONTEND_ORIGIN` is unset.
+- Client **proactive refresh** runs ~2 minutes before access token expiry to avoid 401 bursts.
+- Access JWTs include a `family` claim tied to the refresh rotation family; revoking a session or changing password blocks the family (or user) in Redis for the access-token TTL (`session_revoked`).
 
-Implementation: [auth.controller.ts](../../apps/api/src/modules/auth/interface/http/auth.controller.ts), [jwt-auth.guard.ts](../../apps/api/src/common/guards/jwt-auth.guard.ts).
+Implementation: [auth.controller.ts](../../apps/api/src/modules/auth/interface/http/auth.controller.ts), [jwt-auth.guard.ts](../../apps/api/src/common/guards/jwt-auth.guard.ts), [cookie-options.ts](../../apps/api/src/common/auth/cookie-options.ts), [allowed-origins.ts](../../apps/api/src/common/auth/allowed-origins.ts).

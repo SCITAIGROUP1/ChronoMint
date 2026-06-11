@@ -96,6 +96,12 @@ const optionalEnvSchema = z.object({
   FRONTEND_ORIGIN: z.string().optional(),
   JWT_ACCESS_EXPIRES: z.string().optional(),
   JWT_REFRESH_EXPIRES: z.string().optional(),
+  AUTH_COOKIE_SAME_SITE: z.enum(["lax", "strict", "none"]).optional(),
+  AUTH_COOKIE_SECURE: z.enum(["true", "false"]).optional(),
+  REFRESH_ROTATION_GRACE_MS: z
+    .string()
+    .regex(/^\d+$/, "REFRESH_ROTATION_GRACE_MS must be a number")
+    .optional(),
   ENABLE_SWAGGER: z.enum(["true", "false"]).optional(),
   // Optional SMTP email delivery (used by ExportScheduleService)
   SMTP_HOST: z.string().optional(),
