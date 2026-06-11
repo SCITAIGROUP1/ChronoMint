@@ -134,6 +134,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm prisma:generate
       - run: pnpm --filter @kloqra/api exec prisma migrate deploy
+      - run: pnpm --filter @kloqra/contracts build
       - run: pnpm prisma:seed
       - run: pnpm test:integration
       - name: Upload integration JUnit
@@ -195,8 +196,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm prisma:generate
       - run: pnpm --filter @kloqra/api exec prisma migrate deploy
-      - run: pnpm prisma:seed
       - run: pnpm --filter @kloqra/contracts --filter @kloqra/ui build
+      - run: pnpm prisma:seed
       - name: Cache Playwright Browsers
         uses: actions/cache@v4
         with:

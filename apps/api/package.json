@@ -17,6 +17,7 @@
     "prisma:generate": "prisma generate",
     "postinstall": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
+    "preprisma:seed": "pnpm -C ../../packages/contracts run build",
     "prisma:seed": "prisma generate && tsx --tsconfig tsconfig.seed.json prisma/seed.ts",
     "prisma:validate": "prisma validate"
   },
