@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ChronoMint</title>
+    <style>
+      body {
+        font-family:
+          system-ui,
+          -apple-system,
+          Segoe UI,
+          Roboto,
+          sans-serif;
+        margin: 0;
+        padding: 12px;
+        color: #172b4d;
+      }
+      h1 {
+        font-size: 14px;
+        margin: 0 0 12px;
+      }
+      label {
+        display: block;
+        font-size: 12px;
+        margin-bottom: 4px;
+        font-weight: 600;
+      }
+      input {
+        width: 100%;
+        box-sizing: border-box;
+        margin-bottom: 10px;
+        padding: 8px;
+        border: 1px solid #dfe1e6;
+        border-radius: 4px;
+      }
+      button {
+        padding: 8px 12px;
+        border: none;
+        border-radius: 4px;
+        background: #0052cc;
+        color: #fff;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button.secondary {
+        background: #f4f5f7;
+        color: #172b4d;
+        margin-left: 8px;
+      }
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+      .muted {
+        color: #6b778c;
+        font-size: 12px;
+      }
+      .error {
+        color: #de350b;
+        font-size: 12px;
+        margin-top: 8px;
+      }
+      .task {
+        font-size: 13px;
+        margin: 8px 0 12px;
+      }
+      .elapsed {
+        font-family: ui-monospace, monospace;
+        font-size: 20px;
+        margin: 8px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

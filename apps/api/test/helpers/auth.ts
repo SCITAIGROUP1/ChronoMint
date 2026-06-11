@@ -45,6 +45,7 @@ export function authedAgent(
     get: (url: string) => withAuthHeaders(request(server).get(url), session),
     post: (url: string) => withAuthHeaders(request(server).post(url), session),
     patch: (url: string) => withAuthHeaders(request(server).patch(url), session),
+    put: (url: string) => withAuthHeaders(request(server).put(url), session),
     del: (url: string) => withAuthHeaders(request(server).delete(url), session)
   };
 }

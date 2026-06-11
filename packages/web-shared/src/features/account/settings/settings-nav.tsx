@@ -4,7 +4,13 @@ import { cn } from "@kloqra/ui";
 import { ChevronRight } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-export type SettingsSectionId = "appearance" | "time" | "notifications" | "security" | "account";
+export type SettingsSectionId =
+  | "appearance"
+  | "time"
+  | "notifications"
+  | "security"
+  | "integrations"
+  | "account";
 
 export type SettingsNavItem = {
   id: SettingsSectionId;

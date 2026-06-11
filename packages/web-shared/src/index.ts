@@ -75,3 +75,15 @@ export { ProfilePage } from "./features/account/profile-page";
 export { useUserProfile } from "./features/account/use-user-profile";
 export { SettingsCard } from "./features/account/settings/settings-card";
 export { SettingsSaveBar } from "./features/account/settings/settings-save-bar";
+export {
+  buildJiraTimerDeepLink,
+  disconnectJira,
+  fetchJiraConnectUrl,
+  fetchJiraConnectionStatus,
+  fetchJiraProjectMappings,
+  resolveJiraIssue,
+  saveJiraProjectMappings,
+  listPersonalAccessTokens,
+  createPersonalAccessToken,
+  revokePersonalAccessToken
+} from "./integrations/jira-api";

@@ -108,7 +108,13 @@ const optionalEnvSchema = z.object({
   SMTP_PORT: z.string().regex(/^\d+$/, "SMTP_PORT must be a number").optional(),
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
-  SMTP_FROM: z.string().optional()
+  SMTP_FROM: z.string().optional(),
+  ATLASSIAN_CLIENT_ID: z.string().optional(),
+  ATLASSIAN_CLIENT_SECRET: z.string().optional(),
+  ATLASSIAN_REDIRECT_URI: z.string().url().optional(),
+  INTEGRATION_TOKEN_ENCRYPTION_KEY: z.string().optional(),
+  PUBLIC_ADMIN_URL: z.string().url().optional(),
+  CHRONOMINT_CLIENT_URL: z.string().url().optional()
 });
 
 export function validateRequiredEnv(): void {

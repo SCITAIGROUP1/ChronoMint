@@ -1,0 +1,14 @@
+{
+  "name": "chronomint-jira-forge-panel",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@forge/bridge": "^4.5.0"
+  },
+  "devDependencies": {
+    "vite": "^6.0.3"
+  }
+}

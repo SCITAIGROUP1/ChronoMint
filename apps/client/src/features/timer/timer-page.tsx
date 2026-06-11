@@ -28,11 +28,12 @@ import {
 } from "@kloqra/ui";
 import { fetchListItems } from "@kloqra/web-shared";
 import { Play, Pause, Square } from "lucide-react";
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, Suspense } from "react";
 import { toast } from "sonner";
 import { DailyGoalWidget } from "./daily-goal-widget";
 import { QuickActions } from "./quick-actions";
 import { StaleTimerDialog } from "./stale-timer-dialog";
+import { useJiraIssueDeepLink } from "./use-jira-issue-deep-link";
 import { OnboardingOverlay } from "@/features/onboarding/onboarding-overlay";
 import { suggestBillableFromTask } from "@/features/timesheet/time-entry-dialog";
 import { api } from "@/lib/api";
@@ -138,7 +139,7 @@ function TimerRing({
   );
 }
 
-export function TimerPage() {
+function TimerPageContent() {
   const session = useSessionStore((s) => s.session);
   const { active, elapsedSec, isPaused, setActive, tick } = useTimerStore();
   const { tasks, projects, workspaceNamesById, setTasks, setProjects } = useProjectsStore();
@@ -272,6 +273,23 @@ export function TimerPage() {
     if (!ws || !tracking || activeTask) return;
     void fetchActiveTimer();
   }, [ws, tracking, activeTask, fetchActiveTimer]);
+
+  const handleJiraResolved = useCallback(
+    (result: { projectId: string; taskId: string; taskName: string }) => {
+      setProjectId(result.projectId);
+      setTaskChoice(result.taskId);
+      setIsBillable(true);
+      setError(null);
+    },
+    []
+  );
+
+  const { jiraIssue, linking: jiraLinking } = useJiraIssueDeepLink({
+    workspaceId: ws,
+    tracking,
+    onResolved: handleJiraResolved,
+    refreshTasks: setTasks
+  });
 
   const canStart = Boolean(projectId) && Boolean(taskChoice);
 
@@ -468,7 +486,11 @@ export function TimerPage() {
         description={
           tracking
             ? "Manage your ongoing timer. Pausing allows taking breaks without breaking logs."
-            : "Choose a project and task before you start tracking."
+            : jiraIssue
+              ? jiraLinking
+                ? `Linking Jira issue ${jiraIssue}…`
+                : `Jira issue ${jiraIssue} — press Start when ready.`
+              : "Choose a project and task before you start tracking."
         }
       />
 
@@ -670,7 +692,7 @@ export function TimerPage() {
                         <Button
                           className="w-full"
                           onClick={startTimer}
-                          disabled={!canStart || starting}
+                          disabled={!canStart || starting || jiraLinking}
                         >
                           {starting ? "Starting…" : "Start timer"}
                         </Button>
@@ -709,5 +731,13 @@ export function TimerPage() {
         onDiscard={handleDiscard}
       />
     </div>
+  );
+}
+
+export function TimerPage() {
+  return (
+    <Suspense fallback={<p className="p-6 text-sm text-muted-foreground">Loading timer…</p>}>
+      <TimerPageContent />
+    </Suspense>
   );
 }

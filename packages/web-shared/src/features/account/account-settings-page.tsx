@@ -1,12 +1,13 @@
 "use client";
 
 import { Card, CardContent } from "@kloqra/ui";
-import { Bell, Clock, Monitor, Shield, UserCog } from "lucide-react";
+import { Bell, Clock, Link2, Monitor, Shield, UserCog } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo } from "react";
-import { useSessionStore } from "../../stores/session.store";
+import { getWorkspaceId, useSessionStore } from "../../stores/session.store";
 import { AccountPreferencesSection } from "./settings/sections/account-preferences-section";
 import { AppearanceSection } from "./settings/sections/appearance-section";
+import { IntegrationsSection } from "./settings/sections/integrations-section";
 import { NotificationsSection } from "./settings/sections/notifications-section";
 import { SecuritySection } from "./settings/sections/security-section";
 import { TimeSettingsSection } from "./settings/sections/time-settings-section";
@@ -19,6 +20,7 @@ const NAV_ITEMS: SettingsNavItem[] = [
   { id: "time", label: "Time Settings", icon: Clock },
   { id: "notifications", label: "Notifications", icon: Bell },
   { id: "security", label: "Security", icon: Shield },
+  { id: "integrations", label: "Integrations", icon: Link2 },
   { id: "account", label: "Account Preferences", icon: UserCog }
 ];
 
@@ -27,6 +29,7 @@ function parseSection(value: string | null): SettingsSectionId {
     value === "time" ||
     value === "notifications" ||
     value === "security" ||
+    value === "integrations" ||
     value === "account"
   ) {
     return value;
@@ -39,7 +42,9 @@ export function AccountSettingsPage() {
   const searchParams = useSearchParams();
   const activeSection = useMemo(() => parseSection(searchParams.get("section")), [searchParams]);
 
-  const isImpersonating = Boolean(useSessionStore((s) => s.session?.impersonatorId));
+  const session = useSessionStore((s) => s.session);
+  const isImpersonating = Boolean(session?.impersonatorId);
+  const workspaceId = session?.workspaceId ?? getWorkspaceId() ?? "";
   const {
     profile,
     loading,
@@ -108,6 +113,7 @@ export function AccountSettingsPage() {
           onRevokeSession={revokeSession}
         />
       ) : null}
+      {activeSection === "integrations" ? <IntegrationsSection workspaceId={workspaceId} /> : null}
       {activeSection === "account" ? (
         <AccountPreferencesSection profile={profile} onSavePreferences={updatePreferences} />
       ) : null}

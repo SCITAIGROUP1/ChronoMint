@@ -19,8 +19,9 @@ import {
 } from "@kloqra/ui";
 import { Building2, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useMemo } from "react";
+import { Suspense, useEffect, useState, useMemo } from "react";
 import { toast } from "sonner";
+import { JiraSettingsPanel } from "@/features/integrations/jira-settings-panel";
 import { api } from "@/lib/api";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 import { useWorkspacesStore } from "@/stores/workspaces.store";
@@ -350,6 +351,10 @@ export function WorkspacePage() {
           </form>
         </CardContent>
       </Card>
+
+      <Suspense fallback={null}>
+        <JiraSettingsPanel workspaceId={ws} />
+      </Suspense>
 
       <AppModal
         open={isCreateOpen}

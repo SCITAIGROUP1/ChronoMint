@@ -4,13 +4,13 @@ overview: Phased Jira Cloud integration (backend → deep link → Forge) with f
 todos:
   - id: backend-foundation
     content: Add contracts, Prisma models, Jira OAuth, issue resolver, and PAT auth guard
-    status: pending
+    status: completed
   - id: deeplink-mvp
     content: Implement /timer?jiraIssue=KEY client flow + admin mapping UI
-    status: pending
+    status: completed
   - id: forge-app
     content: Build Forge issue panel (Start/Stop) calling resolve + timer APIs
-    status: pending
+    status: completed
   - id: worklog-sync
     content: "Optional phase: push stopped timer worklogs back to Jira"
     status: pending

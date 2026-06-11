@@ -4,12 +4,12 @@ import {
   CurrentUser,
   type RequestUser
 } from "../../../../common/decorators/current-user.decorator";
-import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
+import { JwtOrPatAuthGuard } from "../../../../common/guards/jwt-or-pat-auth.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
 import { TimerService } from "../../application/timer.service";
 
 @Controller()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtOrPatAuthGuard)
 export class TimerController {
   constructor(private timer: TimerService) {}
 

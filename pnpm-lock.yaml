@@ -339,6 +339,19 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9(@edge-runtime/vm@3.2.0)(@types/node@22.19.19)(@vitest/ui@2.1.9)(jsdom@29.1.1(@noble/hashes@2.2.0))(lightningcss@1.32.0)(terser@5.48.0)
 
+  apps/jira-forge:
+    dependencies:
+      '@forge/api':
+        specifier: ^4.2.0
+        version: 4.3.0
+      '@forge/resolver':
+        specifier: ^1.6.4
+        version: 1.8.0
+    devDependencies:
+      vitest:
+        specifier: ^2.1.9
+        version: 2.1.9(@edge-runtime/vm@3.2.0)(@types/node@22.19.19)(@vitest/ui@2.1.9)(jsdom@29.1.1(@noble/hashes@2.2.0))(lightningcss@1.32.0)(terser@5.48.0)
+
   packages/config-eslint:
     dependencies:
       '@eslint/js':
@@ -1266,6 +1279,24 @@ packages:
 
   '@floating-ui/utils@0.2.11':
     resolution: {integrity: sha512-RiB/yIh78pcIxl6lLMG0CgBXAZ2Y0eVHqMPYugu+9U0AeT6YBeiJpf7lbdJNIugFP5SIjwNRgo4DhR1Qxi26Gg==}
+
+  '@forge/api@4.3.0':
+    resolution: {integrity: sha512-5NN4JfNrkK3XJiy30JPVNYxLqc9e11iYv+dhBfrFblM7ThGKzP5NaEInvHSNFlGlsncYN4vXbUebgwSAHxt10w==}
+
+  '@forge/auth@0.0.5':
+    resolution: {integrity: sha512-JIJMRRnNWQjvLlnf2Goc+/CEzx+XTpzTarOR7wzRMOEoE715T5gdvb4hWeyQVyRJkRJUQQAXxDPT0WH7rINOcg==}
+
+  '@forge/egress@1.3.0':
+    resolution: {integrity: sha512-M3yDCmIP8lMoYq2YqHhO20nHplIHOdRpuyNjlcygSDD15f0mVlw6XmJF3Htku5/MpBz+3opYZOlwTEmK2ozXSg==}
+
+  '@forge/resolver@1.8.0':
+    resolution: {integrity: sha512-n9u8zAijT+MQLogo72xplFLZzcM7BDhQ9tW7qYZFS58/ZHtju76rVupBzSReeCxvo5lL2JTXB9mnFh2N8p2xyw==}
+
+  '@forge/storage@1.7.0':
+    resolution: {integrity: sha512-sQIVq/SnkFiYm/ZKC445WavyOoa2QBT4RXm+EoIxGnfrQjhMI6mqwoxhZumoCRklF08TBEmMUsyxQyhhOc8erg==}
+
+  '@forge/util@1.4.6':
+    resolution: {integrity: sha512-6AXbt0VUJvlC6iPpt/eM1L6G16ydJ5S+XR8rjzDpWtLTQhtexkDpGj2milAweqdElGrxLe64Hd/Q+SvqJPXA5Q==}
 
   '@hookform/resolvers@3.10.0':
     resolution: {integrity: sha512-79Dv+3mDF7i+2ajj7SkypSKHhl1cbln1OGavqrsF7p6mbUv11xpqpacPsGDCTRvCSjEEIez2ef1NveSVL3b0Ag==}
@@ -2717,6 +2748,9 @@ packages:
 
   '@types/methods@1.1.4':
     resolution: {integrity: sha512-ymXWVrDiCxTBE3+RIrrP533E70eA+9qu7zdWoHuOmGujkYtzf4HQF96b8nwHLqhuf4ykX61IGRIB38CC6/sImQ==}
+
+  '@types/node-fetch@2.6.13':
+    resolution: {integrity: sha512-QGpRVpzSaUs30JBSGPjOg4Uveu384erbHBoT1zeONvyCfwQxIkUshLAOqN/k9EjGviPRmWTTe6aH2qySWKTVSw==}
 
   '@types/node@14.18.63':
     resolution: {integrity: sha512-fAtCfv4jJg+ExtXhvCkCqUKZ+4ok/JQk01qDKhL5BDDoS3AxKXhV5/MAVUZyQnSEd2GT92fkgZl0pz0Q0AzcIQ==}
@@ -7883,6 +7917,31 @@ snapshots:
 
   '@floating-ui/utils@0.2.11': {}
 
+  '@forge/api@4.3.0':
+    dependencies:
+      '@forge/auth': 0.0.5
+      '@forge/egress': 1.3.0
+      '@forge/storage': 1.7.0
+      '@forge/util': 1.4.6
+      '@types/node-fetch': 2.6.13
+      node-fetch: 2.7.0
+    transitivePeerDependencies:
+      - encoding
+
+  '@forge/auth@0.0.5':
+    dependencies:
+      tslib: 2.8.1
+
+  '@forge/egress@1.3.0':
+    dependencies:
+      minimatch: 9.0.9
+
+  '@forge/resolver@1.8.0': {}
+
+  '@forge/storage@1.7.0': {}
+
+  '@forge/util@1.4.6': {}
+
   '@hookform/resolvers@3.10.0(react-hook-form@7.77.0(react@19.2.7))':
     dependencies:
       react-hook-form: 7.77.0(react@19.2.7)
@@ -9147,6 +9206,11 @@ snapshots:
       '@types/node': 22.19.19
 
   '@types/methods@1.1.4': {}
+
+  '@types/node-fetch@2.6.13':
+    dependencies:
+      '@types/node': 22.19.19
+      form-data: 4.0.5
 
   '@types/node@14.18.63': {}
 

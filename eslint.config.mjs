@@ -7,6 +7,24 @@ export default [
   ...nestLayers,
   ...reactLayers,
   {
+    files: ["apps/jira-forge/src/**/*.js"],
+    languageOptions: {
+      globals: {
+        URLSearchParams: "readonly"
+      }
+    }
+  },
+  {
+    files: ["apps/jira-forge/static/panel/src/**/*.js"],
+    languageOptions: {
+      globals: {
+        document: "readonly",
+        setInterval: "readonly",
+        clearInterval: "readonly"
+      }
+    }
+  },
+  {
     files: ["scripts/**/*.mjs"],
     languageOptions: {
       globals: {

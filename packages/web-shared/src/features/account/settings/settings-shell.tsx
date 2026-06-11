@@ -21,6 +21,10 @@ const SECTION_COPY: Record<SettingsSectionId, { title: string; description: stri
     title: "Security",
     description: "Enhance the security of your account"
   },
+  integrations: {
+    title: "Integrations",
+    description: "Connect external tools like Jira"
+  },
   account: {
     title: "Account Preferences",
     description: "Configure your account settings"

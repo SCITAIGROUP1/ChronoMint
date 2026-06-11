@@ -4,17 +4,23 @@
 
 Copy `apps/api/.env.example` to `apps/api/.env`.
 
-| Variable              | Required            | Description                                                                                                                                                |
-| --------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`        | Yes                 | PostgreSQL connection string. Postgres.app: `postgresql://YOUR_MAC_USER@localhost:5432/kloqra`. Docker: `postgresql://kloqra:kloqra@localhost:5432/kloqra` |
-| `REDIS_USE_MEMORY`    | Local dev           | Set `true` to run the timer without Redis (in-memory store). Remove when using real Redis                                                                  |
-| `REDIS_URL`           | Production / Docker | e.g. `redis://localhost:6379`. Used when `REDIS_USE_MEMORY` is not set                                                                                     |
-| `JWT_ACCESS_SECRET`   | Yes                 | Min 32 characters. Signs short-lived access tokens                                                                                                         |
-| `JWT_REFRESH_SECRET`  | Yes                 | Min 32 characters. Signs refresh tokens (httpOnly cookie)                                                                                                  |
-| `JWT_ACCESS_EXPIRES`  | No                  | Default `15m`                                                                                                                                              |
-| `JWT_REFRESH_EXPIRES` | No                  | Default `7d`                                                                                                                                               |
-| `FRONTEND_ORIGIN`     | Yes                 | Comma-separated CORS origins, e.g. `http://localhost:3000,http://localhost:3002`                                                                           |
-| `PORT`                | No                  | API listen port. Default `3001`                                                                                                                            |
+| Variable                           | Required            | Description                                                                                                                                                |
+| ---------------------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                     | Yes                 | PostgreSQL connection string. Postgres.app: `postgresql://YOUR_MAC_USER@localhost:5432/kloqra`. Docker: `postgresql://kloqra:kloqra@localhost:5432/kloqra` |
+| `REDIS_USE_MEMORY`                 | Local dev           | Set `true` to run the timer without Redis (in-memory store). Remove when using real Redis                                                                  |
+| `REDIS_URL`                        | Production / Docker | e.g. `redis://localhost:6379`. Used when `REDIS_USE_MEMORY` is not set                                                                                     |
+| `JWT_ACCESS_SECRET`                | Yes                 | Min 32 characters. Signs short-lived access tokens                                                                                                         |
+| `JWT_REFRESH_SECRET`               | Yes                 | Min 32 characters. Signs refresh tokens (httpOnly cookie)                                                                                                  |
+| `JWT_ACCESS_EXPIRES`               | No                  | Default `15m`                                                                                                                                              |
+| `JWT_REFRESH_EXPIRES`              | No                  | Default `7d`                                                                                                                                               |
+| `FRONTEND_ORIGIN`                  | Yes                 | Comma-separated CORS origins, e.g. `http://localhost:3000,http://localhost:3002`                                                                           |
+| `PORT`                             | No                  | API listen port. Default `3001`                                                                                                                            |
+| `ATLASSIAN_CLIENT_ID`              | Jira integration    | OAuth app from [Atlassian developer console](https://developer.atlassian.com)                                                                              |
+| `ATLASSIAN_CLIENT_SECRET`          | Jira integration    | OAuth app secret                                                                                                                                           |
+| `ATLASSIAN_REDIRECT_URI`           | Jira integration    | Must match callback URL registered in Atlassian (local: `http://localhost:3001/integrations/jira/callback`)                                                |
+| `INTEGRATION_TOKEN_ENCRYPTION_KEY` | Jira integration    | Encrypts stored Jira refresh tokens (min 32 chars)                                                                                                         |
+
+Full Jira testing guide: [runbooks/jira-integration.md](../runbooks/jira-integration.md)
 
 ## Client (`apps/client`)
 
@@ -28,9 +34,10 @@ Copy `apps/client/.env.example` to `apps/client/.env.local`.
 
 Copy `apps/admin/.env.example` to `apps/admin/.env.local`.
 
-| Variable                   | Required | Description                                        |
-| -------------------------- | -------- | -------------------------------------------------- |
-| `NEXT_PUBLIC_API_BASE_URL` | Yes      | API base URL. Default dev: `http://localhost:3001` |
+| Variable                     | Required | Description                                                      |
+| ---------------------------- | -------- | ---------------------------------------------------------------- |
+| `NEXT_PUBLIC_API_BASE_URL`   | Yes      | API base URL. Default dev: `http://localhost:3001`               |
+| `NEXT_PUBLIC_CLIENT_APP_URL` | No       | Client URL for Jira deep-link examples (`http://localhost:3000`) |
 
 ## Local ports
 

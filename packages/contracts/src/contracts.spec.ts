@@ -14,6 +14,8 @@ import {
   resolveEffectiveNotifications,
   resolveEffectiveTimezone,
   ROUTES,
+  resolveJiraIssueQuerySchema,
+  jiraIssueKeySchema,
   startTimerSchema,
   dashboardReportSchema,
   teamMembersOverviewSchema,
@@ -29,6 +31,20 @@ const UUID_2 = "550e8400-e29b-41d4-a716-446655440001";
 describe("contracts", () => {
   it("validates login", () => {
     const r = loginSchema.safeParse({ email: "a@b.com", password: "secret" });
+    expect(r.success).toBe(true);
+  });
+
+  it("exposes jira integration routes", () => {
+    expect(ROUTES.INTEGRATIONS.JIRA.STATUS).toBe("/integrations/jira/status");
+    expect(ROUTES.INTEGRATIONS.JIRA.CONNECT_URL).toBe("/integrations/jira/connect-url");
+    expect(ROUTES.INTEGRATIONS.JIRA.RESOLVE).toBe("/integrations/jira/resolve");
+    expect(ROUTES.AUTH.PERSONAL_TOKENS).toBe("/auth/personal-tokens");
+  });
+
+  it("validates jira issue key", () => {
+    expect(jiraIssueKeySchema.safeParse("PROJ-123").success).toBe(true);
+    expect(jiraIssueKeySchema.safeParse("invalid").success).toBe(false);
+    const r = resolveJiraIssueQuerySchema.safeParse({ issueKey: "PROJ-42" });
     expect(r.success).toBe(true);
   });
 

@@ -8,7 +8,20 @@ export const ROUTES = {
     ME: "/auth/me",
     SWITCH_WORKSPACE: "/auth/switch-workspace",
     IMPERSONATE: "/auth/impersonate",
-    STOP_IMPERSONATION: "/auth/stop-impersonation"
+    STOP_IMPERSONATION: "/auth/stop-impersonation",
+    PERSONAL_TOKENS: "/auth/personal-tokens",
+    PERSONAL_TOKEN: (id: string) => `/auth/personal-tokens/${id}`
+  },
+  INTEGRATIONS: {
+    JIRA: {
+      STATUS: "/integrations/jira/status",
+      CONNECT: "/integrations/jira/connect",
+      CONNECT_URL: "/integrations/jira/connect-url",
+      CALLBACK: "/integrations/jira/callback",
+      DISCONNECT: "/integrations/jira",
+      PROJECT_MAPPINGS: "/integrations/jira/project-mappings",
+      RESOLVE: "/integrations/jira/resolve"
+    }
   },
   USERS: {
     ME: "/users/me",
