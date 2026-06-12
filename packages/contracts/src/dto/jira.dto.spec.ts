@@ -60,6 +60,15 @@ describe("upsertProjectMappingSchema", () => {
     expect(r.success).toBe(true);
   });
 
+  it("accepts payload without chronoProjectId (optional link)", () => {
+    const r = upsertProjectMappingSchema.safeParse({
+      jiraProjectId: "10001",
+      jiraProjectKey: "KLQ",
+      jiraProjectName: "Kloqra"
+    });
+    expect(r.success).toBe(true);
+  });
+
   it("requires jiraProjectId", () => {
     const r = upsertProjectMappingSchema.safeParse({
       jiraProjectKey: "KLQ",
@@ -78,6 +87,20 @@ describe("jiraProjectMappingSchema", () => {
       jiraProjectKey: "KLQ",
       jiraProjectName: "Kloqra",
       syncEnabled: true,
+      syncDirection: "JIRA_TO_CHRONO",
+      lastSyncAt: null
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("accepts mapping without chronoProjectId (unlinked project)", () => {
+    const r = jiraProjectMappingSchema.safeParse({
+      id: "map-2",
+      connectionId: "conn-1",
+      jiraProjectId: "10002",
+      jiraProjectKey: "KLQ2",
+      jiraProjectName: "Kloqra 2",
+      syncEnabled: false,
       syncDirection: "JIRA_TO_CHRONO",
       lastSyncAt: null
     });

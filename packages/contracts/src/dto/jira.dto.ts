@@ -30,7 +30,7 @@ export const jiraProjectMappingSchema = z.object({
   jiraProjectId: z.string(),
   jiraProjectKey: z.string(),
   jiraProjectName: z.string(),
-  chronoProjectId: z.string().nullable(),
+  chronoProjectId: z.string().nullable().optional(),
   syncEnabled: z.boolean(),
   syncDirection: z.string(),
   lastSyncAt: z.coerce.date().nullable()
@@ -40,7 +40,7 @@ export const upsertProjectMappingSchema = z.object({
   jiraProjectId: z.string().min(1),
   jiraProjectKey: z.string().min(1),
   jiraProjectName: z.string().min(1),
-  chronoProjectId: z.string().nullable(),
+  chronoProjectId: z.string().nullable().optional(),
   syncEnabled: z.boolean().optional().default(true),
   syncDirection: z
     .enum(["JIRA_TO_CHRONO", "CHRONO_TO_JIRA", "BIDIRECTIONAL"])
@@ -145,7 +145,7 @@ export const jiraSyncLogSchema = z.object({
 export const listSyncLogsQuerySchema = z.object({
   status: z.string().optional(),
   page: z.coerce.number().int().positive().optional().default(1),
-  limit: z.coerce.number().int().positive().max(100).optional().default(25)
+  limit: z.coerce.number().int().positive().max(100).optional().default(50)
 });
 
 export type JiraSyncLogDto = z.infer<typeof jiraSyncLogSchema>;
