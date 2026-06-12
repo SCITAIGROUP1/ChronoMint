@@ -4,6 +4,7 @@ import { buildProjectDetailNavItems, resolveProjectDetailSection } from "./proje
 describe("project-detail-nav", () => {
   it("builds section hrefs for a project", () => {
     expect(buildProjectDetailNavItems("proj-1")).toEqual([
+      expect.objectContaining({ id: "overview", href: "/projects/proj-1/overview" }),
       expect.objectContaining({ id: "tasks", href: "/projects/proj-1/tasks" }),
       expect.objectContaining({ id: "team", href: "/projects/proj-1/team" }),
       expect.objectContaining({ id: "settings", href: "/projects/proj-1/settings" })
@@ -11,6 +12,7 @@ describe("project-detail-nav", () => {
   });
 
   it("maps paths to section ids", () => {
+    expect(resolveProjectDetailSection("/projects/x/overview")).toBe("overview");
     expect(resolveProjectDetailSection("/projects/x/tasks")).toBe("tasks");
     expect(resolveProjectDetailSection("/projects/x/team")).toBe("team");
     expect(resolveProjectDetailSection("/projects/x/settings")).toBe("settings");

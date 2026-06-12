@@ -40,7 +40,7 @@ export class TimerService {
     });
     if (!task)
       throw new DomainException(ErrorCodes.NOT_FOUND, "Task not found", HttpStatus.NOT_FOUND);
-    await this.access.assertCanAccessProject(workspaceId, userId, role, task.projectId);
+    await this.access.assertCanLogTask(workspaceId, userId, role, dto.taskId);
 
     const existing = await this.redis.getClient().get(this.key(workspaceId, userId));
     if (existing) {
@@ -118,7 +118,7 @@ export class TimerService {
     };
   }
 
-  async stop(workspaceId: string, userId: string, dto: StopTimerDto) {
+  async stop(workspaceId: string, userId: string, role: "ADMIN" | "MEMBER", dto: StopTimerDto) {
     const raw = await this.redis.getClient().get(this.key(workspaceId, userId));
     if (!raw) {
       throw new DomainException(
@@ -153,7 +153,8 @@ export class TimerService {
           endTime: end,
           durationSec: totalSec,
           description: dto.description,
-          isBillable: dto.isBillable ?? task.billableDefault,
+          isBillable:
+            role === "ADMIN" ? (dto.isBillable ?? task.billableDefault) : task.billableDefault,
           source: "timer"
         }
       });

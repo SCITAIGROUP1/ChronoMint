@@ -18,6 +18,7 @@ import {
   TableLoadingState
 } from "@kloqra/ui";
 import { usePaginatedList } from "@kloqra/web-shared";
+import Link from "next/link";
 import { useProjectsStore } from "@/stores/projects.store";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
@@ -71,7 +72,12 @@ export function ProjectsPage() {
                       {p.workspaceName ?? workspaceNamesById[p.workspaceId] ?? "—"}
                     </DataTableCell>
                     <DataTableCell>
-                      <ProjectNameWithColor name={p.name} color={p.color} />
+                      <Link
+                        href={`/projects/${p.id}/overview`}
+                        className="font-medium text-primary hover:underline"
+                      >
+                        <ProjectNameWithColor name={p.name} color={p.myColor ?? p.color} />
+                      </Link>
                     </DataTableCell>
                     <DataTableCell>{p.clientName ?? "—"}</DataTableCell>
                     <DataTableCell>{p.isActive ? "Yes" : "No"}</DataTableCell>

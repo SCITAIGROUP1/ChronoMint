@@ -199,3 +199,35 @@ export const utilizationResponseSchema = z.object({
 export type UtilizationMemberDto = z.infer<typeof utilizationMemberSchema>;
 export type UtilizationQueryDto = z.infer<typeof utilizationQuerySchema>;
 export type UtilizationResponseDto = z.infer<typeof utilizationResponseSchema>;
+
+export const projectSummaryQuerySchema = z
+  .object({
+    from: isoDatetimeSchema,
+    to: isoDatetimeSchema
+  })
+  .superRefine((v, ctx) => assertMaxDateRange(v.from, v.to, ctx));
+
+export const projectSummaryCategoryHoursSchema = z.object({
+  categoryId: uuidSchema,
+  categoryName: z.string(),
+  totalHours: z.number().nonnegative(),
+  billableHours: z.number().nonnegative()
+});
+
+export const projectSummarySchema = z.object({
+  projectId: uuidSchema,
+  projectName: z.string(),
+  period: z.object({
+    from: isoDatetimeSchema,
+    to: isoDatetimeSchema
+  }),
+  totalHours: z.number().nonnegative(),
+  billableHours: z.number().nonnegative(),
+  nonBillableHours: z.number().nonnegative(),
+  entryCount: z.number().int().nonnegative(),
+  byTask: z.array(taskBreakdownItemSchema),
+  byCategory: z.array(projectSummaryCategoryHoursSchema)
+});
+
+export type ProjectSummaryQueryDto = z.infer<typeof projectSummaryQuerySchema>;
+export type ProjectSummaryDto = z.infer<typeof projectSummarySchema>;

@@ -90,6 +90,8 @@ describe("AuthService unit tests", () => {
           id: "user-1",
           email: "admin@kloqra.dev",
           name: "Admin",
+          firstName: "Avery",
+          lastName: "Admin",
           passwordHash: "hash",
           defaultHourlyRate: null,
           memberships: [
@@ -114,6 +116,8 @@ describe("AuthService unit tests", () => {
       expect(result.workspaceId).toBe("ws-1");
       expect(result.workspaceRole).toBe("ADMIN");
       expect(result.user.email).toBe("admin@kloqra.dev");
+      expect(result.user.firstName).toBe("Avery");
+      expect(result.user.lastName).toBe("Admin");
       expect(mockPrisma.user.findUnique).toHaveBeenCalledWith(
         expect.objectContaining({
           include: expect.objectContaining({

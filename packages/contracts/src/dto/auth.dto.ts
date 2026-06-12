@@ -19,6 +19,8 @@ export const authUserSchema = z.object({
   id: uuidSchema,
   email: emailSchema,
   name: z.string(),
+  firstName: z.string().min(1).max(60).optional(),
+  lastName: z.string().max(60).optional(),
   defaultHourlyRate: z.number().nonnegative().nullable()
 });
 

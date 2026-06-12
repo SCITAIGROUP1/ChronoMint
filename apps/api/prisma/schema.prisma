@@ -34,6 +34,8 @@ model User {
   projectInvitesCreated ProjectInvite[]   @relation("ProjectInvitesCreated")
   refreshTokens         RefreshToken[]
   timesheetPeriods      TimesheetPeriod[]
+  taskAssignees         TaskAssignee[]
+  projectColors         UserProjectColor[]
 
   @@map("users")
 }
@@ -104,6 +106,7 @@ model Project {
   hourlyRates              HourlyRate[]
   invites                  ProjectInvite[]
   timesheetPeriods         TimesheetPeriod[]
+  userColors               UserProjectColor[]
 
   @@unique([workspaceId, name])
   @@index([workspaceId])
@@ -162,10 +165,38 @@ model Task {
   project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   category        Category  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   timeLogs        TimeLog[]
+  assignees       TaskAssignee[]
 
   @@index([projectId])
   @@index([categoryId])
   @@map("tasks")
+}
+
+model TaskAssignee {
+  id        String   @id @default(uuid())
+  taskId    String   @map("task_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, userId])
+  @@index([userId])
+  @@map("task_assignees")
+}
+
+model UserProjectColor {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  projectId String   @map("project_id")
+  color     String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, projectId])
+  @@map("user_project_colors")
 }
 
 model TimeLog {

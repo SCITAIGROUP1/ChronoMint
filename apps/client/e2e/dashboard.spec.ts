@@ -6,6 +6,14 @@ test.describe("Client dashboard", () => {
     await expect(page.getByRole("heading", { name: "Dashboard", exact: true })).toBeVisible();
   });
 
+  test("shows period presets and date range picker in one toolbar", async ({ page }) => {
+    const periodBar = page.locator(".rounded-xl.border").filter({ hasText: "Period" }).first();
+    await expect(periodBar.getByRole("button", { name: "Today" })).toBeVisible();
+    await expect(periodBar.getByRole("button", { name: "This week" })).toBeVisible();
+    await expect(periodBar.getByRole("button", { name: "This month" })).toBeVisible();
+    await expect(periodBar.getByRole("button", { name: "Dashboard date range" })).toBeVisible();
+  });
+
   test("shows collapsible scope filters for project, category, and task", async ({ page }) => {
     await page.getByRole("button", { name: /scope filters/i }).click();
     const panel = page.locator("div.grid.gap-4.rounded-lg.border");

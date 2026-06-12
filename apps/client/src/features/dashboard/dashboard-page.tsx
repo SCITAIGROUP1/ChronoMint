@@ -20,7 +20,6 @@ import {
   Input,
   Label,
   ProjectColorDot,
-  SegmentedControl,
   Select,
   SelectContent,
   SelectItem,
@@ -31,6 +30,7 @@ import {
   applyDashboardPeriodPreset,
   buildWidgetMinSizeMap,
   DashboardArrangeBanner,
+  DashboardPeriodFilter,
   DASHBOARD_GRID_BREAKPOINTS,
   DASHBOARD_GRID_COLS,
   generateResponsiveLayouts,
@@ -38,6 +38,7 @@ import {
   ReportScopeFilters,
   type DashboardBreakpoint,
   type DashboardPeriodPreset,
+  type DashboardPeriodSelection,
   fetchListItems
 } from "@kloqra/web-shared";
 import { Play, Pause, Square, LayoutGrid, Move } from "lucide-react";
@@ -64,10 +65,10 @@ import { isActiveTimer, useTimerStore } from "@/stores/timer.store";
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
-const RANGE_OPTIONS: { value: DashboardPeriodPreset; label: string }[] = [
-  { value: "today", label: "Today" },
-  { value: "week", label: "This week" },
-  { value: "month", label: "This month" }
+const CLIENT_PERIOD_PRESETS = [
+  { value: "today" as const, label: "Today" },
+  { value: "week" as const, label: "This week" },
+  { value: "month" as const, label: "This month" }
 ];
 
 function formatElapsed(sec: number) {
@@ -87,7 +88,7 @@ export function DashboardPage() {
   const { tasks, projects, setTasks, setProjects } = useProjectsStore();
 
   // Dashboard filter states
-  const [range, setRange] = useState<DashboardPeriodPreset | "">("week");
+  const [range, setRange] = useState<DashboardPeriodSelection>("week");
   const [startDate, setStartDate] = useState<string>(() => applyDashboardPeriodPreset("week").from);
   const [endDate, setEndDate] = useState<string>(() => applyDashboardPeriodPreset("week").to);
   const [filterProjectId, setFilterProjectId] = useState("");
@@ -106,10 +107,10 @@ export function DashboardPage() {
     setEndDate(to);
   }
 
-  function handleCustomDateChange(newStart: string, newEnd: string) {
-    setStartDate(newStart);
-    setEndDate(newEnd);
-    setRange(matchDashboardPeriodPreset(newStart, newEnd) ?? "");
+  function handleDateRangeChange(from: string, to: string) {
+    setStartDate(from);
+    setEndDate(to);
+    setRange(matchDashboardPeriodPreset(from, to) ?? "custom");
   }
 
   const [logs, setLogs] = useState<TimeLogDto[]>([]);
@@ -126,7 +127,6 @@ export function DashboardPage() {
   const [projectId, setProjectId] = useState("");
   const [taskChoice, setTaskChoice] = useState("");
   const [stopDescription, setStopDescription] = useState("");
-  const [isBillable, setIsBillable] = useState(true);
   const [starting, setStarting] = useState(false);
   const [stopping, setStopping] = useState(false);
   const [pausing, setPausing] = useState(false);
@@ -331,11 +331,8 @@ export function DashboardPage() {
   }, [tick]);
 
   // Auto-fill billable default when project/task changes
-  useEffect(() => {
-    if (activeTask) {
-      setIsBillable(activeTask.billableDefault);
-    }
-  }, [activeTask]);
+  const billableForActive =
+    activeTask?.billableDefault ?? suggestBillableFromTask(tasks, taskChoice);
 
   async function startTimer() {
     if (!canStart) return;
@@ -366,7 +363,7 @@ export function DashboardPage() {
         workspaceId: ws,
         body: JSON.stringify({
           description: stopDescription.trim() || undefined,
-          isBillable
+          isBillable: billableForActive
         })
       });
       setActive(null);
@@ -513,7 +510,7 @@ export function DashboardPage() {
       const taskMatches = !filterTaskId || activeTask.id === filterTaskId;
       if (userMatches && projectMatches && categoryMatches && taskMatches) {
         totalSec += elapsedSec;
-        if (isBillable) {
+        if (billableForActive) {
           billableSec += elapsedSec;
         }
       }
@@ -535,7 +532,7 @@ export function DashboardPage() {
     filterUserId,
     session?.user.id,
     elapsedSec,
-    isBillable
+    billableForActive
   ]);
 
   const todayLoggedSec = useMemo(() => {
@@ -624,32 +621,15 @@ export function DashboardPage() {
       {/* Filters Toolbar */}
       <Card>
         <CardContent className="flex flex-col gap-4 py-4">
-          <div className="space-y-2">
-            <Label className="text-xs font-medium text-muted-foreground">Period</Label>
-            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-              <SegmentedControl
-                fullWidth
-                value={range as DashboardPeriodPreset}
-                onChange={(v) => handleRangePresetChange(v as DashboardPeriodPreset)}
-                options={RANGE_OPTIONS}
-              />
-              <div className="flex w-full items-center gap-1.5 sm:w-auto">
-                <Input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => handleCustomDateChange(e.target.value, endDate)}
-                  className="h-9 flex-1 bg-background text-xs px-2.5 sm:w-[145px] sm:flex-none"
-                />
-                <span className="text-muted-foreground text-xs font-medium">—</span>
-                <Input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => handleCustomDateChange(startDate, e.target.value)}
-                  className="h-9 flex-1 bg-background text-xs px-2.5 sm:w-[145px] sm:flex-none"
-                />
-              </div>
-            </div>
-          </div>
+          <DashboardPeriodFilter
+            range={range}
+            onPresetChange={handleRangePresetChange}
+            startDate={startDate}
+            endDate={endDate}
+            onDateRangeChange={handleDateRangeChange}
+            presets={CLIENT_PERIOD_PRESETS}
+            dateRangeAriaLabel="Dashboard date range"
+          />
 
           <ReportScopeFilters
             compact
@@ -919,10 +899,7 @@ export function DashboardPage() {
                                       </Label>
                                       <Select
                                         value={taskChoice}
-                                        onValueChange={(v) => {
-                                          setTaskChoice(v);
-                                          setIsBillable(suggestBillableFromTask(tasks, v));
-                                        }}
+                                        onValueChange={setTaskChoice}
                                         disabled={!projectId || projectTasks.length === 0}
                                       >
                                         <SelectTrigger className="h-8 bg-background text-xs">

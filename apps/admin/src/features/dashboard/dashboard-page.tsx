@@ -14,8 +14,6 @@ import {
   Button,
   Card,
   CardContent,
-  Input,
-  Label,
   Select,
   SelectContent,
   SelectItem,
@@ -27,6 +25,7 @@ import {
   applyDashboardPeriodPreset,
   buildWidgetMinSizeMap,
   DashboardArrangeBanner,
+  DashboardPeriodFilter,
   DASHBOARD_GRID_BREAKPOINTS,
   DASHBOARD_GRID_COLS,
   generateResponsiveLayouts,
@@ -35,6 +34,7 @@ import {
   ReportScopeFilters,
   type DashboardBreakpoint,
   type DashboardPeriodPreset,
+  type DashboardPeriodSelection,
   fetchListItems
 } from "@kloqra/web-shared";
 import { Clock, DollarSign, Folder, LayoutGrid, Move, Users } from "lucide-react";
@@ -59,7 +59,7 @@ import { ProjectHealthWidget } from "./widgets/project-health-widget";
 import { RateEfficiencyWidget } from "./widgets/rate-efficiency-widget";
 import { RevenueTrendWidget } from "./widgets/revenue-trend-widget";
 import { TaskBreakdownWidget } from "./widgets/task-breakdown-widget";
-import { DashboardSkeleton, EmptyState, SegmentedControl } from "@/components/admin-page";
+import { DashboardSkeleton, EmptyState } from "@/components/admin-page";
 import {
   DailyStackedBarChart,
   ReportDonutChart,
@@ -75,15 +75,14 @@ import { api } from "@/lib/api";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
 // Types
-type AdminPeriodPreset = Extract<DashboardPeriodPreset, "week" | "month">;
 type ChartByMode = "billability" | "project";
 type GroupByMode = "user" | "project";
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
-const RANGE_OPTIONS: { value: AdminPeriodPreset; label: string }[] = [
-  { value: "week", label: "This week" },
-  { value: "month", label: "This month" }
+const ADMIN_PERIOD_PRESETS = [
+  { value: "week" as const, label: "This week" },
+  { value: "month" as const, label: "This month" }
 ];
 
 function rangeQuery(
@@ -114,7 +113,7 @@ function formatMoney(n: number) {
 
 export function DashboardPage() {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
-  const [range, setRange] = useState<AdminPeriodPreset | "">("week");
+  const [range, setRange] = useState<DashboardPeriodSelection>("week");
   const [startDate, setStartDate] = useState<string>(() => applyDashboardPeriodPreset("week").from);
   const [endDate, setEndDate] = useState<string>(() => applyDashboardPeriodPreset("week").to);
   const [projectId, setProjectId] = useState("");
@@ -129,17 +128,17 @@ export function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  function handleRangePresetChange(newRange: AdminPeriodPreset) {
+  function handleRangePresetChange(newRange: DashboardPeriodPreset) {
     setRange(newRange);
     const { from, to } = applyDashboardPeriodPreset(newRange);
     setStartDate(from);
     setEndDate(to);
   }
 
-  function handleCustomDateChange(newStart: string, newEnd: string) {
-    setStartDate(newStart);
-    setEndDate(newEnd);
-    setRange(matchDashboardPeriodPreset(newStart, newEnd, ["week", "month"]) ?? "");
+  function handleDateRangeChange(from: string, to: string) {
+    setStartDate(from);
+    setEndDate(to);
+    setRange(matchDashboardPeriodPreset(from, to, ["week", "month"]) ?? "custom");
   }
 
   // Widget Customization UI States
@@ -730,32 +729,15 @@ export function DashboardPage() {
 
       <Card>
         <CardContent className="flex flex-col gap-4 py-4">
-          <div className="space-y-2">
-            <Label className="text-xs font-medium text-muted-foreground">Period</Label>
-            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-              <SegmentedControl
-                fullWidth
-                value={range as AdminPeriodPreset}
-                onChange={(v) => handleRangePresetChange(v as AdminPeriodPreset)}
-                options={RANGE_OPTIONS}
-              />
-              <div className="flex w-full items-center gap-1.5 sm:w-auto">
-                <Input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => handleCustomDateChange(e.target.value, endDate)}
-                  className="h-9 flex-1 bg-background text-xs px-2.5 sm:w-[145px] sm:flex-none"
-                />
-                <span className="text-muted-foreground text-xs font-medium">—</span>
-                <Input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => handleCustomDateChange(startDate, e.target.value)}
-                  className="h-9 flex-1 bg-background text-xs px-2.5 sm:w-[145px] sm:flex-none"
-                />
-              </div>
-            </div>
-          </div>
+          <DashboardPeriodFilter
+            range={range}
+            onPresetChange={handleRangePresetChange}
+            startDate={startDate}
+            endDate={endDate}
+            onDateRangeChange={handleDateRangeChange}
+            presets={ADMIN_PERIOD_PRESETS}
+            dateRangeAriaLabel="Dashboard date range"
+          />
 
           <ReportScopeFilters
             compact

@@ -12,10 +12,12 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  AssigneeAvatarStack,
+  TaskAssigneePicker,
   cn,
   CenteredLoader
 } from "@kloqra/ui";
-import { SettingsCard, fetchListItems } from "@kloqra/web-shared";
+import { SettingsCard, fetchListItems, fetchProjectTeam } from "@kloqra/web-shared";
 import { ListTodo, Pencil, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -35,12 +37,17 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
   const [newName, setNewName] = useState("");
   const [newCategoryId, setNewCategoryId] = useState<string>("");
   const [newBillable, setNewBillable] = useState(true);
+  const [newAssigneeIds, setNewAssigneeIds] = useState<string[]>([]);
+  const [teamMembers, setTeamMembers] = useState<
+    { userId: string; userName: string; email?: string; isActive: boolean }[]
+  >([]);
   const [saving, setSaving] = useState(false);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editCategoryId, setEditCategoryId] = useState("");
   const [editBillable, setEditBillable] = useState(true);
+  const [editAssigneeIds, setEditAssigneeIds] = useState<string[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const categoryById = useMemo(() => {
@@ -61,21 +68,48 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
     }
   }, [categories, newCategoryId]);
 
+  const activeTeamOptions = useMemo(
+    () =>
+      teamMembers
+        .filter((m) => m.isActive)
+        .map((m) => ({ userId: m.userId, userName: m.userName, email: m.email })),
+    [teamMembers]
+  );
+
+  const unassignedCount = useMemo(
+    () => tasks.filter((t) => t.assignees.length === 0).length,
+    [tasks]
+  );
+
   async function refresh() {
     setLoading(true);
     setError(null);
     try {
-      const [taskList, categoryList] = await Promise.all([
+      const [taskList, categoryList, team] = await Promise.all([
         fetchListItems<TaskDto>(ROUTES.TASKS.LIST, {
           workspaceId,
           filters: { projectId }
         }),
-        fetchListItems<CategoryDto>(ROUTES.CATEGORIES.LIST, { workspaceId })
+        fetchListItems<CategoryDto>(ROUTES.CATEGORIES.LIST, { workspaceId }),
+        fetchProjectTeam(projectId, { workspaceId })
       ]);
       setTasks(taskList);
       setCategories(categoryList);
+      setTeamMembers(
+        team.members.map((m) => ({
+          userId: m.userId,
+          userName: m.userName,
+          email: m.userEmail,
+          isActive: m.isActive
+        }))
+      );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load tasks.");
+      const message = err instanceof Error ? err.message : "Could not load tasks.";
+      setError(
+        message.includes("Too Many Requests")
+          ? "The server is rate-limiting requests. Wait a moment and refresh the page."
+          : message
+      );
     } finally {
       setLoading(false);
     }
@@ -83,7 +117,7 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
 
   async function createTask(e: React.FormEvent) {
     e.preventDefault();
-    if (!newName.trim() || !newCategoryId) return;
+    if (!newName.trim() || !newCategoryId || newAssigneeIds.length === 0) return;
     setSaving(true);
     setError(null);
     try {
@@ -94,11 +128,13 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
           projectId,
           categoryId: newCategoryId,
           taskName: newName.trim(),
-          billableDefault: newBillable
+          billableDefault: newBillable,
+          assigneeUserIds: newAssigneeIds
         })
       });
       setNewName("");
       setNewBillable(true);
+      setNewAssigneeIds([]);
       toast.success("Task created.");
       await refresh();
     } catch (err) {
@@ -115,6 +151,7 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
     setEditName(task.taskName);
     setEditCategoryId(task.categoryId);
     setEditBillable(task.billableDefault);
+    setEditAssigneeIds(task.assignees.map((a) => a.userId));
     setError(null);
   }
 
@@ -123,6 +160,7 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
     setEditName("");
     setEditCategoryId("");
     setEditBillable(true);
+    setEditAssigneeIds([]);
   }
 
   async function saveEdit(task: TaskDto) {
@@ -136,7 +174,8 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
         body: JSON.stringify({
           taskName: editName.trim(),
           categoryId: editCategoryId,
-          billableDefault: editBillable
+          billableDefault: editBillable,
+          assigneeUserIds: editAssigneeIds
         })
       });
       cancelEdit();
@@ -183,6 +222,13 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
 
   return (
     <div className="space-y-4">
+      {unassignedCount > 0 ? (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
+          {unassignedCount} task{unassignedCount === 1 ? "" : "s"} have no assignees and are hidden
+          from members.
+        </div>
+      ) : null}
+
       {categories.length === 0 ? (
         <div className="rounded-xl border border-border bg-card p-5 text-sm text-muted-foreground shadow-sm">
           No categories yet. Create at least one category before adding tasks.
@@ -222,6 +268,15 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
                 </Select>
               </div>
             </div>
+            <div className="space-y-2">
+              <Label>Assignees</Label>
+              <TaskAssigneePicker
+                members={activeTeamOptions}
+                value={newAssigneeIds}
+                onChange={setNewAssigneeIds}
+                disabled={saving}
+              />
+            </div>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <label className="flex cursor-pointer items-center gap-2 text-sm">
                 <input
@@ -234,7 +289,9 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
               </label>
               <Button
                 type="submit"
-                disabled={saving || !newName.trim() || !newCategoryId}
+                disabled={
+                  saving || !newName.trim() || !newCategoryId || newAssigneeIds.length === 0
+                }
                 className="gap-2 sm:w-auto"
               >
                 <Plus className="size-4" aria-hidden />
@@ -318,6 +375,15 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
                               />
                               <span>Billable by default</span>
                             </label>
+                            <div className="space-y-2">
+                              <Label>Assignees</Label>
+                              <TaskAssigneePicker
+                                members={activeTeamOptions}
+                                value={editAssigneeIds}
+                                onChange={setEditAssigneeIds}
+                                disabled={busyId === task.id}
+                              />
+                            </div>
                             <div className="flex justify-end gap-2">
                               <Button
                                 type="button"
@@ -332,7 +398,12 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
                                 type="button"
                                 size="sm"
                                 onClick={() => void saveEdit(task)}
-                                disabled={busyId === task.id || !editName.trim() || !editCategoryId}
+                                disabled={
+                                  busyId === task.id ||
+                                  !editName.trim() ||
+                                  !editCategoryId ||
+                                  editAssigneeIds.length === 0
+                                }
                               >
                                 Save
                               </Button>
@@ -347,6 +418,20 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
                                   categoryById.get(task.categoryId)?.name ??
                                   "Uncategorized"}
                               </p>
+                              {task.assignees.length > 0 ? (
+                                <div className="mt-2">
+                                  <AssigneeAvatarStack
+                                    members={task.assignees.map((a) => ({
+                                      userId: a.userId,
+                                      userName: a.userName
+                                    }))}
+                                  />
+                                </div>
+                              ) : (
+                                <p className="mt-1 text-[10px] text-amber-700 dark:text-amber-300">
+                                  No assignees
+                                </p>
+                              )}
                             </div>
                             <Badge variant={task.billableDefault ? "default" : "secondary"}>
                               {task.billableDefault ? "Billable" : "Non-billable"}

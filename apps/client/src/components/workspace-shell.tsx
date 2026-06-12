@@ -15,28 +15,28 @@ import {
   Clock,
   FolderKanban,
   LayoutGrid,
-  ListTodo,
   Timer as TimerIcon
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useMySubmissions } from "@/features/approvals/use-my-submissions";
+import { OnboardingProvider, useOnboarding } from "@/features/onboarding/onboarding-provider";
 import { api } from "@/lib/api";
 import { useProjectsStore } from "@/stores/projects.store";
 import { useSessionStore } from "@/stores/session.store";
 import { useWorkspacesStore } from "@/stores/workspaces.store";
 
-const baseNav = [
+const baseNav: readonly SidebarNavItem[] = [
   { href: "/dashboard", label: "Dashboard", Icon: LayoutGrid },
-  { href: "/timer", label: "Timer", Icon: TimerIcon },
-  { href: "/time-tracker", label: "Time Tracker", Icon: Clock },
+  { href: "/timer", label: "Timer", Icon: TimerIcon, tourId: "nav-timer" },
+  { href: "/time-tracker", label: "Time Tracker", Icon: Clock, tourId: "nav-time-tracker" },
   { href: "/timesheet", label: "Timesheet", Icon: CalendarDays },
-  { href: "/approvals", label: "Approvals", Icon: ClipboardCheck },
-  { href: "/projects", label: "My projects", Icon: FolderKanban },
-  { href: "/tasks", label: "Tasks", Icon: ListTodo }
-] as const;
+  { href: "/approvals", label: "Approvals", Icon: ClipboardCheck, tourId: "nav-approvals" },
+  { href: "/projects", label: "My projects", Icon: FolderKanban, tourId: "nav-projects" }
+];
 
-export function WorkspaceShell({ children }: { children: React.ReactNode }) {
+function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
+  const { openOnboarding, openTour } = useOnboarding();
   const router = useRouter();
   const session = useSessionStore((s) => s.session);
   const [anchorDate] = useState(() => new Date());
@@ -117,7 +117,14 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
       logoTitle={BRAND_NAME}
       logoSubtitle="Member Portal"
       logoLinkHref="/dashboard"
-      shellToolbar={<ShellHeaderActions profileHref="/profile" settingsHref="/settings" />}
+      shellToolbar={
+        <ShellHeaderActions
+          profileHref="/profile"
+          settingsHref="/settings"
+          onShowOnboardingWizard={() => openOnboarding({ replay: true })}
+          onShowOnboardingTour={() => openTour({ replay: true })}
+        />
+      }
       impersonationBanner={
         session.impersonatorId ? (
           <div className="sticky top-0 z-50 flex items-center justify-between border-b border-amber-500/20 bg-amber-500/10 px-6 py-3 text-xs text-amber-800 backdrop-blur-md dark:text-amber-300 lg:px-8">
@@ -157,6 +164,8 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
         <SidebarUserFooter
           collapsed={collapsed}
           userName={session.user.name ?? "Member"}
+          firstName={session.user.firstName}
+          lastName={session.user.lastName}
           profileHref="/profile"
           onLogout={() => {
             void logoutSession(session.workspaceId).then(() => router.push("/login"));
@@ -166,5 +175,13 @@ export function WorkspaceShell({ children }: { children: React.ReactNode }) {
     >
       {children}
     </ResponsiveLayoutShell>
+  );
+}
+
+export function WorkspaceShell({ children }: { children: React.ReactNode }) {
+  return (
+    <OnboardingProvider>
+      <WorkspaceShellInner>{children}</WorkspaceShellInner>
+    </OnboardingProvider>
   );
 }

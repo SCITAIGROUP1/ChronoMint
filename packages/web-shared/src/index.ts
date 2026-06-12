@@ -70,6 +70,16 @@ export {
   type ScopeMember
 } from "./components/report-scope-filters";
 export { DashboardArrangeBanner } from "./components/dashboard-arrange-banner";
+export {
+  DashboardPeriodFilter,
+  type DashboardPeriodFilterOption,
+  type DashboardPeriodFilterProps,
+  type DashboardPeriodSelection
+} from "./components/dashboard-period-filter";
+export {
+  ProjectOverviewStats,
+  type ProjectOverviewStatsProps
+} from "./components/project-overview-stats";
 export { AccountSettingsPage } from "./features/account/account-settings-page";
 export { ProfilePage } from "./features/account/profile-page";
 export { useUserProfile } from "./features/account/use-user-profile";

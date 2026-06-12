@@ -34,7 +34,8 @@ export class TimerController {
     return this.timer.stop(
       user.workspaceId,
       user.userId,
-      body as Parameters<TimerService["stop"]>[2]
+      user.role,
+      body as Parameters<TimerService["stop"]>[3]
     );
   }
 

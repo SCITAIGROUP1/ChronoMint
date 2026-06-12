@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
-import { PageHeader } from "./layout.js";
+import userEvent from "@testing-library/user-event";
+import { PageHeader, SegmentedControl } from "./layout.js";
 import { ShellToolbarProvider } from "./shell-toolbar-context.js";
 
 describe("PageHeader", () => {
@@ -31,5 +32,26 @@ describe("PageHeader", () => {
 
     expect(screen.queryByRole("banner")).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Section" })).toBeInTheDocument();
+  });
+});
+
+describe("SegmentedControl", () => {
+  it("calls onChange when a segment is selected", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+
+    render(
+      <SegmentedControl
+        value="week"
+        onChange={onChange}
+        options={[
+          { value: "today", label: "Today" },
+          { value: "week", label: "This week" }
+        ]}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: "Today" }));
+    expect(onChange).toHaveBeenCalledWith("today");
   });
 });

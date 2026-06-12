@@ -12,4 +12,18 @@ describe("SidebarUserFooter", () => {
     fireEvent.click(screen.getByRole("button", { name: "Log out" }));
     expect(onLogout).toHaveBeenCalledOnce();
   });
+
+  it("passes first and last name to the avatar", () => {
+    render(
+      <SidebarUserFooter
+        userName="Sam Rivera"
+        firstName="Sam"
+        lastName="Rivera"
+        profileHref="/profile"
+        onLogout={() => {}}
+      />
+    );
+
+    expect(screen.getByText("SR")).toBeInTheDocument();
+  });
 });

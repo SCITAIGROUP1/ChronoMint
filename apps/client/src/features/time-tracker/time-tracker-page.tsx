@@ -26,7 +26,13 @@ import {
 } from "../timesheet/time-entry-dialog";
 import { groupLogsByWeek } from "./group-logs-by-week";
 import type { BillabilityFilter } from "./time-tracker-filters-panel";
-import { resolveTimeTrackerPeriod, type TimeTrackerPeriodPreset } from "./time-tracker-period";
+import {
+  inclusiveDateKeysFromPeriod,
+  matchTimeTrackerPeriod,
+  periodLabelForSelection,
+  resolveTimeTrackerDateRange,
+  type TimeTrackerPeriodSelection
+} from "./time-tracker-period";
 import { TimeTrackerStatCards } from "./time-tracker-stat-cards";
 import { computeTimeTrackerStats } from "./time-tracker-stats";
 import { TimeTrackerToolbar } from "./time-tracker-toolbar";
@@ -64,7 +70,11 @@ export function TimeTrackerPage() {
   const { tasks, projects, workspaceNamesById, setTasks, setProjects } = useProjectsStore();
   const [categories, setCategories] = useState<CategoryDto[]>([]);
 
-  const [period, setPeriod] = useState<TimeTrackerPeriodPreset>("this_week");
+  const [period, setPeriod] = useState<TimeTrackerPeriodSelection>("this_week");
+  const [rangeFrom, setRangeFrom] = useState(
+    () => inclusiveDateKeysFromPeriod("this_week", "UTC").from
+  );
+  const [rangeTo, setRangeTo] = useState(() => inclusiveDateKeysFromPeriod("this_week", "UTC").to);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [projectFilter, setProjectFilter] = useState("all");
@@ -83,10 +93,36 @@ export function TimeTrackerPage() {
     () => new Map()
   );
 
+  useEffect(() => {
+    if (period === "custom") return;
+    const keys = inclusiveDateKeysFromPeriod(period, timezone, weekStartPref);
+    setRangeFrom(keys.from);
+    setRangeTo(keys.to);
+  }, [period, timezone, weekStartPref]);
+
   const visibleRange = useMemo(
-    () => resolveTimeTrackerPeriod(period, timezone, weekStartPref),
-    [period, timezone, weekStartPref]
+    () => resolveTimeTrackerDateRange(rangeFrom, rangeTo, timezone),
+    [rangeFrom, rangeTo, timezone]
   );
+
+  const periodLabel = useMemo(
+    () => periodLabelForSelection(period, rangeFrom, rangeTo, timezone),
+    [period, rangeFrom, rangeTo, timezone]
+  );
+
+  function handlePeriodChange(next: TimeTrackerPeriodSelection) {
+    setPeriod(next);
+    if (next === "custom") return;
+    const keys = inclusiveDateKeysFromPeriod(next, timezone, weekStartPref);
+    setRangeFrom(keys.from);
+    setRangeTo(keys.to);
+  }
+
+  function handleRangeChange(from: string, to: string) {
+    setRangeFrom(from);
+    setRangeTo(to);
+    setPeriod(matchTimeTrackerPeriod(from, to, timezone, weekStartPref));
+  }
 
   useEffect(() => {
     const handle = window.setTimeout(() => setDebouncedSearch(search.trim()), 300);
@@ -202,8 +238,8 @@ export function TimeTrackerPage() {
   );
 
   const stats = useMemo(
-    () => computeTimeTrackerStats(logs, period, projects, tasks, submissionByKey),
-    [logs, period, projects, tasks, submissionByKey]
+    () => computeTimeTrackerStats(logs, periodLabel, projects, tasks, submissionByKey),
+    [logs, periodLabel, projects, tasks, submissionByKey]
   );
 
   const filtersPending = search.trim() !== debouncedSearch;
@@ -331,7 +367,11 @@ export function TimeTrackerPage() {
         projectId={projectFilter}
         onProjectChange={setProjectFilter}
         period={period}
-        onPeriodChange={setPeriod}
+        onPeriodChange={handlePeriodChange}
+        rangeFrom={rangeFrom}
+        rangeTo={rangeTo}
+        onRangeChange={handleRangeChange}
+        weekStartsOn={weekStartPref === "sunday" ? 0 : 1}
         projects={projects}
         categories={categories}
         tasks={tasks}

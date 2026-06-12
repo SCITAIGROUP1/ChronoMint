@@ -29,6 +29,12 @@ export function usePaginatedList<T>({
   const [error, setError] = useState<string | null>(null);
 
   const filterKey = useMemo(() => JSON.stringify(filters ?? {}), [filters]);
+  const stableFilters = useMemo(
+    () => filters,
+    // filterKey captures serialized filter values; ignore unstable object identity from callers.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by filterKey
+    [filterKey]
+  );
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), debounceMs);
@@ -48,7 +54,7 @@ export function usePaginatedList<T>({
         workspaceId,
         page,
         search: debouncedSearch,
-        filters
+        filters: stableFilters
       });
       setItems(data.items ?? []);
       setTotal(data.total ?? data.items?.length ?? 0);
@@ -61,7 +67,7 @@ export function usePaginatedList<T>({
     } finally {
       setLoading(false);
     }
-  }, [enabled, workspaceId, basePath, page, debouncedSearch, filters]);
+  }, [enabled, workspaceId, basePath, page, debouncedSearch, stableFilters]);
 
   useEffect(() => {
     void reload();

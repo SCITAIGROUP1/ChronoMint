@@ -1,6 +1,5 @@
 import type { ProjectDto, TimeLogDto, TimesheetPeriodDto } from "@kloqra/contracts";
 import { formatHoursCompact } from "./group-logs-by-week";
-import { periodStatLabel, type TimeTrackerPeriodPreset } from "./time-tracker-period";
 
 export type TimeTrackerStats = {
   periodLabel: string;
@@ -30,7 +29,7 @@ function submissionForLog(
 
 export function computeTimeTrackerStats(
   logs: TimeLogDto[],
-  preset: TimeTrackerPeriodPreset,
+  periodLabel: string,
   projects: ProjectDto[],
   tasks: { id: string; projectId: string }[],
   submissionByKey: Map<string, TimesheetPeriodDto>
@@ -62,7 +61,7 @@ export function computeTimeTrackerStats(
     totalSec > 0 ? `${Math.round((billableSec / totalSec) * 100)}% of total` : "0% of total";
 
   return {
-    periodLabel: periodStatLabel(preset),
+    periodLabel,
     totalHours: formatHoursCompact(totalSec),
     billableHours: formatHoursCompact(billableSec),
     billablePercent,

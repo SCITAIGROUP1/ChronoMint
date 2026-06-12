@@ -42,6 +42,11 @@ export type SeedTaskSpec = {
   billableDefault: boolean;
   /** Relative weight when picking tasks for logs (default 1) */
   weight?: number;
+  /**
+   * Task assignees by email. Omit = all project team members.
+   * Empty array = unassigned (hidden from members until admin assigns).
+   */
+  assigneeEmails?: string[];
 };
 
 export type SeedProjectSpec = {
@@ -53,6 +58,8 @@ export type SeedProjectSpec = {
   tasks: SeedTaskSpec[];
   memberEmails: string[];
   timesheetApproval?: boolean;
+  /** Per-member personal project colors (email → hex). Admin canonical color unchanged. */
+  memberColorOverrides?: Record<string, string>;
 };
 
 export type SeedWorkspaceSpec = {
@@ -225,8 +232,17 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
         budgetHours: 480,
         budgetBurnPct: 0.82,
         memberEmails: wsMembers("member@kloqra.dev", "alex@kloqra.dev", "jordan@kloqra.dev"),
+        memberColorOverrides: {
+          "member@kloqra.dev": "#8b5cf6"
+        },
         tasks: [
-          { name: "UX research", category: "UI/UX Design", billableDefault: true, weight: 1.4 },
+          {
+            name: "UX research",
+            category: "UI/UX Design",
+            billableDefault: true,
+            weight: 1.4,
+            assigneeEmails: ["member@kloqra.dev"]
+          },
           {
             name: "Wireframes & flows",
             category: "UI/UX Design",
@@ -237,7 +253,8 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
             name: "Component build",
             category: "Software Development",
             billableDefault: true,
-            weight: 2.2
+            weight: 2.2,
+            assigneeEmails: ["jordan@kloqra.dev", "alex@kloqra.dev"]
           },
           {
             name: "API integration",
@@ -254,9 +271,21 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
           { name: "E2E test suite", category: "QA & Testing", billableDefault: true, weight: 1.5 },
           { name: "QA pass", category: "QA & Testing", billableDefault: true, weight: 1.3 },
           { name: "CI pipeline", category: "DevOps", billableDefault: true, weight: 0.9 },
-          { name: "Sprint planning", category: "Meetings", billableDefault: true, weight: 1.1 },
+          {
+            name: "Sprint planning",
+            category: "Meetings",
+            billableDefault: true,
+            weight: 1.1,
+            assigneeEmails: ["member@kloqra.dev", "jordan@kloqra.dev"]
+          },
           { name: "Stakeholder review", category: "Meetings", billableDefault: true, weight: 1.0 },
-          { name: "Release notes", category: "Documentation", billableDefault: true, weight: 0.8 }
+          {
+            name: "Release notes",
+            category: "Documentation",
+            billableDefault: true,
+            weight: 0.8,
+            assigneeEmails: []
+          }
         ]
       },
       {
@@ -266,6 +295,9 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
         budgetHours: 220,
         budgetBurnPct: 0.94,
         memberEmails: wsMembers("taylor@kloqra.dev", "riley@kloqra.dev", "casey@kloqra.dev"),
+        memberColorOverrides: {
+          "taylor@kloqra.dev": "#ec4899"
+        },
         tasks: [
           {
             name: "Creative direction",
@@ -436,12 +468,16 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
         budgetHours: 400,
         budgetBurnPct: 0.76,
         memberEmails: wsMembers("alex@kloqra.dev", "casey@kloqra.dev", "drew@kloqra.dev"),
+        memberColorOverrides: {
+          "alex@kloqra.dev": "#06b6d4"
+        },
         tasks: [
           {
             name: "Endpoint design",
             category: "Software Development",
             billableDefault: false,
-            weight: 1.8
+            weight: 1.8,
+            assigneeEmails: ["alex@kloqra.dev", "drew@kloqra.dev"]
           },
           {
             name: "Auth hardening",
@@ -461,7 +497,13 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
             billableDefault: false,
             weight: 1.0
           },
-          { name: "OpenAPI docs", category: "Documentation", billableDefault: false, weight: 1.5 },
+          {
+            name: "OpenAPI docs",
+            category: "Documentation",
+            billableDefault: false,
+            weight: 1.5,
+            assigneeEmails: []
+          },
           {
             name: "Load test harness",
             category: "QA & Testing",
