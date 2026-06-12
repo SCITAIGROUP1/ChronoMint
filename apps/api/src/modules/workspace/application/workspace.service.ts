@@ -1,12 +1,18 @@
 import { ErrorCodes } from "@kloqra/contracts";
 import type { InviteMemberDto, UpdateWorkspaceMemberDto } from "@kloqra/contracts";
-import { Injectable, HttpStatus } from "@nestjs/common";
+import { Injectable, HttpStatus, Logger } from "@nestjs/common";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { BrevoNotificationService } from "../../brevo/application/brevo-notification.service";
 
 @Injectable()
 export class WorkspaceService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(WorkspaceService.name);
+
+  constructor(
+    private prisma: PrismaService,
+    private brevo: BrevoNotificationService
+  ) {}
 
   async listForUser(userId: string) {
     const memberships = await this.prisma.workspaceMember.findMany({
@@ -103,9 +109,29 @@ export class WorkspaceService {
         HttpStatus.CONFLICT
       );
     }
-    return this.prisma.workspaceMember.create({
+    const member = await this.prisma.workspaceMember.create({
       data: { workspaceId, userId: user.id, role: dto.role }
     });
+
+    const workspace = await this.prisma.workspace.findUniqueOrThrow({
+      where: { id: workspaceId },
+      select: { name: true }
+    });
+
+    void this.brevo
+      .sendWorkspaceMemberAdded({
+        to: dto.email,
+        workspaceName: workspace.name,
+        role: dto.role
+      })
+      .catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : String(err);
+        this.logger.error(
+          `Workspace member added email failed: workspaceId=${workspaceId} to=${dto.email} error="${message}"`
+        );
+      });
+
+    return member;
   }
 
   async update(id: string, dto: { name?: string; settings?: any }) {

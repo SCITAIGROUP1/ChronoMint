@@ -6,7 +6,11 @@ import {
 } from "@kloqra/contracts";
 import { Injectable, HttpStatus } from "@nestjs/common";
 import * as bcrypt from "bcrypt";
-import { generateSecret, generateURI, verify } from "otplib";
+import {
+  generateTotpSecret,
+  generateTotpUri,
+  verifyTotpCode
+} from "../../../common/crypto/totp.util";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 
@@ -24,8 +28,8 @@ export class Users2faService {
       );
     }
 
-    const secret = generateSecret();
-    const otpauthUrl = generateURI({ issuer: "Kloqra", label: email, secret });
+    const secret = generateTotpSecret();
+    const otpauthUrl = generateTotpUri(email, secret);
 
     await this.prisma.user.update({
       where: { id: userId },
@@ -44,8 +48,7 @@ export class Users2faService {
         HttpStatus.BAD_REQUEST
       );
     }
-    const verification = await verify({ token: dto.code, secret: user.totpSecret });
-    if (!verification.valid) {
+    if (!verifyTotpCode(dto.code, user.totpSecret)) {
       throw new DomainException(
         ErrorCodes.UNAUTHORIZED,
         "Invalid authentication code",
@@ -78,8 +81,7 @@ export class Users2faService {
         HttpStatus.UNAUTHORIZED
       );
     }
-    const verification = await verify({ token: dto.code, secret: user.totpSecret });
-    if (!verification.valid) {
+    if (!verifyTotpCode(dto.code, user.totpSecret)) {
       throw new DomainException(
         ErrorCodes.UNAUTHORIZED,
         "Invalid authentication code",
@@ -95,7 +97,6 @@ export class Users2faService {
   }
 
   async verifyCode(secret: string, code: string): Promise<boolean> {
-    const verification = await verify({ token: code, secret });
-    return verification.valid;
+    return verifyTotpCode(code, secret);
   }
 }

@@ -17,6 +17,8 @@ import {
   ROUTES,
   startTimerSchema,
   dashboardReportSchema,
+  IDLE_TIMER_ALERT_HOURS,
+  teamInviteSchema,
   teamMembersOverviewSchema,
   timesheetSubmissionsQuerySchema,
   updateCategorySchema,
@@ -309,6 +311,26 @@ describe("contracts", () => {
   it("exposes workspace members overview route", () => {
     expect(ROUTES.WORKSPACES.MEMBERS_OVERVIEW("ws-1")).toBe("/workspaces/ws-1/members/overview");
     expect(ROUTES.WORKSPACES.MEMBER("ws-1", "m-1")).toBe("/workspaces/ws-1/members/m-1");
+  });
+
+  it("validates team invite with optional emailSent", () => {
+    const base = {
+      id: UUID,
+      projectId: UUID_2,
+      projectName: "Alpha",
+      token: "invite-token",
+      email: "member@kloqra.dev",
+      inviteUrl: "https://app.kloqra.dev/invite/abc",
+      expiresAt: "2025-06-09T10:00:00.000Z",
+      acceptedAt: null
+    };
+    expect(teamInviteSchema.safeParse(base).success).toBe(true);
+    expect(teamInviteSchema.safeParse({ ...base, emailSent: true }).success).toBe(true);
+    expect(teamInviteSchema.safeParse({ ...base, emailSent: false }).success).toBe(true);
+  });
+
+  it("exposes idle timer alert threshold hours", () => {
+    expect(IDLE_TIMER_ALERT_HOURS).toBe(2);
   });
 
   it("validates team members overview shape", () => {

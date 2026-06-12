@@ -8,9 +8,12 @@ describe("ProjectsService", () => {
   let service: ProjectsService;
   let mockPrisma: any;
   let mockAccess: any;
+  let mockBrevo: any;
+  let mockBrevoDispatch: any;
 
   const workspaceId = "ws-1";
   const userId = "user-1";
+  const projectId = "p1";
 
   beforeEach(() => {
     mockPrisma = {
@@ -20,6 +23,15 @@ describe("ProjectsService", () => {
         findMany: vi.fn(),
         findFirst: vi.fn()
       },
+      workspace: {
+        findUniqueOrThrow: vi.fn()
+      },
+      team: {
+        findUnique: vi.fn().mockResolvedValue({ id: "team-1" })
+      },
+      projectInvite: {
+        create: vi.fn()
+      },
       userProjectColor: {
         findMany: vi.fn().mockResolvedValue([])
       }
@@ -28,7 +40,13 @@ describe("ProjectsService", () => {
       accessibleProjectIds: vi.fn(),
       assertCanAccessProject: vi.fn()
     };
-    service = new ProjectsService(mockPrisma, mockAccess);
+    mockBrevo = {
+      sendProjectTeamInvite: vi.fn().mockResolvedValue(true)
+    };
+    mockBrevoDispatch = {
+      maybeSendProjectAssignment: vi.fn().mockResolvedValue(undefined)
+    };
+    service = new ProjectsService(mockPrisma, mockAccess, mockBrevo, mockBrevoDispatch);
   });
 
   it("list returns empty paginated result when user has no accessible projects", async () => {
@@ -96,6 +114,76 @@ describe("ProjectsService", () => {
     expect(mockPrisma.project.create).toHaveBeenCalled();
     expect(result.name).toBe("New Project");
     expect(result.workspaceId).toBe(workspaceId);
+  });
+
+  it("createTeamInvite sends email when address provided", async () => {
+    mockPrisma.project.findFirst.mockResolvedValue({
+      id: projectId,
+      workspaceId,
+      name: "Alpha"
+    });
+    mockPrisma.workspace.findUniqueOrThrow.mockResolvedValue({ name: "Acme" });
+    mockPrisma.projectInvite.create.mockResolvedValue({
+      id: "inv-1",
+      email: "member@example.com",
+      expiresAt: new Date("2026-06-20")
+    });
+    process.env.FRONTEND_ORIGIN = "http://localhost:3000";
+
+    const result = await service.createTeamInvite(workspaceId, projectId, userId, {
+      email: "member@example.com"
+    });
+
+    expect(mockBrevo.sendProjectTeamInvite).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: "member@example.com",
+        projectName: "Alpha",
+        workspaceName: "Acme"
+      })
+    );
+    expect(result.emailSent).toBe(true);
+  });
+
+  it("createTeamInvite keeps invite when email delivery fails", async () => {
+    mockPrisma.project.findFirst.mockResolvedValue({
+      id: projectId,
+      workspaceId,
+      name: "Alpha"
+    });
+    mockPrisma.workspace.findUniqueOrThrow.mockResolvedValue({ name: "Acme" });
+    mockPrisma.projectInvite.create.mockResolvedValue({
+      id: "inv-1",
+      email: "member@example.com",
+      expiresAt: new Date("2026-06-20")
+    });
+    mockBrevo.sendProjectTeamInvite.mockRejectedValue(new Error("451 Invalid from"));
+    process.env.FRONTEND_ORIGIN = "http://localhost:3000";
+
+    const result = await service.createTeamInvite(workspaceId, projectId, userId, {
+      email: "member@example.com"
+    });
+
+    expect(result.emailSent).toBe(false);
+    expect(result.inviteUrl).toContain("/invite/");
+  });
+
+  it("createTeamInvite skips email when address omitted", async () => {
+    mockPrisma.project.findFirst.mockResolvedValue({
+      id: projectId,
+      workspaceId,
+      name: "Alpha"
+    });
+    mockPrisma.workspace.findUniqueOrThrow.mockResolvedValue({ name: "Acme" });
+    mockPrisma.projectInvite.create.mockResolvedValue({
+      id: "inv-1",
+      email: null,
+      expiresAt: new Date("2026-06-20")
+    });
+
+    const result = await service.createTeamInvite(workspaceId, projectId, userId, {});
+
+    expect(mockBrevo.sendProjectTeamInvite).not.toHaveBeenCalled();
+    expect(result.emailSent).toBe(false);
   });
 
   it("get throws NOT_FOUND when project is missing", async () => {

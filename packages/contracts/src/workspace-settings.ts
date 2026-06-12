@@ -30,3 +30,4 @@ export function parseWorkspaceSettings(raw: unknown): WorkspaceSettings {
 export const DEFAULT_EXPECTED_WEEKLY_HOURS = 40;
 export const DEFAULT_STALE_WARNING_HOURS = 8;
 export const HARD_AUTO_STOP_HOURS = 14;
+export const IDLE_TIMER_ALERT_HOURS = 2;

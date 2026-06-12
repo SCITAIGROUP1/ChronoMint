@@ -7,7 +7,7 @@ import type {
   UpdateProjectDto
 } from "@kloqra/contracts";
 import { ErrorCodes, pickDefaultProjectColor, buildPaginationMeta } from "@kloqra/contracts";
-import { Injectable, HttpStatus } from "@nestjs/common";
+import { Injectable, HttpStatus, Logger } from "@nestjs/common";
 import { ProjectAccessService } from "../../../common/access/project-access.service";
 import { DomainException } from "../../../common/errors/domain.exception";
 import {
@@ -16,12 +16,18 @@ import {
   toPaginatedResponse
 } from "../../../common/http/pagination.util";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { BrevoDispatchService } from "../../brevo/application/brevo-dispatch.service";
+import { BrevoNotificationService } from "../../brevo/application/brevo-notification.service";
 
 @Injectable()
 export class ProjectsService {
+  private readonly logger = new Logger(ProjectsService.name);
+
   constructor(
     private prisma: PrismaService,
-    private access: ProjectAccessService
+    private access: ProjectAccessService,
+    private brevo: BrevoNotificationService,
+    private brevoDispatch: BrevoDispatchService
   ) {}
 
   private clientOrigin() {
@@ -308,6 +314,10 @@ export class ProjectsService {
     dto: CreateTeamInviteDto
   ) {
     const project = await this.getAdmin(workspaceId, projectId);
+    const workspace = await this.prisma.workspace.findUniqueOrThrow({
+      where: { id: workspaceId },
+      select: { name: true }
+    });
     await this.ensureTeam(projectId);
     const token = randomBytes(24).toString("hex");
     const expiresAt = new Date();
@@ -324,6 +334,25 @@ export class ProjectsService {
     });
 
     const inviteUrl = `${this.clientOrigin()}/invite/${token}`;
+    let emailSent = false;
+    if (dto.email) {
+      try {
+        emailSent = await this.brevo.sendProjectTeamInvite({
+          to: dto.email,
+          inviteUrl,
+          projectName: project.name,
+          workspaceName: workspace.name,
+          expiresAt: invite.expiresAt.toISOString()
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        this.logger.error(
+          `Project team invite email failed: projectId=${projectId} to=${dto.email} error="${message}"`
+        );
+        emailSent = false;
+      }
+    }
+
     return {
       id: invite.id,
       projectId,
@@ -332,7 +361,8 @@ export class ProjectsService {
       email: invite.email,
       inviteUrl,
       expiresAt: invite.expiresAt.toISOString(),
-      acceptedAt: null
+      acceptedAt: null,
+      emailSent
     };
   }
 
@@ -362,7 +392,7 @@ export class ProjectsService {
   async acceptInvite(token: string, userId: string, userEmail: string) {
     const invite = await this.prisma.projectInvite.findUnique({
       where: { token },
-      include: { project: true }
+      include: { project: { include: { workspace: { select: { name: true } } } } }
     });
     if (!invite) {
       throw new DomainException(ErrorCodes.NOT_FOUND, "Invite not found", HttpStatus.NOT_FOUND);
@@ -416,6 +446,11 @@ export class ProjectsService {
         data: { acceptedAt: new Date() }
       })
     ]);
+
+    void this.brevoDispatch.maybeSendProjectAssignment(userId, {
+      projectName: invite.project.name,
+      workspaceName: invite.project.workspace.name
+    });
 
     return {
       projectId: invite.projectId,

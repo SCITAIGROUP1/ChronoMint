@@ -34,7 +34,8 @@ export const teamInviteSchema = z.object({
   email: z.string().email().nullable(),
   inviteUrl: z.string().url(),
   expiresAt: isoDatetimeSchema,
-  acceptedAt: isoDatetimeSchema.nullable()
+  acceptedAt: isoDatetimeSchema.nullable(),
+  emailSent: z.boolean().optional()
 });
 
 export const teamInvitePreviewSchema = z.object({

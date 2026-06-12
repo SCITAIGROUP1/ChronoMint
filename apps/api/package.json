@@ -37,7 +37,7 @@
     "helmet": "^8.2.0",
     "ioredis": "^5.4.2",
     "nodemailer": "^8.0.10",
-    "otplib": "^13.4.1",
+    "otplib": "^12.0.1",
     "pdfkit": "^0.15.2",
     "prisma": "^6.1.0",
     "reflect-metadata": "^0.2.2",

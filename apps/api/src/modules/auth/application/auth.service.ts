@@ -9,7 +9,7 @@ import type {
 import { Injectable, HttpStatus } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import * as bcrypt from "bcrypt";
-import { verify as verifyTotp } from "otplib";
+import { verifyTotpCode } from "../../../common/crypto/totp.util";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { splitDisplayName } from "../../users/application/user-name.util";
@@ -150,8 +150,7 @@ export class AuthService {
           pendingToken: this.signPending2faToken(user.id)
         };
       }
-      const verification = await verifyTotp({ token: dto.totpCode, secret: user.totpSecret });
-      if (!verification.valid) {
+      if (!verifyTotpCode(dto.totpCode, user.totpSecret)) {
         throw new DomainException(
           ErrorCodes.UNAUTHORIZED,
           "Invalid authentication code",

@@ -103,12 +103,12 @@ const optionalEnvSchema = z.object({
     .regex(/^\d+$/, "REFRESH_ROTATION_GRACE_MS must be a number")
     .optional(),
   ENABLE_SWAGGER: z.enum(["true", "false"]).optional(),
-  // Optional SMTP email delivery (used by ExportScheduleService)
-  SMTP_HOST: z.string().optional(),
-  SMTP_PORT: z.string().regex(/^\d+$/, "SMTP_PORT must be a number").optional(),
-  SMTP_USER: z.string().optional(),
-  SMTP_PASS: z.string().optional(),
-  SMTP_FROM: z.string().optional()
+  // Optional Brevo SMTP email delivery
+  BREVO_SMTP_HOST: z.string().optional(),
+  BREVO_SMTP_PORT: z.string().regex(/^\d+$/, "BREVO_SMTP_PORT must be a number").optional(),
+  BREVO_SMTP_USER: z.string().optional(),
+  BREVO_SMTP_KEY: z.string().optional(),
+  BREVO_SMTP_FROM: z.string().optional()
 });
 
 export function validateRequiredEnv(): void {
