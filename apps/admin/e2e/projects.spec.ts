@@ -26,10 +26,18 @@ test.describe("Admin projects", () => {
     await expect(page.getByText(clientName).first()).toBeVisible();
   });
 
-  test("opens project tasks tab from list", async ({ page }) => {
+  test("opens project overview tab from list", async ({ page }) => {
     await page.locator("table tbody tr").first().click();
     await expect(page.getByRole("navigation", { name: "Project sections" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Tasks" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Overview" })).toBeVisible();
+    await expect(page).toHaveURL(/\/projects\/[^/]+\/overview$/);
+    await expect(page.getByText("Team time on this project")).toBeVisible();
+  });
+
+  test("opens project tasks tab from list", async ({ page }) => {
+    await page.locator("table tbody tr").first().click();
+    await page.getByRole("link", { name: "Tasks" }).click();
+    await expect(page.getByRole("heading", { name: "Tasks", exact: true })).toBeVisible();
     await expect(page).toHaveURL(/\/projects\/[^/]+\/tasks$/);
   });
 });

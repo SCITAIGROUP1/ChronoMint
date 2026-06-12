@@ -113,6 +113,27 @@ describe("WorkspaceService", () => {
     expect(result.role).toBe("MEMBER");
   });
 
+  it("invite still succeeds when member-added email fails", async () => {
+    mockPrisma.user.findUnique.mockResolvedValue({ id: "u2", email: "new@kloqra.dev" });
+    mockPrisma.workspaceMember.findUnique.mockResolvedValue(null);
+    mockPrisma.workspaceMember.create.mockResolvedValue({
+      workspaceId,
+      userId: "u2",
+      role: "MEMBER"
+    });
+    mockPrisma.workspace.findUniqueOrThrow.mockResolvedValue({ name: "Acme" });
+    mockBrevo.sendWorkspaceMemberAdded.mockRejectedValue(new Error("451 Invalid from"));
+
+    const result = await service.invite(workspaceId, {
+      email: "new@kloqra.dev",
+      role: "MEMBER"
+    });
+
+    expect(result.role).toBe("MEMBER");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(mockBrevo.sendWorkspaceMemberAdded).toHaveBeenCalled();
+  });
+
   it("updateMember changes role", async () => {
     mockPrisma.workspaceMember.findFirst.mockResolvedValue({
       id: "m2",

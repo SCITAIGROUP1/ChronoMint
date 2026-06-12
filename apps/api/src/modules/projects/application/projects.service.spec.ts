@@ -31,6 +31,9 @@ describe("ProjectsService", () => {
       },
       projectInvite: {
         create: vi.fn()
+      },
+      userProjectColor: {
+        findMany: vi.fn().mockResolvedValue([])
       }
     };
     mockAccess = {
@@ -139,6 +142,29 @@ describe("ProjectsService", () => {
       })
     );
     expect(result.emailSent).toBe(true);
+  });
+
+  it("createTeamInvite keeps invite when email delivery fails", async () => {
+    mockPrisma.project.findFirst.mockResolvedValue({
+      id: projectId,
+      workspaceId,
+      name: "Alpha"
+    });
+    mockPrisma.workspace.findUniqueOrThrow.mockResolvedValue({ name: "Acme" });
+    mockPrisma.projectInvite.create.mockResolvedValue({
+      id: "inv-1",
+      email: "member@example.com",
+      expiresAt: new Date("2026-06-20")
+    });
+    mockBrevo.sendProjectTeamInvite.mockRejectedValue(new Error("451 Invalid from"));
+    process.env.FRONTEND_ORIGIN = "http://localhost:3000";
+
+    const result = await service.createTeamInvite(workspaceId, projectId, userId, {
+      email: "member@example.com"
+    });
+
+    expect(result.emailSent).toBe(false);
+    expect(result.inviteUrl).toContain("/invite/");
   });
 
   it("createTeamInvite skips email when address omitted", async () => {

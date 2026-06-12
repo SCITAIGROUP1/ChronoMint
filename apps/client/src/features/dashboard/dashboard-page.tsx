@@ -20,7 +20,6 @@ import {
   Input,
   Label,
   ProjectColorDot,
-  SegmentedControl,
   Select,
   SelectContent,
   SelectItem,
@@ -29,10 +28,17 @@ import {
 } from "@kloqra/ui";
 import {
   applyDashboardPeriodPreset,
+  buildWidgetMinSizeMap,
   DashboardArrangeBanner,
+  DashboardPeriodFilter,
+  DASHBOARD_GRID_BREAKPOINTS,
+  DASHBOARD_GRID_COLS,
+  generateResponsiveLayouts,
   matchDashboardPeriodPreset,
   ReportScopeFilters,
+  type DashboardBreakpoint,
   type DashboardPeriodPreset,
+  type DashboardPeriodSelection,
   fetchListItems
 } from "@kloqra/web-shared";
 import { Play, Pause, Square, LayoutGrid, Move } from "lucide-react";
@@ -59,10 +65,10 @@ import { isActiveTimer, useTimerStore } from "@/stores/timer.store";
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
-const RANGE_OPTIONS: { value: DashboardPeriodPreset; label: string }[] = [
-  { value: "today", label: "Today" },
-  { value: "week", label: "This week" },
-  { value: "month", label: "This month" }
+const CLIENT_PERIOD_PRESETS = [
+  { value: "today" as const, label: "Today" },
+  { value: "week" as const, label: "This week" },
+  { value: "month" as const, label: "This month" }
 ];
 
 function formatElapsed(sec: number) {
@@ -82,7 +88,7 @@ export function DashboardPage() {
   const { tasks, projects, setTasks, setProjects } = useProjectsStore();
 
   // Dashboard filter states
-  const [range, setRange] = useState<DashboardPeriodPreset | "">("week");
+  const [range, setRange] = useState<DashboardPeriodSelection>("week");
   const [startDate, setStartDate] = useState<string>(() => applyDashboardPeriodPreset("week").from);
   const [endDate, setEndDate] = useState<string>(() => applyDashboardPeriodPreset("week").to);
   const [filterProjectId, setFilterProjectId] = useState("");
@@ -101,10 +107,10 @@ export function DashboardPage() {
     setEndDate(to);
   }
 
-  function handleCustomDateChange(newStart: string, newEnd: string) {
-    setStartDate(newStart);
-    setEndDate(newEnd);
-    setRange(matchDashboardPeriodPreset(newStart, newEnd) ?? "");
+  function handleDateRangeChange(from: string, to: string) {
+    setStartDate(from);
+    setEndDate(to);
+    setRange(matchDashboardPeriodPreset(from, to) ?? "custom");
   }
 
   const [logs, setLogs] = useState<TimeLogDto[]>([]);
@@ -115,12 +121,12 @@ export function DashboardPage() {
   const [mounted, setMounted] = useState(false);
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
   const [isArranging, setIsArranging] = useState(false);
+  const [gridBreakpoint, setGridBreakpoint] = useState<DashboardBreakpoint>("lg");
 
   // Local active timer controls
   const [projectId, setProjectId] = useState("");
   const [taskChoice, setTaskChoice] = useState("");
   const [stopDescription, setStopDescription] = useState("");
-  const [isBillable, setIsBillable] = useState(true);
   const [starting, setStarting] = useState(false);
   const [stopping, setStopping] = useState(false);
   const [pausing, setPausing] = useState(false);
@@ -325,11 +331,8 @@ export function DashboardPage() {
   }, [tick]);
 
   // Auto-fill billable default when project/task changes
-  useEffect(() => {
-    if (activeTask) {
-      setIsBillable(activeTask.billableDefault);
-    }
-  }, [activeTask]);
+  const billableForActive =
+    activeTask?.billableDefault ?? suggestBillableFromTask(tasks, taskChoice);
 
   async function startTimer() {
     if (!canStart) return;
@@ -360,7 +363,7 @@ export function DashboardPage() {
         workspaceId: ws,
         body: JSON.stringify({
           description: stopDescription.trim() || undefined,
-          isBillable
+          isBillable: billableForActive
         })
       });
       setActive(null);
@@ -507,7 +510,7 @@ export function DashboardPage() {
       const taskMatches = !filterTaskId || activeTask.id === filterTaskId;
       if (userMatches && projectMatches && categoryMatches && taskMatches) {
         totalSec += elapsedSec;
-        if (isBillable) {
+        if (billableForActive) {
           billableSec += elapsedSec;
         }
       }
@@ -529,7 +532,7 @@ export function DashboardPage() {
     filterUserId,
     session?.user.id,
     elapsedSec,
-    isBillable
+    billableForActive
   ]);
 
   const todayLoggedSec = useMemo(() => {
@@ -543,6 +546,13 @@ export function DashboardPage() {
   // Layout configurations
   const activeLayout = layoutsByWorkspace[ws] || [];
   const visibleItems = activeLayout.filter((item) => item.visible);
+
+  const widgetMinSizes = useMemo(() => buildWidgetMinSizeMap(WIDGET_REGISTRY), []);
+
+  const responsiveLayouts = useMemo(
+    () => generateResponsiveLayouts(visibleItems, DASHBOARD_GRID_COLS, widgetMinSizes),
+    [visibleItems, widgetMinSizes]
+  );
 
   if (loading) {
     return (
@@ -611,31 +621,15 @@ export function DashboardPage() {
       {/* Filters Toolbar */}
       <Card>
         <CardContent className="flex flex-col gap-4 py-4">
-          <div className="space-y-2">
-            <Label className="text-xs font-medium text-muted-foreground">Period</Label>
-            <div className="flex flex-wrap items-center gap-3">
-              <SegmentedControl
-                value={range as DashboardPeriodPreset}
-                onChange={(v) => handleRangePresetChange(v as DashboardPeriodPreset)}
-                options={RANGE_OPTIONS}
-              />
-              <div className="flex items-center gap-1.5">
-                <Input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => handleCustomDateChange(e.target.value, endDate)}
-                  className="h-9 bg-background w-[145px] text-xs px-2.5"
-                />
-                <span className="text-muted-foreground text-xs font-medium">—</span>
-                <Input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => handleCustomDateChange(startDate, e.target.value)}
-                  className="h-9 bg-background w-[145px] text-xs px-2.5"
-                />
-              </div>
-            </div>
-          </div>
+          <DashboardPeriodFilter
+            range={range}
+            onPresetChange={handleRangePresetChange}
+            startDate={startDate}
+            endDate={endDate}
+            onDateRangeChange={handleDateRangeChange}
+            presets={CLIENT_PERIOD_PRESETS}
+            dateRangeAriaLabel="Dashboard date range"
+          />
 
           <ReportScopeFilters
             compact
@@ -668,22 +662,26 @@ export function DashboardPage() {
       >
         {mounted && initialized && (
           <ResponsiveGridLayout
-            className={`layout -mx-4 ${isArranging ? "layout-customizing" : ""}`}
-            layouts={{ lg: visibleItems }}
-            breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
-            cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
+            className={`layout ${isArranging ? "layout-customizing" : ""}`}
+            layouts={responsiveLayouts}
+            breakpoints={DASHBOARD_GRID_BREAKPOINTS}
+            cols={DASHBOARD_GRID_COLS}
             rowHeight={80}
+            compactType="vertical"
             isDraggable={isArranging}
             isResizable={isArranging}
             draggableCancel="button, a, input, select, textarea, [role='menu'], [role='menuitem'], .widget-no-drag"
             resizeHandles={["s", "e", "se"]}
+            onBreakpointChange={(breakpoint) =>
+              setGridBreakpoint(breakpoint as DashboardBreakpoint)
+            }
             onLayoutChange={(currentLayout) => {
-              if (isArranging) {
+              if (isArranging && gridBreakpoint === "lg") {
                 updateLayout(ws, currentLayout, { persist: false });
               }
             }}
             margin={[16, 16]}
-            containerPadding={[16, 0]}
+            containerPadding={[0, 0]}
           >
             {visibleItems.map((item) => {
               const widgetDef = WIDGET_REGISTRY.find((w) => w.id === item.i);
@@ -807,7 +805,7 @@ export function DashboardPage() {
                               {tracking ? (
                                 <div className="space-y-3 flex-1 flex flex-col justify-between">
                                   {/* Left/Right clock layout */}
-                                  <div className="flex items-center justify-between gap-4">
+                                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                                     <div className="min-w-0 flex-1">
                                       <span className="text-[10px] uppercase font-bold tracking-wider text-primary">
                                         Active Tracking
@@ -873,7 +871,7 @@ export function DashboardPage() {
                                 </div>
                               ) : (
                                 <div className="space-y-3 flex-1 flex flex-col justify-between">
-                                  <div className="grid grid-cols-2 gap-2">
+                                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                                     <div className="space-y-1">
                                       <Label className="text-[10px] text-muted-foreground">
                                         Project
@@ -901,10 +899,7 @@ export function DashboardPage() {
                                       </Label>
                                       <Select
                                         value={taskChoice}
-                                        onValueChange={(v) => {
-                                          setTaskChoice(v);
-                                          setIsBillable(suggestBillableFromTask(tasks, v));
-                                        }}
+                                        onValueChange={setTaskChoice}
                                         disabled={!projectId || projectTasks.length === 0}
                                       >
                                         <SelectTrigger className="h-8 bg-background text-xs">

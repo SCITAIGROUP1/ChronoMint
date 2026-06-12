@@ -3,12 +3,16 @@ import type {
   DashboardReportDto,
   MyWeekQueryDto,
   MyWeekSummaryDto,
+  ProjectSummaryDto,
+  ProjectSummaryQueryDto,
   ReportQueryDto,
   UtilizationQueryDto
 } from "@kloqra/contracts";
-import { buildPaginationMeta } from "@kloqra/contracts";
-import { Injectable } from "@nestjs/common";
+import { buildPaginationMeta, ErrorCodes } from "@kloqra/contracts";
+import { HttpStatus, Injectable } from "@nestjs/common";
+import { ProjectAccessService } from "../../../common/access/project-access.service";
 import { ReportCacheService } from "../../../common/cache/report-cache.service";
+import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { roundExport } from "../../../common/time/round.util";
 import { TimeAggregationService } from "../../../common/time/time-aggregation.service";
@@ -27,8 +31,114 @@ export class ReportingService {
   constructor(
     private prisma: PrismaService,
     private aggregation: TimeAggregationService,
-    private reportCache: ReportCacheService
+    private reportCache: ReportCacheService,
+    private access: ProjectAccessService
   ) {}
+
+  async projectSummary(
+    workspaceId: string,
+    projectId: string,
+    userId: string,
+    role: "ADMIN" | "MEMBER",
+    query: ProjectSummaryQueryDto
+  ): Promise<ProjectSummaryDto> {
+    await this.access.assertCanAccessProject(workspaceId, userId, role, projectId);
+
+    const project = await this.prisma.project.findFirst({
+      where: { id: projectId, workspaceId },
+      select: { id: true, name: true }
+    });
+    if (!project) {
+      throw new DomainException(ErrorCodes.NOT_FOUND, "Project not found", HttpStatus.NOT_FOUND);
+    }
+
+    const from = new Date(query.from);
+    const to = new Date(query.to);
+    const logs = await this.aggregation.fetchLogs(workspaceId, {
+      from,
+      to,
+      projectId,
+      ...(role === "MEMBER" ? { userId } : {})
+    });
+
+    const byTask = new Map<
+      string,
+      {
+        taskId: string | null;
+        taskName: string;
+        categoryId?: string;
+        categoryName?: string;
+        totalHours: number;
+        billableHours: number;
+      }
+    >();
+    const byCategory = new Map<
+      string,
+      { categoryId: string; categoryName: string; totalHours: number; billableHours: number }
+    >();
+
+    let totalHours = 0;
+    let billableHours = 0;
+
+    for (const log of logs) {
+      const hours = log.durationSec / 3600;
+      totalHours += hours;
+      if (log.isBillable) billableHours += hours;
+
+      const taskKey = log.taskId;
+      const taskEntry = byTask.get(taskKey) ?? {
+        taskId: log.taskId,
+        taskName: log.task.taskName || "General Work",
+        categoryId: log.task.category?.id ?? log.task.categoryId,
+        categoryName: log.task.category?.name ?? "Uncategorized",
+        totalHours: 0,
+        billableHours: 0
+      };
+      taskEntry.totalHours += hours;
+      if (log.isBillable) taskEntry.billableHours += hours;
+      byTask.set(taskKey, taskEntry);
+
+      const categoryId = log.task.category?.id ?? log.task.categoryId;
+      const categoryName = log.task.category?.name ?? "Uncategorized";
+      const catEntry = byCategory.get(categoryId) ?? {
+        categoryId,
+        categoryName,
+        totalHours: 0,
+        billableHours: 0
+      };
+      catEntry.totalHours += hours;
+      if (log.isBillable) catEntry.billableHours += hours;
+      byCategory.set(categoryId, catEntry);
+    }
+
+    return {
+      projectId: project.id,
+      projectName: project.name,
+      period: { from: query.from, to: query.to },
+      totalHours: roundExport(totalHours),
+      billableHours: roundExport(billableHours),
+      nonBillableHours: roundExport(totalHours - billableHours),
+      entryCount: logs.length,
+      byTask: [...byTask.values()]
+        .map((t) => ({
+          taskId: t.taskId,
+          taskName: t.taskName,
+          categoryId: t.categoryId,
+          categoryName: t.categoryName,
+          totalHours: roundExport(t.totalHours),
+          billableHours: roundExport(t.billableHours)
+        }))
+        .sort((a, b) => b.totalHours - a.totalHours),
+      byCategory: [...byCategory.values()]
+        .map((c) => ({
+          categoryId: c.categoryId,
+          categoryName: c.categoryName,
+          totalHours: roundExport(c.totalHours),
+          billableHours: roundExport(c.billableHours)
+        }))
+        .sort((a, b) => b.totalHours - a.totalHours)
+    };
+  }
 
   async myWeekSummary(
     workspaceId: string,

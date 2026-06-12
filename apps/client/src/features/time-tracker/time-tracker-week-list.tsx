@@ -99,7 +99,7 @@ export function TimeTrackerWeekList({
   return (
     <div className="space-y-4">
       {groups.map((group) => (
-        <Card key={group.weekKey} className="overflow-hidden border-primary/10 shadow-sm">
+        <Card key={group.weekKey} className="gap-0 overflow-hidden border-primary/10 p-0 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 bg-muted/20 px-5 py-4">
             <div className="flex items-center gap-2.5">
               <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">

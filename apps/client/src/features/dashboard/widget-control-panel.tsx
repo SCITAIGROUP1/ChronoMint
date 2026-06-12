@@ -31,8 +31,14 @@ export function WidgetControlPanel({
 
   return (
     <>
+      <button
+        type="button"
+        aria-label="Close customize panel"
+        className="fixed inset-0 z-40 bg-background/60 backdrop-blur-[2px]"
+        onClick={onClose}
+      />
       {/* Sliding Customize Drawer (Sheet) */}
-      <div className="fixed top-0 right-0 h-screen w-[420px] bg-card/95 backdrop-blur-md border-l border-border shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-350 ease-out select-none">
+      <div className="fixed top-0 right-0 z-50 flex h-screen w-full max-w-[420px] flex-col border-l border-border bg-card/95 shadow-2xl backdrop-blur-md animate-in slide-in-from-right duration-350 ease-out select-none">
         {/* Header */}
         <div className="px-6 py-5 border-b border-border/40 flex items-start justify-between">
           <div className="space-y-1">

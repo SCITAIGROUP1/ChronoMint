@@ -13,7 +13,13 @@
 pnpm install
 cp apps/api/.env.example apps/api/.env
 createdb kloqra   # once
-pnpm serve            # migrate, seed, start all apps
+pnpm local            # daily prep — Postgres, env, prisma generate
+pnpm dev:shared       # contracts + ui watch (terminal 1 — start before apps)
+pnpm dev:api          # API watch (:3001)
+pnpm dev:client       # client HMR (:3000)
+pnpm dev:admin        # admin HMR (:3002)
+pnpm dev              # all apps one terminal (one-shot shared build via predev)
+pnpm serve            # first-time — install, migrate, seed, then dev:* per terminal
 ```
 
 Demo logins after seed: `admin@kloqra.dev` / `member@kloqra.dev` (password `password123`). Local database name: **`kloqra`** (CI uses `kloqra_test`).

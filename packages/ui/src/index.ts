@@ -18,6 +18,24 @@ export type { ButtonProps } from "./components/ui/button.js";
 export { Input } from "./components/ui/input.js";
 export { Label } from "./components/ui/label.js";
 
+export { Popover, PopoverTrigger, PopoverAnchor, PopoverContent } from "./components/ui/popover.js";
+
+export { DateRangePicker, type DateRangePickerProps } from "./components/ui/date-range-picker.js";
+
+export {
+  addMonths,
+  buildMonthGrid,
+  compareDateKeys,
+  dateFromKey,
+  dateKeyFromDate,
+  formatDateKeyLabel,
+  formatDateRangeLabel,
+  isDateKeyInRange,
+  normalizeDateRange,
+  parseDateKey,
+  toDateKey
+} from "./lib/date-keys.js";
+
 export {
   Card,
   CardHeader,
@@ -88,6 +106,23 @@ export {
 } from "./components/project-color.js";
 
 export {
+  AssigneeAvatarStack,
+  type AssigneeAvatarMember,
+  type AssigneeAvatarStackProps
+} from "./components/assignee-avatar-stack.js";
+
+export {
+  TaskAssigneePicker,
+  type TaskAssigneeOption,
+  type TaskAssigneePickerProps
+} from "./components/task-assignee-picker.js";
+
+export {
+  MemberProjectColorPicker,
+  type MemberProjectColorPickerProps
+} from "./components/member-project-color-picker.js";
+
+export {
   TimeEntryAuditTrail,
   type TimeEntryAuditEvent
 } from "./components/time-entry-audit-trail.js";
@@ -137,6 +172,12 @@ export {
   type ResponsiveLayoutShellProps
 } from "./components/layout-shell.js";
 
+export {
+  SpotlightTour,
+  type SpotlightTourProps,
+  type SpotlightTourStep
+} from "./components/spotlight-tour.js";
+
 export { ShellToolbarProvider, useShellToolbar } from "./components/shell-toolbar-context.js";
 
 export {
@@ -168,6 +209,7 @@ export {
   shellHeaderBandYClass,
   shellMainContentClass,
   getUserInitials,
+  getDisplayInitials,
   shellAppBarClass,
   shellAppBarDescriptionClass,
   shellAppBarPrimaryRowClass,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   formatClockLabel,
+  formatDayHeaderShort,
   formatEntryDateLabel,
   formatEntryShortDate,
   formatWeekRangeLabel
@@ -20,6 +21,11 @@ describe("display-format", () => {
 
   it("formats compact entry dates", () => {
     expect(formatEntryShortDate(new Date("2026-06-12T12:00:00.000Z"), "UTC")).toBe("Jun 12");
+  });
+
+  it("formats compact day headers for calendar columns", () => {
+    const label = formatDayHeaderShort(new Date("2026-06-12T12:00:00.000Z"), format);
+    expect(label).toMatch(/^Fri \d+$/);
   });
 
   it("formats week range using user preference", () => {

@@ -90,8 +90,10 @@ export const userAvatarVariants = cva(
   {
     variants: {
       size: {
+        xs: "h-7 w-7 text-[10px] ring-2 ring-background",
         sm: "h-10 w-10 text-xs",
-        md: "h-11 w-11 text-sm"
+        md: "h-11 w-11 text-sm",
+        lg: "h-16 w-16 text-xl shadow-md shadow-primary/25"
       }
     },
     defaultVariants: {

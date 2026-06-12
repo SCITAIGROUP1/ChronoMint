@@ -33,8 +33,6 @@ import { toast } from "sonner";
 import { DailyGoalWidget } from "./daily-goal-widget";
 import { QuickActions } from "./quick-actions";
 import { StaleTimerDialog } from "./stale-timer-dialog";
-import { OnboardingOverlay } from "@/features/onboarding/onboarding-overlay";
-import { suggestBillableFromTask } from "@/features/timesheet/time-entry-dialog";
 import { api } from "@/lib/api";
 import { formatProjectLabel, formatTaskLabel } from "@/lib/project-labels";
 import { useProjectsStore } from "@/stores/projects.store";
@@ -147,7 +145,6 @@ export function TimerPage() {
   const [projectId, setProjectId] = useState("");
   const [taskChoice, setTaskChoice] = useState("");
   const [stopDescription, setStopDescription] = useState("");
-  const [isBillable, setIsBillable] = useState(true);
   const [starting, setStarting] = useState(false);
   const [stopping, setStopping] = useState(false);
   const [pausing, setPausing] = useState(false);
@@ -278,15 +275,8 @@ export function TimerPage() {
   function onProjectChange(id: string) {
     setProjectId(id);
     setTaskChoice("");
-    setIsBillable(true);
     setError(null);
   }
-
-  useEffect(() => {
-    if (activeTask) {
-      setIsBillable(activeTask.billableDefault);
-    }
-  }, [activeTask]);
 
   async function startTimer() {
     if (!canStart) return;
@@ -326,7 +316,7 @@ export function TimerPage() {
         workspaceId: ws,
         body: JSON.stringify({
           description: stopDescription.trim() || undefined,
-          isBillable
+          isBillable: activeTask?.billableDefault ?? true
         })
       });
       const logged = formatElapsed(elapsedSec);
@@ -462,7 +452,6 @@ export function TimerPage() {
 
   return (
     <div className="space-y-6">
-      <OnboardingOverlay />
       <AppBar
         title="Timer"
         description={
@@ -544,16 +533,6 @@ export function TimerPage() {
                         placeholder="What did you work on?"
                       />
                     </div>
-                    <label className="flex cursor-pointer items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        className="size-4 rounded border border-input accent-primary"
-                        checked={isBillable}
-                        onChange={(e) => setIsBillable(e.target.checked)}
-                      />
-                      <span>Billable time</span>
-                    </label>
-
                     {/* Actions Row */}
                     <div className="grid grid-cols-2 gap-3">
                       {isPaused ? (
@@ -629,7 +608,6 @@ export function TimerPage() {
                             onValueChange={(v) => {
                               setTaskChoice(v);
                               setError(null);
-                              setIsBillable(suggestBillableFromTask(tasks, v));
                             }}
                             disabled={!projectId || projectTasks.length === 0}
                           >
@@ -661,8 +639,7 @@ export function TimerPage() {
                           </Select>
                           {projectId && projectTasks.length === 0 && (
                             <p className="text-xs text-muted-foreground">
-                              No tasks yet on this project. Ask your admin to add tasks before you
-                              can log time.
+                              Ask your admin to assign you to tasks on this project.
                             </p>
                           )}
                         </div>

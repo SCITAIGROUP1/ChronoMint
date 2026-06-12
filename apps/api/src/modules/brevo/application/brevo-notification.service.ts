@@ -1,5 +1,5 @@
 import { IDLE_TIMER_ALERT_HOURS } from "@kloqra/contracts";
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { BrevoMailerService } from "./brevo-mailer.service";
 
 function clientOrigin(): string {
@@ -9,6 +9,8 @@ function clientOrigin(): string {
 
 @Injectable()
 export class BrevoNotificationService {
+  private readonly logger = new Logger(BrevoNotificationService.name);
+
   constructor(private mailer: BrevoMailerService) {}
 
   async sendProjectTeamInvite(params: {
@@ -18,7 +20,12 @@ export class BrevoNotificationService {
     workspaceName: string;
     expiresAt: string;
   }): Promise<boolean> {
-    if (!this.mailer.isConfigured) return false;
+    if (!this.mailer.isConfigured) {
+      this.logger.warn(
+        `Project team invite email skipped (Brevo unconfigured): to=${params.to} project="${params.projectName}"`
+      );
+      return false;
+    }
 
     const expiry = new Date(params.expiresAt).toLocaleDateString("en-US", {
       dateStyle: "medium"
@@ -42,7 +49,12 @@ export class BrevoNotificationService {
     workspaceName: string;
     role: "ADMIN" | "MEMBER";
   }): Promise<boolean> {
-    if (!this.mailer.isConfigured) return false;
+    if (!this.mailer.isConfigured) {
+      this.logger.warn(
+        `Workspace member added email skipped (Brevo unconfigured): to=${params.to} workspace="${params.workspaceName}"`
+      );
+      return false;
+    }
 
     const roleLabel = params.role === "ADMIN" ? "Admin" : "Member";
     const appUrl = clientOrigin();

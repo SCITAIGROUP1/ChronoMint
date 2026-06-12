@@ -9,7 +9,7 @@ import type {
 import { Injectable, HttpStatus } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import * as bcrypt from "bcrypt";
-import { verify as verifyTotp } from "otplib";
+import { verifyTotpCode } from "../../../common/crypto/totp.util";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { splitDisplayName } from "../../users/application/user-name.util";
@@ -150,8 +150,7 @@ export class AuthService {
           pendingToken: this.signPending2faToken(user.id)
         };
       }
-      const verification = await verifyTotp({ token: dto.totpCode, secret: user.totpSecret });
-      if (!verification.valid) {
+      if (!verifyTotpCode(dto.totpCode, user.totpSecret)) {
         throw new DomainException(
           ErrorCodes.UNAUTHORIZED,
           "Invalid authentication code",
@@ -510,6 +509,8 @@ export class AuthService {
       id: string;
       email: string;
       name: string;
+      firstName?: string | null;
+      lastName?: string | null;
       defaultHourlyRate: { toNumber(): number } | null;
     },
     workspaceId: string,
@@ -518,11 +519,16 @@ export class AuthService {
     impersonatorId?: string,
     impersonatorName?: string
   ): AuthSessionDto {
+    const names = user.firstName
+      ? { firstName: user.firstName, lastName: user.lastName ?? "" }
+      : splitDisplayName(user.name);
     return {
       user: {
         id: user.id,
         email: user.email,
         name: user.name,
+        firstName: names.firstName,
+        lastName: names.lastName,
         defaultHourlyRate: user.defaultHourlyRate?.toNumber() ?? null
       },
       workspaceId,

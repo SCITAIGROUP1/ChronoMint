@@ -10,13 +10,14 @@ import {
 } from "../../../common/http/pagination.util";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 
-type TaskWithCategory = {
+type TaskWithRelations = {
   id: string;
   projectId: string;
   categoryId: string;
   taskName: string;
   billableDefault: boolean;
   category?: { name: string } | null;
+  assignees?: { userId: string; user: { name: string } }[];
 };
 
 @Injectable()
@@ -26,14 +27,28 @@ export class TasksService {
     private access: ProjectAccessService
   ) {}
 
-  toDto(t: TaskWithCategory) {
+  toDto(t: TaskWithRelations) {
     return {
       id: t.id,
       projectId: t.projectId,
       categoryId: t.categoryId,
       ...(t.category?.name ? { categoryName: t.category.name } : {}),
       taskName: t.taskName,
-      billableDefault: t.billableDefault
+      billableDefault: t.billableDefault,
+      assignees: (t.assignees ?? []).map((a) => ({
+        userId: a.userId,
+        userName: a.user.name
+      }))
+    };
+  }
+
+  private taskInclude() {
+    return {
+      category: { select: { name: true } },
+      assignees: {
+        include: { user: { select: { id: true, name: true } } },
+        orderBy: { user: { name: "asc" as const } }
+      }
     };
   }
 
@@ -52,6 +67,7 @@ export class TasksService {
     const where = {
       projectId: { in: projectIds },
       ...(query.categoryId ? { categoryId: query.categoryId } : {}),
+      ...(role === "MEMBER" ? { assignees: { some: { userId } } } : {}),
       ...(query.search
         ? {
             OR: [
@@ -66,7 +82,7 @@ export class TasksService {
       this.prisma.task.count({ where }),
       this.prisma.task.findMany({
         where,
-        include: { category: { select: { name: true } } },
+        include: this.taskInclude(),
         orderBy: [{ category: { name: "asc" } }, { taskName: "asc" }],
         ...paginationSkipTake(query.page, query.limit)
       })
@@ -83,15 +99,29 @@ export class TasksService {
   async create(workspaceId: string, dto: CreateTaskDto) {
     await this.assertProjectInWorkspace(workspaceId, dto.projectId);
     await this.assertCategoryInWorkspace(workspaceId, dto.categoryId);
-    const t = await this.prisma.task.create({
-      data: {
-        projectId: dto.projectId,
-        categoryId: dto.categoryId,
-        taskName: dto.taskName,
-        billableDefault: dto.billableDefault ?? true
-      },
-      include: { category: { select: { name: true } } }
+    await this.assertAssigneesOnProject(dto.projectId, dto.assigneeUserIds);
+
+    const t = await this.prisma.$transaction(async (tx) => {
+      const task = await tx.task.create({
+        data: {
+          projectId: dto.projectId,
+          categoryId: dto.categoryId,
+          taskName: dto.taskName,
+          billableDefault: dto.billableDefault ?? true
+        }
+      });
+      await tx.taskAssignee.createMany({
+        data: dto.assigneeUserIds.map((assigneeUserId) => ({
+          taskId: task.id,
+          userId: assigneeUserId
+        }))
+      });
+      return tx.task.findUniqueOrThrow({
+        where: { id: task.id },
+        include: this.taskInclude()
+      });
     });
+
     return this.toDto(t);
   }
 
@@ -100,15 +130,32 @@ export class TasksService {
     if (dto.categoryId && dto.categoryId !== task.categoryId) {
       await this.assertCategoryInWorkspace(workspaceId, dto.categoryId);
     }
-    const t = await this.prisma.task.update({
-      where: { id: task.id },
-      data: {
-        ...(dto.taskName !== undefined ? { taskName: dto.taskName } : {}),
-        ...(dto.billableDefault !== undefined ? { billableDefault: dto.billableDefault } : {}),
-        ...(dto.categoryId !== undefined ? { categoryId: dto.categoryId } : {})
-      },
-      include: { category: { select: { name: true } } }
+    if (dto.assigneeUserIds) {
+      await this.assertAssigneesOnProject(task.projectId, dto.assigneeUserIds);
+    }
+
+    const t = await this.prisma.$transaction(async (tx) => {
+      if (dto.assigneeUserIds) {
+        await tx.taskAssignee.deleteMany({ where: { taskId: task.id } });
+        await tx.taskAssignee.createMany({
+          data: dto.assigneeUserIds.map((assigneeUserId) => ({
+            taskId: task.id,
+            userId: assigneeUserId
+          }))
+        });
+      }
+
+      return tx.task.update({
+        where: { id: task.id },
+        data: {
+          ...(dto.taskName !== undefined ? { taskName: dto.taskName } : {}),
+          ...(dto.billableDefault !== undefined ? { billableDefault: dto.billableDefault } : {}),
+          ...(dto.categoryId !== undefined ? { categoryId: dto.categoryId } : {})
+        },
+        include: this.taskInclude()
+      });
     });
+
     return this.toDto(t);
   }
 
@@ -116,6 +163,44 @@ export class TasksService {
     const task = await this.assertWorkspaceTask(workspaceId, id);
     await this.prisma.task.delete({ where: { id: task.id } });
     return { ok: true };
+  }
+
+  async countUnassigned(workspaceId: string, projectId: string) {
+    return this.prisma.task.count({
+      where: {
+        projectId,
+        project: { workspaceId },
+        assignees: { none: {} }
+      }
+    });
+  }
+
+  private async assertAssigneesOnProject(projectId: string, assigneeUserIds: string[]) {
+    const uniqueIds = [...new Set(assigneeUserIds)];
+    if (uniqueIds.length === 0) {
+      throw new DomainException(
+        ErrorCodes.VALIDATION_ERROR,
+        "At least one assignee is required",
+        HttpStatus.BAD_REQUEST
+      );
+    }
+
+    const members = await this.prisma.teamMember.findMany({
+      where: {
+        userId: { in: uniqueIds },
+        isActive: true,
+        team: { projectId }
+      },
+      select: { userId: true }
+    });
+
+    if (members.length !== uniqueIds.length) {
+      throw new DomainException(
+        ErrorCodes.VALIDATION_ERROR,
+        "All assignees must be active members of this project team",
+        HttpStatus.BAD_REQUEST
+      );
+    }
   }
 
   private async assertWorkspaceTask(workspaceId: string, taskId: string) {

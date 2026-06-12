@@ -1,12 +1,14 @@
 import { ErrorCodes } from "@kloqra/contracts";
 import type { InviteMemberDto, UpdateWorkspaceMemberDto } from "@kloqra/contracts";
-import { Injectable, HttpStatus } from "@nestjs/common";
+import { Injectable, HttpStatus, Logger } from "@nestjs/common";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { BrevoNotificationService } from "../../brevo/application/brevo-notification.service";
 
 @Injectable()
 export class WorkspaceService {
+  private readonly logger = new Logger(WorkspaceService.name);
+
   constructor(
     private prisma: PrismaService,
     private brevo: BrevoNotificationService
@@ -122,7 +124,12 @@ export class WorkspaceService {
         workspaceName: workspace.name,
         role: dto.role
       })
-      .catch(() => undefined);
+      .catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : String(err);
+        this.logger.error(
+          `Workspace member added email failed: workspaceId=${workspaceId} to=${dto.email} error="${message}"`
+        );
+      });
 
     return member;
   }

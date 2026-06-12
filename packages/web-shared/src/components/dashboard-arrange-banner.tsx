@@ -18,8 +18,8 @@ export function DashboardArrangeBanner({
 }: DashboardArrangeBannerProps) {
   return (
     <div className="sticky top-0 z-40 w-full border-b border-border/60 bg-card/85 shadow-sm backdrop-blur-md animate-in slide-in-from-top-2 fade-in duration-200">
-      <div className="mx-auto flex max-w-[1600px] items-center justify-between px-6 py-3 lg:px-8">
-        <div className="flex items-center gap-2">
+      <div className="mx-auto flex max-w-[1600px] flex-col gap-3 px-6 py-3 sm:flex-row sm:items-center sm:justify-between lg:px-8">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <Move className="size-4 shrink-0 animate-pulse text-primary" />
           <span className="text-sm font-semibold">Rearranging Layout</span>
           <span className="hidden rounded-full bg-muted px-2 py-0.5 font-mono text-[10px] text-muted-foreground sm:inline">
@@ -29,7 +29,7 @@ export function DashboardArrangeBanner({
             Drag anywhere on a widget to move; drag edges or the corner to resize.
           </span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             size="sm"
             variant="outline"

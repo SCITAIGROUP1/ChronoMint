@@ -89,7 +89,8 @@ export class TimelogsController {
     return this.timelogs.create(
       user.workspaceId,
       user.userId,
-      body as Parameters<TimelogsService["create"]>[2]
+      user.role,
+      body as Parameters<TimelogsService["create"]>[3]
     );
   }
 

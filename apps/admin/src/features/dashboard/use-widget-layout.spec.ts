@@ -7,5 +7,6 @@ describe("useWidgetLayout", () => {
     expect(state.initialized).toBe(false);
     expect(typeof state.initialize).toBe("function");
     expect(typeof state.persistLayout).toBe("function");
+    expect(typeof state.updateLayout).toBe("function");
   });
 });

@@ -25,4 +25,17 @@ describe("ShellHeaderActions", () => {
     expect(screen.getByLabelText("Settings").getAttribute("href")).toBe("/settings");
     expect(screen.getByTitle("Sarah Johnson").getAttribute("href")).toBe("/profile");
   });
+
+  it("renders onboarding help menu when replay callbacks are provided", () => {
+    render(
+      <ShellHeaderActions
+        profileHref="/profile"
+        settingsHref="/settings"
+        onShowOnboardingWizard={vi.fn()}
+        onShowOnboardingTour={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "Onboarding help" })).toBeTruthy();
+  });
 });

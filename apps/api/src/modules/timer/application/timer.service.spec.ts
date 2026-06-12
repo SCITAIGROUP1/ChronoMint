@@ -66,7 +66,7 @@ describe("TimerService", () => {
       })
     };
     mockAccess = {
-      assertCanAccessProject: vi.fn().mockResolvedValue(undefined)
+      assertCanLogTask: vi.fn().mockResolvedValue(undefined)
     };
     mockAudit = {
       snapshotFromLog: vi.fn().mockReturnValue({ taskId }),
@@ -133,7 +133,7 @@ describe("TimerService", () => {
       })
     );
 
-    const result = await service.stop(workspaceId, userId, { description: "Done" });
+    const result = await service.stop(workspaceId, userId, "MEMBER", { description: "Done" });
 
     expect(result.taskId).toBe(taskId);
     expect(result.source).toBe("timer");
@@ -142,7 +142,7 @@ describe("TimerService", () => {
   });
 
   it("throws TIMER_NOT_ACTIVE when stopping with no timer", async () => {
-    await expect(service.stop(workspaceId, userId, {})).rejects.toSatisfy(
+    await expect(service.stop(workspaceId, userId, "MEMBER", {})).rejects.toSatisfy(
       (err: unknown) =>
         err instanceof DomainException &&
         err.code === ErrorCodes.TIMER_NOT_ACTIVE &&

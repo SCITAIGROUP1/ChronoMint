@@ -14,8 +14,6 @@ import {
   Button,
   Card,
   CardContent,
-  Input,
-  Label,
   Select,
   SelectContent,
   SelectItem,
@@ -25,15 +23,22 @@ import {
 } from "@kloqra/ui";
 import {
   applyDashboardPeriodPreset,
+  buildWidgetMinSizeMap,
   DashboardArrangeBanner,
+  DashboardPeriodFilter,
+  DASHBOARD_GRID_BREAKPOINTS,
+  DASHBOARD_GRID_COLS,
+  generateResponsiveLayouts,
   fetchProjectTeam,
   matchDashboardPeriodPreset,
   ReportScopeFilters,
+  type DashboardBreakpoint,
   type DashboardPeriodPreset,
+  type DashboardPeriodSelection,
   fetchListItems
 } from "@kloqra/web-shared";
 import { Clock, DollarSign, Folder, LayoutGrid, Move, Users } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { WidthProvider, Responsive } from "react-grid-layout";
 import { toast } from "sonner";
 import { BudgetBurnDownWidget } from "./budget-burndown-widget";
@@ -54,7 +59,7 @@ import { ProjectHealthWidget } from "./widgets/project-health-widget";
 import { RateEfficiencyWidget } from "./widgets/rate-efficiency-widget";
 import { RevenueTrendWidget } from "./widgets/revenue-trend-widget";
 import { TaskBreakdownWidget } from "./widgets/task-breakdown-widget";
-import { DashboardSkeleton, EmptyState, SegmentedControl } from "@/components/admin-page";
+import { DashboardSkeleton, EmptyState } from "@/components/admin-page";
 import {
   DailyStackedBarChart,
   ReportDonutChart,
@@ -70,15 +75,14 @@ import { api } from "@/lib/api";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
 // Types
-type AdminPeriodPreset = Extract<DashboardPeriodPreset, "week" | "month">;
 type ChartByMode = "billability" | "project";
 type GroupByMode = "user" | "project";
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
-const RANGE_OPTIONS: { value: AdminPeriodPreset; label: string }[] = [
-  { value: "week", label: "This week" },
-  { value: "month", label: "This month" }
+const ADMIN_PERIOD_PRESETS = [
+  { value: "week" as const, label: "This week" },
+  { value: "month" as const, label: "This month" }
 ];
 
 function rangeQuery(
@@ -109,7 +113,7 @@ function formatMoney(n: number) {
 
 export function DashboardPage() {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
-  const [range, setRange] = useState<AdminPeriodPreset | "">("week");
+  const [range, setRange] = useState<DashboardPeriodSelection>("week");
   const [startDate, setStartDate] = useState<string>(() => applyDashboardPeriodPreset("week").from);
   const [endDate, setEndDate] = useState<string>(() => applyDashboardPeriodPreset("week").to);
   const [projectId, setProjectId] = useState("");
@@ -124,23 +128,24 @@ export function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  function handleRangePresetChange(newRange: AdminPeriodPreset) {
+  function handleRangePresetChange(newRange: DashboardPeriodPreset) {
     setRange(newRange);
     const { from, to } = applyDashboardPeriodPreset(newRange);
     setStartDate(from);
     setEndDate(to);
   }
 
-  function handleCustomDateChange(newStart: string, newEnd: string) {
-    setStartDate(newStart);
-    setEndDate(newEnd);
-    setRange(matchDashboardPeriodPreset(newStart, newEnd, ["week", "month"]) ?? "");
+  function handleDateRangeChange(from: string, to: string) {
+    setStartDate(from);
+    setEndDate(to);
+    setRange(matchDashboardPeriodPreset(from, to, ["week", "month"]) ?? "custom");
   }
 
   // Widget Customization UI States
   const [mounted, setMounted] = useState(false);
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
   const [isArranging, setIsArranging] = useState(false);
+  const [gridBreakpoint, setGridBreakpoint] = useState<DashboardBreakpoint>("lg");
   const [widgetHeaderActions, setWidgetHeaderActions] = useState<Record<string, React.ReactNode>>(
     {}
   );
@@ -324,6 +329,16 @@ export function DashboardPage() {
       updateHeaderAction("pending_timesheets", node);
     },
     [updateHeaderAction]
+  );
+
+  const activeLayout = layoutsByWorkspace[ws] || [];
+  const visibleItems = activeLayout.filter((item) => item.visible);
+
+  const widgetMinSizes = useMemo(() => buildWidgetMinSizeMap(WIDGET_REGISTRY), []);
+
+  const responsiveLayouts = useMemo(
+    () => generateResponsiveLayouts(visibleItems, DASHBOARD_GRID_COLS, widgetMinSizes),
+    [visibleItems, widgetMinSizes]
   );
 
   if (loading) {
@@ -651,10 +666,6 @@ export function DashboardPage() {
     return widgetHeaderActions[id] || null;
   }
 
-  // Filter layouts
-  const activeLayout = layoutsByWorkspace[ws] || [];
-  const visibleItems = activeLayout.filter((item) => item.visible);
-
   return (
     <div className="space-y-8 min-h-screen pb-16">
       <AppBar
@@ -718,31 +729,15 @@ export function DashboardPage() {
 
       <Card>
         <CardContent className="flex flex-col gap-4 py-4">
-          <div className="space-y-2">
-            <Label className="text-xs font-medium text-muted-foreground">Period</Label>
-            <div className="flex flex-wrap items-center gap-3">
-              <SegmentedControl
-                value={range as AdminPeriodPreset}
-                onChange={(v) => handleRangePresetChange(v as AdminPeriodPreset)}
-                options={RANGE_OPTIONS}
-              />
-              <div className="flex items-center gap-1.5">
-                <Input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => handleCustomDateChange(e.target.value, endDate)}
-                  className="h-9 bg-background w-[145px] text-xs px-2.5"
-                />
-                <span className="text-muted-foreground text-xs font-medium">—</span>
-                <Input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => handleCustomDateChange(startDate, e.target.value)}
-                  className="h-9 bg-background w-[145px] text-xs px-2.5"
-                />
-              </div>
-            </div>
-          </div>
+          <DashboardPeriodFilter
+            range={range}
+            onPresetChange={handleRangePresetChange}
+            startDate={startDate}
+            endDate={endDate}
+            onDateRangeChange={handleDateRangeChange}
+            presets={ADMIN_PERIOD_PRESETS}
+            dateRangeAriaLabel="Dashboard date range"
+          />
 
           <ReportScopeFilters
             compact
@@ -776,22 +771,26 @@ export function DashboardPage() {
             <DashboardSkeleton />
           ) : (
             <ResponsiveGridLayout
-              className={`layout -mx-4 ${isArranging ? "layout-customizing" : ""}`}
-              layouts={{ lg: visibleItems }}
-              breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
-              cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
+              className={`layout ${isArranging ? "layout-customizing" : ""}`}
+              layouts={responsiveLayouts}
+              breakpoints={DASHBOARD_GRID_BREAKPOINTS}
+              cols={DASHBOARD_GRID_COLS}
               rowHeight={80}
+              compactType="vertical"
               isDraggable={isArranging}
               isResizable={isArranging}
               draggableCancel="button, a, input, select, textarea, [role='menu'], [role='menuitem'], .widget-no-drag"
               resizeHandles={["s", "e", "se"]}
+              onBreakpointChange={(breakpoint) =>
+                setGridBreakpoint(breakpoint as DashboardBreakpoint)
+              }
               onLayoutChange={(currentLayout) => {
-                if (isArranging) {
+                if (isArranging && gridBreakpoint === "lg") {
                   updateLayout(ws, currentLayout, { persist: false });
                 }
               }}
               margin={[16, 16]}
-              containerPadding={[16, 0]}
+              containerPadding={[0, 0]}
             >
               {visibleItems.map((item) => {
                 const widgetDef = WIDGET_REGISTRY.find((w) => w.id === item.i);

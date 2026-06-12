@@ -3,6 +3,7 @@ import {
   dashboardLayoutQuerySchema,
   ErrorCodes,
   ROUTES,
+  setUserProjectColorSchema,
   twoFactorDisableSchema,
   twoFactorVerifySchema,
   updateDashboardLayoutSchema,
@@ -139,6 +140,27 @@ export class UsersController {
   ) {
     this.assertNotImpersonating(user);
     return this.twoFa.verify(user.userId, body as Parameters<Users2faService["verify"]>[1]);
+  }
+
+  @Put(ROUTES.USERS.PROJECT_COLOR(":projectId"))
+  setProjectColor(
+    @CurrentUser() user: RequestUser,
+    @Param("projectId") projectId: string,
+    @Body(new ZodValidationPipe(setUserProjectColorSchema)) body: unknown
+  ) {
+    this.assertNotImpersonating(user);
+    return this.users.setProjectColor(
+      user.userId,
+      user.workspaceId,
+      projectId,
+      body as Parameters<UsersService["setProjectColor"]>[3]
+    );
+  }
+
+  @Delete(ROUTES.USERS.PROJECT_COLOR(":projectId"))
+  clearProjectColor(@CurrentUser() user: RequestUser, @Param("projectId") projectId: string) {
+    this.assertNotImpersonating(user);
+    return this.users.clearProjectColor(user.userId, user.workspaceId, projectId);
   }
 
   @Post(ROUTES.USERS.TWO_FA_DISABLE)

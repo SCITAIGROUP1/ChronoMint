@@ -4,6 +4,7 @@ import type { CategoryDto, ProjectDto, TaskDto } from "@kloqra/contracts";
 import {
   Badge,
   Button,
+  DateRangePicker,
   Input,
   ProjectColorDot,
   Select,
@@ -21,7 +22,7 @@ import {
 import {
   TIME_TRACKER_PERIOD_LABELS,
   TIME_TRACKER_PERIOD_PRESETS,
-  type TimeTrackerPeriodPreset
+  type TimeTrackerPeriodSelection
 } from "./time-tracker-period";
 import { formatProjectLabel } from "@/lib/project-labels";
 
@@ -30,8 +31,12 @@ type TimeTrackerToolbarProps = {
   onSearchChange: (value: string) => void;
   projectId: string;
   onProjectChange: (value: string) => void;
-  period: TimeTrackerPeriodPreset;
-  onPeriodChange: (value: TimeTrackerPeriodPreset) => void;
+  period: TimeTrackerPeriodSelection;
+  onPeriodChange: (value: TimeTrackerPeriodSelection) => void;
+  rangeFrom: string;
+  rangeTo: string;
+  onRangeChange: (from: string, to: string) => void;
+  weekStartsOn?: 0 | 1;
   projects: ProjectDto[];
   categories: CategoryDto[];
   tasks: TaskDto[];
@@ -51,6 +56,10 @@ export function TimeTrackerToolbar({
   onProjectChange,
   period,
   onPeriodChange,
+  rangeFrom,
+  rangeTo,
+  onRangeChange,
+  weekStartsOn = 1,
   projects,
   categories,
   tasks,
@@ -110,7 +119,7 @@ export function TimeTrackerToolbar({
           </Select>
           <Select
             value={period}
-            onValueChange={(v) => onPeriodChange(v as TimeTrackerPeriodPreset)}
+            onValueChange={(v) => onPeriodChange(v as TimeTrackerPeriodSelection)}
           >
             <SelectTrigger className="w-[172px]" aria-label="Time period">
               <SelectValue />
@@ -121,8 +130,19 @@ export function TimeTrackerToolbar({
                   {TIME_TRACKER_PERIOD_LABELS[preset]}
                 </SelectItem>
               ))}
+              <SelectItem value="custom">{TIME_TRACKER_PERIOD_LABELS.custom}</SelectItem>
             </SelectContent>
           </Select>
+          <DateRangePicker
+            from={rangeFrom}
+            to={rangeTo}
+            onChange={onRangeChange}
+            weekStartsOn={weekStartsOn}
+            ariaLabel="Date range"
+            className="w-full min-w-[200px] sm:w-[260px]"
+            numberOfMonths={2}
+            popoverAlign="end"
+          />
           <Button
             type="button"
             variant={filtersOpen || activeFilterCount > 0 ? "secondary" : "outline"}

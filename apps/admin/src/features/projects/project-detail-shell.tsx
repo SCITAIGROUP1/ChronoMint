@@ -13,6 +13,10 @@ import {
 } from "./project-detail-nav";
 
 const SECTION_COPY: Record<ProjectDetailSectionId, { title: string; description: string }> = {
+  overview: {
+    title: "Overview",
+    description: "Time logged on this project across the team for the selected period."
+  },
   tasks: {
     title: "Tasks",
     description: "Define the task list members choose when logging time on this project."

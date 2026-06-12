@@ -12,6 +12,8 @@ import { UserAvatar } from "./user-avatar.js";
 
 export type SidebarUserFooterProps = {
   userName: string;
+  firstName?: string | null;
+  lastName?: string | null;
   profileHref: string;
   onLogout: () => void;
   collapsed?: boolean;
@@ -20,6 +22,8 @@ export type SidebarUserFooterProps = {
 
 export function SidebarUserFooter({
   userName,
+  firstName,
+  lastName,
   profileHref,
   onLogout,
   collapsed = false,
@@ -28,7 +32,13 @@ export function SidebarUserFooter({
   if (collapsed) {
     return (
       <div className={cn("flex flex-col items-center gap-1.5", className)}>
-        <UserAvatar name={userName} href={profileHref} className="h-9 w-9 text-xs" />
+        <UserAvatar
+          name={userName}
+          firstName={firstName}
+          lastName={lastName}
+          href={profileHref}
+          className="h-9 w-9 text-xs"
+        />
         <button
           type="button"
           onClick={onLogout}
@@ -45,7 +55,7 @@ export function SidebarUserFooter({
   return (
     <div className={cn("space-y-3", className)}>
       <Link href={profileHref} className={sidebarProfileLinkClass}>
-        <UserAvatar name={userName} />
+        <UserAvatar name={userName} firstName={firstName} lastName={lastName} />
         <div className="min-w-0">
           <p className="truncate text-sm font-medium leading-tight">{userName}</p>
           <p className="truncate text-xs text-muted-foreground">View Profile</p>

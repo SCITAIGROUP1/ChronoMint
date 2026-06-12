@@ -15,7 +15,8 @@ import type {
 } from "@kloqra/contracts";
 import { AppBar, Button, ConfirmDialog, Badge, CenteredLoader } from "@kloqra/ui";
 import { api as sharedApi, fetchListItems } from "@kloqra/web-shared";
-import { Clock, Eye, EyeOff, Lock } from "lucide-react";
+import { Clock, Eye, EyeOff, Lock, X } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import type { CalendarTaskInfo } from "./calendar-entry-content";
@@ -54,6 +55,7 @@ import {
 } from "./time-entry-dialog";
 import { TimesheetCalendar } from "./timesheet-calendar";
 import { TimesheetMonth } from "./timesheet-month";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { api } from "@/lib/api";
 import { colorForTask } from "@/lib/project-color-styles";
 import { formatTaskLabel } from "@/lib/project-labels";
@@ -63,6 +65,9 @@ import { isActiveTimer, useTimerStore } from "@/stores/timer.store";
 import { useTimesheetStore } from "@/stores/timesheet.store";
 
 type ViewMode = "day" | "week" | "month";
+
+const TIMESHEET_MOBILE_BANNER_KEY = "kloqra-timesheet-mobile-banner-dismissed";
+const TIMESHEET_MOBILE_VIEW_INIT_KEY = "kloqra-timesheet-mobile-view-init";
 
 function buildLogsQuery(from: Date, to: Date): string {
   const params = new URLSearchParams({
@@ -108,6 +113,8 @@ export function TimesheetPage() {
   const { tasks, projects, workspaceNamesById, setTasks, setProjects } = useProjectsStore();
 
   const [view, setView] = useState<ViewMode>("week");
+  const [mobileBannerDismissed, setMobileBannerDismissed] = useState(true);
+  const isMobile = useMediaQuery("(max-width: 767px)");
   const [anchor, setAnchor] = useState(() => startOfDay(new Date()));
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingLog, setEditingLog] = useState<TimeLogDto | null>(null);
@@ -125,7 +132,20 @@ export function TimesheetPage() {
     if (overlaySaved === "false") {
       setShowOccupancyOverlay(false);
     }
+    setMobileBannerDismissed(sessionStorage.getItem(TIMESHEET_MOBILE_BANNER_KEY) === "1");
   }, []);
+
+  useEffect(() => {
+    if (!isMobile) return;
+    if (sessionStorage.getItem(TIMESHEET_MOBILE_VIEW_INIT_KEY) === "1") return;
+    setView("day");
+    sessionStorage.setItem(TIMESHEET_MOBILE_VIEW_INIT_KEY, "1");
+  }, [isMobile]);
+
+  function dismissMobileBanner() {
+    sessionStorage.setItem(TIMESHEET_MOBILE_BANNER_KEY, "1");
+    setMobileBannerDismissed(true);
+  }
 
   const fetchActiveTimer = useCallback(async () => {
     if (!ws) return;
@@ -621,7 +641,16 @@ export function TimesheetPage() {
             </Badge>
           </span>
         }
-        description="Drag slots, drag blocks to move, resize edges, Ctrl+drag to duplicate."
+        description={
+          <>
+            <span className="hidden md:inline">
+              Drag slots, drag blocks to move, resize edges, Ctrl+drag to duplicate.
+            </span>
+            <span className="md:hidden">
+              Tap slots to log time. Day view works best on small screens.
+            </span>
+          </>
+        }
         actions={
           <div className="flex rounded-lg border border-border bg-card p-0.5">
             {(["day", "week", "month"] as const).map((mode) => (
@@ -639,6 +668,36 @@ export function TimesheetPage() {
           </div>
         }
       />
+
+      {isMobile && !mobileBannerDismissed ? (
+        <div className="flex items-start justify-between gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm md:hidden">
+          <p className="text-foreground">
+            On mobile,{" "}
+            <Link
+              href="/time-tracker"
+              className="font-medium text-primary underline-offset-2 hover:underline"
+            >
+              Time Tracker
+            </Link>{" "}
+            is easier for viewing and editing entries.
+          </p>
+          <div className="flex shrink-0 items-center gap-2">
+            <Button asChild size="sm" variant="outline" className="h-8 text-xs">
+              <Link href="/time-tracker">Open</Link>
+            </Button>
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8"
+              onClick={dismissMobileBanner}
+              aria-label="Dismiss mobile tip"
+            >
+              <X className="size-4" />
+            </Button>
+          </div>
+        </div>
+      ) : null}
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">

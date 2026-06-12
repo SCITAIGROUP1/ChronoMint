@@ -7,7 +7,7 @@ import type {
   UpdateProjectDto
 } from "@kloqra/contracts";
 import { ErrorCodes, pickDefaultProjectColor, buildPaginationMeta } from "@kloqra/contracts";
-import { Injectable, HttpStatus } from "@nestjs/common";
+import { Injectable, HttpStatus, Logger } from "@nestjs/common";
 import { ProjectAccessService } from "../../../common/access/project-access.service";
 import { DomainException } from "../../../common/errors/domain.exception";
 import {
@@ -21,6 +21,8 @@ import { BrevoNotificationService } from "../../brevo/application/brevo-notifica
 
 @Injectable()
 export class ProjectsService {
+  private readonly logger = new Logger(ProjectsService.name);
+
   constructor(
     private prisma: PrismaService,
     private access: ProjectAccessService,
@@ -53,7 +55,8 @@ export class ProjectsService {
       timesheetApprovalEnabled: boolean;
       timesheetApprovalPeriod: string | null;
     },
-    workspaceName?: string
+    workspaceName?: string,
+    myColor?: string | null
   ) {
     return {
       id: p.id,
@@ -61,6 +64,7 @@ export class ProjectsService {
       workspaceName,
       name: p.name,
       color: p.color,
+      ...(myColor !== undefined ? { myColor } : {}),
       clientName: p.clientName,
       budgetHours: p.budgetHours?.toNumber() ?? null,
       isActive: p.isActive,
@@ -72,6 +76,15 @@ export class ProjectsService {
           ? p.timesheetApprovalPeriod
           : null
     };
+  }
+
+  private async myColorByProjectId(userId: string, projectIds: string[]) {
+    if (projectIds.length === 0) return new Map<string, string>();
+    const rows = await this.prisma.userProjectColor.findMany({
+      where: { userId, projectId: { in: projectIds } },
+      select: { projectId: true, color: true }
+    });
+    return new Map(rows.map((r) => [r.projectId, r.color]));
   }
 
   async list(
@@ -109,8 +122,22 @@ export class ProjectsService {
       })
     ]);
 
+    const myColors =
+      role === "MEMBER"
+        ? await this.myColorByProjectId(
+            userId,
+            rows.map((p) => p.id)
+          )
+        : null;
+
     return toPaginatedResponse(
-      rows.map((p) => this.toDto(p, p.workspace.name)),
+      rows.map((p) =>
+        this.toDto(
+          p,
+          p.workspace.name,
+          role === "MEMBER" ? (myColors!.get(p.id) ?? null) : undefined
+        )
+      ),
       total,
       query.page,
       query.limit
@@ -144,7 +171,11 @@ export class ProjectsService {
     });
     if (!p)
       throw new DomainException(ErrorCodes.NOT_FOUND, "Project not found", HttpStatus.NOT_FOUND);
-    return this.toDto(p, p.workspace.name);
+    const myColor =
+      role === "MEMBER"
+        ? ((await this.myColorByProjectId(userId, [id])).get(id) ?? null)
+        : undefined;
+    return this.toDto(p, p.workspace.name, myColor);
   }
 
   async update(workspaceId: string, id: string, dto: UpdateProjectDto) {
@@ -313,7 +344,11 @@ export class ProjectsService {
           workspaceName: workspace.name,
           expiresAt: invite.expiresAt.toISOString()
         });
-      } catch {
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        this.logger.error(
+          `Project team invite email failed: projectId=${projectId} to=${dto.email} error="${message}"`
+        );
         emailSent = false;
       }
     }

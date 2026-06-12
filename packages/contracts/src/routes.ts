@@ -20,7 +20,8 @@ export const ROUTES = {
     TWO_FA_ENABLE: "/users/me/2fa/enable",
     TWO_FA_VERIFY: "/users/me/2fa/verify",
     TWO_FA_DISABLE: "/users/me/2fa/disable",
-    ACTIVITY: "/users/me/activity"
+    ACTIVITY: "/users/me/activity",
+    PROJECT_COLOR: (projectId: string) => `/users/me/projects/${projectId}/color`
   },
   WORKSPACES: {
     LIST: "/workspaces",
@@ -92,7 +93,8 @@ export const ROUTES = {
     UTILIZATION: "/reporting/utilization",
     HEATMAP: "/reporting/heatmap",
     CATEGORIES_HEATMAP: "/reporting/categories-heatmap",
-    TASKS: "/reporting/tasks"
+    TASKS: "/reporting/tasks",
+    PROJECT_SUMMARY: (projectId: string) => `/reporting/projects/${projectId}/summary`
   },
   PRESENCE: {
     STREAM: "/presence/stream",

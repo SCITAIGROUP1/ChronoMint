@@ -25,6 +25,7 @@ export type SidebarNavItem = {
   label: string;
   Icon: React.ComponentType<{ className?: string }>;
   badge?: number | string;
+  tourId?: string;
 };
 
 function NavBadge({ badge, collapsed }: { badge: number | string; collapsed?: boolean }) {
@@ -178,7 +179,7 @@ export function ResponsiveLayoutShell({
             className={cn("flex w-full flex-col", isCollapsed ? "items-center gap-1" : "gap-0.5")}
             aria-label="Desktop Navigation"
           >
-            {navItems.map(({ href, label, Icon, badge }) => {
+            {navItems.map(({ href, label, Icon, badge, tourId }) => {
               const active = pathname === href || pathname.startsWith(`${href}/`);
               const showBadge =
                 badge !== undefined && badge !== "" && (typeof badge !== "number" || badge > 0);
@@ -187,6 +188,7 @@ export function ResponsiveLayoutShell({
                   key={href}
                   href={href}
                   title={isCollapsed ? label : undefined}
+                  data-tour={tourId}
                   className={cn(
                     "group relative flex items-center rounded-lg text-sm font-medium transition-all duration-300",
                     isCollapsed ? "h-9 w-9 shrink-0 justify-center p-0" : "gap-3 px-3 py-2.5",
@@ -302,7 +304,7 @@ export function ResponsiveLayoutShell({
           {workspaceSwitcher(false)}
 
           <nav className="flex flex-col gap-0.5" aria-label="Mobile Navigation">
-            {navItems.map(({ href, label, Icon, badge }) => {
+            {navItems.map(({ href, label, Icon, badge, tourId }) => {
               const active = pathname === href || pathname.startsWith(`${href}/`);
               const showBadge =
                 badge !== undefined && badge !== "" && (typeof badge !== "number" || badge > 0);
@@ -310,6 +312,7 @@ export function ResponsiveLayoutShell({
                 <Link
                   key={href}
                   href={href}
+                  data-tour={tourId}
                   onClick={() => setIsMobileOpen(false)}
                   className={cn(
                     "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
