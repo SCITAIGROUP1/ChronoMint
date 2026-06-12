@@ -1,36 +1,84 @@
-describe("jira-users-page member handling", () => {
-  type Member = { userId: string; userName: string; userEmail: string };
+import { describe, expect, it } from "vitest";
 
-  it("uses userId as option key and value", () => {
-    const member: Member = {
-      userId: "user-123",
+type Project = { name: string; key: string };
+type JiraUserMapping = {
+  id: string;
+  jiraAccountId: string;
+  jiraEmail: string;
+  jiraDisplayName: string;
+  userId: string | null;
+  userName: string | null;
+  userEmail: string | null;
+  projects: Project[];
+  isBench: boolean;
+};
+
+describe("jira-users-page read-only display", () => {
+  it("shows Bench badge when projects array is empty", () => {
+    const mapping: JiraUserMapping = {
+      id: "m-1",
+      jiraAccountId: "acc-1",
+      jiraEmail: "a@b.com",
+      jiraDisplayName: "Amritha Hitige",
+      userId: "user-1",
       userName: "Avery Admin",
-      userEmail: "admin@kloqra.dev"
+      userEmail: "admin@kloqra.dev",
+      projects: [],
+      isBench: true
     };
-    expect(member.userId).toBe("user-123");
-    expect(member.userName).toBe("Avery Admin");
-    expect(member.userEmail).toBe("admin@kloqra.dev");
+    expect(mapping.isBench).toBe(true);
+    expect(mapping.projects).toHaveLength(0);
   });
 
-  it("handles flat array response (not wrapped in items)", () => {
-    const apiResponse: Member[] = [
-      { userId: "u1", userName: "Alice", userEmail: "alice@example.com" },
-      { userId: "u2", userName: "Bob", userEmail: "bob@example.com" }
-    ];
-    const members = Array.isArray(apiResponse) ? apiResponse : [];
-    expect(members).toHaveLength(2);
-    expect(members[0].userId).toBe("u1");
+  it("shows project key badges when user has assigned projects", () => {
+    const mapping: JiraUserMapping = {
+      id: "m-2",
+      jiraAccountId: "acc-2",
+      jiraEmail: "b@b.com",
+      jiraDisplayName: "Bob",
+      userId: "user-2",
+      userName: "Bob Member",
+      userEmail: "bob@kloqra.dev",
+      projects: [
+        { name: "Kloqra Test", key: "KT" },
+        { name: "Annual Audit", key: "AA" }
+      ],
+      isBench: false
+    };
+    expect(mapping.isBench).toBe(false);
+    expect(mapping.projects.map((p) => p.key)).toEqual(["KT", "AA"]);
   });
 
-  it("falls back to empty array when response is null or undefined", () => {
-    const mems: Member[] | null = null;
-    const members = Array.isArray(mems) ? mems : [];
-    expect(members).toEqual([]);
+  it("shows Not linked label when userId is null", () => {
+    const mapping: JiraUserMapping = {
+      id: "m-3",
+      jiraAccountId: "acc-3",
+      jiraEmail: "c@b.com",
+      jiraDisplayName: "Ghost User",
+      userId: null,
+      userName: null,
+      userEmail: null,
+      projects: [],
+      isBench: true
+    };
+    const label = mapping.userName ?? "Not linked";
+    expect(label).toBe("Not linked");
   });
 
-  it("renders correct option label from userName and userEmail", () => {
-    const mem: Member = { userId: "u1", userName: "Alice", userEmail: "alice@example.com" };
-    const label = `${mem.userName} (${mem.userEmail})`;
-    expect(label).toBe("Alice (alice@example.com)");
+  it("displays ChronoMint member name and email when linked", () => {
+    const mapping: JiraUserMapping = {
+      id: "m-4",
+      jiraAccountId: "acc-4",
+      jiraEmail: "amrithagz123@gmail.com",
+      jiraDisplayName: "Amritha Hitige",
+      userId: "user-4",
+      userName: "Avery Admin",
+      userEmail: "admin@kloqra.dev",
+      projects: [{ name: "SCRUM", key: "SCRUM" }],
+      isBench: false
+    };
+    expect(mapping.userName).toBe("Avery Admin");
+    expect(mapping.userEmail).toBe("admin@kloqra.dev");
+    expect(mapping.isBench).toBe(false);
   });
 });

@@ -173,6 +173,18 @@ export class JiraController {
     );
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Get(ROUTES.JIRA.MY_MAPPING)
+  getMyMapping(@CurrentUser() user: RequestUser) {
+    return this.users.getMyMapping(user.workspaceId, user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(ROUTES.JIRA.MY_MAPPING)
+  setMyMapping(@CurrentUser() user: RequestUser, @Body("email") email: string) {
+    return this.users.setMyMappingByEmail(user.workspaceId, user.userId, email);
+  }
+
   // ── Worklogs ──────────────────────────────────────────────────────────────
 
   @UseGuards(JwtAuthGuard, RolesGuard)

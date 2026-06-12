@@ -136,6 +136,24 @@ export class JiraIssuesService {
   async listCachedIssues(workspaceId: string, query: ListIssuesQuery) {
     const conn = await this.getConnection(workspaceId);
 
+    const [projectMappings, userMappings] = await Promise.all([
+      this.prisma.jiraProjectMapping.findMany({
+        where: { connectionId: conn.id },
+        select: { jiraProjectId: true, jiraProjectName: true, jiraProjectKey: true }
+      }),
+      this.prisma.jiraUserMapping.findMany({
+        where: { connectionId: conn.id },
+        select: { jiraAccountId: true, jiraDisplayName: true }
+      })
+    ]);
+    const projectMap = new Map(
+      projectMappings.map((p) => [
+        p.jiraProjectId,
+        { name: p.jiraProjectName, key: p.jiraProjectKey }
+      ])
+    );
+    const userMap = new Map(userMappings.map((u) => [u.jiraAccountId, u.jiraDisplayName]));
+
     const where = {
       connectionId: conn.id,
       ...(query.projectKey
@@ -157,29 +175,50 @@ export class JiraIssuesService {
       this.prisma.jiraIssueCache.count({ where }),
       this.prisma.jiraIssueCache.findMany({
         where,
-        orderBy: { cachedAt: "desc" },
+        orderBy: [{ jiraProjectId: "asc" }, { jiraIssueKey: "asc" }],
         ...paginationSkipTake(query.page, query.limit)
       })
     ]);
 
-    return toPaginatedResponse(rows, total, query.page, query.limit);
+    const enriched = rows.map((row) => ({
+      ...row,
+      projectName: projectMap.get(row.jiraProjectId)?.name ?? null,
+      projectKey: projectMap.get(row.jiraProjectId)?.key ?? null,
+      assigneeName: row.assigneeId ? (userMap.get(row.assigneeId) ?? null) : null
+    }));
+
+    return toPaginatedResponse(enriched, total, query.page, query.limit);
   }
 
   async getMyIssues(workspaceId: string, userId: string) {
     const conn = await this.getConnection(workspaceId);
 
-    const userMapping = await this.prisma.jiraUserMapping.findFirst({
-      where: { connectionId: conn.id, userId }
-    });
+    const [userMapping, projectMappings] = await Promise.all([
+      this.prisma.jiraUserMapping.findFirst({ where: { connectionId: conn.id, userId } }),
+      this.prisma.jiraProjectMapping.findMany({
+        where: { connectionId: conn.id },
+        include: { chronoProject: { select: { name: true } } }
+      })
+    ]);
 
     if (!userMapping) return [];
+
+    const projectNameMap = new Map(
+      projectMappings.map((m) => [m.jiraProjectId, m.chronoProject?.name ?? m.jiraProjectName])
+    );
 
     const data = await this.api.getIssues(workspaceId, {
       assigneeAccountId: userMapping.jiraAccountId,
       maxResults: 100
     });
 
-    return data.issues.map((issue) => this.parseIssue(issue));
+    return data.issues.map((issue) => ({
+      ...this.parseIssue(issue),
+      projectKey: issue.fields.project?.key ?? null,
+      projectName:
+        projectNameMap.get(issue.fields.project?.id ?? "") ?? issue.fields.project?.name ?? null,
+      jiraUrl: `${conn.siteUrl}/browse/${issue.key}`
+    }));
   }
 
   private async getProjectIds(connectionId: string, projectKey: string): Promise<string[]> {

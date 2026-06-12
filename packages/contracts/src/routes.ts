@@ -132,6 +132,7 @@ export const ROUTES = {
     ISSUES_SYNC: "/jira/issues/sync",
     USERS: "/jira/users",
     USER_MAPPINGS: "/jira/users/mappings",
+    MY_MAPPING: "/jira/users/my-mapping",
     USERS_AUTO_MAP: "/jira/users/auto-map",
     WORKLOGS: "/jira/worklogs",
     WORKLOGS_SYNC: "/jira/worklogs/sync",

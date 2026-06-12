@@ -9,6 +9,7 @@ type JiraProject = {
   name: string;
   projectTypeKey: string;
   avatarUrls: Record<string, string>;
+  lead?: { displayName: string; accountId: string };
 };
 
 type JiraIssueField = {
@@ -17,6 +18,7 @@ type JiraIssueField = {
   issuetype: { name: string };
   priority?: { name: string };
   assignee?: { accountId: string; emailAddress: string; displayName: string };
+  project?: { id: string; key: string; name: string };
   customfield_10016?: number; // story points
   customfield_10020?: Array<{ id: number; name: string; state: string }>; // sprint
   labels: string[];
@@ -112,6 +114,7 @@ export class JiraApiService {
         "issuetype",
         "priority",
         "assignee",
+        "project",
         "customfield_10016",
         "customfield_10020",
         "labels",

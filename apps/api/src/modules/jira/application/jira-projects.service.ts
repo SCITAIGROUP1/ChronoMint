@@ -39,6 +39,8 @@ export class JiraProjectsService {
       name: p.name,
       projectTypeKey: p.projectTypeKey,
       avatarUrl: p.avatarUrls?.["48x48"],
+      lead: p.lead?.displayName ?? null,
+      projectUrl: `${conn.siteUrl}/browse/${p.key}`,
       isMapped: mappedIds.has(p.id)
     }));
   }

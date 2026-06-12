@@ -1,7 +1,8 @@
+import { vi } from "vitest";
 import { JiraApiService } from "./jira-api.service";
 
 describe("JiraApiService.getIssues", () => {
-  const mockReq = jest.fn();
+  const mockReq = vi.fn();
 
   const service = {
     getIssues: JiraApiService.prototype.getIssues,

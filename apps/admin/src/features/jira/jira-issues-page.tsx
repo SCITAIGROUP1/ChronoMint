@@ -18,8 +18,10 @@ type Issue = {
   issueType: string;
   priority: string | null;
   assigneeId: string | null;
+  assigneeName: string | null;
+  projectName: string | null;
+  projectKey: string | null;
   sprintName: string | null;
-  cachedAt: string;
 };
 
 type PagedResponse = { items: Issue[]; total: number; page: number; totalPages: number };
@@ -113,17 +115,21 @@ export function JiraIssuesPage() {
             <table className="w-full text-sm">
               <thead className="border-b bg-muted/50">
                 <tr>
+                  <th className="px-4 py-3 text-left font-medium">Project</th>
                   <th className="px-4 py-3 text-left font-medium">Key</th>
                   <th className="px-4 py-3 text-left font-medium">Summary</th>
                   <th className="px-4 py-3 text-left font-medium">Type</th>
                   <th className="px-4 py-3 text-left font-medium">Status</th>
                   <th className="px-4 py-3 text-left font-medium">Sprint</th>
-                  <th className="px-4 py-3 text-left font-medium">Cached</th>
+                  <th className="px-4 py-3 text-left font-medium">Assignee</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
                 {data.items.map((issue) => (
                   <tr key={issue.id} className="hover:bg-muted/30">
+                    <td className="px-4 py-3 text-muted-foreground text-xs">
+                      {issue.projectName ?? issue.projectKey ?? "—"}
+                    </td>
                     <td className="px-4 py-3 font-mono text-xs font-medium text-primary">
                       {issue.jiraIssueKey}
                     </td>
@@ -140,7 +146,7 @@ export function JiraIssuesPage() {
                       {issue.sprintName ?? "—"}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground text-xs">
-                      {new Date(issue.cachedAt).toLocaleString()}
+                      {issue.assigneeName ?? "—"}
                     </td>
                   </tr>
                 ))}

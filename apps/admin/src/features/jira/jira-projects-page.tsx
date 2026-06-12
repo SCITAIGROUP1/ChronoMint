@@ -2,7 +2,7 @@
 
 import { ROUTES } from "@kloqra/contracts";
 import { Button, CenteredLoader, EmptyState } from "@kloqra/ui";
-import { RefreshCw } from "lucide-react";
+import { ArrowUpRight, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { JiraSubNav } from "./jira-sub-nav";
@@ -13,6 +13,8 @@ type JiraProject = {
   id: string;
   key: string;
   name: string;
+  lead: string | null;
+  projectUrl: string;
   avatarUrl?: string;
   isMapped: boolean;
 };
@@ -25,7 +27,6 @@ type Mapping = {
   chronoProjectId: string | null;
   chronoProject: { id: string; name: string; color: string } | null;
   syncEnabled: boolean;
-  lastSyncAt: string | null;
 };
 
 type ChronoProject = { id: string; name: string };
@@ -129,10 +130,11 @@ export function JiraProjectsPage() {
           <table className="w-full text-sm">
             <thead className="border-b bg-muted/50">
               <tr>
-                <th className="px-4 py-3 text-left font-medium">Jira Project</th>
+                <th className="px-4 py-3 text-left font-medium">Project Name</th>
                 <th className="px-4 py-3 text-left font-medium">Key</th>
+                <th className="px-4 py-3 text-left font-medium">Lead</th>
+                <th className="px-4 py-3 text-left font-medium">Project URL</th>
                 <th className="px-4 py-3 text-left font-medium">ChronoMint Project</th>
-                <th className="px-4 py-3 text-left font-medium">Last Synced</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -142,6 +144,17 @@ export function JiraProjectsPage() {
                   <tr key={jp.id} className="hover:bg-muted/30">
                     <td className="px-4 py-3 font-medium">{jp.name}</td>
                     <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{jp.key}</td>
+                    <td className="px-4 py-3 text-muted-foreground text-sm">{jp.lead ?? "—"}</td>
+                    <td className="px-4 py-3">
+                      <a
+                        href={jp.projectUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-primary hover:underline text-xs"
+                      >
+                        Open <ArrowUpRight className="size-3" />
+                      </a>
+                    </td>
                     <td className="px-4 py-3">
                       <select
                         className="w-full rounded border bg-background px-2 py-1 text-sm"
@@ -155,11 +168,6 @@ export function JiraProjectsPage() {
                           </option>
                         ))}
                       </select>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground text-xs">
-                      {mapping?.lastSyncAt
-                        ? new Date(mapping.lastSyncAt).toLocaleString()
-                        : "Never"}
                     </td>
                   </tr>
                 );
