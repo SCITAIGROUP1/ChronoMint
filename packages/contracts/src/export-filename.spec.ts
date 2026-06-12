@@ -41,4 +41,29 @@ describe("export-filename", () => {
     const header = formatContentDisposition(name);
     expect(parseContentDispositionFilename(header)).toBe(name);
   });
+
+  it("falls back for invalid dates and extensions", () => {
+    expect(
+      buildExportFilename({
+        workspaceSlug: "demo",
+        from: "not-a-date",
+        to: "also-bad",
+        ext: "bad ext!"
+      })
+    ).toBe("kloqra-demo-unknown-date_to_unknown-date.bin");
+  });
+
+  it("uses UTF-8 filename* when ASCII sanitization changes the name", () => {
+    const name = "kloqra-café-2025-05-01.csv";
+    const header = formatContentDisposition(name);
+    expect(header).toContain("filename*=UTF-8''");
+    expect(parseContentDispositionFilename(header)).toBe(name);
+  });
+
+  it("parses bare and quoted Content-Disposition filenames", () => {
+    expect(parseContentDispositionFilename('attachment; filename="report.csv"')).toBe("report.csv");
+    expect(parseContentDispositionFilename("attachment; filename=report.csv")).toBe("report.csv");
+    expect(parseContentDispositionFilename(null)).toBeNull();
+    expect(parseContentDispositionFilename("attachment; filename*=UTF-8''bad%")).toBeNull();
+  });
 });

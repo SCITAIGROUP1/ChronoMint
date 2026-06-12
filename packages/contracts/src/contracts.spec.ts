@@ -5,21 +5,32 @@ import {
   createTaskSchema,
   projectSummarySchema,
   createTimeLogSchema,
+  formatUserDate,
   formatUserDateTime,
+  listTimeLogOccupancyQuerySchema,
   listTimeLogsQuerySchema,
   loginSchema,
   mergeUserPreferences,
+  normalizeNotificationChannels,
   normalizeNotificationPreference,
+  parseWorkspaceSettings,
   reportQuerySchema,
   resolveEffectiveDailyTargetHours,
+  resolveEffectiveLanguage,
   resolveEffectiveNotifications,
+  resolveEffectiveStartupPage,
+  resolveEffectiveTheme,
   resolveEffectiveTimezone,
+  resolveExportColumns,
+  resolveMemberExportColumns,
+  resolveNotificationChannels,
   ROUTES,
   startTimerSchema,
   dashboardReportSchema,
   teamMembersOverviewSchema,
   timesheetSubmissionsQuerySchema,
   updateCategorySchema,
+  updateTimeLogSchema,
   updateUserPreferencesSchema,
   userProfileSchema
 } from "./index";
@@ -114,6 +125,75 @@ describe("contracts", () => {
     expect(normalizeNotificationPreference({ inApp: true, email: false }, false)).toBe(false);
     expect(normalizeNotificationPreference({ inApp: false, email: true }, false)).toBe(true);
     expect(normalizeNotificationPreference(true, false)).toBe(true);
+  });
+
+  it("normalizes partial notification channel objects with fallbacks", () => {
+    expect(normalizeNotificationChannels({ email: true }, { inApp: false, email: false })).toEqual({
+      inApp: false,
+      email: true
+    });
+    expect(normalizeNotificationChannels("not-an-object", { inApp: true, email: false })).toEqual({
+      inApp: true,
+      email: false
+    });
+  });
+
+  it("disables notification channels when notifications are turned off", () => {
+    expect(
+      resolveNotificationChannels({ notifications: { enabled: false } }, "approvalRequest")
+    ).toEqual({ inApp: false, email: false });
+  });
+
+  it("parses workspace settings and falls back to empty object", () => {
+    expect(parseWorkspaceSettings({ weekStart: "monday", expectedWeeklyHours: 35 })).toEqual({
+      weekStart: "monday",
+      expectedWeeklyHours: 35
+    });
+    expect(parseWorkspaceSettings({ logoUrl: "not-a-url" })).toEqual({});
+  });
+
+  it("formats user dates in supported preference formats", () => {
+    const date = new Date("2026-06-12T13:45:00.000Z");
+    expect(formatUserDate(date, "DMY", "UTC")).toMatch(/^\d{2}\/\d{2}\/2026$/);
+    expect(formatUserDate(date, "YMD", "UTC")).toBe("2026-06-12");
+  });
+
+  it("resolves effective theme, language, and startup page defaults", () => {
+    expect(resolveEffectiveTheme({})).toBe("system");
+    expect(resolveEffectiveLanguage({})).toBe("en");
+    expect(resolveEffectiveStartupPage({})).toBe("dashboard");
+  });
+
+  it("resolves export column defaults and overrides", () => {
+    expect(resolveExportColumns("time_entries")).toContain("date");
+    expect(resolveExportColumns("time_entries", { time_entries: ["date", "hours"] })).toEqual([
+      "date",
+      "hours"
+    ]);
+    expect(resolveMemberExportColumns("time_entries")).toContain("date");
+    expect(
+      resolveMemberExportColumns("time_entries", { time_entries: ["date", "project"] })
+    ).toEqual(["date", "project"]);
+  });
+
+  it("validates timelog occupancy and update ranges", () => {
+    expect(
+      listTimeLogOccupancyQuerySchema.safeParse({
+        from: "2025-01-02T10:00:00.000Z",
+        to: "2025-01-02T09:00:00.000Z"
+      }).success
+    ).toBe(false);
+
+    const update = updateTimeLogSchema.safeParse({
+      startTime: "2025-01-02T10:00:00.000Z",
+      endTime: "2025-01-02T11:00:00.000Z"
+    });
+    expect(update.success).toBe(true);
+  });
+
+  it("clears saved timezone when empty string is submitted", () => {
+    const merged = mergeUserPreferences({ timezone: "America/New_York" }, { timezone: "" });
+    expect(merged.timezone).toBeUndefined();
   });
 
   it("exposes notification routes and resolves dual-channel preferences", () => {
