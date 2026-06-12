@@ -1,4 +1,4 @@
-import { HARD_AUTO_STOP_HOURS } from "@kloqra/contracts";
+import { HARD_AUTO_STOP_HOURS, IDLE_TIMER_ALERT_HOURS } from "@kloqra/contracts";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { StaleTimerService } from "./stale-timer.service";
 
@@ -18,6 +18,7 @@ describe("StaleTimerService", () => {
   let redisMock: ReturnType<typeof createRedisMock>;
   let mockPrisma: any;
   let mockAudit: any;
+  let mockBrevoDispatch: any;
 
   const workspaceId = "ws-1";
   const userId = "user-1";
@@ -27,7 +28,11 @@ describe("StaleTimerService", () => {
   beforeEach(() => {
     mockPrisma = {
       task: {
-        findUnique: vi.fn().mockResolvedValue({ id: taskId, billableDefault: true })
+        findUnique: vi.fn().mockResolvedValue({
+          id: taskId,
+          taskName: "Design",
+          billableDefault: true
+        })
       },
       $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => {
         const tx = {
@@ -52,6 +57,9 @@ describe("StaleTimerService", () => {
       snapshotFromLog: vi.fn().mockReturnValue({ taskId }),
       recordEvent: vi.fn().mockResolvedValue(undefined)
     };
+    mockBrevoDispatch = {
+      maybeSendIdleTimerAlert: vi.fn().mockResolvedValue(undefined)
+    };
   });
 
   it("auto-stops timers exceeding HARD_AUTO_STOP_HOURS", async () => {
@@ -69,7 +77,12 @@ describe("StaleTimerService", () => {
     });
 
     redisMock = createRedisMock([redisKey], { [redisKey]: state });
-    service = new StaleTimerService(mockPrisma, redisMock.redis as never, mockAudit);
+    service = new StaleTimerService(
+      mockPrisma,
+      redisMock.redis as never,
+      mockAudit,
+      mockBrevoDispatch
+    );
 
     await service.scanAndAutoStop();
 
@@ -80,6 +93,37 @@ describe("StaleTimerService", () => {
       7200,
       expect.any(String)
     );
+  });
+
+  it("sends idle alert at IDLE_TIMER_ALERT_HOURS", async () => {
+    const startedAt = new Date(
+      Date.now() - (IDLE_TIMER_ALERT_HOURS * 3600 + 60) * 1000
+    ).toISOString();
+    const state = JSON.stringify({
+      userId,
+      workspaceId,
+      taskId,
+      startedAt,
+      accumulatedSec: 0,
+      isPaused: false,
+      pausedAt: null
+    });
+
+    redisMock = createRedisMock([redisKey], { [redisKey]: state });
+    service = new StaleTimerService(
+      mockPrisma,
+      redisMock.redis as never,
+      mockAudit,
+      mockBrevoDispatch
+    );
+
+    await service.scanAndAutoStop();
+
+    expect(mockBrevoDispatch.maybeSendIdleTimerAlert).toHaveBeenCalledWith(userId, {
+      taskName: "Design",
+      durationHours: IDLE_TIMER_ALERT_HOURS
+    });
+    expect(mockPrisma.$transaction).not.toHaveBeenCalled();
   });
 
   it("skips timers below the hard ceiling", async () => {
@@ -95,11 +139,17 @@ describe("StaleTimerService", () => {
     });
 
     redisMock = createRedisMock([redisKey], { [redisKey]: state });
-    service = new StaleTimerService(mockPrisma, redisMock.redis as never, mockAudit);
+    service = new StaleTimerService(
+      mockPrisma,
+      redisMock.redis as never,
+      mockAudit,
+      mockBrevoDispatch
+    );
 
     await service.scanAndAutoStop();
 
     expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+    expect(mockBrevoDispatch.maybeSendIdleTimerAlert).not.toHaveBeenCalled();
     expect(redisMock.client.del).not.toHaveBeenCalled();
   });
 });

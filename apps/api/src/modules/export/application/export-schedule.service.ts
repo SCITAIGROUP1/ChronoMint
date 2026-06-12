@@ -15,8 +15,8 @@ import {
   type OnModuleInit
 } from "@nestjs/common";
 import { DomainException } from "../../../common/errors/domain.exception";
-import { MailerService } from "../../../common/mailer/mailer.service";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { BrevoNotificationService } from "../../brevo/application/brevo-notification.service";
 import { ExportService } from "./export.service";
 
 @Injectable()
@@ -27,7 +27,7 @@ export class ExportScheduleService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private prisma: PrismaService,
     private exportService: ExportService,
-    private mailer: MailerService
+    private brevo: BrevoNotificationService
   ) {}
 
   onModuleInit() {
@@ -154,21 +154,12 @@ export class ExportScheduleService implements OnModuleInit, OnModuleDestroy {
             ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             : "text/csv";
 
-      await this.mailer.send({
+      await this.brevo.sendScheduledExport({
         to: recipients,
-        subject: `[Kloqra] Scheduled export: ${schedule.name}`,
-        html: `
-          <p>Hi,</p>
-          <p>Your scheduled export <strong>${schedule.name}</strong> is ready. Please find the file attached.</p>
-          <p>This report was generated automatically by Kloqra.</p>
-        `.trim(),
-        attachments: [
-          {
-            filename: result.filename,
-            content: result.buffer,
-            contentType
-          }
-        ]
+        scheduleName: schedule.name,
+        filename: result.filename,
+        buffer: result.buffer,
+        contentType
       });
 
       await this.prisma.exportSchedule.update({

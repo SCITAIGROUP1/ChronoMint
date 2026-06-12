@@ -3,10 +3,14 @@ import type { InviteMemberDto, UpdateWorkspaceMemberDto } from "@kloqra/contract
 import { Injectable, HttpStatus } from "@nestjs/common";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { BrevoNotificationService } from "../../brevo/application/brevo-notification.service";
 
 @Injectable()
 export class WorkspaceService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private brevo: BrevoNotificationService
+  ) {}
 
   async listForUser(userId: string) {
     const memberships = await this.prisma.workspaceMember.findMany({
@@ -103,9 +107,24 @@ export class WorkspaceService {
         HttpStatus.CONFLICT
       );
     }
-    return this.prisma.workspaceMember.create({
+    const member = await this.prisma.workspaceMember.create({
       data: { workspaceId, userId: user.id, role: dto.role }
     });
+
+    const workspace = await this.prisma.workspace.findUniqueOrThrow({
+      where: { id: workspaceId },
+      select: { name: true }
+    });
+
+    void this.brevo
+      .sendWorkspaceMemberAdded({
+        to: dto.email,
+        workspaceName: workspace.name,
+        role: dto.role
+      })
+      .catch(() => undefined);
+
+    return member;
   }
 
   async update(id: string, dto: { name?: string; settings?: any }) {

@@ -7,6 +7,7 @@ import { WorkspaceService } from "./workspace.service";
 describe("WorkspaceService", () => {
   let service: WorkspaceService;
   let mockPrisma: any;
+  let mockBrevo: any;
 
   const workspaceId = "ws-1";
 
@@ -23,9 +24,15 @@ describe("WorkspaceService", () => {
       },
       user: {
         findUnique: vi.fn()
+      },
+      workspace: {
+        findUniqueOrThrow: vi.fn()
       }
     };
-    service = new WorkspaceService(mockPrisma);
+    mockBrevo = {
+      sendWorkspaceMemberAdded: vi.fn().mockResolvedValue(true)
+    };
+    service = new WorkspaceService(mockPrisma, mockBrevo);
   });
 
   it("listMembers maps membership rows to DTOs", async () => {
@@ -88,6 +95,7 @@ describe("WorkspaceService", () => {
       userId: "u2",
       role: "MEMBER"
     });
+    mockPrisma.workspace.findUniqueOrThrow.mockResolvedValue({ name: "Acme" });
 
     const result = await service.invite(workspaceId, {
       email: "new@kloqra.dev",
@@ -96,6 +104,11 @@ describe("WorkspaceService", () => {
 
     expect(mockPrisma.workspaceMember.create).toHaveBeenCalledWith({
       data: { workspaceId, userId: "u2", role: "MEMBER" }
+    });
+    expect(mockBrevo.sendWorkspaceMemberAdded).toHaveBeenCalledWith({
+      to: "new@kloqra.dev",
+      workspaceName: "Acme",
+      role: "MEMBER"
     });
     expect(result.role).toBe("MEMBER");
   });

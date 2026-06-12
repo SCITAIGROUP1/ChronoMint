@@ -1,7 +1,8 @@
-import { HARD_AUTO_STOP_HOURS } from "@kloqra/contracts";
+import { HARD_AUTO_STOP_HOURS, IDLE_TIMER_ALERT_HOURS } from "@kloqra/contracts";
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { RedisService } from "../../../common/redis/redis.service";
+import { BrevoDispatchService } from "../../brevo/application/brevo-dispatch.service";
 // eslint-disable-next-line no-restricted-imports
 import { TimelogAuditService } from "../../timelogs/application/timelog-audit.service";
 
@@ -25,7 +26,8 @@ export class StaleTimerService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private prisma: PrismaService,
     private redis: RedisService,
-    private audit: TimelogAuditService
+    private audit: TimelogAuditService,
+    private brevoDispatch: BrevoDispatchService
   ) {}
 
   onModuleInit() {
@@ -45,6 +47,7 @@ export class StaleTimerService implements OnModuleInit, OnModuleDestroy {
   async scanAndAutoStop() {
     const keys = await this.redis.getClient().keys("timer:*:*");
     const hardCeilingSec = HARD_AUTO_STOP_HOURS * 3600;
+    const idleAlertSec = IDLE_TIMER_ALERT_HOURS * 3600;
 
     for (const key of keys) {
       const raw = await this.redis.getClient().get(key);
@@ -59,28 +62,52 @@ export class StaleTimerService implements OnModuleInit, OnModuleDestroy {
 
       if (!state.startedAt || !state.userId || !state.workspaceId || !state.taskId) continue;
 
-      const accumulated = state.accumulatedSec ?? 0;
-      let totalElapsedSec: number;
+      const totalElapsedSec = this.computeElapsedSec(state);
 
-      if (state.isPaused) {
-        totalElapsedSec = accumulated;
-      } else {
-        const startedMs = new Date(state.startedAt).getTime();
-        const currentSec = Math.max(0, Math.floor((Date.now() - startedMs) / 1000));
-        totalElapsedSec = accumulated + currentSec;
+      if (totalElapsedSec >= hardCeilingSec) {
+        await this.autoStop(state, key, hardCeilingSec);
+        continue;
       }
 
-      if (totalElapsedSec < hardCeilingSec) continue;
-
-      await this.autoStop(state, key, hardCeilingSec);
+      if (totalElapsedSec >= idleAlertSec) {
+        await this.maybeSendIdleAlert(state, key, totalElapsedSec);
+      }
     }
+  }
+
+  private computeElapsedSec(state: TimerState): number {
+    const accumulated = state.accumulatedSec ?? 0;
+    if (state.isPaused) return accumulated;
+
+    const startedMs = new Date(state.startedAt).getTime();
+    const currentSec = Math.max(0, Math.floor((Date.now() - startedMs) / 1000));
+    return accumulated + currentSec;
+  }
+
+  private async maybeSendIdleAlert(state: TimerState, redisKey: string, totalElapsedSec: number) {
+    const alertKey = `timer_idle_alerted:${state.workspaceId}:${state.userId}:${redisKey}`;
+    const alreadySent = await this.redis.getClient().get(alertKey);
+    if (alreadySent) return;
+
+    const task = await this.prisma.task.findUnique({
+      where: { id: state.taskId },
+      select: { taskName: true }
+    });
+    if (!task) return;
+
+    await this.brevoDispatch.maybeSendIdleTimerAlert(state.userId, {
+      taskName: task.taskName,
+      durationHours: IDLE_TIMER_ALERT_HOURS
+    });
+
+    const ttlSec = Math.max(60, HARD_AUTO_STOP_HOURS * 3600 - totalElapsedSec);
+    await this.redis.getClient().setex(alertKey, ttlSec, "1");
   }
 
   private async autoStop(state: TimerState, redisKey: string, capSec: number) {
     try {
       const task = await this.prisma.task.findUnique({ where: { id: state.taskId } });
       if (!task) {
-        // Task deleted, clean up Redis
         await this.redis.getClient().del(redisKey);
         return;
       }
@@ -112,7 +139,6 @@ export class StaleTimerService implements OnModuleInit, OnModuleDestroy {
         });
       });
 
-      // Save notification flag in Redis for the client (expires in 2h)
       await this.redis
         .getClient()
         .setex(

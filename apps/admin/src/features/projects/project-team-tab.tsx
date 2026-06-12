@@ -34,6 +34,10 @@ function memberIsActive(m: TeamMemberDto): boolean {
   return m.isActive !== false;
 }
 
+export function teamInviteSuccessMessage(emailSent?: boolean): string {
+  return emailSent ? "Invite link generated and email sent." : "Invite link generated.";
+}
+
 export function ProjectTeamTab() {
   const { workspaceId, projectId } = useProjectDetail();
   const [teamMeta, setTeamMeta] = useState<{
@@ -150,7 +154,7 @@ export function ProjectTeamTab() {
         body: JSON.stringify(body)
       });
       setInvite(link);
-      toast.success("Invite link generated.");
+      toast.success(teamInviteSuccessMessage(link.emailSent));
     } catch {
       const message = "Could not create invite link.";
       setError(message);

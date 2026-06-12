@@ -4,11 +4,11 @@ import { ThrottlerModule } from "@nestjs/throttler";
 import { CacheModule } from "./common/cache/cache.module";
 import { CustomThrottlerGuard } from "./common/guards/custom-throttler.guard";
 import { RequestLoggerMiddleware } from "./common/logger/request-logger.middleware";
-import { MailerModule } from "./common/mailer/mailer.module";
 import { PrismaModule } from "./common/prisma/prisma.module";
 import { RedisModule } from "./common/redis/redis.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { BillingModule } from "./modules/billing/billing.module";
+import { BrevoModule } from "./modules/brevo/brevo.module";
 import { CategoriesModule } from "./modules/categories/categories.module";
 import { ExportModule } from "./modules/export/export.module";
 import { HealthModule } from "./modules/health/health.module";
@@ -38,7 +38,7 @@ import { WorkspaceModule } from "./modules/workspace/workspace.module";
     PrismaModule,
     RedisModule,
     CacheModule,
-    MailerModule,
+    BrevoModule,
     HealthModule,
     AuthModule,
     UsersModule,
