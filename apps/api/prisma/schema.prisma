@@ -34,6 +34,7 @@ model User {
   projectInvitesCreated ProjectInvite[]   @relation("ProjectInvitesCreated")
   refreshTokens         RefreshToken[]
   timesheetPeriods      TimesheetPeriod[]
+  jiraMappings          JiraUserMapping[] @relation("JiraUserMappings")
 
   @@map("users")
 }
@@ -52,6 +53,7 @@ model Workspace {
   exportPresets   ExportPreset[]
   exportSchedules ExportSchedule[]
   reportShares    ReportShare[]
+  jiraConnection  JiraConnection?
 
   @@map("workspaces")
 }
@@ -104,6 +106,7 @@ model Project {
   hourlyRates              HourlyRate[]
   invites                  ProjectInvite[]
   timesheetPeriods         TimesheetPeriod[]
+  jiraMappings             JiraProjectMapping[]
 
   @@unique([workspaceId, name])
   @@index([workspaceId])
@@ -162,6 +165,7 @@ model Task {
   project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   category        Category  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   timeLogs        TimeLog[]
+  jiraIssues      JiraIssueCache[]
 
   @@index([projectId])
   @@index([categoryId])
@@ -180,8 +184,9 @@ model TimeLog {
   source      String
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task             Task              @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  jiraWorklogSync  JiraWorklogSync?
 
   @@index([userId, startTime])
   @@index([taskId, startTime])
@@ -316,4 +321,145 @@ model TimeLogAuditEvent {
   @@index([timeLogId, createdAt])
   @@index([workspaceId, createdAt])
   @@map("time_log_audit_events")
+}
+
+// ── Jira Integration ──────────────────────────────────────────────────────────
+
+/// OAuth connection between a workspace and a Jira Cloud site.
+model JiraConnection {
+  id             String               @id @default(uuid())
+  workspaceId    String               @unique @map("workspace_id")
+  cloudId        String               @map("cloud_id")
+  siteUrl        String               @map("site_url")
+  siteName       String               @map("site_name")
+  email          String
+  accessToken    String               @map("access_token") @db.Text
+  refreshToken   String               @map("refresh_token") @db.Text
+  tokenExpiresAt DateTime             @map("token_expires_at")
+  scopes         String[]
+  isActive       Boolean              @default(true) @map("is_active")
+  lastSyncAt     DateTime?            @map("last_sync_at")
+  createdAt      DateTime             @default(now()) @map("created_at")
+  updatedAt      DateTime             @updatedAt @map("updated_at")
+  workspace      Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  projectMappings JiraProjectMapping[]
+  userMappings   JiraUserMapping[]
+  issueCache     JiraIssueCache[]
+  worklogSyncs   JiraWorklogSync[]
+  syncLogs       JiraSyncLog[]
+
+  @@map("jira_connections")
+}
+
+/// Links a Jira project to a ChronoMint project.
+model JiraProjectMapping {
+  id              String         @id @default(uuid())
+  connectionId    String         @map("connection_id")
+  jiraProjectId   String         @map("jira_project_id")
+  jiraProjectKey  String         @map("jira_project_key")
+  jiraProjectName String         @map("jira_project_name")
+  chronoProjectId String?        @map("chrono_project_id")
+  syncEnabled     Boolean        @default(true) @map("sync_enabled")
+  syncDirection   String         @default("JIRA_TO_CHRONO") @map("sync_direction")
+  lastSyncAt      DateTime?      @map("last_sync_at")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+  connection      JiraConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  chronoProject   Project?       @relation(fields: [chronoProjectId], references: [id], onDelete: SetNull)
+
+  @@unique([connectionId, jiraProjectId])
+  @@index([connectionId])
+  @@index([chronoProjectId])
+  @@map("jira_project_mappings")
+}
+
+/// Maps a Jira user account to a ChronoMint workspace user.
+model JiraUserMapping {
+  id              String         @id @default(uuid())
+  connectionId    String         @map("connection_id")
+  workspaceId     String         @map("workspace_id")
+  jiraAccountId   String         @map("jira_account_id")
+  jiraEmail       String         @map("jira_email")
+  jiraDisplayName String         @map("jira_display_name")
+  userId          String?        @map("user_id")
+  autoMatched     Boolean        @default(false) @map("auto_matched")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+  connection      JiraConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  user            User?          @relation("JiraUserMappings", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([connectionId, jiraAccountId])
+  @@index([connectionId])
+  @@index([workspaceId])
+  @@map("jira_user_mappings")
+}
+
+/// Local cache of Jira issues pulled from the Jira API.
+model JiraIssueCache {
+  id            String         @id @default(uuid())
+  connectionId  String         @map("connection_id")
+  jiraIssueId   String         @map("jira_issue_id")
+  jiraIssueKey  String         @map("jira_issue_key")
+  jiraProjectId String         @map("jira_project_id")
+  summary       String
+  description   String?        @db.Text
+  status        String
+  issueType     String         @map("issue_type")
+  priority      String?
+  assigneeId    String?        @map("assignee_id")
+  storyPoints   Float?         @map("story_points")
+  sprintId      String?        @map("sprint_id")
+  sprintName    String?        @map("sprint_name")
+  labels        String[]
+  dueDate       DateTime?      @map("due_date") @db.Date
+  taskId        String?        @map("task_id")
+  cachedAt      DateTime       @default(now()) @map("cached_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  connection    JiraConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  task          Task?          @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@unique([connectionId, jiraIssueId])
+  @@index([connectionId])
+  @@index([jiraProjectId])
+  @@index([assigneeId])
+  @@map("jira_issue_cache")
+}
+
+/// Tracks sync status of ChronoMint time entries pushed to Jira as worklogs.
+model JiraWorklogSync {
+  id            String         @id @default(uuid())
+  connectionId  String         @map("connection_id")
+  timeLogId     String         @unique @map("time_log_id")
+  jiraIssueKey  String         @map("jira_issue_key")
+  jiraWorklogId String?        @map("jira_worklog_id")
+  status        String         @default("PENDING")
+  errorMessage  String?        @map("error_message") @db.Text
+  syncedAt      DateTime?      @map("synced_at")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  connection    JiraConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  timeLog       TimeLog        @relation(fields: [timeLogId], references: [id], onDelete: Cascade)
+
+  @@index([connectionId])
+  @@index([status])
+  @@map("jira_worklog_syncs")
+}
+
+/// Audit log for all Jira sync operations.
+model JiraSyncLog {
+  id           String         @id @default(uuid())
+  connectionId String         @map("connection_id")
+  operation    String
+  entityType   String         @map("entity_type")
+  entityId     String?        @map("entity_id")
+  status       String
+  message      String?        @db.Text
+  metadata     Json           @default("{}")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  connection   JiraConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@index([connectionId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("jira_sync_logs")
 }

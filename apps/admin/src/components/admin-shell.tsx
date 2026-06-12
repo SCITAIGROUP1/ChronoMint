@@ -18,6 +18,7 @@ import {
   Download,
   FolderKanban,
   LayoutDashboard,
+  Link2,
   Tags,
   Users
 } from "lucide-react";
@@ -36,6 +37,7 @@ const baseNav = [
   { href: "/approvals", label: "Approvals", Icon: ClipboardCheck },
   { href: "/billing", label: "Billing", Icon: CreditCard },
   { href: "/exports", label: "Exports", Icon: Download },
+  { href: "/jira", label: "Jira", Icon: Link2 },
   { href: "/workspace", label: "Workspace", Icon: Building2 }
 ] as const;
 

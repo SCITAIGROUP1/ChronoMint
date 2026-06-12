@@ -2,16 +2,17 @@
 
 import { AppBar, Card, CardContent, SegmentedControl } from "@kloqra/ui";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { useState } from "react";
 import { PersonalInfoSection } from "./profile/personal-info-section";
 import { ProfileHero } from "./profile/profile-hero";
 import { WorkDetailsSection } from "./profile/work-details-section";
 import { useUserProfile } from "./use-user-profile";
 
-type ProfileTab = "personal" | "work";
+type ExtraTab = { value: string; label: string; content: ReactNode };
 
-export function ProfilePage() {
-  const [tab, setTab] = useState<ProfileTab>("personal");
+export function ProfilePage({ extraTabs }: { extraTabs?: ExtraTab[] }) {
+  const [tab, setTab] = useState<string>("personal");
   const { profile, loading, error, updateProfile, workspaceRole, workspaceName } = useUserProfile();
 
   if (loading) {
@@ -66,7 +67,8 @@ export function ProfilePage() {
             onChange={setTab}
             options={[
               { value: "personal", label: "Personal Info" },
-              { value: "work", label: "Work Details" }
+              { value: "work", label: "Work Details" },
+              ...(extraTabs ?? []).map((t) => ({ value: t.value, label: t.label }))
             ]}
             size="md"
             fullWidth
@@ -80,13 +82,15 @@ export function ProfilePage() {
               await updateProfile(data);
             }}
           />
-        ) : (
+        ) : tab === "work" ? (
           <WorkDetailsSection
             profile={profile}
             onSave={async (data) => {
               await updateProfile(data);
             }}
           />
+        ) : (
+          ((extraTabs ?? []).find((t) => t.value === tab)?.content ?? null)
         )}
       </div>
     </div>
