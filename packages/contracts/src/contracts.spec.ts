@@ -3,6 +3,7 @@ import {
   changePasswordSchema,
   createCategorySchema,
   createTaskSchema,
+  projectSummarySchema,
   createTimeLogSchema,
   formatUserDateTime,
   listTimeLogsQuerySchema,
@@ -275,11 +276,32 @@ describe("contracts", () => {
     expect(r.success).toBe(false);
   });
 
-  it("accepts task with categoryId", () => {
+  it("accepts task with categoryId and assignees", () => {
     const r = createTaskSchema.safeParse({
       projectId: UUID,
       categoryId: UUID_2,
-      taskName: "Implement feature"
+      taskName: "Implement feature",
+      assigneeUserIds: [UUID]
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("exposes project summary and user project color routes", () => {
+    expect(ROUTES.REPORTING.PROJECT_SUMMARY(UUID)).toBe(`/reporting/projects/${UUID}/summary`);
+    expect(ROUTES.USERS.PROJECT_COLOR(UUID)).toBe(`/users/me/projects/${UUID}/color`);
+  });
+
+  it("validates project summary shape", () => {
+    const r = projectSummarySchema.safeParse({
+      projectId: UUID,
+      projectName: "Acme",
+      period: { from: "2025-01-01T00:00:00.000Z", to: "2025-01-31T23:59:59.000Z" },
+      totalHours: 10,
+      billableHours: 8,
+      nonBillableHours: 2,
+      entryCount: 5,
+      byTask: [],
+      byCategory: []
     });
     expect(r.success).toBe(true);
   });

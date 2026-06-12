@@ -510,6 +510,8 @@ export class AuthService {
       id: string;
       email: string;
       name: string;
+      firstName?: string | null;
+      lastName?: string | null;
       defaultHourlyRate: { toNumber(): number } | null;
     },
     workspaceId: string,
@@ -518,11 +520,16 @@ export class AuthService {
     impersonatorId?: string,
     impersonatorName?: string
   ): AuthSessionDto {
+    const names = user.firstName
+      ? { firstName: user.firstName, lastName: user.lastName ?? "" }
+      : splitDisplayName(user.name);
     return {
       user: {
         id: user.id,
         email: user.email,
         name: user.name,
+        firstName: names.firstName,
+        lastName: names.lastName,
         defaultHourlyRate: user.defaultHourlyRate?.toNumber() ?? null
       },
       workspaceId,

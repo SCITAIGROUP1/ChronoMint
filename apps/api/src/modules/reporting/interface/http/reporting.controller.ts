@@ -1,5 +1,6 @@
 import {
   myWeekQuerySchema,
+  projectSummaryQuerySchema,
   reportQuerySchema,
   utilizationQuerySchema,
   type UtilizationQueryDto,
@@ -81,6 +82,22 @@ export class ReportingController {
     return this.reporting.tasks(
       user.workspaceId,
       query as Parameters<ReportingService["tasks"]>[1]
+    );
+  }
+
+  @Roles("ADMIN", "MEMBER")
+  @Get(ROUTES.REPORTING.PROJECT_SUMMARY(":projectId"))
+  projectSummary(
+    @CurrentUser() user: RequestUser,
+    @Param("projectId") projectId: string,
+    @Query(new ZodValidationPipe(projectSummaryQuerySchema)) query: unknown
+  ) {
+    return this.reporting.projectSummary(
+      user.workspaceId,
+      projectId,
+      user.userId,
+      user.role,
+      query as Parameters<ReportingService["projectSummary"]>[4]
     );
   }
 

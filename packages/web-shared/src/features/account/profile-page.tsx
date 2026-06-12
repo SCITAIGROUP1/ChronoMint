@@ -55,9 +55,6 @@ export function ProfilePage() {
           profile={profile}
           workspaceRole={workspaceRole}
           workspaceName={workspaceName}
-          onUpdateAvatar={async (avatarUrl) => {
-            await updateProfile({ avatarUrl });
-          }}
         />
 
         <div className="rounded-xl border border-border bg-muted/25 p-1">

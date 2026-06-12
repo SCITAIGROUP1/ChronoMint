@@ -21,7 +21,8 @@ describe("TimelogsService listOccupancy", () => {
       mockPrisma as never,
       {} as never,
       {} as never,
-      mockTimesheetLock as never
+      mockTimesheetLock as never,
+      {} as never
     );
   });
 
@@ -96,7 +97,13 @@ describe("TimelogsService list", () => {
     mockPrisma = {
       timeLog: { findMany: vi.fn().mockResolvedValue([]) }
     };
-    service = new TimelogsService(mockPrisma as never, {} as never, {} as never, {} as never);
+    service = new TimelogsService(
+      mockPrisma as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never
+    );
   });
 
   it("applies projectId and categoryId filters on task relation", async () => {

@@ -19,6 +19,9 @@ describe("ProjectsService", () => {
         create: vi.fn(),
         findMany: vi.fn(),
         findFirst: vi.fn()
+      },
+      userProjectColor: {
+        findMany: vi.fn().mockResolvedValue([])
       }
     };
     mockAccess = {

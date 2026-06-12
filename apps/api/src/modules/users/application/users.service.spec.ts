@@ -45,7 +45,13 @@ describe("UsersService", () => {
       revokeAllRefreshTokens: vi.fn()
     };
     const mockAuthRevocation = { revokeUser: vi.fn() };
-    service = new UsersService(mockPrisma, mockAuth, mockAuthRevocation as never);
+    const mockAccess = { assertCanAccessProject: vi.fn() };
+    service = new UsersService(
+      mockPrisma,
+      mockAuth,
+      mockAuthRevocation as never,
+      mockAccess as never
+    );
   });
 
   it("returns profile with effective daily target from user preference", async () => {

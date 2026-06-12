@@ -29,6 +29,7 @@ import {
 import {
   formatClockLabel,
   formatDayHeader as formatDayHeaderPref,
+  formatDayHeaderShort,
   type TimesheetDisplayFormat
 } from "./display-format";
 import { entryColorsFromProject } from "@/lib/project-color-styles";
@@ -47,6 +48,8 @@ type EntryPreview = {
 };
 
 const MOVE_THRESHOLD_PX = 5;
+const TIME_GUTTER_REM = "3.5rem";
+const MIN_DAY_COLUMN_PX = 76;
 
 /** Avoid updating parent state while this tree is still rendering (React 19). */
 function deferToParent(fn: () => void) {
@@ -129,8 +132,25 @@ export function TimesheetCalendar({
 }: TimesheetCalendarProps) {
   const slotRows = buildSlotRows();
   const today = todayInZone(timezone);
-  const labelDay = (day: Date) =>
-    displayFormat ? formatDayHeaderPref(day, displayFormat) : formatDayHeader(day);
+  const useCompactDayHeaders = days.length > 1;
+  const gridTemplateColumns = useCompactDayHeaders
+    ? `${TIME_GUTTER_REM} repeat(${days.length}, minmax(${MIN_DAY_COLUMN_PX}px, 1fr))`
+    : `${TIME_GUTTER_REM} repeat(${days.length}, minmax(0, 1fr))`;
+  const gridMinWidth = useCompactDayHeaders
+    ? `calc(${TIME_GUTTER_REM} + ${days.length * MIN_DAY_COLUMN_PX}px)`
+    : undefined;
+
+  const labelDay = (day: Date) => {
+    if (displayFormat) {
+      return useCompactDayHeaders
+        ? formatDayHeaderShort(day, displayFormat)
+        : formatDayHeaderPref(day, displayFormat);
+    }
+    if (useCompactDayHeaders) {
+      return day.toLocaleDateString(undefined, { weekday: "short", day: "numeric" });
+    }
+    return formatDayHeader(day);
+  };
   const labelTime = (hour: number, minute: number) =>
     displayFormat ? formatClockLabel(hour, minute, displayFormat) : formatTimeLabel(hour, minute);
 
@@ -428,127 +448,133 @@ export function TimesheetCalendar({
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-card">
       <p className="border-b border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-        Drag slots to log · Drag block to move · Resize edges · Click to edit ·{" "}
-        <kbd className="rounded border border-border bg-muted px-1 font-sans text-[10px]">Ctrl</kbd>
-        +drag to duplicate
+        <span className="hidden md:inline">
+          Drag slots to log · Drag block to move · Resize edges · Click to edit ·{" "}
+          <kbd className="rounded border border-border bg-muted px-1 font-sans text-[10px]">
+            Ctrl
+          </kbd>
+          +drag to duplicate
+        </span>
+        <span className="md:hidden">
+          Tap slots to log · Tap a block to edit · Swipe sideways in week view for more room
+        </span>
       </p>
       <div
         ref={scrollContainerRef}
-        className="max-h-[calc(100vh-14rem)] overflow-y-auto select-none md:max-h-[calc(100vh-15rem)]"
+        className="max-h-[calc(100vh-14rem)] overflow-x-auto overflow-y-auto select-none md:max-h-[calc(100vh-15rem)]"
       >
-        <div
-          className="sticky top-0 z-40 grid border-b border-border bg-card"
-          style={{ gridTemplateColumns: `3.5rem repeat(${days.length}, minmax(0, 1fr))` }}
-        >
+        <div style={gridMinWidth ? { minWidth: gridMinWidth } : undefined}>
           <div
-            className="flex items-center justify-center p-2 text-[9px] font-semibold text-muted-foreground select-none truncate"
-            title={`Timezone: ${timezone}`}
+            className="sticky top-0 z-40 grid border-b border-border bg-card"
+            style={{ gridTemplateColumns }}
           >
-            {timezone.split("/").pop()?.replace("_", " ")}
-          </div>
-          {days.map((day) => (
             <div
-              key={day.toISOString()}
-              className={cn(
-                "border-l border-border p-2 text-center text-sm font-medium",
-                isSameDayInZone(day, today, timezone) && "bg-primary/10 text-primary"
-              )}
+              className="flex items-center justify-center p-2 text-[9px] font-semibold text-muted-foreground select-none truncate"
+              title={`Timezone: ${timezone}`}
             >
-              {labelDay(day)}
+              {timezone.split("/").pop()?.replace("_", " ")}
             </div>
-          ))}
-        </div>
-        <div
-          className="grid"
-          style={{ gridTemplateColumns: `3.5rem repeat(${days.length}, minmax(0, 1fr))` }}
-        >
-          <div className="relative">
-            {slotRows.map(({ hour, minute }) => (
+            {days.map((day) => (
               <div
-                key={`${hour}-${minute}`}
-                className="flex h-10 items-start justify-end border-b border-border/60 pr-2 pt-0.5 text-[10px] text-muted-foreground"
+                key={day.toISOString()}
+                className={cn(
+                  "truncate border-l border-border p-2 text-center text-xs font-medium sm:text-sm",
+                  isSameDayInZone(day, today, timezone) && "bg-primary/10 text-primary"
+                )}
               >
-                {minute === 0 ? labelTime(hour, minute) : null}
+                {labelDay(day)}
               </div>
             ))}
           </div>
-          {days.map((day) => (
-            <DayColumn
-              key={day.toISOString()}
-              day={day}
-              logs={logs}
-              elsewhereSegments={occupancyByDay.get(calendarDateKey(day, timezone)) ?? []}
-              showOccupancyOverlay={showOccupancyOverlay}
-              slotRows={slotRows}
-              taskName={taskName}
-              taskInfo={taskInfo}
-              entryColor={entryColor}
-              activeTimer={activeTimer}
-              liveElapsedSec={liveElapsedSec}
-              compact={view === "week"}
-              readOnly={readOnly}
-              timezone={timezone}
-              isEntryLocked={isEntryLocked}
-              isTimerEntry={isTimerEntry}
-              previewConflict={previewConflict}
-              isSlotSelected={(idx) => isSlotSelected(calendarDateKey(day, timezone), idx)}
-              resizePreview={
-                resize && calendarDateKey(resize.day, timezone) === calendarDateKey(day, timezone)
-                  ? resize
-                  : null
-              }
-              movePreview={previewOnDay(move?.preview, day)}
-              duplicatePreview={previewOnDay(duplicate?.preview, day)}
-              movingLogId={move?.log.id ?? null}
-              onSlotPointerDown={(index) => {
-                if (readOnly) return;
-                dragMoved.current = false;
-                setDrag({
-                  dayKey: calendarDateKey(day, timezone),
-                  startIndex: index,
-                  endIndex: index
-                });
-              }}
-              onSlotPointerEnter={(index) => {
-                if (readOnly) return;
-                startTransition(() => {
-                  setDrag((d) => {
-                    if (!d || d.dayKey !== calendarDateKey(day, timezone)) return d;
-                    dragMoved.current = dragMoved.current || index !== d.startIndex;
-                    return { ...d, endIndex: index };
+          <div className="grid" style={{ gridTemplateColumns }}>
+            <div className="relative">
+              {slotRows.map(({ hour, minute }) => (
+                <div
+                  key={`${hour}-${minute}`}
+                  className="flex h-10 items-start justify-end border-b border-border/60 pr-2 pt-0.5 text-[10px] text-muted-foreground"
+                >
+                  {minute === 0 ? labelTime(hour, minute) : null}
+                </div>
+              ))}
+            </div>
+            {days.map((day) => (
+              <DayColumn
+                key={day.toISOString()}
+                day={day}
+                logs={logs}
+                elsewhereSegments={occupancyByDay.get(calendarDateKey(day, timezone)) ?? []}
+                showOccupancyOverlay={showOccupancyOverlay}
+                slotRows={slotRows}
+                taskName={taskName}
+                taskInfo={taskInfo}
+                entryColor={entryColor}
+                activeTimer={activeTimer}
+                liveElapsedSec={liveElapsedSec}
+                compact={view === "week"}
+                readOnly={readOnly}
+                timezone={timezone}
+                isEntryLocked={isEntryLocked}
+                isTimerEntry={isTimerEntry}
+                previewConflict={previewConflict}
+                isSlotSelected={(idx) => isSlotSelected(calendarDateKey(day, timezone), idx)}
+                resizePreview={
+                  resize && calendarDateKey(resize.day, timezone) === calendarDateKey(day, timezone)
+                    ? resize
+                    : null
+                }
+                movePreview={previewOnDay(move?.preview, day)}
+                duplicatePreview={previewOnDay(duplicate?.preview, day)}
+                movingLogId={move?.log.id ?? null}
+                onSlotPointerDown={(index) => {
+                  if (readOnly) return;
+                  dragMoved.current = false;
+                  setDrag({
+                    dayKey: calendarDateKey(day, timezone),
+                    startIndex: index,
+                    endIndex: index
                   });
-                });
-              }}
-              onSlotClick={(hour, minute) => {
-                if (readOnly) return;
-                if (suppressClick.current) {
-                  suppressClick.current = false;
-                  return;
-                }
-                deferToParent(() => onSlotClick(day, hour, minute));
-              }}
-              onEntryClick={(log) => {
-                if (suppressClick.current) {
-                  suppressClick.current = false;
-                  return;
-                }
-                deferToParent(() => onEntryClick(log));
-              }}
-              onResizeStart={(log, clip, edge) => {
-                if (readOnly || isEntryLocked(log) || isTimerEntry(log)) return;
-                setResize({
-                  log,
-                  day,
-                  edge,
-                  previewStart: clip.start,
-                  previewEnd: clip.end
-                });
-              }}
-              onDuplicateDragStart={startDuplicateDrag}
-              onMovePointerDown={startPendingMove}
-              formatSlotLabel={labelTime}
-            />
-          ))}
+                }}
+                onSlotPointerEnter={(index) => {
+                  if (readOnly) return;
+                  startTransition(() => {
+                    setDrag((d) => {
+                      if (!d || d.dayKey !== calendarDateKey(day, timezone)) return d;
+                      dragMoved.current = dragMoved.current || index !== d.startIndex;
+                      return { ...d, endIndex: index };
+                    });
+                  });
+                }}
+                onSlotClick={(hour, minute) => {
+                  if (readOnly) return;
+                  if (suppressClick.current) {
+                    suppressClick.current = false;
+                    return;
+                  }
+                  deferToParent(() => onSlotClick(day, hour, minute));
+                }}
+                onEntryClick={(log) => {
+                  if (suppressClick.current) {
+                    suppressClick.current = false;
+                    return;
+                  }
+                  deferToParent(() => onEntryClick(log));
+                }}
+                onResizeStart={(log, clip, edge) => {
+                  if (readOnly || isEntryLocked(log) || isTimerEntry(log)) return;
+                  setResize({
+                    log,
+                    day,
+                    edge,
+                    previewStart: clip.start,
+                    previewEnd: clip.end
+                  });
+                }}
+                onDuplicateDragStart={startDuplicateDrag}
+                onMovePointerDown={startPendingMove}
+                formatSlotLabel={labelTime}
+              />
+            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -663,7 +689,7 @@ function DayColumn({
             key={`${hour}-${minute}`}
             type="button"
             className={cn(
-              "block h-10 w-full touch-none border-b border-border/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+              "block h-10 w-full touch-manipulation border-b border-border/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
               !readOnly && !slotBlocked && "hover:bg-primary/10",
               isSlotSelected(index) && "bg-primary/25",
               slotBlocked && "cursor-not-allowed"
@@ -839,7 +865,7 @@ function DayColumn({
             >
               {!entryReadOnly && (
                 <div
-                  className="absolute inset-x-0 top-0 z-10 h-1.5 cursor-ns-resize bg-black/15"
+                  className="absolute inset-x-0 top-0 z-10 h-1.5 max-md:h-3 cursor-ns-resize bg-black/15"
                   onPointerDown={(e) => {
                     e.stopPropagation();
                     onResizeStart(log, clip, "start");
@@ -904,7 +930,7 @@ function DayColumn({
               </button>
               {!entryReadOnly && (
                 <div
-                  className="absolute inset-x-0 bottom-0 z-10 h-1.5 cursor-ns-resize bg-black/15"
+                  className="absolute inset-x-0 bottom-0 z-10 h-1.5 max-md:h-3 cursor-ns-resize bg-black/15"
                   onPointerDown={(e) => {
                     e.stopPropagation();
                     onResizeStart(log, clip, "end");

@@ -8,6 +8,7 @@ import type {
 } from "@kloqra/contracts";
 import { ErrorCodes } from "@kloqra/contracts";
 import { Injectable, HttpStatus } from "@nestjs/common";
+import { ProjectAccessService } from "../../../common/access/project-access.service";
 import { ReportCacheService } from "../../../common/cache/report-cache.service";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
@@ -23,8 +24,20 @@ export class TimelogsService {
     private prisma: PrismaService,
     private reportCache: ReportCacheService,
     private audit: TimelogAuditService,
-    private timesheetLock: TimesheetLockService
+    private timesheetLock: TimesheetLockService,
+    private access: ProjectAccessService
   ) {}
+
+  private resolveBillable(
+    role: string,
+    taskBillableDefault: boolean,
+    requested?: boolean
+  ): boolean {
+    if (role === "ADMIN") {
+      return requested ?? taskBillableDefault;
+    }
+    return taskBillableDefault;
+  }
 
   toDto(log: {
     id: string;
@@ -188,8 +201,14 @@ export class TimelogsService {
     return { items };
   }
 
-  async create(workspaceId: string, userId: string, dto: CreateTimeLogDto, actorId?: string) {
-    await this.assertTaskInWorkspace(workspaceId, dto.taskId);
+  async create(
+    workspaceId: string,
+    userId: string,
+    role: string,
+    dto: CreateTimeLogDto,
+    actorId?: string
+  ) {
+    await this.access.assertCanLogTask(workspaceId, userId, role as "ADMIN" | "MEMBER", dto.taskId);
     const start = new Date(dto.startTime);
     const end = new Date(dto.endTime);
     await this.timesheetLock.assertTaskPeriodEditable(userId, dto.taskId, start);
@@ -205,7 +224,7 @@ export class TimelogsService {
           endTime: end,
           durationSec: Math.floor((end.getTime() - start.getTime()) / 1000),
           description: dto.description,
-          isBillable: dto.isBillable ?? task.billableDefault,
+          isBillable: this.resolveBillable(role, task.billableDefault, dto.isBillable),
           source: "manual"
         }
       });
@@ -251,9 +270,16 @@ export class TimelogsService {
 
     await this.timesheetLock.assertPeriodEditable(log.userId, log.task.projectId, log.startTime);
 
-    if (dto.taskId) await this.assertTaskInWorkspace(workspaceId, dto.taskId);
+    const targetTaskId = dto.taskId ?? log.taskId;
+    await this.access.assertCanLogTask(
+      workspaceId,
+      log.userId,
+      role as "ADMIN" | "MEMBER",
+      targetTaskId
+    );
     const start = dto.startTime ? new Date(dto.startTime) : log.startTime;
     const end = dto.endTime ? new Date(dto.endTime) : log.endTime;
+    const targetTask = await this.prisma.task.findUniqueOrThrow({ where: { id: targetTaskId } });
 
     if (dto.startTime) {
       const targetProjectId = dto.taskId
@@ -262,11 +288,16 @@ export class TimelogsService {
       await this.timesheetLock.assertPeriodEditable(log.userId, targetProjectId, start);
     }
     if (dto.taskId && dto.taskId !== log.taskId) {
-      const targetTask = await this.prisma.task.findUniqueOrThrow({ where: { id: dto.taskId } });
       await this.timesheetLock.assertPeriodEditable(log.userId, targetTask.projectId, start);
     }
 
     await this.assertNoOverlap(log.userId, start, end, id);
+
+    const isBillable = this.resolveBillable(
+      role,
+      targetTask.billableDefault,
+      dto.isBillable !== undefined ? dto.isBillable : log.isBillable
+    );
 
     const updated = await this.prisma.$transaction(async (tx) => {
       const row = await tx.timeLog.update({
@@ -277,7 +308,7 @@ export class TimelogsService {
           endTime: end,
           durationSec: Math.floor((end.getTime() - start.getTime()) / 1000),
           ...(dto.description !== undefined ? { description: dto.description } : {}),
-          ...(dto.isBillable !== undefined ? { isBillable: dto.isBillable } : {})
+          isBillable
         }
       });
       await this.audit.recordEvent(tx, {

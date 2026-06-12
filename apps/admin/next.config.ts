@@ -8,7 +8,7 @@ const withBundleAnalyzer = bundleAnalyzer({
 const nextConfig: NextConfig = {
   transpilePackages: ["@kloqra/ui", "@kloqra/contracts", "@kloqra/web-shared"],
   experimental: {
-    optimizePackageImports: ["@kloqra/ui", "lucide-react", "recharts"]
+    optimizePackageImports: ["lucide-react", "recharts"]
   }
 };
 

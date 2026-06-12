@@ -65,4 +65,34 @@ export class ProjectAccessService {
       );
     }
   }
+
+  async assertCanLogTask(
+    workspaceId: string,
+    userId: string,
+    role: "ADMIN" | "MEMBER",
+    taskId: string
+  ) {
+    const task = await this.prisma.task.findFirst({
+      where: { id: taskId, project: { workspaceId } },
+      select: { id: true, projectId: true }
+    });
+    if (!task) {
+      throw new DomainException(ErrorCodes.NOT_FOUND, "Task not found", HttpStatus.NOT_FOUND);
+    }
+
+    await this.assertCanAccessProject(workspaceId, userId, role, task.projectId);
+
+    if (role === "ADMIN") return;
+
+    const assignee = await this.prisma.taskAssignee.findFirst({
+      where: { taskId, userId }
+    });
+    if (!assignee) {
+      throw new DomainException(
+        ErrorCodes.FORBIDDEN,
+        "You are not assigned to this task",
+        HttpStatus.FORBIDDEN
+      );
+    }
+  }
 }

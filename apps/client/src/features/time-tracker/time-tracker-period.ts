@@ -3,7 +3,8 @@ import {
   localMidnightUtcInZone,
   startOfMonth,
   startOfWeekWithPreference,
-  todayInZone
+  todayInZone,
+  toDateKeyInZone
 } from "../timesheet/calendar-utils";
 
 export type TimeTrackerPeriodPreset =
@@ -16,7 +17,9 @@ export type TimeTrackerPeriodPreset =
   | "this_year"
   | "last_year";
 
-export const TIME_TRACKER_PERIOD_LABELS: Record<TimeTrackerPeriodPreset, string> = {
+export type TimeTrackerPeriodSelection = TimeTrackerPeriodPreset | "custom";
+
+export const TIME_TRACKER_PERIOD_LABELS: Record<TimeTrackerPeriodSelection, string> = {
   today: "Today",
   yesterday: "Yesterday",
   this_week: "This Week",
@@ -24,7 +27,8 @@ export const TIME_TRACKER_PERIOD_LABELS: Record<TimeTrackerPeriodPreset, string>
   this_month: "This Month",
   last_month: "Last Month",
   this_year: "This Year",
-  last_year: "Last Year"
+  last_year: "Last Year",
+  custom: "Custom range"
 };
 
 export const TIME_TRACKER_PERIOD_PRESETS: TimeTrackerPeriodPreset[] = [
@@ -125,4 +129,88 @@ export function resolveTimeTrackerPeriod(
 
 export function periodStatLabel(preset: TimeTrackerPeriodPreset): string {
   return TIME_TRACKER_PERIOD_LABELS[preset];
+}
+
+function parseDateKey(key: string): [number, number, number] {
+  const [y, m, d] = key.split("-").map(Number);
+  return [y, m, d];
+}
+
+/** Inclusive calendar-day keys for a preset's visible range. */
+export function inclusiveDateKeysFromPeriod(
+  preset: TimeTrackerPeriodPreset,
+  timezone: string,
+  weekStartPref: "monday" | "sunday" = "monday",
+  referenceDate?: Date
+): { from: string; to: string } {
+  const { from, to } = resolveTimeTrackerPeriod(preset, timezone, weekStartPref, referenceDate);
+  const lastInstant = new Date(to.getTime() - 1);
+  return {
+    from: toDateKeyInZone(from, timezone),
+    to: toDateKeyInZone(lastInstant, timezone)
+  };
+}
+
+/** Resolve inclusive date keys to an exclusive UTC query range. */
+export function resolveTimeTrackerDateRange(
+  fromKey: string,
+  toKey: string,
+  timezone: string
+): TimeTrackerVisibleRange {
+  let [fromY, fromM, fromD] = parseDateKey(fromKey);
+  let [toY, toM, toD] = parseDateKey(toKey);
+
+  const fromStart = localMidnightUtcInZone(fromY, fromM, fromD, timezone);
+  const toStart = localMidnightUtcInZone(toY, toM, toD, timezone);
+  if (fromStart.getTime() > toStart.getTime()) {
+    [fromY, fromM, fromD, toY, toM, toD] = [toY, toM, toD, fromY, fromM, fromD];
+  }
+
+  const from = localMidnightUtcInZone(fromY, fromM, fromD, timezone);
+  const toDayStart = localMidnightUtcInZone(toY, toM, toD, timezone);
+  const to = new Date(toDayStart.getTime() + 24 * 60 * 60 * 1000);
+  return { from, to };
+}
+
+export function matchTimeTrackerPeriod(
+  fromKey: string,
+  toKey: string,
+  timezone: string,
+  weekStartPref: "monday" | "sunday" = "monday",
+  referenceDate?: Date
+): TimeTrackerPeriodSelection {
+  for (const preset of TIME_TRACKER_PERIOD_PRESETS) {
+    const keys = inclusiveDateKeysFromPeriod(preset, timezone, weekStartPref, referenceDate);
+    if (keys.from === fromKey && keys.to === toKey) return preset;
+  }
+  return "custom";
+}
+
+export function formatTimeTrackerRangeLabel(
+  fromKey: string,
+  toKey: string,
+  timezone: string
+): string {
+  const format = (key: string) => {
+    const [y, m, d] = parseDateKey(key);
+    const instant = localMidnightUtcInZone(y, m, d, timezone);
+    return new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      month: "short",
+      day: "numeric"
+    }).format(instant);
+  };
+
+  if (fromKey === toKey) return format(fromKey);
+  return `${format(fromKey)} – ${format(toKey)}`;
+}
+
+export function periodLabelForSelection(
+  selection: TimeTrackerPeriodSelection,
+  fromKey: string,
+  toKey: string,
+  timezone: string
+): string {
+  if (selection !== "custom") return TIME_TRACKER_PERIOD_LABELS[selection];
+  return formatTimeTrackerRangeLabel(fromKey, toKey, timezone);
 }

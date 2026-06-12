@@ -60,6 +60,26 @@ function categoryRepo() {
   ).category;
 }
 
+/** Task assignee + personal color delegates — typed at boundary for stale IDE Prisma clients (run `prisma generate`). */
+function rollupRepo() {
+  return prisma as unknown as {
+    taskAssignee: {
+      deleteMany: () => Promise<{ count: number }>;
+      count: () => Promise<number>;
+    };
+    userProjectColor: {
+      deleteMany: () => Promise<{ count: number }>;
+      create: (args: {
+        data: { userId: string; projectId: string; color: string };
+      }) => Promise<unknown>;
+      count: () => Promise<number>;
+    };
+    task: {
+      count: (args: { where: { assignees: { none: Record<string, never> } } }) => Promise<number>;
+    };
+  };
+}
+
 async function ensureWorkspaceCategories(workspaceId: string): Promise<Map<string, SeedCategory>> {
   const out = new Map<string, SeedCategory>();
   for (const spec of SEED_CATEGORIES) {
@@ -77,7 +97,28 @@ const BATCH_SIZE = 1000;
 type TaskWithMeta = {
   task: Task;
   spec: SeedTaskSpec;
+  assigneeUserIds: string[];
 };
+
+function splitDisplayName(name: string): { firstName: string; lastName: string } {
+  const trimmed = name.trim();
+  const space = trimmed.indexOf(" ");
+  if (space === -1) return { firstName: trimmed, lastName: "" };
+  return {
+    firstName: trimmed.slice(0, space),
+    lastName: trimmed.slice(space + 1)
+  };
+}
+
+function resolveAssigneeUserIds(
+  taskSpec: SeedTaskSpec,
+  projectSpec: SeedProjectSpec,
+  users: Map<string, User>
+): string[] {
+  const emails =
+    taskSpec.assigneeEmails ?? projectSpec.memberEmails.filter((email) => users.has(email));
+  return emails.map((email) => users.get(email)?.id).filter((id): id is string => Boolean(id));
+}
 
 type ProjectCtx = {
   project: Project;
@@ -109,8 +150,11 @@ async function main() {
     );
   }
 
+  const colorCount = await seedUserProjectColors(allProjectCtx, users);
+  console.log(`  personal project colors: ${colorCount}`);
+
   const logCount = await seedTimeLogs(allProjectCtx, users);
-  console.log(`  time logs: ${logCount} (non-overlapping per user)`);
+  console.log(`  time logs: ${logCount} (history through yesterday — today is clean)`);
 
   const dashboardLayoutCount = await seedDashboardLayouts(users, workspaces);
   console.log(`  dashboard layouts: ${dashboardLayoutCount} user/workspace assignments`);
@@ -127,6 +171,8 @@ async function resetDatabase() {
   await prisma.projectInvite.deleteMany();
   await prisma.teamMember.deleteMany();
   await prisma.team.deleteMany();
+  await rollupRepo().taskAssignee.deleteMany();
+  await rollupRepo().userProjectColor.deleteMany();
   await prisma.task.deleteMany();
   await prisma.hourlyRate.deleteMany();
   await prisma.exportSchedule.deleteMany();
@@ -175,11 +221,14 @@ async function seedDashboardLayouts(
 async function seedUsers(passwordHash: string): Promise<Map<string, User>> {
   const users = new Map<string, User>();
   for (const spec of SEED_USERS) {
+    const { firstName, lastName } = splitDisplayName(spec.name);
     const user = await prisma.user.create({
       data: {
         email: spec.email,
         passwordHash,
         name: spec.name,
+        firstName,
+        lastName: lastName || null,
         defaultHourlyRate: spec.defaultHourlyRate,
         preferences: (spec.preferences ?? {}) as Prisma.InputJsonValue
       } as Prisma.UserUncheckedCreateInput
@@ -253,21 +302,49 @@ async function seedProjects(
     const tasks: TaskWithMeta[] = [];
     for (const taskSpec of projectSpec.tasks) {
       const category = categories.get(taskSpec.category) ?? fallbackCategory;
+      const assigneeUserIds = resolveAssigneeUserIds(taskSpec, projectSpec, users);
       const task = await prisma.task.create({
         data: {
           projectId: project.id,
           categoryId: category.id,
           taskName: taskSpec.name,
-          billableDefault: taskSpec.billableDefault
+          billableDefault: taskSpec.billableDefault,
+          ...(assigneeUserIds.length > 0
+            ? {
+                assignees: {
+                  create: assigneeUserIds.map((userId) => ({ userId }))
+                }
+              }
+            : {})
         } as Prisma.TaskUncheckedCreateInput
       });
-      tasks.push({ task, spec: taskSpec });
+      tasks.push({ task, spec: taskSpec, assigneeUserIds });
     }
 
     ctx.push({ project, tasks, spec: projectSpec, workspaceId: workspace.id });
   }
 
   return ctx;
+}
+
+async function seedUserProjectColors(
+  projectCtx: ProjectCtx[],
+  users: Map<string, User>
+): Promise<number> {
+  let created = 0;
+  for (const ctx of projectCtx) {
+    const overrides = ctx.spec.memberColorOverrides;
+    if (!overrides) continue;
+    for (const [email, color] of Object.entries(overrides)) {
+      const user = users.get(email);
+      if (!user) continue;
+      await rollupRepo().userProjectColor.create({
+        data: { userId: user.id, projectId: ctx.project.id, color }
+      });
+      created++;
+    }
+  }
+  return created;
 }
 
 async function seedHourlyRates(
@@ -477,20 +554,34 @@ function taskPickWeight(taskMeta: TaskWithMeta, userSpec: SeedUserSpec, daysAgo:
   return base * bias * dayBoost;
 }
 
+function assignableTasksForUser(
+  ctx: ProjectCtx,
+  userId: string,
+  role: "ADMIN" | "MEMBER"
+): TaskWithMeta[] {
+  if (role === "ADMIN") {
+    return ctx.tasks.filter((t) => t.assigneeUserIds.length > 0);
+  }
+  return ctx.tasks.filter((t) => t.assigneeUserIds.includes(userId));
+}
+
 function pickWeightedTask(
   ctx: ProjectCtx,
   userSpec: SeedUserSpec,
+  userId: string,
   daysAgo: number,
   salt: number
-): TaskWithMeta {
-  const weights = ctx.tasks.map((t) => taskPickWeight(t, userSpec, daysAgo));
+): TaskWithMeta | null {
+  const pool = assignableTasksForUser(ctx, userId, userSpec.role);
+  if (pool.length === 0) return null;
+  const weights = pool.map((t) => taskPickWeight(t, userSpec, daysAgo));
   const total = weights.reduce((s, w) => s + w, 0);
   let r = hash01(daysAgo, salt, userSpec.email.length) * total;
-  for (let i = 0; i < ctx.tasks.length; i++) {
+  for (let i = 0; i < pool.length; i++) {
     r -= weights[i]!;
-    if (r <= 0) return ctx.tasks[i]!;
+    if (r <= 0) return pool[i]!;
   }
-  return ctx.tasks[ctx.tasks.length - 1]!;
+  return pool[pool.length - 1]!;
 }
 
 function pickProject(
@@ -525,10 +616,14 @@ async function seedTimeLogs(projectCtx: ProjectCtx[], users: Map<string, User>):
 
   for (const userSpec of SEED_USERS) {
     const user = users.get(userSpec.email)!;
-    const userProjects = projectCtx.filter((ctx) => ctx.spec.memberEmails.includes(userSpec.email));
+    const userProjects = projectCtx.filter((ctx) => {
+      if (!ctx.spec.memberEmails.includes(userSpec.email)) return false;
+      return assignableTasksForUser(ctx, user.id, userSpec.role).length > 0;
+    });
     if (userProjects.length === 0) continue;
 
-    for (let daysAgo = userSpec.historyDays; daysAgo >= 0; daysAgo--) {
+    // Skip today (daysAgo === 0) so dashboards and timers start with a clean slate.
+    for (let daysAgo = userSpec.historyDays; daysAgo >= 1; daysAgo--) {
       const weekend = !isWeekday(daysAgo);
       if (weekend && hash01(daysAgo, 0, userSpec.email.length) > 0.2 + userSpec.intensity * 0.5) {
         continue;
@@ -545,13 +640,18 @@ async function seedTimeLogs(projectCtx: ProjectCtx[], users: Map<string, User>):
 
       for (let e = 0; e < entriesToday; e++) {
         const ctx = pickProject(userProjects, userSpec, daysAgo, e);
-        const taskMeta = pickWeightedTask(ctx, userSpec, daysAgo, e);
+        const taskMeta = pickWeightedTask(ctx, userSpec, user.id, daysAgo, e);
+        if (!taskMeta) continue;
         const { task, spec: taskSpec } = taskMeta;
 
         const billableDefault = task.billableDefault;
-        const isBillable = billableDefault
-          ? hash01(daysAgo, e, 5) > 0.08
-          : hash01(daysAgo, e, 5) > 0.75;
+        // Members always inherit task billable default (matches API enforcement).
+        const isBillable =
+          userSpec.role === "MEMBER"
+            ? billableDefault
+            : billableDefault
+              ? hash01(daysAgo, e, 5) > 0.08
+              : hash01(daysAgo, e, 5) > 0.75;
 
         const meetingStretch =
           taskSpec.category === "Meetings" ? 0.5 + hash01(daysAgo, e, 6) * 1.25 : 0;
@@ -716,10 +816,19 @@ async function printSummary(workspaces: Workspace[], users: Map<string, User>) {
     };
   });
 
+  const [assigneeCount, colorCount, unassignedTaskCount] = await Promise.all([
+    rollupRepo().taskAssignee.count(),
+    rollupRepo().userProjectColor.count(),
+    rollupRepo().task.count({ where: { assignees: { none: {} } } })
+  ]);
+
   console.log("Seed complete:", {
     users: users.size,
     workspaces: workspaces.length,
     projects: SEED_WORKSPACES.length * 4,
+    taskAssignees: assigneeCount,
+    userProjectColors: colorCount,
+    unassignedTasks: unassignedTaskCount,
     categoriesPerWorkspace: SEED_CATEGORIES.length,
     tasksPerCategoryAvg,
     hoursByCategory: categoryHoursPct,

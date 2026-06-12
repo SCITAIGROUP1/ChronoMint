@@ -6,5 +6,5 @@ type Props = {
 
 export default async function ProjectIndexPage({ params }: Props) {
   const { projectId } = await params;
-  redirect(`/projects/${projectId}/tasks`);
+  redirect(`/projects/${projectId}/overview`);
 }

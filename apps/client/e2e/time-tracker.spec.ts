@@ -13,6 +13,16 @@ test.describe("Time Tracker", () => {
     await expect(page.getByText("Entries", { exact: true }).first()).toBeVisible();
     await expect(page.getByPlaceholder("Search entries...")).toBeVisible();
     await expect(page.getByRole("button", { name: "Add Entry" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Date range" })).toBeVisible();
+  });
+
+  test("supports custom date range selection while keeping week sections", async ({ page }) => {
+    await page.getByRole("button", { name: "Date range" }).click();
+    await page.getByRole("button", { name: "2026-06-01" }).click();
+    await page.getByRole("button", { name: "2026-06-14" }).click();
+    await page.getByRole("button", { name: "Apply" }).click();
+    await expect(page.getByRole("combobox", { name: "Time period" })).toContainText("Custom range");
+    await expect(page.getByText(/Week of/i).first()).toBeVisible();
   });
 
   test("opens add entry dialog", async ({ page }) => {

@@ -13,6 +13,7 @@ import {
   type ChangePasswordDto,
   type DashboardApp,
   type DashboardLayoutResponseDto,
+  type SetUserProjectColorDto,
   type UpdateDashboardLayoutDto,
   type UpdateUserPreferencesDto,
   type UpdateUserProfileDto,
@@ -21,6 +22,7 @@ import {
 import { Injectable, HttpStatus } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import * as bcrypt from "bcrypt";
+import { ProjectAccessService } from "../../../common/access/project-access.service";
 import { AuthRevocationService } from "../../../common/auth/auth-revocation.service";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
@@ -69,7 +71,8 @@ export class UsersService {
   constructor(
     private prisma: PrismaService,
     private auth: AuthService,
-    private authRevocation: AuthRevocationService
+    private authRevocation: AuthRevocationService,
+    private access: ProjectAccessService
   ) {}
 
   async getProfile(userId: string, workspaceId: string): Promise<UserProfileDto> {
@@ -179,6 +182,27 @@ export class UsersService {
     });
 
     return this.getDashboardLayout(userId, workspaceId, dto.app);
+  }
+
+  async setProjectColor(
+    userId: string,
+    workspaceId: string,
+    projectId: string,
+    dto: SetUserProjectColorDto
+  ) {
+    await this.access.assertCanAccessProject(workspaceId, userId, "MEMBER", projectId);
+    await this.prisma.userProjectColor.upsert({
+      where: { userId_projectId: { userId, projectId } },
+      create: { userId, projectId, color: dto.color },
+      update: { color: dto.color }
+    });
+    return { ok: true, color: dto.color };
+  }
+
+  async clearProjectColor(userId: string, workspaceId: string, projectId: string) {
+    await this.access.assertCanAccessProject(workspaceId, userId, "MEMBER", projectId);
+    await this.prisma.userProjectColor.deleteMany({ where: { userId, projectId } });
+    return { ok: true };
   }
 
   async changePassword(userId: string, dto: ChangePasswordDto): Promise<{ ok: true }> {

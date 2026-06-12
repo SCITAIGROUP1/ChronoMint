@@ -90,7 +90,8 @@ export function SegmentedControl<T extends string | number>({
   size = "sm",
   fullWidth = false
 }: {
-  value: T;
+  /** May be a value not present in `options` — no segment will appear selected. */
+  value: T | (string & {});
   onChange: (v: T) => void;
   options: { value: T; label: string }[];
   size?: "sm" | "md";

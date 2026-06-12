@@ -68,17 +68,17 @@ export function TodayLogsWidget({
         return (
           <div
             key={log.id}
-            className="flex items-center justify-between p-3 rounded-lg border border-border/60 bg-muted/10 hover:bg-muted/20 transition-all text-xs gap-3 min-w-0"
+            className="flex flex-col gap-2 rounded-lg border border-border/60 bg-muted/10 p-3 text-xs transition-all hover:bg-muted/20 min-w-0 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
           >
             {/* Project & Task Details */}
-            <div className="flex flex-col min-w-0 flex-1 gap-1">
-              <div className="flex items-center gap-1.5 min-w-0">
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                 <ProjectColorDot color={projectColor} size="sm" className="shrink-0" />
-                <span className="font-semibold text-foreground truncate max-w-[120px]">
+                <span className="max-w-[120px] truncate font-semibold text-foreground">
                   {projectName}
                 </span>
-                <span className="text-muted-foreground/40 shrink-0">&bull;</span>
-                <span className="text-muted-foreground truncate">{task?.taskName ?? "Other"}</span>
+                <span className="shrink-0 text-muted-foreground/40">&bull;</span>
+                <span className="truncate text-muted-foreground">{task?.taskName ?? "Other"}</span>
                 {task?.categoryName ? (
                   <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
                     {task.categoryName}
@@ -86,17 +86,17 @@ export function TodayLogsWidget({
                 ) : null}
               </div>
               {log.description && (
-                <p className="text-[11px] text-muted-foreground truncate font-normal pl-4">
+                <p className="truncate pl-4 text-[11px] font-normal text-muted-foreground sm:pl-4">
                   {log.description}
                 </p>
               )}
-              <div className="text-[10px] text-muted-foreground/60 pl-4 font-mono">
+              <div className="pl-4 font-mono text-[10px] text-muted-foreground/60">
                 {formatTime(log.startTime)} - {formatTime(log.endTime)}
               </div>
             </div>
 
             {/* Duration & Quick Actions */}
-            <div className="flex items-center gap-2.5 shrink-0 pl-1">
+            <div className="flex shrink-0 items-center gap-2.5 sm:pl-1">
               <span className="font-mono font-semibold text-foreground">
                 {formatDuration(log.durationSec)}
               </span>

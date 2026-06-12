@@ -18,6 +18,12 @@ export const projectSchema = z.object({
   workspaceName: z.string().min(1).max(120).optional(),
   name: z.string().min(1).max(200),
   color: projectColorSchema,
+  /** Member's personal display color override for this project (current user only). */
+  myColor: z
+    .string()
+    .regex(/^#[0-9A-Fa-f]{6}$/)
+    .nullable()
+    .optional(),
   clientName: z.string().max(200).nullable(),
   budgetHours: z.number().positive().nullable(),
   isActive: z.boolean(),

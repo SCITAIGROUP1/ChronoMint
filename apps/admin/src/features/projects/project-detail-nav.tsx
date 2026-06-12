@@ -1,12 +1,12 @@
 "use client";
 
 import { cn } from "@kloqra/ui";
-import { ChevronRight, ListTodo, Settings, Users } from "lucide-react";
+import { BarChart3, ChevronRight, ListTodo, Settings, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-export type ProjectDetailSectionId = "tasks" | "team" | "settings";
+export type ProjectDetailSectionId = "overview" | "tasks" | "team" | "settings";
 
 export type ProjectDetailNavItem = {
   id: ProjectDetailSectionId;
@@ -16,6 +16,7 @@ export type ProjectDetailNavItem = {
 };
 
 const DEFAULT_ITEMS: Omit<ProjectDetailNavItem, "href">[] = [
+  { id: "overview", label: "Overview", icon: BarChart3 },
   { id: "tasks", label: "Tasks", icon: ListTodo },
   { id: "team", label: "Team", icon: Users },
   { id: "settings", label: "Settings", icon: Settings }
@@ -31,7 +32,8 @@ export function buildProjectDetailNavItems(projectId: string): ProjectDetailNavI
 export function resolveProjectDetailSection(pathname: string): ProjectDetailSectionId {
   if (pathname.includes("/team")) return "team";
   if (pathname.includes("/settings")) return "settings";
-  return "tasks";
+  if (pathname.includes("/tasks")) return "tasks";
+  return "overview";
 }
 
 export function ProjectDetailNav({

@@ -387,20 +387,6 @@ export function TimeEntryDialog({
               placeholder="What did you work on?"
             />
           </div>
-          <label className="flex cursor-pointer items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              className="size-4 rounded border border-input accent-primary"
-              checked={draft.isBillable}
-              disabled={!canEdit}
-              onChange={(e) => patch({ isBillable: e.target.checked })}
-            />
-            <span>Billable time</span>
-          </label>
-          <p className="text-xs text-muted-foreground">
-            Billable is set per entry — the same task can include both billable and non-billable
-            work.
-          </p>
           {error && <p className="text-sm text-destructive">{error}</p>}
         </form>
       ) : draft && activeTab === "history" ? (

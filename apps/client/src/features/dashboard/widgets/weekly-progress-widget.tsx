@@ -92,7 +92,10 @@ export function WeeklyProgressWidget({ logs, startDate, endDate }: WeeklyProgres
             }}
           />
           <ChartTooltip content={<ChartTooltipContent />} />
-          <Legend wrapperStyle={{ fontSize: 10, paddingTop: 10 }} />
+          <Legend
+            wrapperStyle={{ fontSize: 10, paddingTop: 10 }}
+            className="max-sm:[&_.recharts-legend-item-text]:!text-[9px]"
+          />
           <ReferenceLine
             y={8}
             stroke="var(--destructive)"

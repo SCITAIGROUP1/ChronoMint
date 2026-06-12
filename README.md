@@ -12,7 +12,19 @@ Next-gen time analytics engine — contract-first monorepo with NestJS API, Next
 
 Requires [Postgres.app](https://postgresapp.com/) or local PostgreSQL on port 5432.
 
-**One command** (installs, migrates, seeds, starts all apps):
+**Daily dev** (prep once, then one watcher per terminal — no migrate/seed):
+
+```bash
+pnpm local          # prep: Postgres, env, prisma generate
+pnpm dev:shared     # terminal 1 — contracts + ui watch (start first)
+pnpm dev:api        # terminal 2 → :3001  (nest --watch)
+pnpm dev:client     # terminal 3 → :3000  (next dev)
+pnpm dev:admin      # terminal 4 → :3002  (next dev)
+```
+
+Or all apps in one terminal: `pnpm dev` (one-shot shared build via `predev`).
+
+**First-time / DB setup** (install, migrate, seed, then start):
 
 ```bash
 pnpm serve
@@ -26,7 +38,7 @@ pnpm install
 cp apps/api/.env.example apps/api/.env   # set DATABASE_URL user (Postgres.app = macOS username)
 createdb kloqra   # once
 pnpm prisma:migrate && pnpm prisma:seed
-pnpm dev
+pnpm local
 ```
 
 `REDIS_USE_MEMORY=true` in `apps/api/.env` runs the timer without Redis/Docker.
