@@ -1,4 +1,4 @@
-import { ErrorCodes } from "@kloqra/contracts";
+import { ErrorCodes, type WorkspaceRole } from "@kloqra/contracts";
 import { Injectable, Logger, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import type { RequestUser } from "../decorators/current-user.decorator";
@@ -15,7 +15,7 @@ export interface VerifiedAccessPayload {
   sub: string;
   userId: string;
   workspaceId: string;
-  role: "ADMIN" | "MEMBER";
+  role: WorkspaceRole;
   impersonatorId?: string;
   scope?: "client" | "admin";
   family?: string;
@@ -97,8 +97,8 @@ export class JwtTokenService {
 
     const sub = typeof payload.sub === "string" ? payload.sub : undefined;
     const workspaceId = typeof payload.workspaceId === "string" ? payload.workspaceId : undefined;
-    const role = payload.role;
-    if (!sub || !workspaceId || (role !== "ADMIN" && role !== "MEMBER")) {
+    const role = payload.role as string | undefined;
+    if (!sub || !workspaceId || (role !== "ADMIN" && role !== "MEMBER" && role !== "CLIENT")) {
       throw new UnauthorizedException({
         code: ErrorCodes.UNAUTHORIZED,
         message: "Invalid token claims",
@@ -123,7 +123,7 @@ export class JwtTokenService {
       sub,
       userId: typeof payload.userId === "string" ? payload.userId : sub,
       workspaceId,
-      role,
+      role: role as WorkspaceRole,
       impersonatorId,
       scope: scope === "client" || scope === "admin" ? scope : undefined,
       family

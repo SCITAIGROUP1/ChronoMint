@@ -4,7 +4,8 @@ import type {
   CreateTeamInviteDto,
   ListProjectsQuery,
   ListProjectTeamQuery,
-  UpdateProjectDto
+  UpdateProjectDto,
+  WorkspaceRole
 } from "@kloqra/contracts";
 import { ErrorCodes, pickDefaultProjectColor, buildPaginationMeta } from "@kloqra/contracts";
 import { Injectable, HttpStatus } from "@nestjs/common";
@@ -73,7 +74,7 @@ export class ProjectsService {
   async list(
     workspaceId: string,
     userId: string,
-    role: "ADMIN" | "MEMBER",
+    role: WorkspaceRole,
     query: ListProjectsQuery
   ) {
     const projectIds = await this.access.accessibleProjectIds(workspaceId, userId, role);
@@ -132,7 +133,7 @@ export class ProjectsService {
     return this.toDto(p, p.workspace.name);
   }
 
-  async get(workspaceId: string, userId: string, role: "ADMIN" | "MEMBER", id: string) {
+  async get(workspaceId: string, userId: string, role: WorkspaceRole, id: string) {
     await this.access.assertCanAccessProject(workspaceId, userId, role, id);
     const p = await this.prisma.project.findFirst({
       where: { id, workspaceId },

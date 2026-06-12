@@ -71,7 +71,7 @@ export class AuthService {
     return this.buildSession(
       user,
       membership.workspaceId,
-      membership.role as "ADMIN" | "MEMBER",
+      membership.role as WorkspaceRole,
       membership.workspace.name
     );
   }
@@ -91,7 +91,7 @@ export class AuthService {
     return this.buildSession(
       membership.user,
       membership.workspaceId,
-      membership.role as "ADMIN" | "MEMBER",
+      membership.role as WorkspaceRole,
       membership.workspace.name
     );
   }
@@ -171,7 +171,7 @@ export class AuthService {
     return this.buildSession(
       user,
       membership.workspaceId,
-      membership.role as "ADMIN" | "MEMBER",
+      membership.role as WorkspaceRole,
       membership.workspace.name
     );
   }
@@ -203,7 +203,7 @@ export class AuthService {
   signAccessToken(
     userId: string,
     workspaceId: string,
-    role: "ADMIN" | "MEMBER",
+    role: WorkspaceRole,
     impersonatorId?: string,
     scope?: "client" | "admin",
     family?: string
@@ -468,7 +468,7 @@ export class AuthService {
     return this.buildSession(
       membership.user,
       membership.workspaceId,
-      membership.role as "ADMIN" | "MEMBER",
+      membership.role as WorkspaceRole,
       membership.workspace.name,
       impersonatorId,
       impersonatorName
@@ -498,7 +498,7 @@ export class AuthService {
         await this.prisma.workspaceMember.findUniqueOrThrow({
           where: { workspaceId_userId: { workspaceId, userId } }
         })
-      ).role as "ADMIN" | "MEMBER",
+      ).role as WorkspaceRole,
       workspace.name,
       impersonatorId,
       impersonatorName
@@ -513,7 +513,7 @@ export class AuthService {
       defaultHourlyRate: { toNumber(): number } | null;
     },
     workspaceId: string,
-    role: "ADMIN" | "MEMBER",
+    role: WorkspaceRole,
     workspaceName: string,
     impersonatorId?: string,
     impersonatorName?: string
@@ -554,7 +554,7 @@ export class AuthService {
     const session = this.buildSession(
       targetMembership.user,
       targetMembership.workspaceId,
-      targetMembership.role as "ADMIN" | "MEMBER",
+      targetMembership.role as WorkspaceRole,
       targetMembership.workspace.name,
       adminUser.id,
       adminUser.name
@@ -572,7 +572,7 @@ export class AuthService {
     const accessToken = this.signAccessToken(
       targetMembership.userId,
       targetMembership.workspaceId,
-      targetMembership.role as "ADMIN" | "MEMBER",
+      targetMembership.role as WorkspaceRole,
       adminUser.id,
       "client",
       issued.family

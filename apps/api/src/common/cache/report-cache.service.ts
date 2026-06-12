@@ -17,9 +17,11 @@ export class ReportCacheService {
     userId?: string,
     projectId?: string,
     categoryId?: string,
-    taskId?: string
+    taskId?: string,
+    projectIds?: string[]
   ) {
-    return `report:dashboard:${workspaceId}:${from}:${to}:${userId ?? ""}:${projectId ?? ""}:${categoryId ?? ""}:${taskId ?? ""}`;
+    const projectIdsKey = projectIds && projectIds.length ? [...projectIds].sort().join(",") : "";
+    return `report:dashboard:${workspaceId}:${from}:${to}:${userId ?? ""}:${projectId ?? ""}:${categoryId ?? ""}:${taskId ?? ""}:${projectIdsKey}`;
   }
 
   async getDashboard(key: string): Promise<DashboardReportDto | null> {

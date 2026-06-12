@@ -1,9 +1,10 @@
 import { createParamDecorator, type ExecutionContext } from "@nestjs/common";
+import type { WorkspaceRole } from "@kloqra/contracts";
 
 export interface RequestUser {
   userId: string;
   workspaceId: string;
-  role: "ADMIN" | "MEMBER";
+  role: WorkspaceRole;
   impersonatorId?: string;
 }
 

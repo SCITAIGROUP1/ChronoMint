@@ -9,7 +9,7 @@ export const slugSchema = z
   .max(64)
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
 
-export const workspaceRoleSchema = z.enum(["ADMIN", "MEMBER"]);
+export const workspaceRoleSchema = z.enum(["ADMIN", "MEMBER", "CLIENT"]);
 export const timelogSourceSchema = z.enum(["manual", "timer"]);
 
 /** Maximum inclusive span for report/export/billing date ranges */

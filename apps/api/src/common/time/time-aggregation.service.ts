@@ -8,6 +8,7 @@ export type ExportFilters = {
   from: Date;
   to: Date;
   projectId?: string;
+  projectIds?: string[];
   userId?: string;
   userIds?: string[];
   categoryId?: string;
@@ -50,15 +51,25 @@ export class TimeAggregationService {
         ? { userId: filters.userId }
         : {};
 
+    const projectWhere: any = { workspaceId };
+    if (filters.projectId && filters.projectIds && filters.projectIds.length) {
+      if (filters.projectIds.includes(filters.projectId)) {
+        projectWhere.id = filters.projectId;
+      } else {
+        projectWhere.id = { in: [] };
+      }
+    } else if (filters.projectId) {
+      projectWhere.id = filters.projectId;
+    } else if (filters.projectIds && filters.projectIds.length) {
+      projectWhere.id = { in: filters.projectIds };
+    }
+
     return this.prisma.timeLog.findMany({
       where: {
         ...(filters.taskId ? { taskId: filters.taskId } : {}),
         task: {
           ...(filters.categoryId ? { categoryId: filters.categoryId } : {}),
-          project: {
-            workspaceId,
-            ...(filters.projectId ? { id: filters.projectId } : {})
-          }
+          project: projectWhere
         },
         startTime: { gte: filters.from, lte: filters.to },
         ...billableWhere,

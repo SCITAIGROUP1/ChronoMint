@@ -108,7 +108,7 @@ export class ReportingService {
     };
   }
 
-  async dashboard(workspaceId: string, query: ReportQueryDto): Promise<DashboardReportDto> {
+  async dashboard(workspaceId: string, query: ReportQueryDto, allowedProjectIds?: string[]): Promise<DashboardReportDto> {
     const cacheKey = this.reportCache.dashboardKey(
       workspaceId,
       query.from,
@@ -116,28 +116,30 @@ export class ReportingService {
       query.userId,
       query.projectId,
       query.categoryId,
-      query.taskId
+      query.taskId,
+      allowedProjectIds
     );
     const cached = await this.reportCache.getDashboard(cacheKey);
     if (cached) return cached;
 
-    const result = await this.buildDashboard(workspaceId, query);
+    const result = await this.buildDashboard(workspaceId, query, allowedProjectIds);
     await this.reportCache.setDashboard(cacheKey, workspaceId, result);
     return result;
   }
 
   private async buildDashboard(
     workspaceId: string,
-    query: ReportQueryDto
+    query: ReportQueryDto,
+    allowedProjectIds?: string[]
   ): Promise<DashboardReportDto> {
     const from = new Date(query.from);
     const to = new Date(query.to);
-
     const logs = await this.aggregation.fetchLogs(workspaceId, {
       from,
       to,
       userId: query.userId,
       projectId: query.projectId,
+      projectIds: allowedProjectIds,
       categoryId: query.categoryId,
       taskId: query.taskId
     });
@@ -306,6 +308,18 @@ export class ReportingService {
     };
   }
 
+  // For client users we need to strip sensitive personal info from aggregates.
+  // Callers should filter logs before aggregation but this helper centralizes
+  // masking when needed.
+  private maskForClient<T extends { totalHours: number; billableHours: number; billableAmount: number }>(v: T) {
+    return {
+      totalHours: roundExport(v.totalHours),
+      billableHours: roundExport(v.billableHours),
+      nonBillableHours: roundExport(v.totalHours - v.billableHours),
+      billableAmount: 0
+    } as T;
+  }
+
   // ── Budget Burn-Down ──────────────────────────────────────────────────────
 
   async budgetBurnDown(workspaceId: string, projectId: string) {
@@ -367,7 +381,7 @@ export class ReportingService {
 
   // ── Team Utilization ──────────────────────────────────────────────────────
 
-  async utilization(workspaceId: string, query: UtilizationQueryDto) {
+  async utilization(workspaceId: string, query: UtilizationQueryDto, allowedProjectIds?: string[]) {
     const from = new Date(query.from);
     const to = new Date(query.to);
 
@@ -378,7 +392,7 @@ export class ReportingService {
     const settings = (workspace.settings as Record<string, unknown>) ?? {};
     const expectedWeeklyHours = (settings.expectedWeeklyHours as number | undefined) ?? 40;
 
-    const logs = await this.aggregation.fetchLogs(workspaceId, { from, to });
+    const logs = await this.aggregation.fetchLogs(workspaceId, { from, to, projectIds: allowedProjectIds });
 
     // Days in range for target calculation
     const dayMs = 86_400_000;
@@ -452,7 +466,7 @@ export class ReportingService {
     };
   }
 
-  async heatmap(workspaceId: string, query: ReportQueryDto) {
+  async heatmap(workspaceId: string, query: ReportQueryDto, allowedProjectIds?: string[]) {
     const from = new Date(query.from);
     const to = new Date(query.to);
     const logs = await this.aggregation.fetchLogs(workspaceId, {
@@ -460,6 +474,7 @@ export class ReportingService {
       to,
       userId: query.userId,
       projectId: query.projectId,
+      projectIds: allowedProjectIds,
       categoryId: query.categoryId,
       taskId: query.taskId
     });
@@ -492,7 +507,7 @@ export class ReportingService {
     return { slots };
   }
 
-  async tasks(workspaceId: string, query: ReportQueryDto) {
+  async tasks(workspaceId: string, query: ReportQueryDto, allowedProjectIds?: string[]) {
     const from = new Date(query.from);
     const to = new Date(query.to);
     const logs = await this.aggregation.fetchLogs(workspaceId, {
@@ -500,6 +515,7 @@ export class ReportingService {
       to,
       userId: query.userId,
       projectId: query.projectId,
+      projectIds: allowedProjectIds,
       categoryId: query.categoryId,
       taskId: query.taskId
     });
@@ -570,7 +586,8 @@ export class ReportingService {
 
   async categoryProjectHeatmap(
     workspaceId: string,
-    query: ReportQueryDto
+    query: ReportQueryDto,
+    allowedProjectIds?: string[]
   ): Promise<CategoryProjectHeatmapResponseDto> {
     const from = new Date(query.from);
     const to = new Date(query.to);
@@ -579,6 +596,7 @@ export class ReportingService {
       to,
       userId: query.userId,
       projectId: query.projectId,
+      projectIds: allowedProjectIds,
       categoryId: query.categoryId,
       taskId: query.taskId
     });

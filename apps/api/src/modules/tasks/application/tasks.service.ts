@@ -1,4 +1,4 @@
-import type { CreateTaskDto, ListTasksQuery, UpdateTaskDto } from "@kloqra/contracts";
+import type { CreateTaskDto, ListTasksQuery, UpdateTaskDto, WorkspaceRole } from "@kloqra/contracts";
 import { ErrorCodes } from "@kloqra/contracts";
 import { HttpStatus, Injectable } from "@nestjs/common";
 import { ProjectAccessService } from "../../../common/access/project-access.service";
@@ -37,7 +37,7 @@ export class TasksService {
     };
   }
 
-  async list(workspaceId: string, userId: string, role: "ADMIN" | "MEMBER", query: ListTasksQuery) {
+  async list(workspaceId: string, userId: string, role: WorkspaceRole, query: ListTasksQuery) {
     let projectIds = await this.access.accessibleProjectIds(workspaceId, userId, role);
     if (query.projectId) {
       if (!projectIds.includes(query.projectId)) {

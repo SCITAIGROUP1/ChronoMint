@@ -1,4 +1,4 @@
-import type { StartTimerDto, StopTimerDto } from "@kloqra/contracts";
+import type { StartTimerDto, StopTimerDto, WorkspaceRole } from "@kloqra/contracts";
 import { ErrorCodes } from "@kloqra/contracts";
 import { Injectable, HttpStatus } from "@nestjs/common";
 import { ProjectAccessService } from "../../../common/access/project-access.service";
@@ -34,7 +34,7 @@ export class TimerService {
     return `timer:${workspaceId}:${userId}`;
   }
 
-  async start(workspaceId: string, userId: string, role: "ADMIN" | "MEMBER", dto: StartTimerDto) {
+  async start(workspaceId: string, userId: string, role: WorkspaceRole, dto: StartTimerDto) {
     const task = await this.prisma.task.findFirst({
       where: { id: dto.taskId, project: { workspaceId } }
     });

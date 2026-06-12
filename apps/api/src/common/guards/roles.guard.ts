@@ -1,4 +1,4 @@
-import { ErrorCodes } from "@kloqra/contracts";
+import { ErrorCodes, type WorkspaceRole } from "@kloqra/contracts";
 import {
   type CanActivate,
   type ExecutionContext,
@@ -13,7 +13,7 @@ export class RolesGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const roles = this.reflector.get<("ADMIN" | "MEMBER")[]>(ROLES_KEY, context.getHandler());
+    const roles = this.reflector.get<WorkspaceRole[]>(ROLES_KEY, context.getHandler());
     if (!roles?.length) return true;
     const { user } = context.switchToHttp().getRequest();
     if (!roles.includes(user.role)) {

@@ -31,6 +31,7 @@ import {
   CurrentUser,
   type RequestUser
 } from "../../../../common/decorators/current-user.decorator";
+import type { WorkspaceRole } from "@kloqra/contracts";
 import { DomainException } from "../../../../common/errors/domain.exception";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
@@ -244,7 +245,7 @@ export class AuthController {
   private async setCookies(
     req: Request,
     res: Response,
-    session: { user: { id: string }; workspaceId: string; workspaceRole: "ADMIN" | "MEMBER" },
+    session: { user: { id: string }; workspaceId: string; workspaceRole: WorkspaceRole },
     impersonatorId?: string
   ): Promise<string> {
     const scope = requireProductionAuthScope(req);
