@@ -92,8 +92,8 @@ export class JiraApiService {
       sprintState?: "active" | "future";
       status?: string;
       search?: string;
-      startAt?: number;
       maxResults?: number;
+      nextPageToken?: string;
     } = {}
   ) {
     const jql: string[] = [];
@@ -103,18 +103,28 @@ export class JiraApiService {
     if (opts.status) jql.push(`status = "${opts.status}"`);
     if (opts.search) jql.push(`text ~ "${opts.search}"`);
 
-    const params = new URLSearchParams({
+    const body: Record<string, unknown> = {
       jql: jql.length ? jql.join(" AND ") : "ORDER BY updated DESC",
-      startAt: String(opts.startAt ?? 0),
-      maxResults: String(opts.maxResults ?? 50),
-      fields:
-        "summary,status,issuetype,priority,assignee,customfield_10016,customfield_10020,labels,duedate"
-    });
+      maxResults: opts.maxResults ?? 50,
+      fields: [
+        "summary",
+        "status",
+        "issuetype",
+        "priority",
+        "assignee",
+        "customfield_10016",
+        "customfield_10020",
+        "labels",
+        "duedate"
+      ]
+    };
+    if (opts.nextPageToken) body.nextPageToken = opts.nextPageToken;
 
-    return this.req<{ issues: JiraApiIssue[]; total: number; startAt: number; maxResults: number }>(
-      workspaceId,
-      `/search?${params.toString()}`
-    );
+    return this.req<{
+      issues: JiraApiIssue[];
+      total?: number;
+      nextPageToken?: string;
+    }>(workspaceId, `/search/jql`, { method: "POST", body: JSON.stringify(body) });
   }
 
   async getUsers(workspaceId: string): Promise<JiraUser[]> {

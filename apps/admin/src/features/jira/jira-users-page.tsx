@@ -19,7 +19,7 @@ type JiraUserMapping = {
   autoMatched: boolean;
 };
 
-type Member = { id: string; name: string; email: string };
+type Member = { userId: string; userName: string; userEmail: string };
 
 export function JiraUsersPage() {
   const wsId = useSessionStore((s) => s.session?.workspaceId) ?? "";
@@ -32,16 +32,19 @@ export function JiraUsersPage() {
     if (!wsId) return;
     setLoading(true);
     try {
-      const [maps, mems] = await Promise.all([
-        api<JiraUserMapping[]>(ROUTES.JIRA.USER_MAPPINGS, { workspaceId: wsId }),
-        api<{ items: Member[] }>(ROUTES.WORKSPACES.MEMBERS(wsId) + "?limit=200", {
-          workspaceId: wsId
-        })
-      ]);
+      const maps = await api<JiraUserMapping[]>(ROUTES.JIRA.USER_MAPPINGS, { workspaceId: wsId });
       setMappings(maps);
-      setMembers(mems.items ?? []);
-    } catch {
+    } catch (err) {
+      console.error("[Jira] Failed to load user mappings:", err);
       toast.error("Failed to load user mappings");
+    }
+    try {
+      const mems = await api<Member[]>(ROUTES.WORKSPACES.MEMBERS(wsId), { workspaceId: wsId });
+      console.log("[Jira] Members response:", mems);
+      setMembers(Array.isArray(mems) ? mems : []);
+    } catch (err) {
+      console.error("[Jira] Failed to load workspace members:", err);
+      toast.error(`Members error: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setLoading(false);
     }
@@ -129,8 +132,8 @@ export function JiraUsersPage() {
                     >
                       <option value="">— not mapped —</option>
                       {members.map((mem) => (
-                        <option key={mem.id} value={mem.id}>
-                          {mem.name} ({mem.email})
+                        <option key={mem.userId} value={mem.userId}>
+                          {mem.userName} ({mem.userEmail})
                         </option>
                       ))}
                     </select>

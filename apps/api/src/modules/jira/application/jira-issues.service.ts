@@ -61,13 +61,13 @@ export class JiraIssuesService {
 
     for (const mapping of mappings) {
       try {
-        let startAt = 0;
+        let nextPageToken: string | undefined = undefined;
         const maxResults = 100;
 
         while (true) {
           const data = await this.api.getIssues(workspaceId, {
             projectKey: mapping.jiraProjectKey,
-            startAt,
+            nextPageToken,
             maxResults
           });
 
@@ -95,8 +95,8 @@ export class JiraIssuesService {
             total++;
           }
 
-          if (startAt + data.issues.length >= data.total) break;
-          startAt += maxResults;
+          if (!data.nextPageToken || data.issues.length === 0) break;
+          nextPageToken = data.nextPageToken;
         }
 
         await this.prisma.jiraProjectMapping.update({
