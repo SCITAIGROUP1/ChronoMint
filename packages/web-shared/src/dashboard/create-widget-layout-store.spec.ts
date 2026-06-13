@@ -75,4 +75,51 @@ describe("createWidgetLayoutStore", () => {
       layout: defaultLayout
     });
   });
+
+  it("propagates save failures from persistLayout", async () => {
+    vi.mocked(fetchDashboardLayout).mockResolvedValue({
+      layout: defaultLayout,
+      defaultLayout: null
+    });
+    vi.mocked(saveDashboardLayout).mockRejectedValue(new Error("Network error"));
+
+    const store = createWidgetLayoutStore({
+      app: "client",
+      widgetRegistry: registry,
+      defaultLayout,
+      legacyStorage: {
+        layoutKey: () => "layout",
+        defaultKey: () => "default"
+      }
+    });
+
+    await store.getState().initialize(workspaceId);
+
+    let errorMessage = "";
+    try {
+      await store.getState().persistLayout(workspaceId);
+    } catch (error) {
+      errorMessage = error instanceof Error ? error.message : String(error);
+    }
+
+    expect(errorMessage).toBe("Network error");
+  });
+
+  it("falls back to code defaults when remote load fails", async () => {
+    vi.mocked(fetchDashboardLayout).mockRejectedValue(new Error("API unavailable"));
+
+    const store = createWidgetLayoutStore({
+      app: "client",
+      widgetRegistry: registry,
+      defaultLayout,
+      legacyStorage: {
+        layoutKey: () => "layout",
+        defaultKey: () => "default"
+      }
+    });
+
+    await store.getState().initialize(workspaceId);
+
+    expect(store.getState().layoutsByWorkspace[workspaceId]).toEqual(defaultLayout);
+  });
 });

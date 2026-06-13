@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
   SEED_ADMIN_DASHBOARD_LAYOUT,
   SEED_CLIENT_DASHBOARD_LAYOUT,
-  SEED_DASHBOARD_LAYOUT_ASSIGNMENTS,
   buildPreferencesWithDashboardLayouts
 } from "./seed-dashboard-layouts";
 
@@ -31,11 +30,15 @@ describe("seed-dashboard-layouts", () => {
     );
   });
 
-  it("assigns demo layouts to known seed accounts", () => {
-    expect(SEED_DASHBOARD_LAYOUT_ASSIGNMENTS.map((a) => a.email)).toEqual([
-      "member@kloqra.dev",
-      "admin@kloqra.dev",
-      "ops@kloqra.dev"
-    ]);
+  it("includes pending_timesheets as a visible widget in the admin default layout", () => {
+    const pending = SEED_ADMIN_DASHBOARD_LAYOUT.find((item) => item.i === "pending_timesheets");
+    expect(pending?.visible).toBe(true);
+    expect(pending).toMatchObject({ x: 0, y: 17, w: 12, h: 5 });
+  });
+
+  it("includes category_split as a visible widget in the member default layout", () => {
+    const categorySplit = SEED_CLIENT_DASHBOARD_LAYOUT.find((item) => item.i === "category_split");
+    expect(categorySplit?.visible).toBe(true);
+    expect(categorySplit).toMatchObject({ x: 8, y: 10, w: 4, h: 4 });
   });
 });

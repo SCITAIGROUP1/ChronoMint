@@ -29,6 +29,15 @@ describe("AppBar", () => {
     expect(buttons.map((button) => button.textContent)).toEqual(["Add Widgets", "Notify"]);
   });
 
+  it("wraps page actions in a responsive toolbar container", () => {
+    const { container } = render(
+      <AppBar title="Dashboard" actions={<button type="button">Arrange Grid</button>} />
+    );
+
+    expect(screen.getByRole("button", { name: "Arrange Grid" })).toBeInTheDocument();
+    expect(container.querySelector("[class*='@min-[720px]/shell:w-auto']")).toBeTruthy();
+  });
+
   it("renders a secondary row for search and primary CTA", () => {
     render(
       <AppBar

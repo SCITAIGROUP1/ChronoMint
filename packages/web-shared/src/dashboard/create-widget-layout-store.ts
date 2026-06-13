@@ -153,10 +153,8 @@ export function createWidgetLayoutStore(options: CreateWidgetLayoutStoreOptions)
         }));
       } catch (e) {
         console.error("Failed to load dashboard layout", e);
-        const legacy = readLegacyLayouts(workspaceId, legacyStorage);
-        const finalLayouts = resolveInitialLayouts(
-          legacy.layout,
-          legacy.defaultLayout,
+        const finalLayouts = mergeLayoutsWithRegistry(
+          defaultLayout.map((item) => ({ ...item })),
           widgetRegistry,
           defaultLayout
         );
@@ -211,22 +209,14 @@ export function createWidgetLayoutStore(options: CreateWidgetLayoutStoreOptions)
       if (!workspaceId) return;
       const layout = get().layoutsByWorkspace[workspaceId];
       if (!layout) return;
-      try {
-        await persistToServer(workspaceId, layout);
-      } catch (e) {
-        console.error("Failed to save dashboard layout", e);
-      }
+      await persistToServer(workspaceId, layout);
     },
 
     saveLayoutAsDefault: async (workspaceId: string) => {
       if (!workspaceId) return;
       const layout = get().layoutsByWorkspace[workspaceId];
       if (!layout) return;
-      try {
-        await persistToServer(workspaceId, layout, layout);
-      } catch (e) {
-        console.error("Failed to save dashboard default layout", e);
-      }
+      await persistToServer(workspaceId, layout, layout);
     },
 
     toggleWidget: async (workspaceId: string, id: string) => {
@@ -247,11 +237,7 @@ export function createWidgetLayoutStore(options: CreateWidgetLayoutStoreOptions)
         }
       }));
 
-      try {
-        await persistToServer(workspaceId, updated);
-      } catch (e) {
-        console.error("Failed to save dashboard layout", e);
-      }
+      await persistToServer(workspaceId, updated);
     },
 
     resetLayout: async (workspaceId: string) => {
@@ -263,19 +249,15 @@ export function createWidgetLayoutStore(options: CreateWidgetLayoutStoreOptions)
         defaultLayout
       );
 
-      try {
-        const remote = await fetchDashboardLayout(workspaceId, app);
-        if (remote.defaultLayout?.length) {
-          resetLayoutItems = mergeLayoutsWithRegistry(
-            remote.defaultLayout,
-            widgetRegistry,
-            defaultLayout
-          );
-        }
-        await persistToServer(workspaceId, resetLayoutItems);
-      } catch (e) {
-        console.error("Failed to reset dashboard layout", e);
+      const remote = await fetchDashboardLayout(workspaceId, app);
+      if (remote.defaultLayout?.length) {
+        resetLayoutItems = mergeLayoutsWithRegistry(
+          remote.defaultLayout,
+          widgetRegistry,
+          defaultLayout
+        );
       }
+      await persistToServer(workspaceId, resetLayoutItems);
 
       set((state) => ({
         layoutsByWorkspace: {

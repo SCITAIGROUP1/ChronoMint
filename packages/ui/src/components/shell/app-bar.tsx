@@ -43,8 +43,12 @@ export function AppBar({ title, description, actions, secondary, className }: Ap
             {description ? <div className={shellAppBarDescriptionClass}>{description}</div> : null}
           </div>
           {hasTrailing ? (
-            <div className="flex shrink-0">
-              <AppBarToolbar pageActions={actions} shellActions={shellToolbar ?? undefined} />
+            <div className="flex w-full min-w-0 @min-[720px]/shell:w-auto @min-[720px]/shell:shrink-0">
+              <AppBarToolbar
+                pageActions={actions}
+                shellActions={shellToolbar ?? undefined}
+                className="w-full justify-end @min-[720px]/shell:w-auto"
+              />
             </div>
           ) : null}
         </div>

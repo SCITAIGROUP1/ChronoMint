@@ -37,6 +37,22 @@ describe("PageHeader", () => {
 });
 
 describe("SegmentedControl", () => {
+  class ResizeObserverMock {
+    private callback: ResizeObserverCallback;
+    constructor(callback: ResizeObserverCallback) {
+      this.callback = callback;
+    }
+    observe() {
+      this.callback([], this);
+    }
+    unobserve() {}
+    disconnect() {}
+  }
+
+  beforeEach(() => {
+    vi.stubGlobal("ResizeObserver", ResizeObserverMock);
+  });
+
   it("calls onChange when a segment is selected", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
@@ -54,5 +70,58 @@ describe("SegmentedControl", () => {
 
     await user.click(screen.getByRole("button", { name: "Today" }));
     expect(onChange).toHaveBeenCalledWith("today");
+  });
+
+  it("re-measures the active highlight when the control resizes", () => {
+    const { container } = render(
+      <SegmentedControl
+        value="week"
+        onChange={vi.fn()}
+        fullWidth
+        options={[
+          { value: "today", label: "Today" },
+          { value: "week", label: "This week" },
+          { value: "month", label: "This month" }
+        ]}
+      />
+    );
+
+    const group = container.querySelector("[role='group']");
+    expect(group?.className).toContain("min-w-0");
+    expect(screen.getByRole("button", { name: "This week" }).className).toContain("truncate");
+  });
+
+  it("positions fullWidth highlight in the active grid column", () => {
+    const options = [
+      { value: "today" as const, label: "Today" },
+      { value: "week" as const, label: "This week" },
+      { value: "month" as const, label: "This month" }
+    ];
+
+    const { container, rerender } = render(
+      <SegmentedControl value="week" onChange={vi.fn()} fullWidth options={options} />
+    );
+
+    const highlight = container.querySelector("[role='group'] > [aria-hidden]");
+    expect(highlight).toHaveStyle({ gridColumn: "2" });
+
+    rerender(<SegmentedControl value="month" onChange={vi.fn()} fullWidth options={options} />);
+    expect(highlight).toHaveStyle({ gridColumn: "3" });
+  });
+
+  it("hides highlight when value is not in options", () => {
+    const { container } = render(
+      <SegmentedControl
+        value="custom"
+        onChange={vi.fn()}
+        fullWidth
+        options={[
+          { value: "today", label: "Today" },
+          { value: "week", label: "This week" }
+        ]}
+      />
+    );
+
+    expect(container.querySelector("[role='group'] > [aria-hidden]")).toBeNull();
   });
 });

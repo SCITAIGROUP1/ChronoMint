@@ -24,6 +24,17 @@ test.describe("Client dashboard", () => {
     await expect(panel.getByText("Task", { exact: true })).toBeVisible();
   });
 
+  test("keeps period presets visible after collapsing the sidebar", async ({ page }) => {
+    const collapseButton = page.getByRole("button", { name: "Collapse sidebar" });
+    if (await collapseButton.isVisible()) {
+      await collapseButton.click();
+    }
+
+    const periodBar = page.locator(".rounded-xl.border").filter({ hasText: "Period" }).first();
+    await expect(periodBar.getByRole("button", { name: "This week" })).toBeVisible();
+    await expect(periodBar.getByRole("button", { name: "This month" })).toBeVisible();
+  });
+
   test("renders without horizontal overflow on a mobile viewport", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     await expect(page.getByRole("heading", { name: "Dashboard", exact: true })).toBeVisible();

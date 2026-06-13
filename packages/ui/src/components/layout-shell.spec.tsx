@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { Home } from "lucide-react";
 import type { ReactNode } from "react";
 import { ResponsiveLayoutShell } from "./layout-shell.js";
@@ -33,5 +33,80 @@ describe("ResponsiveLayoutShell", () => {
     expect(screen.getAllByText("Dashboard").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Footer").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Workspace").length).toBeGreaterThan(0);
+  });
+
+  it("establishes a named shell container for responsive app bar layout", () => {
+    const { container } = render(
+      <ResponsiveLayoutShell
+        navItems={[{ href: "/dashboard", label: "Dashboard", Icon: Home }]}
+        logoIcon={<span>K</span>}
+        logoTitle="Kloqra"
+        logoSubtitle="Admin"
+        logoLinkHref="/dashboard"
+        workspaceSwitcher={() => <div>Workspace</div>}
+        footerContent={() => <div>Footer</div>}
+      >
+        <div>Page content</div>
+      </ResponsiveLayoutShell>
+    );
+
+    const shellContainer = container.querySelector("[class*='@container/shell']");
+    expect(shellContainer).toBeTruthy();
+  });
+
+  it("uses consistent vertical spacing in the collapsed sidebar scroll region", async () => {
+    localStorage.setItem("kloqra-sidebar-collapsed", "true");
+
+    const { container } = render(
+      <ResponsiveLayoutShell
+        navItems={[{ href: "/dashboard", label: "Dashboard", Icon: Home }]}
+        logoIcon={<span>K</span>}
+        logoTitle="Kloqra"
+        logoSubtitle="Admin"
+        logoLinkHref="/dashboard"
+        workspaceSwitcher={() => <div>Workspace</div>}
+        footerContent={() => <div>Footer</div>}
+      >
+        <div>Page content</div>
+      </ResponsiveLayoutShell>
+    );
+
+    await waitFor(() => {
+      const scrollRegion = container.querySelector("aside.hidden.md\\:flex > div");
+      expect(scrollRegion?.className).toContain("gap-5");
+    });
+
+    localStorage.removeItem("kloqra-sidebar-collapsed");
+  });
+
+  it("renders a compact count badge on nav icons when the sidebar is collapsed", async () => {
+    localStorage.setItem("kloqra-sidebar-collapsed", "true");
+
+    const { container } = render(
+      <ResponsiveLayoutShell
+        navItems={[
+          { href: "/dashboard", label: "Dashboard", Icon: Home },
+          { href: "/approvals", label: "Approvals", Icon: Home, badge: 3 }
+        ]}
+        logoIcon={<span>K</span>}
+        logoTitle="Kloqra"
+        logoSubtitle="Admin"
+        logoLinkHref="/dashboard"
+        workspaceSwitcher={() => <div>Workspace</div>}
+        footerContent={() => <div>Footer</div>}
+      >
+        <div>Page content</div>
+      </ResponsiveLayoutShell>
+    );
+
+    await waitFor(() => {
+      const badge = Array.from(container.querySelectorAll("[aria-hidden]")).find(
+        (el) => el.textContent === "3"
+      );
+      expect(badge?.className).toContain("size-3");
+      expect(badge?.className).toContain("text-[7px]");
+    });
+
+    localStorage.removeItem("kloqra-sidebar-collapsed");
   });
 });

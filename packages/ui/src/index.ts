@@ -152,6 +152,7 @@ export {
 
 export {
   TimeEntryAuditTrail,
+  TimeEntryAuditEventList,
   type TimeEntryAuditEvent
 } from "./components/time-entry-audit-trail.js";
 

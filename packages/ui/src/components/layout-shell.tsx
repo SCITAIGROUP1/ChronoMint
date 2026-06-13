@@ -35,12 +35,18 @@ function NavBadge({ badge, collapsed }: { badge: number | string; collapsed?: bo
   if (!showCount && !badge) return null;
 
   if (collapsed) {
+    const label = showCount ? (count > 9 ? "9+" : count) : badge;
+    const compact = String(label).length === 1;
+
     return (
       <span
-        className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[9px] font-bold text-amber-950"
+        className={cn(
+          "absolute -top-1 -right-1 flex items-center justify-center rounded-full bg-amber-500 font-bold leading-none text-amber-950",
+          compact ? "size-3 text-[7px]" : "h-3 min-w-[13px] px-0.5 text-[7px]"
+        )}
         aria-hidden
       >
-        {showCount ? (count > 9 ? "9+" : count) : badge}
+        {label}
       </span>
     );
   }
@@ -123,7 +129,7 @@ export function ResponsiveLayoutShell({
         <div
           className={cn(
             isCollapsed ? shellSidebarScrollCollapsedClass : shellSidebarScrollClass,
-            !isCollapsed && "gap-5"
+            "gap-5"
           )}
         >
           {/* Brand + collapse */}
@@ -352,7 +358,9 @@ export function ResponsiveLayoutShell({
       <main className={shellMainClass}>
         {impersonationBanner}
         <ShellToolbarProvider toolbar={shellToolbar}>
-          <div className={cn("mx-auto w-full max-w-[1600px]", shellMainContentClass)}>
+          <div
+            className={cn("@container/shell mx-auto w-full max-w-[1600px]", shellMainContentClass)}
+          >
             {children}
           </div>
         </ShellToolbarProvider>

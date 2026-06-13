@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "../lib/utils.js";
 import { MotionReveal } from "./motion/motion-reveal.js";
 import { AppBarToolbar } from "./shell/app-bar-toolbar.js";
@@ -104,37 +104,78 @@ export function SegmentedControl<T extends string | number>({
   const [highlight, setHighlight] = useState({ left: 0, width: 0, height: 0, top: 0 });
   const activeIndex = options.findIndex((opt) => opt.value === value);
 
-  useEffect(() => {
+  const updateHighlight = useCallback(() => {
     const container = containerRef.current;
-    if (!container || activeIndex < 0) return;
+    if (!container) return;
+    if (activeIndex < 0) {
+      setHighlight({ left: 0, width: 0, height: 0, top: 0 });
+      return;
+    }
     const buttons = container.querySelectorAll("button");
     const activeBtn = buttons[activeIndex] as HTMLElement | undefined;
     if (!activeBtn) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const btnRect = activeBtn.getBoundingClientRect();
     setHighlight({
-      left: activeBtn.offsetLeft,
-      width: activeBtn.offsetWidth,
-      height: activeBtn.offsetHeight,
-      top: activeBtn.offsetTop
+      left: btnRect.left - containerRect.left + container.scrollLeft,
+      top: btnRect.top - containerRect.top + container.scrollTop,
+      width: btnRect.width,
+      height: btnRect.height
     });
-  }, [value, activeIndex, options, size, fullWidth]);
+  }, [activeIndex]);
+
+  useEffect(() => {
+    if (fullWidth) return;
+    const frame = requestAnimationFrame(() => updateHighlight());
+    return () => cancelAnimationFrame(frame);
+  }, [value, updateHighlight, options, size, fullWidth]);
+
+  useEffect(() => {
+    if (fullWidth) return;
+    const container = containerRef.current;
+    if (!container) return;
+
+    const ro = new ResizeObserver(() => {
+      requestAnimationFrame(() => updateHighlight());
+    });
+    ro.observe(container);
+    return () => ro.disconnect();
+  }, [updateHighlight, fullWidth]);
+
+  const highlightSurfaceClass =
+    "pointer-events-none rounded-md border border-border bg-background shadow-sm";
 
   return (
     <div
       ref={containerRef}
       className={cn(
-        "relative rounded-lg border border-border bg-muted/40",
+        "relative overflow-hidden rounded-lg border border-border bg-muted/40",
         size === "md" ? "p-1.5" : "p-1",
-        fullWidth ? "grid w-full gap-2" : "inline-flex w-full flex-wrap gap-2 sm:w-auto"
+        fullWidth ? "grid w-full min-w-0 gap-1" : "inline-flex w-full flex-wrap gap-2 sm:w-auto"
       )}
       style={
         fullWidth ? { gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` } : undefined
       }
       role="group"
     >
-      {activeIndex >= 0 && highlight.width > 0 ? (
+      {fullWidth && activeIndex >= 0 ? (
         <span
           aria-hidden
-          className="pointer-events-none absolute rounded-md border border-border bg-background shadow-sm transition-[left,width,top,height] duration-[var(--motion-base)] ease-[var(--motion-ease-out)] motion-reduce:transition-none"
+          className={cn(
+            highlightSurfaceClass,
+            "z-0 row-start-1 self-stretch justify-self-stretch transition-[grid-column] duration-[var(--motion-base)] ease-[var(--motion-ease-out)] motion-reduce:transition-none"
+          )}
+          style={{ gridColumn: activeIndex + 1, gridRow: 1 }}
+        />
+      ) : null}
+      {!fullWidth && activeIndex >= 0 && highlight.width > 0 ? (
+        <span
+          aria-hidden
+          className={cn(
+            highlightSurfaceClass,
+            "absolute z-0 transition-[left,width,top,height] duration-[var(--motion-base)] ease-[var(--motion-ease-out)] motion-reduce:transition-none"
+          )}
           style={{
             left: highlight.left,
             top: highlight.top,
@@ -143,15 +184,18 @@ export function SegmentedControl<T extends string | number>({
           }}
         />
       ) : null}
-      {options.map((opt) => (
+      {options.map((opt, index) => (
         <button
           key={String(opt.value)}
           type="button"
           onClick={() => onChange(opt.value)}
+          style={fullWidth ? { gridColumn: index + 1, gridRow: 1 } : undefined}
           className={cn(
             "relative z-10 rounded-md font-medium transition-colors duration-[var(--motion-fast)]",
-            fullWidth && "min-w-0 flex-1",
-            size === "sm" ? "px-3 py-1.5 text-xs" : "px-4 py-2.5 text-sm",
+            fullWidth && "min-w-0 w-full truncate px-2 text-center",
+            !fullWidth && "shrink-0",
+            size === "sm" ? "py-1.5 text-xs" : "px-4 py-2.5 text-sm",
+            !fullWidth && size === "sm" && "px-3",
             value === opt.value
               ? "text-foreground"
               : "border border-transparent text-muted-foreground hover:bg-background/60 hover:text-foreground"

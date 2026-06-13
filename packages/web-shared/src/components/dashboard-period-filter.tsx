@@ -43,8 +43,13 @@ export function DashboardPeriodFilter({
   className
 }: DashboardPeriodFilterProps) {
   return (
-    <div className={cn("rounded-xl border border-border/70 bg-muted/20 p-3 sm:p-4", className)}>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_auto_minmax(220px,280px)] md:items-end md:gap-5">
+    <div
+      className={cn(
+        "@container rounded-xl border border-border/70 bg-muted/20 p-3 sm:p-4",
+        className
+      )}
+    >
+      <div className="grid grid-cols-1 gap-4 @min-[860px]:grid-cols-[minmax(0,1fr)_auto_minmax(220px,320px)] @min-[860px]:items-end @min-[860px]:gap-5">
         <div className="flex min-w-0 flex-col gap-2">
           <FilterFieldLabel>Period</FilterFieldLabel>
           <SegmentedControl
@@ -56,7 +61,7 @@ export function DashboardPeriodFilter({
           />
         </div>
 
-        <div className="hidden md:block w-px self-stretch bg-border/60" aria-hidden />
+        <div className="hidden @min-[860px]:block w-px self-stretch bg-border/60" aria-hidden />
 
         <div className="flex min-w-0 flex-col gap-2">
           <FilterFieldLabel>Range</FilterFieldLabel>
@@ -66,7 +71,7 @@ export function DashboardPeriodFilter({
             onChange={onDateRangeChange}
             weekStartsOn={weekStartsOn}
             ariaLabel={dateRangeAriaLabel}
-            className="w-full"
+            className="w-full min-w-0"
             numberOfMonths={2}
             popoverAlign="end"
           />

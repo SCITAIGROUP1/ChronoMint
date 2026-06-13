@@ -47,4 +47,21 @@ describe("DashboardPeriodFilter", () => {
     fireEvent.click(screen.getByRole("button", { name: "Today" }));
     expect(onPresetChange).toHaveBeenCalledWith("today");
   });
+
+  it("uses container queries so period and range stack until the filter is wide enough", () => {
+    const { container } = render(
+      <DashboardPeriodFilter
+        range="week"
+        onPresetChange={vi.fn()}
+        startDate="2026-06-08"
+        endDate="2026-06-12"
+        onDateRangeChange={vi.fn()}
+        presets={PRESETS}
+      />
+    );
+
+    const root = container.firstElementChild as HTMLElement | null;
+    expect(root?.className).toContain("@container");
+    expect(root?.querySelector(".grid")?.className).toContain("@min-[860px]:grid-cols-");
+  });
 });

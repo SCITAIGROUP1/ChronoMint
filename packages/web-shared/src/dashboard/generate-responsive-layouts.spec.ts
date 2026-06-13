@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   DASHBOARD_GRID_COLS,
   generateResponsiveLayouts,
+  isPersistableDashboardBreakpoint,
   type WidgetMinSize
 } from "./generate-responsive-layouts";
 
@@ -25,6 +26,19 @@ describe("generateResponsiveLayouts", () => {
     const visible = SAMPLE_LAYOUT.filter((item) => item.visible);
     const layouts = generateResponsiveLayouts(SAMPLE_LAYOUT, DASHBOARD_GRID_COLS, MIN_SIZES);
     expect(layouts.lg).toEqual(visible);
+    expect(layouts.md).toEqual(visible);
+  });
+
+  it("uses the same stored coordinates for md and lg (stable when shell width changes)", () => {
+    const layouts = generateResponsiveLayouts(SAMPLE_LAYOUT, DASHBOARD_GRID_COLS, MIN_SIZES);
+    expect(layouts.md).toEqual(layouts.lg);
+    expect(DASHBOARD_GRID_COLS.md).toBe(DASHBOARD_GRID_COLS.lg);
+  });
+
+  it("treats md and lg as persistable desktop breakpoints", () => {
+    expect(isPersistableDashboardBreakpoint("lg")).toBe(true);
+    expect(isPersistableDashboardBreakpoint("md")).toBe(true);
+    expect(isPersistableDashboardBreakpoint("sm")).toBe(false);
   });
 
   it("keeps every item within column bounds at each breakpoint", () => {

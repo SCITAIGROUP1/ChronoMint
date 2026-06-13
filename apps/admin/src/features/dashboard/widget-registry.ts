@@ -363,44 +363,35 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
 ];
 
 export const DEFAULT_LAYOUT: WidgetLayoutItem[] = [
-  // Row 0 - KPI cards (y=0)
-  { i: "stat_total_hours", x: 0, y: 0, w: 3, h: 2, visible: true },
-  { i: "stat_billable", x: 3, y: 0, w: 3, h: 2, visible: true },
-  { i: "stat_projects", x: 6, y: 0, w: 3, h: 2, visible: true },
-  { i: "stat_members", x: 9, y: 0, w: 3, h: 2, visible: true },
-  { i: "stat_nonbillable", x: 0, y: 0, w: 2, h: 2, visible: false },
+  { i: "stat_total_hours", x: 4, y: 0, w: 4, h: 2, visible: true },
+  { i: "stat_billable", x: 0, y: 0, w: 2, h: 2, visible: true },
+  { i: "stat_nonbillable", x: 2, y: 0, w: 2, h: 2, visible: true },
   { i: "stat_revenue", x: 2, y: 0, w: 2, h: 2, visible: false },
+  { i: "stat_projects", x: 8, y: 0, w: 2, h: 2, visible: true },
+  { i: "stat_members", x: 10, y: 0, w: 2, h: 2, visible: true },
   { i: "active_timers", x: 0, y: 2, w: 2, h: 2, visible: false },
-
-  // Row 2 - Weekly activity + budget (y=2)
-  { i: "weekly_chart", x: 0, y: 2, w: 6, h: 5, visible: true },
-  { i: "budget_burndown", x: 6, y: 2, w: 6, h: 5, visible: true },
-  { i: "team_utilization", x: 6, y: 2, w: 6, h: 4, visible: false },
-
-  // Row 7+ - optional analytics (hidden by default)
-  { i: "daily_chart", x: 0, y: 7, w: 12, h: 5, visible: false },
+  { i: "daily_chart", x: 0, y: 7, w: 12, h: 6, visible: true },
+  { i: "weekly_chart", x: 0, y: 2, w: 7, h: 5, visible: true },
   { i: "revenue_trend", x: 6, y: 11, w: 6, h: 4, visible: false },
   { i: "time_of_day_heatmap", x: 0, y: 16, w: 8, h: 4, visible: false },
-
-  // Row 11 - Tables & Breakdowns (y=11)
-  { i: "breakdown_table", x: 0, y: 11, w: 7, h: 5, visible: false },
-  { i: "distribution_donut", x: 7, y: 11, w: 5, h: 5, visible: false },
+  { i: "distribution_donut", x: 7, y: 13, w: 5, h: 4, visible: true },
   { i: "billable_split_donut", x: 0, y: 16, w: 3, h: 4, visible: false },
   { i: "billability_gauge", x: 3, y: 16, w: 3, h: 4, visible: false },
-  { i: "task_breakdown", x: 6, y: 16, w: 4, h: 5, visible: false },
+  { i: "task_breakdown", x: 6, y: 22, w: 4, h: 5, visible: false },
   { i: "category_distribution", x: 0, y: 21, w: 5, h: 5, visible: false },
   { i: "category_breakdown", x: 5, y: 21, w: 7, h: 5, visible: false },
-  { i: "category_project_heatmap", x: 0, y: 26, w: 8, h: 4, visible: false },
-
-  // Remaining hidden widgets layout positions
+  { i: "category_project_heatmap", x: 0, y: 13, w: 7, h: 4, visible: true },
+  { i: "budget_burndown", x: 6, y: 2, w: 6, h: 5, visible: false },
   { i: "revenue_by_project", x: 0, y: 21, w: 6, h: 5, visible: false },
   { i: "project_health", x: 6, y: 21, w: 6, h: 5, visible: false },
   { i: "rate_efficiency", x: 0, y: 26, w: 6, h: 5, visible: false },
+  { i: "team_utilization", x: 7, y: 2, w: 5, h: 5, visible: true },
   { i: "hours_by_member", x: 0, y: 31, w: 12, h: 5, visible: false },
+  { i: "breakdown_table", x: 0, y: 11, w: 7, h: 5, visible: false },
   { i: "member_leaderboard", x: 0, y: 36, w: 4, h: 5, visible: false },
   { i: "hourly_rates", x: 4, y: 36, w: 4, h: 4, visible: false },
   { i: "live_presence", x: 8, y: 36, w: 4, h: 4, visible: false },
-  { i: "pending_timesheets", x: 0, y: 41, w: 5, h: 5, visible: false }
+  { i: "pending_timesheets", x: 0, y: 17, w: 12, h: 5, visible: true }
 ];
 
 export const WIDGET_ICONS: Record<string, any> = {

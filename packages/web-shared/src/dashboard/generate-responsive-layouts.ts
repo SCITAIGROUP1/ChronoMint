@@ -12,11 +12,22 @@ export const DASHBOARD_GRID_BREAKPOINTS: Record<DashboardBreakpoint, number> = {
 
 export const DASHBOARD_GRID_COLS: Record<DashboardBreakpoint, number> = {
   lg: 12,
-  md: 10,
+  /** Match lg so sidebar open/close does not switch column counts or reflow algorithm. */
+  md: 12,
   sm: 6,
   xs: 4,
   xxs: 2
 };
+
+/** Column count used when persisting a user-arranged layout (desktop grid). */
+export const DASHBOARD_PERSIST_COLS = DASHBOARD_GRID_COLS.lg;
+
+export function isPersistableDashboardBreakpoint(
+  breakpoint: DashboardBreakpoint,
+  colsByBreakpoint: Record<DashboardBreakpoint, number> = DASHBOARD_GRID_COLS
+): boolean {
+  return colsByBreakpoint[breakpoint] === DASHBOARD_PERSIST_COLS;
+}
 
 export type DashboardGridLayouts = Record<DashboardBreakpoint, WidgetLayoutItemDto[]>;
 
@@ -103,7 +114,8 @@ export function generateResponsiveLayouts(
 
   return {
     lg: visible,
-    md: clampAndReflow(visible, colsByBreakpoint.md, minSizes),
+    /** Same coordinates as lg — only pixel column width changes when the shell resizes. */
+    md: visible,
     sm: clampAndReflow(visible, colsByBreakpoint.sm, minSizes),
     xs: stackLayout(visible, colsByBreakpoint.xs, minSizes),
     xxs: stackLayout(visible, colsByBreakpoint.xxs, minSizes)

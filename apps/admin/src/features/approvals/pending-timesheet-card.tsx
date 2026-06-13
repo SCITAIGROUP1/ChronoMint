@@ -6,7 +6,8 @@ import type {
   ListTimeLogsResponseDto,
   ListTimelogAuditEventsResponseDto,
   TaskDto,
-  ProjectDto
+  ProjectDto,
+  TimeLogDto
 } from "@kloqra/contracts";
 import {
   Badge,
@@ -16,12 +17,20 @@ import {
   CardHeader,
   CardTitle,
   Input,
-  TimeEntryAuditTrail,
+  TimeEntryAuditEventList,
+  type TimeEntryAuditEvent,
   cn
 } from "@kloqra/ui";
 import { fetchListItems } from "@kloqra/web-shared";
 import { Calendar, Check, MessageSquare, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import {
+  filterLogsForProject,
+  formatEntryDuration,
+  formatEntryTimeRange,
+  mergeAuditEvents,
+  sortLogsByStartDesc
+} from "./period-entry-activity.utils";
 import { api } from "@/lib/api";
 
 function formatDateRange(startStr: string, endStr: string) {
@@ -44,31 +53,64 @@ function PendingActivity({
   workspaceId: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [logIds, setLogIds] = useState<string[]>([]);
+  const [logs, setLogs] = useState<TimeLogDto[]>([]);
+  const [auditEvents, setAuditEvents] = useState<TimeEntryAuditEvent[]>([]);
   const [tasks, setTasks] = useState<TaskDto[]>([]);
   const [projects, setProjects] = useState<ProjectDto[]>([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!open || !workspaceId) return;
+
+    let cancelled = false;
+    setLoading(true);
+
     const params = new URLSearchParams({
       userId: item.userId,
       from: item.periodStart,
       to: item.periodEnd
     });
+
     void Promise.all([
       fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId }),
       fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId }),
       api<ListTimeLogsResponseDto>(`${ROUTES.TIMELOGS.LIST}?${params}`, { workspaceId })
-    ]).then(([fetchedTasks, fetchedProjects, res]) => {
-      setTasks(fetchedTasks);
-      setProjects(fetchedProjects);
-      const projectTaskIds = new Set(
-        fetchedTasks.filter((task) => task.projectId === item.projectId).map((task) => task.id)
-      );
-      const ids = res.items.filter((log) => projectTaskIds.has(log.taskId)).map((log) => log.id);
-      setLogIds(ids);
-    });
+    ])
+      .then(async ([fetchedTasks, fetchedProjects, res]) => {
+        if (cancelled) return;
+
+        const periodLogs = sortLogsByStartDesc(
+          filterLogsForProject(res.items, item.projectId, fetchedTasks)
+        );
+        setTasks(fetchedTasks);
+        setProjects(fetchedProjects);
+        setLogs(periodLogs);
+
+        const auditByLog = await Promise.all(
+          periodLogs.map((log) =>
+            api<ListTimelogAuditEventsResponseDto>(ROUTES.TIMELOGS.AUDIT_EVENTS(log.id), {
+              workspaceId
+            })
+              .then((response) => response.items)
+              .catch(() => [])
+          )
+        );
+
+        if (!cancelled) {
+          setAuditEvents(mergeAuditEvents(auditByLog));
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [open, workspaceId, item]);
+
+  const visibleLogs = logs.slice(0, 8);
+  const hiddenLogCount = Math.max(0, logs.length - visibleLogs.length);
 
   return (
     <div className="space-y-2">
@@ -89,24 +131,39 @@ function PendingActivity({
       >
         <div className="overflow-hidden">
           <div className="space-y-3 max-h-48 overflow-y-auto pr-1 pt-2">
-            {logIds.length === 0 ? (
+            {loading ? (
+              <p className="text-xs text-muted-foreground">Loading entry activity…</p>
+            ) : logs.length === 0 ? (
               <p className="text-xs text-muted-foreground">No entries in this period.</p>
+            ) : auditEvents.length > 0 ? (
+              <TimeEntryAuditEventList events={auditEvents} tasks={tasks} projects={projects} />
             ) : (
-              logIds.slice(0, 8).map((id) => (
-                <div key={id} className="rounded-md border border-border/60 p-2">
-                  <TimeEntryAuditTrail
-                    tasks={tasks}
-                    projects={projects}
-                    fetchEvents={async () => {
-                      const res = await api<ListTimelogAuditEventsResponseDto>(
-                        ROUTES.TIMELOGS.AUDIT_EVENTS(id),
-                        { workspaceId }
-                      );
-                      return res.items;
-                    }}
-                  />
-                </div>
-              ))
+              <>
+                <p className="text-xs text-muted-foreground">Logged entries in this submission:</p>
+                <ul className="space-y-2">
+                  {visibleLogs.map((log) => {
+                    const task = tasks.find((entry) => entry.id === log.taskId);
+                    return (
+                      <li
+                        key={log.id}
+                        className="rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-xs leading-relaxed"
+                      >
+                        <p className="font-medium">{task?.taskName ?? "Task"}</p>
+                        <p className="text-muted-foreground">
+                          {formatEntryTimeRange(log.startTime, log.endTime)} ·{" "}
+                          {formatEntryDuration(log.durationSec)} ·{" "}
+                          {log.isBillable ? "billable" : "non-billable"}
+                        </p>
+                      </li>
+                    );
+                  })}
+                </ul>
+                {hiddenLogCount > 0 ? (
+                  <p className="text-[11px] text-muted-foreground">
+                    +{hiddenLogCount} more {hiddenLogCount === 1 ? "entry" : "entries"}
+                  </p>
+                ) : null}
+              </>
             )}
           </div>
         </div>

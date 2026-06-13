@@ -13,7 +13,9 @@ export {
   buildWidgetMinSizeMap,
   DASHBOARD_GRID_BREAKPOINTS,
   DASHBOARD_GRID_COLS,
+  DASHBOARD_PERSIST_COLS,
   generateResponsiveLayouts,
+  isPersistableDashboardBreakpoint,
   type DashboardBreakpoint,
   type DashboardGridLayouts,
   type WidgetMinSize

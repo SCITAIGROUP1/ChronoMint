@@ -40,10 +40,10 @@ export const shellMobileDrawerClass =
 export const shellAppBarClass = `sticky top-0 z-30 -mx-6 mb-6 border-b border-border/80 bg-background/95 backdrop-blur-md lg:-mx-8 ${shellInsetXClass} ${shellHeaderBandYClass}`;
 
 export const shellAppBarPrimaryRowClass =
-  "flex min-h-10 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between";
+  "flex min-h-10 flex-col gap-4 @min-[720px]/shell:flex-row @min-[720px]/shell:items-center @min-[720px]/shell:justify-between";
 
 export const shellAppBarSecondaryRowClass =
-  "flex flex-col gap-3 border-t border-border/60 pt-4 sm:flex-row sm:items-center sm:justify-between";
+  "flex flex-col gap-3 border-t border-border/60 pt-4 @min-[720px]/shell:flex-row @min-[720px]/shell:items-center @min-[720px]/shell:justify-between";
 
 export const shellAppBarTitleClass = "text-2xl font-semibold tracking-tight";
 
@@ -51,7 +51,8 @@ export const shellAppBarDescriptionClass = "max-w-2xl text-sm text-muted-foregro
 
 export const appBarToolbarClass = "flex flex-wrap items-center gap-2.5";
 
-export const appBarToolbarSeparatorClass = "mx-1 hidden h-8 w-px shrink-0 bg-border/80 sm:block";
+export const appBarToolbarSeparatorClass =
+  "mx-1 hidden h-8 w-px shrink-0 bg-border/80 @min-[720px]/shell:block";
 
 export const appBarIconSizeClass = "size-5";
 

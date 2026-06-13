@@ -29,6 +29,8 @@ import {
   DASHBOARD_GRID_BREAKPOINTS,
   DASHBOARD_GRID_COLS,
   generateResponsiveLayouts,
+  getEffectiveWorkspaceId,
+  isPersistableDashboardBreakpoint,
   fetchProjectTeam,
   matchDashboardPeriodPreset,
   ReportScopeFilters,
@@ -74,7 +76,7 @@ import { DashboardStatCard } from "@/components/dashboard-stat-card";
 import { LivePresenceBadge } from "@/components/live-presence-badge";
 import { formatDurationClock } from "@/components/report-charts";
 import { api } from "@/lib/api";
-import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
+import { useSessionStore } from "@/stores/session.store";
 
 // Types
 type ChartByMode = "billability" | "project";
@@ -114,7 +116,8 @@ function formatMoney(n: number) {
 }
 
 export function DashboardPage() {
-  const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
+  const session = useSessionStore((s) => s.session);
+  const ws = getEffectiveWorkspaceId() ?? session?.workspaceId ?? "";
   const [range, setRange] = useState<DashboardPeriodSelection>("week");
   const [startDate, setStartDate] = useState<string>(() => applyDashboardPeriodPreset("week").from);
   const [endDate, setEndDate] = useState<string>(() => applyDashboardPeriodPreset("week").to);
@@ -288,21 +291,31 @@ export function DashboardPage() {
   }, [load]);
 
   const handleResetLayout = () => {
-    void resetLayout(ws);
-    toast.success("Dashboard layout reset to default");
+    void resetLayout(ws)
+      .then(() => toast.success("Dashboard layout reset to default"))
+      .catch((e) =>
+        toast.error(e instanceof Error ? e.message : "Could not reset dashboard layout")
+      );
   };
 
-  const handleDoneArranging = () => {
-    void persistLayout(ws).finally(() => setIsArranging(false));
+  const handleDoneArranging = async () => {
+    try {
+      await persistLayout(ws);
+      setIsArranging(false);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not save dashboard layout");
+    }
   };
 
-  const handleDoneAndSaveAsDefault = () => {
-    void (async () => {
+  const handleDoneAndSaveAsDefault = async () => {
+    try {
       await persistLayout(ws);
       await saveLayoutAsDefault(ws);
       setIsArranging(false);
       toast.success("Layout saved as default");
-    })();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not save dashboard layout");
+    }
   };
 
   const updateHeaderAction = useCallback((id: string, node: React.ReactNode) => {
@@ -695,9 +708,14 @@ export function DashboardPage() {
             </AppBarActionButton>
             <AppBarActionButton
               active={isArranging}
-              onClick={() => {
+              onClick={async () => {
                 if (isArranging) {
-                  persistLayout(ws);
+                  try {
+                    await persistLayout(ws);
+                  } catch (e) {
+                    toast.error(e instanceof Error ? e.message : "Could not save dashboard layout");
+                    return;
+                  }
                 }
                 setIsArranging(!isArranging);
                 setIsCatalogOpen(false);
@@ -787,7 +805,7 @@ export function DashboardPage() {
                 setGridBreakpoint(breakpoint as DashboardBreakpoint)
               }
               onLayoutChange={(currentLayout) => {
-                if (isArranging && gridBreakpoint === "lg") {
+                if (isArranging && isPersistableDashboardBreakpoint(gridBreakpoint)) {
                   updateLayout(ws, currentLayout, { persist: false });
                 }
               }}
@@ -798,7 +816,7 @@ export function DashboardPage() {
                 const widgetDef = WIDGET_REGISTRY.find((w) => w.id === item.i);
                 const label = widgetDef?.label ?? "Widget";
                 return (
-                  <div key={item.i} className="w-full h-full">
+                  <div key={item.i} className="min-w-0 h-full w-full">
                     <WidgetShell
                       id={item.i}
                       label={label}

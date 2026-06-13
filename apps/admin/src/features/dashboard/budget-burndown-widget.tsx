@@ -306,23 +306,23 @@ export function BudgetBurnDownWidget({
   if (allProjectsData.length > 0) {
     if (cardless) {
       return (
-        <div className="space-y-3 pr-1 h-full overflow-auto">
-          <div className="flex flex-col gap-2.5">
+        <div className="space-y-3 min-w-0 h-full overflow-auto">
+          <div className="flex min-w-0 flex-col gap-2.5">
             {allProjectsData.map((p) => {
               const pct = p.percentUsed ?? 0;
 
               return (
-                <div key={p.projectId} className="space-y-1">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="flex items-center gap-1.5 font-medium truncate max-w-[60%]">
+                <div key={p.projectId} className="min-w-0 space-y-1">
+                  <div className="flex min-w-0 items-center justify-between gap-2 text-xs">
+                    <span className="flex min-w-0 items-center gap-1.5 font-medium">
                       <ProjectColorDot color={p.projectColor} size="sm" />
                       <span className="truncate">{p.projectName}</span>
                     </span>
-                    <span className="text-muted-foreground font-mono text-[10px] shrink-0">
+                    <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
                       {p.totalLoggedHours.toFixed(1)} / {p.budgetHours} h ({pct}%)
                     </span>
                   </div>
-                  <div className="w-full bg-muted/40 rounded-full h-1.5 overflow-hidden">
+                  <div className="w-full min-w-0 overflow-hidden rounded-full bg-muted/40 h-1.5">
                     <div
                       className={`h-full transition-all duration-500 ${budgetBarColor(pct)}`}
                       style={{ width: `${Math.min(100, pct)}%` }}

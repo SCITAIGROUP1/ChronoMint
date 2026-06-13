@@ -175,25 +175,18 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
 ];
 
 export const DEFAULT_LAYOUT: WidgetLayoutItem[] = [
-  // y=0: KPI Cards spanning full row
   { i: "stat_total_hours", x: 0, y: 0, w: 4, h: 2, visible: true },
   { i: "stat_billable", x: 4, y: 0, w: 4, h: 2, visible: true },
   { i: "stat_projects", x: 8, y: 0, w: 4, h: 2, visible: true },
-
-  // y=2: Quick Timer, Daily Progress and Project Split (Donut)
-  { i: "quick_timer", x: 0, y: 2, w: 6, h: 3, visible: true },
-  { i: "daily_progress", x: 6, y: 2, w: 3, h: 3, visible: true },
-  { i: "project_split", x: 9, y: 2, w: 3, h: 3, visible: true },
-  { i: "category_split", x: 0, y: 12, w: 3, h: 3, visible: false },
-
-  // y=5: Pinned Favorites, Recent Activity and Weekly Progress Chart
-  { i: "pinned_favorites", x: 0, y: 5, w: 3, h: 3, visible: true },
-  { i: "recent_activity", x: 3, y: 5, w: 3, h: 3, visible: true },
-  { i: "weekly_progress", x: 6, y: 5, w: 6, h: 3, visible: true },
-
-  // y=8: Today's activity feed and My Timesheets (hidden by default)
-  { i: "today_logs", x: 0, y: 8, w: 6, h: 4, visible: true },
-  { i: "timesheet_submissions", x: 6, y: 8, w: 6, h: 3, visible: true }
+  { i: "weekly_progress", x: 0, y: 6, w: 8, h: 4, visible: true },
+  { i: "project_split", x: 8, y: 2, w: 4, h: 4, visible: true },
+  { i: "category_split", x: 8, y: 10, w: 4, h: 4, visible: true },
+  { i: "quick_timer", x: 0, y: 2, w: 8, h: 4, visible: true },
+  { i: "daily_progress", x: 8, y: 6, w: 4, h: 4, visible: true },
+  { i: "pinned_favorites", x: 0, y: 6, w: 3, h: 3, visible: false },
+  { i: "recent_activity", x: 9, y: 14, w: 3, h: 3, visible: false },
+  { i: "today_logs", x: 0, y: 10, w: 8, h: 4, visible: true },
+  { i: "timesheet_submissions", x: 6, y: 13, w: 6, h: 3, visible: false }
 ];
 
 export const WIDGET_ICONS: Record<string, any> = {

@@ -99,6 +99,41 @@ function describeEvent(
   return `Updated entry · ${formatTimeRange(snap.startTime, snap.endTime)}`;
 }
 
+export function TimeEntryAuditEventList({
+  events,
+  tasks,
+  projects,
+  className,
+  emptyMessage = "No changes recorded yet."
+}: {
+  events: TimeEntryAuditEvent[];
+  tasks?: { id: string; taskName: string; projectId: string }[];
+  projects?: { id: string; name: string }[];
+  className?: string;
+  emptyMessage?: string;
+}) {
+  if (events.length === 0) {
+    return <p className={cn("text-xs text-muted-foreground", className)}>{emptyMessage}</p>;
+  }
+
+  return (
+    <ul className={cn("space-y-2", className)}>
+      {events.map((event) => (
+        <li
+          key={event.id}
+          className="rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-xs leading-relaxed"
+        >
+          <p className="font-medium">{event.actorName}</p>
+          <p className="text-muted-foreground">{describeEvent(event, tasks, projects)}</p>
+          <p className="text-[10px] text-muted-foreground/80 mt-1">
+            {new Date(event.createdAt).toLocaleString()}
+          </p>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function TimeEntryAuditTrail({
   fetchEvents,
   tasks,
@@ -146,19 +181,11 @@ export function TimeEntryAuditTrail({
   }
 
   return (
-    <ul className={cn("space-y-2", className)}>
-      {events.map((event) => (
-        <li
-          key={event.id}
-          className="rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-xs leading-relaxed"
-        >
-          <p className="font-medium">{event.actorName}</p>
-          <p className="text-muted-foreground">{describeEvent(event, tasks, projects)}</p>
-          <p className="text-[10px] text-muted-foreground/80 mt-1">
-            {new Date(event.createdAt).toLocaleString()}
-          </p>
-        </li>
-      ))}
-    </ul>
+    <TimeEntryAuditEventList
+      events={events}
+      tasks={tasks}
+      projects={projects}
+      className={className}
+    />
   );
 }

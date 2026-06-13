@@ -9,7 +9,8 @@ import {
 import * as bcrypt from "bcrypt";
 import {
   buildPreferencesWithDashboardLayouts,
-  SEED_DASHBOARD_LAYOUT_ASSIGNMENTS
+  SEED_ADMIN_DASHBOARD_LAYOUT,
+  SEED_CLIENT_DASHBOARD_LAYOUT
 } from "./seed-dashboard-layouts";
 import {
   CATEGORY_LOG_DESCRIPTIONS,
@@ -227,26 +228,54 @@ async function seedDashboardLayouts(
   const workspaceBySlug = new Map(workspaces.map((workspace) => [workspace.slug, workspace]));
   let updated = 0;
 
-  for (const assignment of SEED_DASHBOARD_LAYOUT_ASSIGNMENTS) {
-    const user = users.get(assignment.email);
-    const workspace = workspaceBySlug.get(assignment.workspaceSlug);
-    if (!user || !workspace) continue;
+  for (const wsSpec of SEED_WORKSPACES) {
+    const workspace = workspaceBySlug.get(wsSpec.slug);
+    if (!workspace) continue;
 
-    const merged = buildPreferencesWithDashboardLayouts(
-      user.preferences,
-      workspace.id,
-      assignment.app,
-      assignment.layout,
-      assignment.defaultLayout
-    );
+    for (const email of wsSpec.memberEmails) {
+      const userSpec = SEED_USERS.find((u) => u.email === email);
+      if (!userSpec) continue;
 
-    const saved = await prisma.user.update({
-      where: { id: user.id },
-      data: { preferences: merged as Prisma.InputJsonValue }
-    });
+      const user = users.get(email);
+      if (!user) continue;
 
-    users.set(assignment.email, saved);
-    updated++;
+      if (userSpec.role === "ADMIN") {
+        const merged = buildPreferencesWithDashboardLayouts(
+          user.preferences,
+          workspace.id,
+          "admin",
+          SEED_ADMIN_DASHBOARD_LAYOUT,
+          SEED_ADMIN_DASHBOARD_LAYOUT
+        );
+
+        const saved = await prisma.user.update({
+          where: { id: user.id },
+          data: { preferences: merged as Prisma.InputJsonValue }
+        });
+
+        users.set(email, saved);
+        updated++;
+        continue;
+      }
+
+      if (userSpec.role === "MEMBER") {
+        const merged = buildPreferencesWithDashboardLayouts(
+          user.preferences,
+          workspace.id,
+          "client",
+          SEED_CLIENT_DASHBOARD_LAYOUT,
+          SEED_CLIENT_DASHBOARD_LAYOUT
+        );
+
+        const saved = await prisma.user.update({
+          where: { id: user.id },
+          data: { preferences: merged as Prisma.InputJsonValue }
+        });
+
+        users.set(email, saved);
+        updated++;
+      }
+    }
   }
 
   return updated;
