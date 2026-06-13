@@ -14,9 +14,9 @@ test.describe("Admin Approvals", () => {
 
   test("shows approvals filter controls", async ({ page }) => {
     await page.goto("/approvals");
-    await expect(page.getByText("Project")).toBeVisible();
-    await expect(page.getByText("Member")).toBeVisible();
-    await expect(page.getByText("Period range")).toBeVisible();
+    await expect(page.getByText("Project", { exact: true })).toBeVisible();
+    await expect(page.getByText("Member", { exact: true })).toBeVisible();
+    await expect(page.getByText("Period range", { exact: true })).toBeVisible();
   });
 
   test("team page is live activity only", async ({ page }) => {
