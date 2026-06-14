@@ -57,7 +57,9 @@ describe("Auth E2E", () => {
     const session = await loginAs(app, "member@kloqra.dev");
     const res = await authedAgent(app, session).get("/auth/me");
     expect(res.status).toBe(200);
-    expect(res.body.user.email).toBe("member@kloqra.dev");
+    expect(res.body.user.id).toBeTruthy();
+    expect(res.body.user.name).toBeTruthy();
+    expect(res.body.user.email).toBeUndefined();
     expect(res.body.workspaceRole).toBe("MEMBER");
   });
 
@@ -83,7 +85,9 @@ describe("Auth E2E", () => {
       .set("Cookie", cookies);
     expect(refreshRes.status).toBe(201);
     expect(refreshRes.body.accessToken).toBeTruthy();
-    expect(refreshRes.body.user.email).toBe("member@kloqra.dev");
+    expect(refreshRes.body.user.id).toBeTruthy();
+    expect(refreshRes.body.user.name).toBeTruthy();
+    expect(refreshRes.body.user.email).toBeUndefined();
   });
 
   it("POST /auth/refresh returns grace response for duplicate in-flight reuse", async () => {

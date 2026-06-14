@@ -1,4 +1,4 @@
-import type { ProjectDto } from "@kloqra/contracts";
+import type { ProjectListItemDto } from "@kloqra/contracts";
 import { type INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import cookieParser from "cookie-parser";
@@ -24,15 +24,15 @@ describe("Timesheets E2E", () => {
 
     const workspacesRes = await authedAgent(app, memberSession).get("/workspaces");
     expect(workspacesRes.status).toBe(200);
-    const acme = workspacesRes.body.find((w: { slug?: string }) => w.slug === "acme");
+    const acme = workspacesRes.body.find((w: { name?: string }) => w.name === "Acme Corporation");
     expect(acme?.id).toBeTruthy();
     memberSession = { ...memberSession, workspaceId: acme.id };
     adminSession = { ...adminSession, workspaceId: acme.id };
 
     const projectsRes = await authedAgent(app, memberSession).get("/projects");
     expect(projectsRes.status).toBe(200);
-    const approvalProject = listItems<ProjectDto>(projectsRes.body).find(
-      (p) => p.timesheetApprovalEnabled
+    const approvalProject = listItems<ProjectListItemDto>(projectsRes.body).find(
+      (p) => p.name === "Support Retainer"
     );
     expect(approvalProject?.id).toBeTruthy();
     approvalProjectId = approvalProject!.id;
@@ -87,6 +87,6 @@ describe("Timesheets E2E", () => {
       .patch(`/timesheets/${pending.id}/approve`)
       .send({ reviewNote: "E2E approved" });
     expect(approveRes.status).toBe(200);
-    expect(approveRes.body.status).toBe("APPROVED");
+    expect(approveRes.body.ok).toBe(true);
   });
 });

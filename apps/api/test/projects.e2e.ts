@@ -1,4 +1,4 @@
-import type { ProjectDto } from "@kloqra/contracts";
+import type { ProjectListItemDto } from "@kloqra/contracts";
 import { type INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import cookieParser from "cookie-parser";
@@ -29,9 +29,10 @@ describe("Projects E2E", () => {
   it("GET /projects returns seeded projects scoped to workspace", async () => {
     const res = await authedAgent(app, adminSession).get("/projects");
     expect(res.status).toBe(200);
-    const items = listItems<ProjectDto>(res.body);
+    const items = listItems<ProjectListItemDto>(res.body);
     expect(items.length).toBeGreaterThan(0);
-    expect(items.every((p) => p.workspaceId === adminSession.workspaceId)).toBe(true);
+    expect(items.every((p) => p.id && p.name && typeof p.isActive === "boolean")).toBe(true);
+    expect(items.every((p) => p.workspaceId === undefined)).toBe(true);
   });
 
   it("admin can create a project", async () => {
@@ -58,8 +59,8 @@ describe("Projects E2E", () => {
     expect(adminRes.status).toBe(200);
     expect(memberRes.status).toBe(200);
 
-    const adminItems = listItems<ProjectDto>(adminRes.body);
-    const memberItems = listItems<ProjectDto>(memberRes.body);
+    const adminItems = listItems<ProjectListItemDto>(adminRes.body);
+    const memberItems = listItems<ProjectListItemDto>(memberRes.body);
     const memberIds = new Set(memberItems.map((p) => p.id));
     expect(adminItems.length).toBeGreaterThanOrEqual(memberItems.length);
     expect(memberItems.length).toBeGreaterThan(0);
