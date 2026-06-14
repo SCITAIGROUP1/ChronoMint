@@ -186,16 +186,15 @@ The member help assistant runs as a **second Railway service** (`apps/assistant-
 ### Add assistant service
 
 1. **+ New** → **GitHub Repo** → same monorepo.
-2. **Settings → Source → Root Directory:** select **`assistant-api /`** from the dropdown (maps to `apps/assistant-api`), then **Apply** changes.
-   - Railway only pulls that folder; the Dockerfile there uses `COPY requirements.txt` (not a monorepo path).
+2. **Settings → Source → Root Directory:** leave as **`/`** (repo root). Do not set `assistant-api /` unless you also change `dockerfilePath` in the config file.
 3. **Settings → Config-as-code → Config file path:** `/apps/assistant-api/railway.toml` (leading `/` required).
-4. Confirm **Build → Dockerfile path** is `Dockerfile` (from the config file — not `apps/api/Dockerfile`).
+4. Confirm **Build → Dockerfile path** is `apps/assistant-api/Dockerfile` (from config — not plain `Dockerfile`).
 5. Enable **Private Networking** — do **not** assign a public domain.
 6. Health check: `GET /health`.
 
-**If Root Directory is stuck on `/`:** set service variable `RAILWAY_DOCKERFILE_PATH=/apps/assistant-api/Dockerfile.monorepo-root` and use the repo-root Dockerfile variant (see `apps/assistant-api/Dockerfile.monorepo-root`). Prefer fixing Root Directory instead.
+**`couldn't locate the dockerfile at path Dockerfile`:** Root Directory is `/` but Dockerfile path was `Dockerfile`. Use `apps/assistant-api/Dockerfile` via the config file above (already in repo).
 
-**Build failed in ~2 seconds?** Usually Root Directory is `apps/assistant-api` but Dockerfile path still points at `apps/assistant-api/Dockerfile` (file not found in that context). Fix root + config file path above.
+**Local Docker (from repo root):** `docker build -f apps/assistant-api/Dockerfile .`
 
 ### Variables
 
