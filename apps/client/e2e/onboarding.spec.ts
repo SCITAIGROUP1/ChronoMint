@@ -95,19 +95,19 @@ test.describe("Onboarding replay", () => {
   });
 
   test("sparkles menu offers setup guide and product tour", async ({ page }) => {
-    await page.getByRole("button", { name: "Onboarding help" }).click();
+    await page.getByRole("button", { name: "Help menu" }).click();
     await expect(page.getByRole("button", { name: "Full setup guide" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Quick product tour" })).toBeVisible();
   });
 
   test("opens wizard replay from sparkles menu", async ({ page }) => {
-    await page.getByRole("button", { name: "Onboarding help" }).click();
+    await page.getByRole("button", { name: "Help menu" }).click();
     await page.getByRole("button", { name: "Full setup guide" }).click();
     await expect(welcomeHeading(page)).toBeVisible();
   });
 
   test("opens tour only from sparkles menu", async ({ page }) => {
-    await page.getByRole("button", { name: "Onboarding help" }).click();
+    await page.getByRole("button", { name: "Help menu" }).click();
     await page.getByRole("button", { name: "Quick product tour" }).click();
     await expect(page.getByRole("dialog", { name: /navigation hub/i })).toBeVisible();
   });
