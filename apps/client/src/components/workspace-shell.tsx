@@ -40,6 +40,8 @@ const baseNav: readonly SidebarNavItem[] = [
   { href: "/projects", label: "My projects", Icon: FolderKanban, tourId: "nav-projects" }
 ];
 
+const IMPERSONATION_HANDOFF_KEY = "kloqra:impersonation-handoff";
+
 function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
   const { openOnboarding, openTour } = useOnboarding();
   const { openAssistant } = useAssistant();
@@ -56,10 +58,14 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
     if (session) return;
 
     const params = new URLSearchParams(window.location.search);
-    const handoffToken = params.get("handoff");
+    const handoffFromUrl = params.get("handoff");
     const legacyImpersonate = params.get("impersonate") === "true";
 
-    if (handoffToken || legacyImpersonate) {
+    if (handoffFromUrl) {
+      sessionStorage.setItem(IMPERSONATION_HANDOFF_KEY, handoffFromUrl);
+    }
+
+    if (handoffFromUrl || legacyImpersonate) {
       params.delete("handoff");
       params.delete("impersonate");
       const query = params.toString();
@@ -70,11 +76,15 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
       );
     }
 
+    const handoffToken =
+      handoffFromUrl ?? sessionStorage.getItem(IMPERSONATION_HANDOFF_KEY) ?? undefined;
+
     void bootstrapSession({
-      handoffToken: handoffToken ?? undefined,
+      handoffToken,
       clearBeforeRefresh: legacyImpersonate && !handoffToken
     })
       .then((result) => {
+        sessionStorage.removeItem(IMPERSONATION_HANDOFF_KEY);
         if (!result.ok) {
           router.replace("/login");
           return;
@@ -82,7 +92,10 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
         setWorkspaces(result.workspaces);
         setWorkspaceNames(result.workspaces);
       })
-      .catch(() => router.replace("/login"));
+      .catch(() => {
+        sessionStorage.removeItem(IMPERSONATION_HANDOFF_KEY);
+        router.replace("/login");
+      });
   }, [session, setWorkspaces, setWorkspaceNames, router]);
 
   async function handleStopImpersonation() {

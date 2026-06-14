@@ -9,20 +9,10 @@ import { tryRefreshSession } from "./refresh-session";
 
 const AUTH_SCOPE = process.env.NEXT_PUBLIC_AUTH_SCOPE?.trim() || "app";
 
-export type BootstrapResult =
-  | { ok: true; session: AuthSessionDto; workspaces: WorkspaceWithRoleDto[] }
-  | { ok: false };
+let handoffCompletePromise: Promise<string | null> | null = null;
+let handoffCompleteToken: string | null = null;
 
-export type BootstrapOptions = {
-  /** Clear local session before refresh (legacy impersonation handoff). */
-  clearBeforeRefresh?: boolean;
-  /** One-time impersonation token from admin redirect (production cross-site handoff). */
-  handoffToken?: string;
-  /** Require workspace role after bootstrap. */
-  requiredRole?: "ADMIN" | "MEMBER";
-};
-
-async function completeImpersonationHandoff(handoffToken: string): Promise<string | null> {
+async function performHandoffComplete(handoffToken: string): Promise<string | null> {
   const res = await fetch(`${getApiBase()}${ROUTES.AUTH.IMPERSONATE_COMPLETE}`, {
     method: "POST",
     credentials: "include",
@@ -38,6 +28,31 @@ async function completeImpersonationHandoff(handoffToken: string): Promise<strin
   useSessionStore.getState().setSession(body, body.accessToken);
   return body.accessToken;
 }
+
+async function completeImpersonationHandoff(handoffToken: string): Promise<string | null> {
+  if (handoffCompletePromise && handoffCompleteToken === handoffToken) {
+    return handoffCompletePromise;
+  }
+  handoffCompleteToken = handoffToken;
+  handoffCompletePromise = performHandoffComplete(handoffToken).finally(() => {
+    handoffCompletePromise = null;
+    handoffCompleteToken = null;
+  });
+  return handoffCompletePromise;
+}
+
+export type BootstrapResult =
+  | { ok: true; session: AuthSessionDto; workspaces: WorkspaceWithRoleDto[] }
+  | { ok: false };
+
+export type BootstrapOptions = {
+  /** Clear local session before refresh (legacy impersonation handoff). */
+  clearBeforeRefresh?: boolean;
+  /** One-time impersonation token from admin redirect (production cross-site handoff). */
+  handoffToken?: string;
+  /** Require workspace role after bootstrap. */
+  requiredRole?: "ADMIN" | "MEMBER";
+};
 
 /**
  * Restore session from refresh cookie and/or access token, then load workspaces.

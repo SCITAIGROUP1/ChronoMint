@@ -98,6 +98,29 @@ describe("bootstrapSession impersonation handoff", () => {
     });
   });
 
+  it("dedupes concurrent handoff completion for the same token", async () => {
+    mockApi.mockImplementation(async (path: string) => {
+      if (path === "/auth/me") {
+        return {
+          workspaceId: "ws-1",
+          workspaceRole: "MEMBER",
+          user: { id: "user-1", email: "sam@kloqra.dev", name: "Sam", defaultHourlyRate: null }
+        };
+      }
+      return [{ id: "ws-1", name: "Acme", role: "MEMBER" }];
+    });
+
+    const { bootstrapSession } = await import("./bootstrap-session");
+    const [first, second] = await Promise.all([
+      bootstrapSession({ handoffToken: "one-time-token" }),
+      bootstrapSession({ handoffToken: "one-time-token" })
+    ]);
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(first.ok).toBe(true);
+    expect(second.ok).toBe(true);
+  });
+
   it("returns ok false when handoff completion fails", async () => {
     vi.stubGlobal(
       "fetch",
