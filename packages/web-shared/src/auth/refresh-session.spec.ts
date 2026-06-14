@@ -3,10 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockSetSession = vi.fn();
 const mockGetAccessToken = vi.fn();
+const mockGetRefreshToken = vi.fn();
 const mockSchedule = vi.fn();
 
 vi.mock("../stores/session.store", () => ({
   getAccessToken: () => mockGetAccessToken(),
+  getRefreshToken: () => mockGetRefreshToken(),
   useSessionStore: {
     getState: () => ({
       accessToken: mockGetAccessToken(),
@@ -32,8 +34,10 @@ describe("refresh-session bootstrap", () => {
   beforeEach(() => {
     vi.resetModules();
     mockGetAccessToken.mockReset();
+    mockGetRefreshToken.mockReset();
     mockSetSession.mockReset();
     mockSchedule.mockReset();
+    mockGetRefreshToken.mockReturnValue("stored-refresh-token");
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -59,7 +63,11 @@ describe("refresh-session bootstrap", () => {
     await Promise.resolve();
     expect(fetch).toHaveBeenCalledWith(
       "http://localhost:3001/auth/refresh",
-      expect.objectContaining({ method: "POST", credentials: "include" })
+      expect.objectContaining({
+        method: "POST",
+        credentials: "include",
+        body: JSON.stringify({ refreshToken: "stored-refresh-token" })
+      })
     );
     expect(mockSetSession).toHaveBeenCalled();
   });

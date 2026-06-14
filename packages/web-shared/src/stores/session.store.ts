@@ -10,6 +10,10 @@ function tokenKey() {
   return `cm-${AUTH_SCOPE}-access-token`;
 }
 
+function refreshTokenKey() {
+  return `cm-${AUTH_SCOPE}-refresh-token`;
+}
+
 function workspaceKey() {
   return `cm-${AUTH_SCOPE}-workspace-id`;
 }
@@ -31,18 +35,21 @@ function migrateLegacyStorage() {
 interface SessionState {
   session: AuthSessionDto | null;
   accessToken: string | null;
-  setSession: (session: AuthSessionDto, accessToken: string) => void;
+  setSession: (session: AuthSessionDto, accessToken: string, refreshToken?: string) => void;
   clear: () => void;
 }
 
 export const useSessionStore = create<SessionState>((set) => ({
   session: null,
   accessToken: null,
-  setSession: (session, accessToken) => {
+  setSession: (session, accessToken, refreshToken) => {
     if (typeof window !== "undefined") {
       migrateLegacyStorage();
       localStorage.setItem(tokenKey(), accessToken);
       localStorage.setItem(workspaceKey(), session.workspaceId);
+      if (refreshToken) {
+        localStorage.setItem(refreshTokenKey(), refreshToken);
+      }
       broadcastSessionUpdate(session, accessToken);
       scheduleProactiveRefresh(accessToken);
     }
@@ -52,6 +59,7 @@ export const useSessionStore = create<SessionState>((set) => ({
     if (typeof window !== "undefined") {
       cancelProactiveRefresh();
       localStorage.removeItem(tokenKey());
+      localStorage.removeItem(refreshTokenKey());
       localStorage.removeItem(workspaceKey());
       localStorage.removeItem("cm-access-token");
       localStorage.removeItem("cm-workspace-id");
@@ -77,6 +85,12 @@ export function getAccessToken(): string | null {
   if (typeof window === "undefined") return null;
   migrateLegacyStorage();
   return localStorage.getItem(tokenKey());
+}
+
+export function getRefreshToken(): string | null {
+  if (typeof window === "undefined") return null;
+  migrateLegacyStorage();
+  return localStorage.getItem(refreshTokenKey());
 }
 
 /** Sync session from other tabs without re-broadcasting. */

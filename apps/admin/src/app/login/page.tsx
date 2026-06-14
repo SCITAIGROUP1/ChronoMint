@@ -16,7 +16,7 @@ import { api } from "@/lib/api";
 import { useSessionStore } from "@/stores/session.store";
 
 type LoginResponse =
-  | (AuthSessionDto & { accessToken: string })
+  | (AuthSessionDto & { accessToken: string; refreshToken?: string })
   | LoginRequires2faResponseDto
   | LoginRequiresPasswordChangeResponseDto
   | LoginRequiresEmailVerificationResponseDto;
@@ -30,7 +30,9 @@ export default function LoginPage() {
   const [pendingToken, setPendingToken] = useState<string | null>(null);
   const [error, setError] = useState("");
 
-  async function completeLogin(res: AuthSessionDto & { accessToken: string }) {
+  async function completeLogin(
+    res: AuthSessionDto & { accessToken: string; refreshToken?: string }
+  ) {
     if (res.workspaceRole !== "ADMIN") {
       setError("Admin access required");
       return;
@@ -40,7 +42,7 @@ export default function LoginPage() {
       setError("Admin access required");
       return;
     }
-    setSession(switched.session, switched.accessToken);
+    setSession(switched.session, switched.accessToken, res.refreshToken);
     router.push("/dashboard");
   }
 

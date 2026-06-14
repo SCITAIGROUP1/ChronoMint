@@ -14,7 +14,7 @@ import { api } from "@/lib/api";
 import { useSessionStore } from "@/stores/session.store";
 
 type SetPasswordResponse =
-  | (AuthSessionDto & { accessToken: string })
+  | (AuthSessionDto & { accessToken: string; refreshToken?: string })
   | LoginRequires2faResponseDto
   | LoginRequiresEmailVerificationResponseDto;
 
@@ -27,12 +27,14 @@ export function AdminSetPasswordForm() {
   const [needs2fa, setNeeds2fa] = useState(false);
   const [error, setError] = useState("");
 
-  async function finishSession(res: AuthSessionDto & { accessToken: string }) {
+  async function finishSession(
+    res: AuthSessionDto & { accessToken: string; refreshToken?: string }
+  ) {
     const switched = await applyDefaultWorkspaceIfNeeded(res, res.accessToken);
     if (switched.session.workspaceRole !== "ADMIN") {
       throw new Error("Admin access required");
     }
-    setSession(switched.session, switched.accessToken);
+    setSession(switched.session, switched.accessToken, res.refreshToken);
     router.push("/dashboard");
   }
 

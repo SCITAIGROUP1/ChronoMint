@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   isCrossSiteFrontendSetup,
+  getCookieOpts,
   resolveAuthCookieSameSite,
   resolveAuthCookieSecure
 } from "./cookie-options";
@@ -36,5 +37,10 @@ describe("cookie-options", () => {
     delete process.env.AUTH_COOKIE_SAME_SITE;
     expect(isCrossSiteFrontendSetup()).toBe(true);
     expect(resolveAuthCookieSameSite()).toBe("none");
+  });
+
+  it("sets partitioned cookies when sameSite is none", () => {
+    process.env.AUTH_COOKIE_SAME_SITE = "none";
+    expect(getCookieOpts()).toMatchObject({ sameSite: "none", partitioned: true, secure: true });
   });
 });

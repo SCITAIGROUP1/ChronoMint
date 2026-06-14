@@ -17,11 +17,11 @@ function VerifyEmailContent() {
       token={token}
       email={email}
       loginHref="/login"
-      onSession={async (session, accessToken) => {
+      onSession={async (session, accessToken, refreshToken) => {
         if (session.workspaceRole !== "ADMIN") {
           throw new Error("Admin access required");
         }
-        setSession(session, accessToken);
+        setSession(session, accessToken, refreshToken);
         router.push("/dashboard");
       }}
     />

@@ -110,6 +110,23 @@ describe("Auth E2E", () => {
     expect(second.body.accessToken).toBeTruthy();
   });
 
+  it("POST /auth/refresh accepts refresh token in request body", async () => {
+    const loginRes = await request(app.getHttpServer())
+      .post("/auth/login")
+      .set("X-Auth-Scope", "client")
+      .send({ email: "member@kloqra.dev", password: "password123" });
+    expect(loginRes.status).toBe(201);
+    expect(loginRes.body.refreshToken).toBeTruthy();
+
+    const refreshRes = await request(app.getHttpServer())
+      .post("/auth/refresh")
+      .set("X-Auth-Scope", "client")
+      .send({ refreshToken: loginRes.body.refreshToken });
+    expect(refreshRes.status).toBe(201);
+    expect(refreshRes.body.accessToken).toBeTruthy();
+    expect(refreshRes.body.refreshToken).toBeTruthy();
+  });
+
   it("POST /auth/forgot-password returns ok for known and unknown emails", async () => {
     const known = await request(app.getHttpServer())
       .post("/auth/forgot-password")

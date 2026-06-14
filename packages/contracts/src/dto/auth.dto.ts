@@ -32,7 +32,12 @@ export const authSessionSchema = z.object({
 });
 
 export const authSessionWithTokenSchema = authSessionSchema.extend({
-  accessToken: z.string()
+  accessToken: z.string(),
+  refreshToken: z.string().optional()
+});
+
+export const refreshSessionSchema = z.object({
+  refreshToken: z.string().min(1).optional()
 });
 
 export const impersonateSchema = z.object({
@@ -99,6 +104,7 @@ export type OkResponseDto = z.infer<typeof okResponseSchema>;
 export type AuthUserDto = z.infer<typeof authUserSchema>;
 export type AuthSessionDto = z.infer<typeof authSessionSchema>;
 export type AuthSessionWithTokenDto = z.infer<typeof authSessionWithTokenSchema>;
+export type RefreshSessionDto = z.infer<typeof refreshSessionSchema>;
 export type ImpersonateDto = z.infer<typeof impersonateSchema>;
 export type ImpersonateHandoffResponseDto = z.infer<typeof impersonateHandoffResponseSchema>;
 export type CompleteImpersonationDto = z.infer<typeof completeImpersonationSchema>;

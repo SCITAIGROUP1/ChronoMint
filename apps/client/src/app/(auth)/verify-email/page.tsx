@@ -16,8 +16,8 @@ function VerifyEmailContent() {
     <VerifyEmailPageContent
       token={token}
       email={email}
-      onSession={async (session, accessToken) => {
-        setSession(session, accessToken);
+      onSession={async (session, accessToken, refreshToken) => {
+        setSession(session, accessToken, refreshToken);
         router.push("/timer");
       }}
     />

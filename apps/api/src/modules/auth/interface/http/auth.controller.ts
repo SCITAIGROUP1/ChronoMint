@@ -8,6 +8,7 @@ import {
   switchWorkspaceSchema,
   completeImpersonationSchema,
   impersonateSchema,
+  refreshSessionSchema,
   ROUTES,
   ErrorCodes,
   type AuthSessionDto
@@ -92,8 +93,8 @@ export class AuthController {
       return result;
     }
     const session = result as AuthSessionDto;
-    const accessToken = await this.setCookies(req, res, session);
-    return { ...session, accessToken };
+    const tokens = await this.setCookies(req, res, session);
+    return { ...session, ...tokens };
   }
 
   @Throttle({ auth: { limit: 5, ttl: 60_000 } })
@@ -114,8 +115,8 @@ export class AuthController {
       return result;
     }
     const session = result as AuthSessionDto;
-    const accessToken = await this.setCookies(req, res, session);
-    return { ...session, accessToken };
+    const tokens = await this.setCookies(req, res, session);
+    return { ...session, ...tokens };
   }
 
   @Throttle({ auth: { limit: 5, ttl: 60_000 } })
@@ -148,8 +149,8 @@ export class AuthController {
       return result;
     }
     const session = result as AuthSessionDto;
-    const accessToken = await this.setCookies(req, res, session);
-    return { ...session, accessToken };
+    const tokens = await this.setCookies(req, res, session);
+    return { ...session, ...tokens };
   }
 
   @Throttle({ auth: { limit: 5, ttl: 60_000 } })
@@ -162,10 +163,17 @@ export class AuthController {
 
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Post(ROUTES.AUTH.REFRESH)
-  async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+  async refresh(
+    @Body(new ZodValidationPipe(refreshSessionSchema)) body: { refreshToken?: string },
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response
+  ) {
     guardCookieAuthRequest(req);
     const scope = getAuthScope(req);
-    const refresh = req.cookies?.[refreshCookieName(scope)] ?? req.cookies?.refresh_token;
+    const refresh =
+      req.cookies?.[refreshCookieName(scope)] ??
+      req.cookies?.refresh_token ??
+      body.refreshToken?.trim();
     if (!refresh) {
       throw new DomainException(
         ErrorCodes.UNAUTHORIZED,
@@ -198,7 +206,11 @@ export class AuthController {
         maxAge: 7 * 24 * 60 * 60 * 1000
       });
     }
-    return { ...session, accessToken: access };
+    return {
+      ...session,
+      accessToken: access,
+      ...(newRefreshToken ? { refreshToken: newRefreshToken } : {})
+    };
   }
 
   @UseGuards(JwtAuthGuard)
@@ -224,8 +236,8 @@ export class AuthController {
       impersonatorName
     };
 
-    const accessToken = await this.setCookies(req, res, enrichedSession, impersonatorId);
-    return { ...enrichedSession, accessToken };
+    const tokens = await this.setCookies(req, res, enrichedSession, impersonatorId);
+    return { ...enrichedSession, ...tokens };
   }
 
   @SkipThrottle()
@@ -296,7 +308,11 @@ export class AuthController {
       maxAge: 7 * 24 * 60 * 60 * 1000
     });
 
-    return { ...handoff.session, accessToken: handoff.accessToken };
+    return {
+      ...handoff.session,
+      accessToken: handoff.accessToken,
+      refreshToken: handoff.refreshToken
+    };
   }
 
   @UseGuards(JwtAuthGuard)
@@ -346,7 +362,7 @@ export class AuthController {
     res: Response,
     session: { user: { id: string }; workspaceId: string; workspaceRole: "ADMIN" | "MEMBER" },
     impersonatorId?: string
-  ): Promise<string> {
+  ): Promise<{ accessToken: string; refreshToken: string }> {
     const scope = requireProductionAuthScope(req);
     const tokenScope = scope === "client" || scope === "admin" ? scope : undefined;
     const issued = await this.auth.signAndStoreRefreshToken(
@@ -374,6 +390,6 @@ export class AuthController {
       ...cookieOpts,
       maxAge: 7 * 24 * 60 * 60 * 1000
     });
-    return access;
+    return { accessToken: access, refreshToken: issued.raw };
   }
 }

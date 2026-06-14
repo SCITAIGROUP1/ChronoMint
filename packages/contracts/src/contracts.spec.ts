@@ -17,6 +17,7 @@ import {
   normalizeNotificationPreference,
   parseWorkspaceSettings,
   reportQuerySchema,
+  refreshSessionSchema,
   resolveEffectiveDailyTargetHours,
   resolveEffectiveLanguage,
   resolveEffectiveNotifications,
@@ -470,6 +471,11 @@ describe("contracts", () => {
   it("exposes impersonation handoff routes", () => {
     expect(ROUTES.AUTH.IMPERSONATE).toBe("/auth/impersonate");
     expect(ROUTES.AUTH.IMPERSONATE_COMPLETE).toBe("/auth/impersonate/complete");
+  });
+
+  it("validates refresh session body", () => {
+    expect(refreshSessionSchema.safeParse({}).success).toBe(true);
+    expect(refreshSessionSchema.safeParse({ refreshToken: "token" }).success).toBe(true);
   });
 
   it("validates assistant chat request and response shapes", () => {

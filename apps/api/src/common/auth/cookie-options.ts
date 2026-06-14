@@ -79,6 +79,7 @@ export function getCookieOpts(): CookieOptions {
     sameSite,
     secure,
     path: "/",
+    ...(sameSite === "none" ? { partitioned: true } : {}),
     ...(domain ? { domain } : {})
   };
 }

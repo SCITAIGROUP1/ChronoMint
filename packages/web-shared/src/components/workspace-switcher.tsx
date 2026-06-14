@@ -176,7 +176,7 @@ export function WorkspaceSwitcher({
         toast.error("Admin access required for this app.");
         return;
       }
-      setSession(res, res.accessToken);
+      setSession(res, res.accessToken, res.refreshToken);
       onAfterSwitch?.();
       const list = await api<WorkspaceWithRoleDto[]>(ROUTES.WORKSPACES.LIST, {
         workspaceId: nextId

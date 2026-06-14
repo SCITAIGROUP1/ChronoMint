@@ -12,5 +12,8 @@ describe("buildClientImpersonationUrl", () => {
     expect(() => buildClientImpersonationUrl("http://localhost:3000", "")).toThrow(
       "Impersonation handoff token missing from API response"
     );
+    expect(() => buildClientImpersonationUrl("http://localhost:3000", "   ")).toThrow(
+      "Impersonation handoff token missing from API response"
+    );
   });
 });

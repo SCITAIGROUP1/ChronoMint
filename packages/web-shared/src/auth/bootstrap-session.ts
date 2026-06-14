@@ -23,9 +23,12 @@ async function performHandoffComplete(handoffToken: string): Promise<string | nu
     body: JSON.stringify({ handoffToken })
   });
   if (!res.ok) return null;
-  const body = (await res.json()) as AuthSessionDto & { accessToken?: string };
+  const body = (await res.json()) as AuthSessionDto & {
+    accessToken?: string;
+    refreshToken?: string;
+  };
   if (!body.accessToken) return null;
-  useSessionStore.getState().setSession(body, body.accessToken);
+  useSessionStore.getState().setSession(body, body.accessToken, body.refreshToken);
   return body.accessToken;
 }
 

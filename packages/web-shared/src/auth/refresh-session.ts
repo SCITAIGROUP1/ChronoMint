@@ -1,7 +1,7 @@
 import { ROUTES } from "@kloqra/contracts";
 import type { AuthSessionDto } from "@kloqra/contracts";
 import { getApiBase } from "../api/base";
-import { getAccessToken, useSessionStore } from "../stores/session.store";
+import { getAccessToken, getRefreshToken, useSessionStore } from "../stores/session.store";
 import { isAccessTokenExpired } from "./jwt-payload";
 import { configureProactiveRefresh, scheduleProactiveRefresh } from "./token-scheduler";
 
@@ -21,24 +21,29 @@ function scheduleRefreshRetry(): void {
 }
 
 async function performRefresh(): Promise<string | null> {
+  const storedRefresh = getRefreshToken();
   const res = await fetch(`${getApiBase()}${ROUTES.AUTH.REFRESH}`, {
     method: "POST",
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
       "X-Auth-Scope": AUTH_SCOPE
-    }
+    },
+    body: JSON.stringify(storedRefresh ? { refreshToken: storedRefresh } : {})
   });
   if (!res.ok) {
     scheduleRefreshRetry();
     return null;
   }
-  const body = (await res.json()) as AuthSessionDto & { accessToken?: string };
+  const body = (await res.json()) as AuthSessionDto & {
+    accessToken?: string;
+    refreshToken?: string;
+  };
   if (!body.accessToken) {
     scheduleRefreshRetry();
     return null;
   }
-  useSessionStore.getState().setSession(body, body.accessToken);
+  useSessionStore.getState().setSession(body, body.accessToken, body.refreshToken);
   return body.accessToken;
 }
 

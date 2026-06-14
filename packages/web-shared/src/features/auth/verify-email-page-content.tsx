@@ -10,7 +10,9 @@ import { api } from "../../api/client";
 import { applyDefaultWorkspaceIfNeeded } from "../../auth/apply-default-workspace";
 import { AuthShell } from "../../components/auth-shell";
 
-type VerifyResponse = (AuthSessionDto & { accessToken: string }) | LoginRequires2faResponseDto;
+type VerifyResponse =
+  | (AuthSessionDto & { accessToken: string; refreshToken?: string })
+  | LoginRequires2faResponseDto;
 
 export function VerifyEmailPageContent({
   token,
@@ -21,7 +23,11 @@ export function VerifyEmailPageContent({
   token?: string;
   email?: string;
   loginHref?: string;
-  onSession: (session: AuthSessionDto, accessToken: string) => void | Promise<void>;
+  onSession: (
+    session: AuthSessionDto,
+    accessToken: string,
+    refreshToken?: string
+  ) => void | Promise<void>;
 }) {
   const router = useRouter();
   const [email, setEmail] = useState(initialEmail);
@@ -41,9 +47,9 @@ export function VerifyEmailPageContent({
         router.push(`${loginHref}?reason=verify-2fa`);
         return;
       }
-      const session = res as AuthSessionDto & { accessToken: string };
+      const session = res as AuthSessionDto & { accessToken: string; refreshToken?: string };
       const switched = await applyDefaultWorkspaceIfNeeded(session, session.accessToken);
-      await onSession(switched.session, switched.accessToken);
+      await onSession(switched.session, switched.accessToken, session.refreshToken);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not verify email.");
     } finally {

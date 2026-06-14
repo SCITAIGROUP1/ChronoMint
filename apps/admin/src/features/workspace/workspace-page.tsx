@@ -169,7 +169,7 @@ export function WorkspacePage() {
         workspaceId: ws,
         body: JSON.stringify({ workspaceId: res.id })
       });
-      setSession(switchRes, switchRes.accessToken);
+      setSession(switchRes, switchRes.accessToken, switchRes.refreshToken);
 
       const list = await api<any[]>(ROUTES.WORKSPACES.LIST, { workspaceId: res.id });
       setWorkspaces(list);

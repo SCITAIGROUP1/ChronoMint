@@ -20,7 +20,7 @@ import { api } from "@/lib/api";
 import { useSessionStore } from "@/stores/session.store";
 
 type SetPasswordResponse =
-  | (AuthSessionDto & { accessToken: string })
+  | (AuthSessionDto & { accessToken: string; refreshToken?: string })
   | LoginRequires2faResponseDto
   | LoginRequiresEmailVerificationResponseDto;
 
@@ -33,9 +33,11 @@ export function SetPasswordPageForm() {
   const [needs2fa, setNeeds2fa] = useState(false);
   const [error, setError] = useState("");
 
-  async function finishSession(res: AuthSessionDto & { accessToken: string }) {
+  async function finishSession(
+    res: AuthSessionDto & { accessToken: string; refreshToken?: string }
+  ) {
     const switched = await applyDefaultWorkspaceIfNeeded(res, res.accessToken);
-    setSession(switched.session, switched.accessToken);
+    setSession(switched.session, switched.accessToken, res.refreshToken);
     try {
       const profile = await api<{ preferences: { startupPage?: StartupPagePreference } }>(
         ROUTES.USERS.ME,
