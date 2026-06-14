@@ -91,7 +91,10 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
   const ws = resolveApiWorkspaceId(options.workspaceId);
   if (ws) headers["X-Workspace-Id"] = ws;
 
-  const token = typeof window !== "undefined" ? getAccessToken() : null;
+  let token = typeof window !== "undefined" ? getAccessToken() : null;
+  if (token && isAccessTokenExpired(token)) {
+    token = await tryRefreshSession();
+  }
   if (token && !isAccessTokenExpired(token)) {
     headers.Authorization = `Bearer ${token}`;
   }

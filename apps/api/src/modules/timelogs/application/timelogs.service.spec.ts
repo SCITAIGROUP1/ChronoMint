@@ -199,6 +199,59 @@ describe("TimelogsService list", () => {
   });
 });
 
+describe("TimelogsService assertNoOverlap", () => {
+  let service: TimelogsService;
+  let mockPrisma: {
+    timeLog: { findFirst: ReturnType<typeof vi.fn> };
+  };
+
+  beforeEach(() => {
+    mockPrisma = {
+      timeLog: { findFirst: vi.fn().mockResolvedValue(null) }
+    };
+    service = new TimelogsService(
+      mockPrisma as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never
+    );
+  });
+
+  it("throws when an overlapping timelog exists", async () => {
+    mockPrisma.timeLog.findFirst.mockResolvedValue({
+      description: "Overlap",
+      startTime: new Date("2025-01-02T09:30:00.000Z"),
+      endTime: new Date("2025-01-02T10:30:00.000Z"),
+      source: "manual",
+      task: {
+        taskName: "Design",
+        project: { name: "Website" }
+      }
+    });
+
+    await expect(
+      service.assertNoOverlap(
+        "user-1",
+        new Date("2025-01-02T09:00:00.000Z"),
+        new Date("2025-01-02T10:00:00.000Z")
+      )
+    ).rejects.toSatisfy(
+      (err: unknown) => err instanceof DomainException && err.getStatus() === 409
+    );
+  });
+
+  it("passes when no overlap exists", async () => {
+    await expect(
+      service.assertNoOverlap(
+        "user-1",
+        new Date("2025-01-02T09:00:00.000Z"),
+        new Date("2025-01-02T10:00:00.000Z")
+      )
+    ).resolves.toBeUndefined();
+  });
+});
+
 describe("TimelogAuditService", () => {
   const audit = new TimelogAuditService({} as never);
 

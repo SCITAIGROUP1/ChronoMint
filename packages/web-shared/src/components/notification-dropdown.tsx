@@ -4,7 +4,6 @@ import type { NotificationDto, NotificationType } from "@kloqra/contracts";
 import { AppBarIconButton, cn } from "@kloqra/ui";
 import { Bell } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
   NotificationDetails,
@@ -35,7 +34,6 @@ export function NotificationDropdown({
   viewAllHref = "/notifications",
   className
 }: NotificationDropdownProps) {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const { count: unreadCount, refresh: refreshUnread } = useNotificationUnreadCount(
@@ -76,19 +74,12 @@ export function NotificationDropdown({
   }
 
   async function handleItemClick(item: NotificationDto) {
-    if (!item.readAt) {
-      await markNotificationRead(workspaceId, item.id, true);
-      setItems((items) =>
-        items.map((row) =>
-          row.id === item.id ? { ...row, readAt: new Date().toISOString() } : row
-        )
-      );
-      void refreshUnread();
-    }
-    if (item.metadata?.href) {
-      setOpen(false);
-      router.push(item.metadata.href);
-    }
+    if (item.readAt) return;
+    await markNotificationRead(workspaceId, item.id, true);
+    setItems((items) =>
+      items.map((row) => (row.id === item.id ? { ...row, readAt: new Date().toISOString() } : row))
+    );
+    void refreshUnread();
   }
 
   return (
@@ -105,11 +96,13 @@ export function NotificationDropdown({
         {unreadCount > 0 ? (
           <span
             className={cn(
-              "absolute right-1.5 top-1.5 size-2 rounded-full bg-primary ring-2 ring-background",
+              "absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-none text-primary-foreground ring-2 ring-background",
               unreadPop && "animate-unread-pop"
             )}
-            aria-hidden
-          />
+            aria-label={`${unreadCount} unread`}
+          >
+            {unreadCount > 9 ? "9+" : unreadCount}
+          </span>
         ) : null}
       </AppBarIconButton>
 

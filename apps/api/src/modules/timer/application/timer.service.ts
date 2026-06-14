@@ -8,6 +8,8 @@ import { RedisService } from "../../../common/redis/redis.service";
 // eslint-disable-next-line no-restricted-imports
 import { TimelogAuditService } from "../../timelogs/application/timelog-audit.service";
 // eslint-disable-next-line no-restricted-imports
+import { TimelogsService } from "../../timelogs/application/timelogs.service";
+// eslint-disable-next-line no-restricted-imports
 import { TimesheetLockService } from "../../timelogs/application/timesheet-lock.service";
 
 interface TimerState {
@@ -27,11 +29,31 @@ export class TimerService {
     private redis: RedisService,
     private access: ProjectAccessService,
     private audit: TimelogAuditService,
-    private timesheetLock: TimesheetLockService
+    private timesheetLock: TimesheetLockService,
+    private timelogs: TimelogsService
   ) {}
 
   private key(workspaceId: string, userId: string) {
     return `timer:${workspaceId}:${userId}`;
+  }
+
+  private async assertNoActiveTimerAnywhere(userId: string, currentWorkspaceId: string) {
+    const memberships = await this.prisma.workspaceMember.findMany({
+      where: { userId },
+      select: { workspaceId: true }
+    });
+
+    for (const { workspaceId } of memberships) {
+      const raw = await this.redis.getClient().get(this.key(workspaceId, userId));
+      if (!raw) continue;
+
+      const message =
+        workspaceId === currentWorkspaceId
+          ? "Timer already running for this workspace (stop it on this or another device first)"
+          : "You already have a timer running in another workspace. Stop it before starting a new one.";
+
+      throw new DomainException(ErrorCodes.TIMER_ALREADY_ACTIVE, message, HttpStatus.CONFLICT);
+    }
   }
 
   async start(workspaceId: string, userId: string, role: "ADMIN" | "MEMBER", dto: StartTimerDto) {
@@ -42,14 +64,10 @@ export class TimerService {
       throw new DomainException(ErrorCodes.NOT_FOUND, "Task not found", HttpStatus.NOT_FOUND);
     await this.access.assertCanLogTask(workspaceId, userId, role, dto.taskId);
 
-    const existing = await this.redis.getClient().get(this.key(workspaceId, userId));
-    if (existing) {
-      throw new DomainException(
-        ErrorCodes.TIMER_ALREADY_ACTIVE,
-        "Timer already running for this workspace (stop it on this or another device first)",
-        HttpStatus.CONFLICT
-      );
-    }
+    await this.assertNoActiveTimerAnywhere(userId, workspaceId);
+
+    const now = new Date();
+    await this.timelogs.assertNoOverlap(userId, now, now);
 
     const state: TimerState = {
       userId,
@@ -143,6 +161,7 @@ export class TimerService {
     // Synthetic start time so duration matches and is contiguous
     const start = new Date(end.getTime() - totalSec * 1000);
     await this.timesheetLock.assertTaskPeriodEditable(userId, state.taskId, start);
+    await this.timelogs.assertNoOverlap(userId, start, end);
 
     const log = await this.prisma.$transaction(async (tx) => {
       const created = await tx.timeLog.create({

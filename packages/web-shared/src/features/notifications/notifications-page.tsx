@@ -11,7 +11,6 @@ import {
   TablePagination,
   cn
 } from "@kloqra/ui";
-import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
   formatNotificationTimeAgo,
@@ -41,7 +40,6 @@ function NotificationRow({
 }) {
   const Icon = iconForType(item.type, item.title);
   const isUnread = !item.readAt;
-  const href = item.metadata?.href;
 
   async function setRead(read: boolean) {
     await markNotificationRead(workspaceId, item.id, read);
@@ -89,14 +87,6 @@ function NotificationRow({
       </div>
     </div>
   );
-
-  if (href) {
-    return (
-      <Link href={href} className="block hover:opacity-95">
-        {content}
-      </Link>
-    );
-  }
 
   return content;
 }

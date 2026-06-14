@@ -26,7 +26,7 @@ import {
 } from "@kloqra/ui";
 import { usePaginatedList } from "@kloqra/web-shared";
 import { ChevronRight, FolderPlus, Plus } from "lucide-react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { projectListHref } from "@/features/projects/project-detail-nav";
@@ -34,6 +34,7 @@ import { api } from "@/lib/api";
 import { getWorkspaceId, useSessionStore } from "@/stores/session.store";
 
 export function ProjectsListPage() {
+  const router = useRouter();
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
   const {
     items: projects,
@@ -137,38 +138,43 @@ export function ProjectsListPage() {
                 </DataTableHeaderRow>
               </TableHeader>
               <TableBody>
-                {projects.map((p) => (
-                  <TableRow key={p.id} className="group relative cursor-pointer hover:bg-muted/40">
-                    <DataTableCell>
-                      <Link
-                        href={projectListHref(p.id)}
-                        className="block after:absolute after:inset-0"
-                      >
+                {projects.map((p) => {
+                  const href = projectListHref(p.id);
+                  return (
+                    <TableRow
+                      key={p.id}
+                      className="group cursor-pointer hover:bg-muted/40"
+                      tabIndex={0}
+                      role="link"
+                      aria-label={`Open ${p.name}`}
+                      onClick={() => router.push(href)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          router.push(href);
+                        }
+                      }}
+                    >
+                      <DataTableCell>
                         <ProjectNameWithColor name={p.name} color={p.color} />
-                      </Link>
-                    </DataTableCell>
-                    <DataTableCell className="text-muted-foreground">
-                      <Link href={projectListHref(p.id)} className="block">
+                      </DataTableCell>
+                      <DataTableCell className="text-muted-foreground">
                         {p.clientName ?? "—"}
-                      </Link>
-                    </DataTableCell>
-                    <DataTableCell>
-                      <Link href={projectListHref(p.id)} className="block">
+                      </DataTableCell>
+                      <DataTableCell>
                         <Badge variant={p.isActive ? "default" : "secondary"}>
                           {p.isActive ? "Active" : "Inactive"}
                         </Badge>
-                      </Link>
-                    </DataTableCell>
-                    <DataTableCell className="text-muted-foreground">
-                      <Link href={projectListHref(p.id)} className="inline-flex">
+                      </DataTableCell>
+                      <DataTableCell className="text-muted-foreground">
                         <ChevronRight
                           className="h-4 w-4 opacity-40 transition-opacity group-hover:opacity-100"
                           aria-hidden
                         />
-                      </Link>
-                    </DataTableCell>
-                  </TableRow>
-                ))}
+                      </DataTableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
             <TablePagination

@@ -6,6 +6,7 @@ import {
   verifyEmailSchema,
   resendVerificationSchema,
   switchWorkspaceSchema,
+  completeImpersonationSchema,
   impersonateSchema,
   ROUTES,
   ErrorCodes,
@@ -250,11 +251,8 @@ export class AuthController {
       );
     }
 
-    const { session, accessToken, refreshToken } = await this.auth.impersonate(
-      user.userId,
-      user.workspaceId,
-      body.userId
-    );
+    const { session, handoffToken, accessToken, refreshToken } =
+      await this.auth.createImpersonationHandoff(user.userId, user.workspaceId, body.userId);
 
     const clientScope = "client" as const;
     const cookieOpts = getCookieOpts();
@@ -267,7 +265,38 @@ export class AuthController {
       maxAge: 7 * 24 * 60 * 60 * 1000
     });
 
-    return { ...session, accessToken };
+    return { ...session, handoffToken };
+  }
+
+  @Throttle({ auth: { limit: 10, ttl: 60_000 } })
+  @Post(ROUTES.AUTH.IMPERSONATE_COMPLETE)
+  async completeImpersonation(
+    @Body(new ZodValidationPipe(completeImpersonationSchema)) body: { handoffToken: string },
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response
+  ) {
+    guardCookieAuthRequest(req);
+    const handoff = await this.auth.consumeImpersonationHandoff(body.handoffToken);
+    if (!handoff) {
+      throw new DomainException(
+        ErrorCodes.UNAUTHORIZED,
+        "Impersonation handoff expired or invalid",
+        HttpStatus.UNAUTHORIZED
+      );
+    }
+
+    const clientScope = "client" as const;
+    const cookieOpts = getCookieOpts();
+    res.cookie(accessCookieName(clientScope), handoff.accessToken, {
+      ...cookieOpts,
+      maxAge: 15 * 60 * 1000
+    });
+    res.cookie(refreshCookieName(clientScope), handoff.refreshToken, {
+      ...cookieOpts,
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
+
+    return { ...handoff.session, accessToken: handoff.accessToken };
   }
 
   @UseGuards(JwtAuthGuard)

@@ -21,7 +21,11 @@ import {
   buildVerifyEmailUrl
 } from "../../../common/mailer/auth.mailer";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { RedisService } from "../../../common/redis/redis.service";
 import { splitDisplayName } from "../../users/application/user-name.util";
+
+const IMPERSONATION_HANDOFF_PREFIX = "impersonation:handoff:";
+const IMPERSONATION_HANDOFF_TTL_SECONDS = 90;
 
 function hashToken(raw: string): string {
   return createHash("sha256").update(raw).digest("hex");
@@ -32,7 +36,8 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
-    private authMailer: AuthMailer
+    private authMailer: AuthMailer,
+    private redis: RedisService
   ) {}
 
   async switchWorkspace(userId: string, workspaceId: string): Promise<AuthSessionDto> {
@@ -796,6 +801,49 @@ export class AuthService {
     );
 
     return { session, accessToken, refreshToken: issued.raw };
+  }
+
+  async createImpersonationHandoff(
+    adminUserId: string,
+    workspaceId: string,
+    targetUserId: string
+  ): Promise<{
+    session: AuthSessionDto;
+    handoffToken: string;
+    accessToken: string;
+    refreshToken: string;
+  }> {
+    const { session, accessToken, refreshToken } = await this.impersonate(
+      adminUserId,
+      workspaceId,
+      targetUserId
+    );
+    const handoffToken = randomBytes(32).toString("base64url");
+    const redisKey = `${IMPERSONATION_HANDOFF_PREFIX}${hashToken(handoffToken)}`;
+    await this.redis
+      .getClient()
+      .setex(
+        redisKey,
+        IMPERSONATION_HANDOFF_TTL_SECONDS,
+        JSON.stringify({ session, accessToken, refreshToken })
+      );
+    return { session, handoffToken, accessToken, refreshToken };
+  }
+
+  async consumeImpersonationHandoff(handoffToken: string): Promise<{
+    session: AuthSessionDto;
+    accessToken: string;
+    refreshToken: string;
+  } | null> {
+    const redisKey = `${IMPERSONATION_HANDOFF_PREFIX}${hashToken(handoffToken)}`;
+    const raw = await this.redis.getClient().get(redisKey);
+    if (!raw) return null;
+    await this.redis.getClient().del(redisKey);
+    return JSON.parse(raw) as {
+      session: AuthSessionDto;
+      accessToken: string;
+      refreshToken: string;
+    };
   }
 
   async verifyImpersonator(

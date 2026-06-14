@@ -55,16 +55,25 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (session) return;
 
-    const isImpersonatingRequest =
-      typeof window !== "undefined" && window.location.search.includes("impersonate=true");
+    const params = new URLSearchParams(window.location.search);
+    const handoffToken = params.get("handoff");
+    const legacyImpersonate = params.get("impersonate") === "true";
 
-    if (isImpersonatingRequest) {
-      const url = new URL(window.location.href);
-      url.searchParams.delete("impersonate");
-      window.history.replaceState({}, document.title, url.pathname + url.search);
+    if (handoffToken || legacyImpersonate) {
+      params.delete("handoff");
+      params.delete("impersonate");
+      const query = params.toString();
+      window.history.replaceState(
+        {},
+        document.title,
+        window.location.pathname + (query ? `?${query}` : "")
+      );
     }
 
-    void bootstrapSession({ clearBeforeRefresh: isImpersonatingRequest })
+    void bootstrapSession({
+      handoffToken: handoffToken ?? undefined,
+      clearBeforeRefresh: legacyImpersonate && !handoffToken
+    })
       .then((result) => {
         if (!result.ok) {
           router.replace("/login");

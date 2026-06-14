@@ -5,6 +5,8 @@ import { NotificationDropdown } from "./notification-dropdown";
 
 const mockRefresh = vi.fn();
 const mockRefreshUnread = vi.fn();
+const mockMarkNotificationRead = vi.fn();
+const mockPush = vi.fn();
 
 vi.mock("../hooks/use-notifications", () => ({
   useNotificationUnreadCount: () => ({ count: 2, refresh: mockRefreshUnread }),
@@ -17,7 +19,8 @@ vi.mock("../hooks/use-notifications", () => ({
         title: "Timesheet Approved",
         body: "Your timesheet for Week 23 has been approved",
         readAt: null,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        metadata: { href: "/approvals" }
       }
     ],
     refresh: mockRefresh,
@@ -25,11 +28,11 @@ vi.mock("../hooks/use-notifications", () => ({
   }),
   formatNotificationTimeAgo: () => "5 min ago",
   markAllNotificationsRead: vi.fn(),
-  markNotificationRead: vi.fn()
+  markNotificationRead: (...args: unknown[]) => mockMarkNotificationRead(...args)
 }));
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn() })
+  useRouter: () => ({ push: mockPush })
 }));
 
 describe("NotificationDropdown", () => {
@@ -48,5 +51,21 @@ describe("NotificationDropdown", () => {
     expect(screen.getByRole("link", { name: "View all notifications" }).getAttribute("href")).toBe(
       "/notifications"
     );
+  });
+
+  it("shows unread count on the bell badge", () => {
+    render(<NotificationDropdown workspaceId="ws1" viewAllHref="/notifications" />);
+
+    expect(screen.getByLabelText("2 unread")).toBeTruthy();
+  });
+
+  it("marks a notification read without navigating away", () => {
+    render(<NotificationDropdown workspaceId="ws1" viewAllHref="/notifications" />);
+
+    fireEvent.click(screen.getByLabelText("Notifications"));
+    fireEvent.click(screen.getByRole("menuitem", { name: /Timesheet Approved/i }));
+
+    expect(mockMarkNotificationRead).toHaveBeenCalledWith("ws1", "n1", true);
+    expect(mockPush).not.toHaveBeenCalled();
   });
 });

@@ -1,0 +1,64 @@
+/** @vitest-environment jsdom */
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const mockGetAccessToken = vi.fn();
+const mockTryRefresh = vi.fn();
+
+vi.mock("../stores/session.store", () => ({
+  getAccessToken: () => mockGetAccessToken(),
+  useSessionStore: { getState: () => ({ clear: vi.fn() }) }
+}));
+
+vi.mock("../auth/jwt-payload", () => ({
+  isAccessTokenExpired: (token: string | null) => token === "expired-token"
+}));
+
+vi.mock("../auth/refresh-session", () => ({
+  tryRefreshSession: () => mockTryRefresh()
+}));
+
+vi.mock("../auth/workspace-context", () => ({
+  isWorkspaceMismatchError: () => false,
+  resolveApiWorkspaceId: () => "ws-1"
+}));
+
+vi.mock("../api/base", () => ({
+  getApiBase: () => "http://localhost:3001"
+}));
+
+describe("api client auth refresh", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    mockGetAccessToken.mockReset();
+    mockTryRefresh.mockReset();
+    mockTryRefresh.mockResolvedValue("fresh-token");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        headers: { get: () => "application/json" },
+        json: async () => ({ ok: true })
+      })
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("refreshes before sending when the stored access token is expired", async () => {
+    mockGetAccessToken.mockReturnValue("expired-token");
+    const { api } = await import("./client");
+    await api("/users/me", { workspaceId: "ws-1" });
+
+    expect(mockTryRefresh).toHaveBeenCalledTimes(1);
+    expect(fetch).toHaveBeenCalledWith(
+      "http://localhost:3001/users/me",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: "Bearer fresh-token"
+        })
+      })
+    );
+  });
+});

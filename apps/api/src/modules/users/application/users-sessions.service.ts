@@ -56,4 +56,45 @@ export class UsersSessionsService {
 
     return { ok: true };
   }
+
+  async revokeOtherSessions(
+    userId: string,
+    currentRefreshToken?: string
+  ): Promise<{ revoked: number }> {
+    const currentHash = currentRefreshToken ? hashToken(currentRefreshToken) : null;
+    const currentSession = currentHash
+      ? await this.prisma.refreshToken.findFirst({
+          where: { userId, tokenHash: currentHash, revokedAt: null }
+        })
+      : null;
+
+    const otherSessions = await this.prisma.refreshToken.findMany({
+      where: {
+        userId,
+        revokedAt: null,
+        expiresAt: { gt: new Date() },
+        ...(currentSession?.family ? { family: { not: currentSession.family } } : {})
+      },
+      select: { family: true },
+      distinct: ["family"]
+    });
+
+    if (otherSessions.length === 0) {
+      return { revoked: 0 };
+    }
+
+    const families = otherSessions.map((session) => session.family);
+    const result = await this.prisma.refreshToken.updateMany({
+      where: {
+        userId,
+        revokedAt: null,
+        family: { in: families }
+      },
+      data: { revokedAt: new Date() }
+    });
+
+    await Promise.all(families.map((family) => this.authRevocation.revokeFamily(family)));
+
+    return { revoked: result.count };
+  }
 }

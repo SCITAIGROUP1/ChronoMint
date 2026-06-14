@@ -28,6 +28,7 @@ describe("TimerService", () => {
   let mockAccess: any;
   let mockAudit: any;
   let mockTimesheetLock: any;
+  let mockTimelogs: any;
 
   const workspaceId = "ws-1";
   const userId = "user-1";
@@ -45,6 +46,9 @@ describe("TimerService", () => {
           projectId: "proj-1",
           billableDefault: true
         })
+      },
+      workspaceMember: {
+        findMany: vi.fn().mockResolvedValue([{ workspaceId }])
       },
       $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => {
         const tx = {
@@ -75,13 +79,17 @@ describe("TimerService", () => {
     mockTimesheetLock = {
       assertTaskPeriodEditable: vi.fn().mockResolvedValue(undefined)
     };
+    mockTimelogs = {
+      assertNoOverlap: vi.fn().mockResolvedValue(undefined)
+    };
 
     service = new TimerService(
       mockPrisma,
       redisMock.redis as never,
       mockAccess,
       mockAudit,
-      mockTimesheetLock
+      mockTimesheetLock,
+      mockTimelogs
     );
   });
 
@@ -91,9 +99,14 @@ describe("TimerService", () => {
     expect(result.taskId).toBe(taskId);
     expect(result.elapsedSec).toBe(0);
     expect(redisMock.client.set).toHaveBeenCalled();
+    expect(mockTimelogs.assertNoOverlap).toHaveBeenCalledWith(
+      userId,
+      expect.any(Date),
+      expect.any(Date)
+    );
   });
 
-  it("throws TIMER_ALREADY_ACTIVE when a timer exists", async () => {
+  it("throws TIMER_ALREADY_ACTIVE when a timer exists in the workspace", async () => {
     redisMock.store.set(
       `timer:${workspaceId}:${userId}`,
       JSON.stringify({ userId, workspaceId, taskId, startedAt: new Date().toISOString() })
@@ -105,6 +118,43 @@ describe("TimerService", () => {
         err.code === ErrorCodes.TIMER_ALREADY_ACTIVE &&
         err.getStatus() === HttpStatus.CONFLICT
     );
+  });
+
+  it("throws TIMER_ALREADY_ACTIVE when a timer exists in another workspace", async () => {
+    mockPrisma.workspaceMember.findMany.mockResolvedValue([
+      { workspaceId },
+      { workspaceId: "ws-2" }
+    ]);
+    redisMock.store.set(
+      `timer:ws-2:${userId}`,
+      JSON.stringify({ userId, workspaceId: "ws-2", taskId, startedAt: new Date().toISOString() })
+    );
+
+    await expect(service.start(workspaceId, userId, "MEMBER", { taskId })).rejects.toSatisfy(
+      (err: unknown) =>
+        err instanceof DomainException &&
+        err.code === ErrorCodes.TIMER_ALREADY_ACTIVE &&
+        err.message.includes("another workspace") &&
+        err.getStatus() === HttpStatus.CONFLICT
+    );
+  });
+
+  it("throws TIMELOG_OVERLAP when an existing entry covers now", async () => {
+    mockTimelogs.assertNoOverlap.mockRejectedValue(
+      new DomainException(
+        ErrorCodes.TIMELOG_OVERLAP,
+        "You can't log time for two projects at once.",
+        HttpStatus.CONFLICT
+      )
+    );
+
+    await expect(service.start(workspaceId, userId, "MEMBER", { taskId })).rejects.toSatisfy(
+      (err: unknown) =>
+        err instanceof DomainException &&
+        err.code === ErrorCodes.TIMELOG_OVERLAP &&
+        err.getStatus() === HttpStatus.CONFLICT
+    );
+    expect(redisMock.client.set).not.toHaveBeenCalled();
   });
 
   it("throws NOT_FOUND when task is missing", async () => {
@@ -139,6 +189,11 @@ describe("TimerService", () => {
     expect(result.source).toBe("timer");
     expect(redisMock.client.del).toHaveBeenCalledWith(`timer:${workspaceId}:${userId}`);
     expect(mockPrisma.$transaction).toHaveBeenCalled();
+    expect(mockTimelogs.assertNoOverlap).toHaveBeenCalledWith(
+      userId,
+      expect.any(Date),
+      expect.any(Date)
+    );
   });
 
   it("throws TIMER_NOT_ACTIVE when stopping with no timer", async () => {

@@ -31,6 +31,7 @@ import { Play, Pause, Square } from "lucide-react";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { toast } from "sonner";
 import { DailyGoalWidget, QuickActions, StaleTimerDialog } from "./timer-lazy";
+import { resolveTimerStartErrorMessage } from "./timer-start-error";
 import { api } from "@/lib/api";
 import { formatProjectLabel, formatTaskLabel } from "@/lib/project-labels";
 import { useProjectsStore } from "@/stores/projects.store";
@@ -292,14 +293,9 @@ export function TimerPage() {
       void fetchTodayLogs();
     } catch (e) {
       const message = e instanceof Error ? e.message : "Could not start timer";
-      if (message.toLowerCase().includes("timer already running")) {
-        const errMsg = "A timer is already running in this workspace. Stop it first.";
-        setError(errMsg);
-        toast.error(errMsg);
-      } else {
-        setError(message);
-        toast.error(message);
-      }
+      const errMsg = resolveTimerStartErrorMessage(message);
+      setError(errMsg);
+      toast.error(errMsg);
     } finally {
       setStarting(false);
     }

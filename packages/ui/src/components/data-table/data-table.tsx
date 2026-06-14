@@ -8,7 +8,7 @@ import { Card } from "../ui/card.js";
 import { Input } from "../ui/input.js";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table.js";
 
-export const dataTableCardClass = "overflow-hidden border-primary/10 shadow-sm";
+export const dataTableCardClass = "gap-0 overflow-hidden border-primary/10 p-0 shadow-sm";
 export const dataTableHeaderRowClass = "border-b border-border/60 bg-muted/30 hover:bg-muted/30";
 export const dataTableHeadClass =
   "h-11 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground";

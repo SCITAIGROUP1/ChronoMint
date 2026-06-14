@@ -26,6 +26,16 @@ test.describe("Admin projects", () => {
     await expect(page.getByText(clientName).first()).toBeVisible();
   });
 
+  test("opens the clicked project row", async ({ page }) => {
+    await page.getByRole("link", { name: "Open Annual Audit" }).click();
+    await expect(page.getByText("Annual Audit")).toBeVisible();
+    await expect(page.getByText("Client: Adventure Works")).toBeVisible();
+
+    await page.goto("/projects");
+    await page.getByRole("link", { name: "Open Brand Campaign Q2" }).click();
+    await expect(page.getByText("Brand Campaign Q2")).toBeVisible();
+  });
+
   test("opens project overview tab from list", async ({ page }) => {
     // Project list rows link to overview (default project section).
     await page.locator("table tbody tr").first().click();

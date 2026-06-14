@@ -55,4 +55,43 @@ describe("UsersSessionsService", () => {
     });
     expect(mockRevocation.revokeFamily).toHaveBeenCalledWith("fam-1");
   });
+
+  it("revokes all other refresh families while keeping the current session", async () => {
+    mockPrisma.refreshToken.findFirst.mockResolvedValue({
+      id: "session-current",
+      family: "fam-current"
+    });
+    mockPrisma.refreshToken.findMany.mockResolvedValue([
+      { family: "fam-other-1" },
+      { family: "fam-other-2" }
+    ]);
+    mockPrisma.refreshToken.updateMany.mockResolvedValue({ count: 4 });
+
+    const result = await service.revokeOtherSessions("user-1", "refresh-token");
+
+    expect(result).toEqual({ revoked: 4 });
+    expect(mockPrisma.refreshToken.updateMany).toHaveBeenCalledWith({
+      where: {
+        userId: "user-1",
+        revokedAt: null,
+        family: { in: ["fam-other-1", "fam-other-2"] }
+      },
+      data: { revokedAt: expect.any(Date) }
+    });
+    expect(mockRevocation.revokeFamily).toHaveBeenCalledWith("fam-other-1");
+    expect(mockRevocation.revokeFamily).toHaveBeenCalledWith("fam-other-2");
+  });
+
+  it("returns zero when only the current session is active", async () => {
+    mockPrisma.refreshToken.findFirst.mockResolvedValue({
+      id: "session-current",
+      family: "fam-current"
+    });
+    mockPrisma.refreshToken.findMany.mockResolvedValue([]);
+
+    const result = await service.revokeOtherSessions("user-1", "refresh-token");
+
+    expect(result).toEqual({ revoked: 0 });
+    expect(mockPrisma.refreshToken.updateMany).not.toHaveBeenCalled();
+  });
 });

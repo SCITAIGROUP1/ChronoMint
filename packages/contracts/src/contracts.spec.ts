@@ -85,6 +85,7 @@ describe("contracts", () => {
     expect(ROUTES.USERS.DASHBOARD_LAYOUT).toBe("/users/me/dashboard-layout");
     expect(ROUTES.USERS.PASSWORD).toBe("/users/me/password");
     expect(ROUTES.USERS.SESSIONS).toBe("/users/me/sessions");
+    expect(ROUTES.USERS.REVOKE_OTHER_SESSIONS).toBe("/users/me/sessions/revoke-others");
     expect(ROUTES.USERS.SESSION("abc")).toBe("/users/me/sessions/abc");
     expect(ROUTES.USERS.TWO_FA_ENABLE).toBe("/users/me/2fa/enable");
   });
@@ -464,6 +465,11 @@ describe("contracts", () => {
 
   it("exposes assistant chat route", () => {
     expect(ROUTES.ASSISTANT.CHAT).toBe("/assistant/chat");
+  });
+
+  it("exposes impersonation handoff routes", () => {
+    expect(ROUTES.AUTH.IMPERSONATE).toBe("/auth/impersonate");
+    expect(ROUTES.AUTH.IMPERSONATE_COMPLETE).toBe("/auth/impersonate/complete");
   });
 
   it("validates assistant chat request and response shapes", () => {

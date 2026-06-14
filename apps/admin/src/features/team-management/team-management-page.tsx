@@ -123,12 +123,12 @@ export function TeamManagementPage() {
   async function handleImpersonate(member: TeamMemberOverviewDto) {
     setMemberBusyId(member.id);
     try {
-      await api(ROUTES.AUTH.IMPERSONATE, {
+      const result = await api<{ handoffToken: string }>(ROUTES.AUTH.IMPERSONATE, {
         method: "POST",
         workspaceId: ws,
         body: JSON.stringify({ userId: member.userId })
       });
-      toast.success("Impersonation cookies set. Redirecting to Client...");
+      toast.success("Impersonation ready. Redirecting to Client...");
       let clientUrl = process.env.NEXT_PUBLIC_CLIENT_URL;
       if (!clientUrl) {
         if (typeof window !== "undefined") {
@@ -142,7 +142,8 @@ export function TeamManagementPage() {
           clientUrl = "http://localhost:3000";
         }
       }
-      window.location.href = `${clientUrl}/dashboard?impersonate=true`;
+      const handoff = encodeURIComponent(result.handoffToken);
+      window.location.href = `${clientUrl}/dashboard?handoff=${handoff}`;
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to view as member");
     } finally {

@@ -125,6 +125,14 @@ export class UsersController {
     return this.sessions.revokeSession(user.userId, sessionId);
   }
 
+  @Post(ROUTES.USERS.REVOKE_OTHER_SESSIONS)
+  revokeOtherSessions(@CurrentUser() user: RequestUser, @Req() req: Request) {
+    this.assertNotImpersonating(user);
+    const scope = getAuthScope(req);
+    const refresh = req.cookies?.[refreshCookieName(scope)] ?? req.cookies?.refresh_token;
+    return this.sessions.revokeOtherSessions(user.userId, refresh);
+  }
+
   @Post(ROUTES.USERS.TWO_FA_ENABLE)
   enable2fa(@CurrentUser() user: RequestUser) {
     this.assertNotImpersonating(user);

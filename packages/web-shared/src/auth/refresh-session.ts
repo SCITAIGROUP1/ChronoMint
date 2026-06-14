@@ -1,12 +1,24 @@
 import { ROUTES } from "@kloqra/contracts";
 import type { AuthSessionDto } from "@kloqra/contracts";
 import { getApiBase } from "../api/base";
-import { useSessionStore } from "../stores/session.store";
-import { configureProactiveRefresh } from "./token-scheduler";
+import { getAccessToken, useSessionStore } from "../stores/session.store";
+import { isAccessTokenExpired } from "./jwt-payload";
+import { configureProactiveRefresh, scheduleProactiveRefresh } from "./token-scheduler";
 
 const AUTH_SCOPE = process.env.NEXT_PUBLIC_AUTH_SCOPE?.trim() || "app";
 
+/** Retry delay when a background refresh fails but the user still appears signed in. */
+const REFRESH_RETRY_MS = 30_000;
+
 let refreshPromise: Promise<string | null> | null = null;
+
+function scheduleRefreshRetry(): void {
+  if (typeof window === "undefined") return;
+  if (!getAccessToken()) return;
+  window.setTimeout(() => {
+    void tryRefreshSession();
+  }, REFRESH_RETRY_MS);
+}
 
 async function performRefresh(): Promise<string | null> {
   const res = await fetch(`${getApiBase()}${ROUTES.AUTH.REFRESH}`, {
@@ -17,9 +29,15 @@ async function performRefresh(): Promise<string | null> {
       "X-Auth-Scope": AUTH_SCOPE
     }
   });
-  if (!res.ok) return null;
+  if (!res.ok) {
+    scheduleRefreshRetry();
+    return null;
+  }
   const body = (await res.json()) as AuthSessionDto & { accessToken?: string };
-  if (!body.accessToken) return null;
+  if (!body.accessToken) {
+    scheduleRefreshRetry();
+    return null;
+  }
   useSessionStore.getState().setSession(body, body.accessToken);
   return body.accessToken;
 }
@@ -34,3 +52,19 @@ export async function tryRefreshSession(): Promise<string | null> {
 }
 
 configureProactiveRefresh(() => tryRefreshSession());
+
+/** Resume proactive refresh after reload when a token is already in storage. */
+export function bootstrapTokenSchedulerFromStorage(): void {
+  if (typeof window === "undefined") return;
+  const token = useSessionStore.getState().accessToken ?? getAccessToken();
+  if (!token) return;
+  if (isAccessTokenExpired(token)) {
+    void tryRefreshSession();
+    return;
+  }
+  scheduleProactiveRefresh(token);
+}
+
+if (typeof window !== "undefined") {
+  bootstrapTokenSchedulerFromStorage();
+}

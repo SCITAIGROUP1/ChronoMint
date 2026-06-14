@@ -402,7 +402,7 @@ export class TimelogsService {
     return `${start.toLocaleTimeString("en-US", opts)} – ${end.toLocaleTimeString("en-US", opts)}`;
   }
 
-  private async assertNoOverlap(userId: string, start: Date, end: Date, excludeId?: string) {
+  async assertNoOverlap(userId: string, start: Date, end: Date, excludeId?: string) {
     const overlap = await this.prisma.timeLog.findFirst({
       where: {
         userId,

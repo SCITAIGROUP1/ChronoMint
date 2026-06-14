@@ -39,6 +39,14 @@ export const impersonateSchema = z.object({
   userId: uuidSchema
 });
 
+export const impersonateHandoffResponseSchema = authSessionSchema.extend({
+  handoffToken: z.string().min(1)
+});
+
+export const completeImpersonationSchema = z.object({
+  handoffToken: z.string().min(1)
+});
+
 export const loginRequiresPasswordChangeResponseSchema = z.object({
   requiresPasswordChange: z.literal(true),
   pendingToken: z.string()
@@ -92,3 +100,5 @@ export type AuthUserDto = z.infer<typeof authUserSchema>;
 export type AuthSessionDto = z.infer<typeof authSessionSchema>;
 export type AuthSessionWithTokenDto = z.infer<typeof authSessionWithTokenSchema>;
 export type ImpersonateDto = z.infer<typeof impersonateSchema>;
+export type ImpersonateHandoffResponseDto = z.infer<typeof impersonateHandoffResponseSchema>;
+export type CompleteImpersonationDto = z.infer<typeof completeImpersonationSchema>;

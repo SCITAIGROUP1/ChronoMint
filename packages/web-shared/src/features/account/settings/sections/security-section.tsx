@@ -16,7 +16,8 @@ export function SecuritySection({
   onVerify2fa,
   onDisable2fa,
   onListSessions,
-  onRevokeSession
+  onRevokeSession,
+  onRevokeOtherSessions
 }: {
   profile: UserProfileDto;
   onChangePassword: (currentPassword: string, newPassword: string) => Promise<void>;
@@ -25,6 +26,7 @@ export function SecuritySection({
   onDisable2fa: (currentPassword: string, code: string) => Promise<void>;
   onListSessions: () => Promise<UserSessionDto[]>;
   onRevokeSession: (sessionId: string) => Promise<void>;
+  onRevokeOtherSessions: () => Promise<{ revoked: number }>;
 }) {
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [twoFaOpen, setTwoFaOpen] = useState(false);
@@ -35,6 +37,9 @@ export function SecuritySection({
   const [disablePassword, setDisablePassword] = useState("");
   const [disableCode, setDisableCode] = useState("");
   const [loadingSessions, setLoadingSessions] = useState(false);
+  const [revokingOthers, setRevokingOthers] = useState(false);
+
+  const otherSessions = sessions.filter((session) => !session.isCurrent);
 
   async function openSessions() {
     setSessionsOpen(true);
@@ -78,6 +83,23 @@ export function SecuritySection({
       toast.success("Two-factor authentication disabled");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not disable 2FA");
+    }
+  }
+
+  async function handleRevokeOtherSessions() {
+    setRevokingOthers(true);
+    try {
+      const result = await onRevokeOtherSessions();
+      setSessions((prev) => prev.filter((session) => session.isCurrent));
+      toast.success(
+        result.revoked > 0
+          ? `Signed out ${result.revoked} other session${result.revoked === 1 ? "" : "s"}.`
+          : "No other active sessions to sign out."
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not sign out other devices");
+    } finally {
+      setRevokingOthers(false);
     }
   }
 
@@ -205,11 +227,23 @@ export function SecuritySection({
         icon={<Activity className="size-5" />}
         size="lg"
         footer={
-          <DialogClose asChild>
-            <Button type="button" variant="outline">
-              Close
-            </Button>
-          </DialogClose>
+          <div className="flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            {otherSessions.length > 0 ? (
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={revokingOthers || loadingSessions}
+                onClick={() => void handleRevokeOtherSessions()}
+              >
+                {revokingOthers ? "Signing out…" : "Sign out other devices"}
+              </Button>
+            ) : null}
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                Close
+              </Button>
+            </DialogClose>
+          </div>
         }
       >
         {loadingSessions ? (

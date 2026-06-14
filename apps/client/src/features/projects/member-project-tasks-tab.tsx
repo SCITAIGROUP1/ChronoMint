@@ -64,10 +64,12 @@ export function MemberProjectTasksTab() {
         <TableLoadingState rows={6} columns={3} />
       ) : (
         <>
-          <div className="space-y-6 p-4 sm:p-6">
+          <div className="divide-y divide-border/60">
             {grouped.map(([categoryName, categoryTasks]) => (
-              <div key={categoryName} className="space-y-2">
-                <h3 className="text-sm font-semibold text-muted-foreground">{categoryName}</h3>
+              <div key={categoryName}>
+                <h3 className="border-b border-border/70 bg-muted/20 px-5 py-3 text-sm font-semibold text-muted-foreground">
+                  {categoryName}
+                </h3>
                 <Table>
                   <TableHeader>
                     <DataTableHeaderRow>

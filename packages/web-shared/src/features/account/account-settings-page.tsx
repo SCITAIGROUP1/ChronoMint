@@ -61,6 +61,7 @@ export function AccountSettingsPage({
     changePassword,
     listSessions,
     revokeSession,
+    revokeOtherSessions,
     enable2fa,
     verify2fa,
     disable2fa
@@ -117,6 +118,7 @@ export function AccountSettingsPage({
                 onDisable2fa={(currentPassword, code) => disable2fa({ currentPassword, code })}
                 onListSessions={listSessions}
                 onRevokeSession={revokeSession}
+                onRevokeOtherSessions={revokeOtherSessions}
               />
             ) : null}
             {activeSection === "account" ? (

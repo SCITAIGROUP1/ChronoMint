@@ -103,6 +103,15 @@ export function useUserProfile() {
     [ws]
   );
 
+  const revokeOtherSessions = useCallback(async () => {
+    if (!ws) throw new Error("No workspace");
+    return api<{ revoked: number }>(ROUTES.USERS.REVOKE_OTHER_SESSIONS, {
+      method: "POST",
+      workspaceId: ws,
+      body: JSON.stringify({})
+    });
+  }, [ws]);
+
   const enable2fa = useCallback(async () => {
     if (!ws) throw new Error("No workspace");
     return api<{ secret: string; otpauthUrl: string }>(ROUTES.USERS.TWO_FA_ENABLE, {
@@ -148,6 +157,7 @@ export function useUserProfile() {
     changePassword,
     listSessions,
     revokeSession,
+    revokeOtherSessions,
     enable2fa,
     verify2fa,
     disable2fa,

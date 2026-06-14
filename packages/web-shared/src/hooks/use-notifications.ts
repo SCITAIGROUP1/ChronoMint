@@ -5,6 +5,15 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
 import { usePaginatedList } from "./use-paginated-list";
 
+export const NOTIFICATIONS_UPDATED_EVENT = "kloqra:notifications-updated";
+
+/** Notify all `useNotificationUnreadCount` subscribers to refresh (e.g. after mark read). */
+export function dispatchNotificationsUpdated() {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(NOTIFICATIONS_UPDATED_EVENT));
+  }
+}
+
 export function useNotificationUnreadCount(workspaceId: string, enabled = true) {
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -25,10 +34,13 @@ export function useNotificationUnreadCount(workspaceId: string, enabled = true) 
   useEffect(() => {
     void refresh();
     const onFocus = () => void refresh();
+    const onUpdated = () => void refresh();
     window.addEventListener("focus", onFocus);
+    window.addEventListener(NOTIFICATIONS_UPDATED_EVENT, onUpdated);
     const interval = setInterval(() => void refresh(), 60_000);
     return () => {
       window.removeEventListener("focus", onFocus);
+      window.removeEventListener(NOTIFICATIONS_UPDATED_EVENT, onUpdated);
       clearInterval(interval);
     };
   }, [refresh]);
@@ -80,19 +92,23 @@ export async function markNotificationRead(
   id: string,
   read: boolean
 ): Promise<NotificationDto> {
-  return api<NotificationDto>(ROUTES.NOTIFICATIONS.BY_ID(id), {
+  const result = await api<NotificationDto>(ROUTES.NOTIFICATIONS.BY_ID(id), {
     method: "PATCH",
     workspaceId,
     body: JSON.stringify({ read })
   });
+  dispatchNotificationsUpdated();
+  return result;
 }
 
 export async function markAllNotificationsRead(workspaceId: string): Promise<{ updated: number }> {
-  return api<{ updated: number }>(ROUTES.NOTIFICATIONS.MARK_ALL_READ, {
+  const result = await api<{ updated: number }>(ROUTES.NOTIFICATIONS.MARK_ALL_READ, {
     method: "POST",
     workspaceId,
     body: JSON.stringify({})
   });
+  dispatchNotificationsUpdated();
+  return result;
 }
 
 export function formatNotificationTimeAgo(iso: string): string {

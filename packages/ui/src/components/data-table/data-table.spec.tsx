@@ -1,6 +1,17 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { TablePagination } from "./data-table";
+import { DataTableCard, TablePagination, dataTableCardClass } from "./data-table";
+
+describe("DataTableCard", () => {
+  it("uses flush card layout like time tracker tables", () => {
+    const { container } = render(<DataTableCard>Content</DataTableCard>);
+    const card = container.querySelector('[data-slot="card"]');
+    expect(card?.className).toContain("p-0");
+    expect(card?.className).toContain("gap-0");
+    expect(card?.className).not.toContain("py-6");
+    expect(dataTableCardClass).toContain("p-0");
+  });
+});
 
 describe("TablePagination", () => {
   it("navigates pages", () => {
