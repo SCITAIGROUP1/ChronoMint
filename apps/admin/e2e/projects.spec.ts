@@ -49,9 +49,15 @@ test.describe("Admin projects", () => {
 
   test("opens project tasks tab from list", async ({ page }) => {
     await page.locator("table tbody tr").first().click();
-    await page.getByRole("link", { name: "Tasks" }).click();
-    await expect(page.getByRole("heading", { name: "Tasks", exact: true })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Project sections" })).toBeVisible();
+    await page
+      .getByRole("navigation", { name: "Project sections" })
+      .getByRole("link", { name: "Tasks", exact: true })
+      .click();
     await expect(page).toHaveURL(/\/projects\/[^/]+\/tasks$/);
+    await expect(
+      page.getByText("Define the task list members choose when logging time on this project.")
+    ).toBeVisible();
   });
 
   test("shows add team member action on project team tab", async ({ page }) => {

@@ -17,7 +17,7 @@ export const taskSchema = z.object({
   assignees: z.array(taskAssigneeSchema)
 });
 
-export const taskListItemSchema = taskSchema.omit({ assignees: true, billableDefault: true });
+export const taskListItemSchema = taskSchema.omit({ assignees: true });
 
 export const createTaskSchema = z.object({
   projectId: uuidSchema,

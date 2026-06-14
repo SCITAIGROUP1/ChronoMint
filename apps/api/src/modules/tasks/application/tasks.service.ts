@@ -64,6 +64,16 @@ export class TasksService {
     };
   }
 
+  private mapListRow(t: TaskWithRelations, role: "ADMIN" | "MEMBER", query: ListTasksQuery) {
+    if (role === "ADMIN" || query.projectId) {
+      return this.toDto(t);
+    }
+    return {
+      ...this.toListItem(t),
+      billableDefault: t.billableDefault
+    };
+  }
+
   async list(workspaceId: string, userId: string, role: "ADMIN" | "MEMBER", query: ListTasksQuery) {
     let projectIds = await this.access.accessibleProjectIds(workspaceId, userId, role);
     if (query.projectId) {
@@ -101,7 +111,7 @@ export class TasksService {
     ]);
 
     return toPaginatedResponse(
-      tasks.map((t) => this.toListItem(t)),
+      tasks.map((t) => this.mapListRow(t, role, query)),
       total,
       query.page,
       query.limit

@@ -5,6 +5,7 @@ import {
   changePasswordSchema,
   createCategorySchema,
   createTaskSchema,
+  taskListItemSchema,
   projectSummarySchema,
   createTimeLogSchema,
   formatUserDate,
@@ -379,6 +380,22 @@ describe("contracts", () => {
       assigneeUserIds: [UUID]
     });
     expect(r.success).toBe(true);
+  });
+
+  it("keeps billableDefault on task list items but omits assignees", () => {
+    const r = taskListItemSchema.safeParse({
+      id: UUID,
+      projectId: UUID_2,
+      categoryId: UUID,
+      taskName: "Implement feature",
+      billableDefault: true,
+      assignees: [{ userId: UUID, userName: "Sam" }]
+    });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data).not.toHaveProperty("assignees");
+      expect(r.data.billableDefault).toBe(true);
+    }
   });
 
   it("exposes project summary and user project color routes", () => {

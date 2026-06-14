@@ -98,7 +98,9 @@ describe("TasksService", () => {
             projectId: "p1",
             categoryId: "c1",
             categoryName: "Software Development",
-            taskName: "Frontend"
+            taskName: "Frontend",
+            billableDefault: true,
+            assignees: []
           }
         ],
         page: 1,
@@ -106,6 +108,53 @@ describe("TasksService", () => {
         total: 1,
         totalPages: 1
       });
+    });
+
+    it("returns slim rows with billableDefault for members without a project filter", async () => {
+      access.accessibleProjectIds.mockResolvedValue(["p1"]);
+      prisma.task.count.mockResolvedValue(1);
+      prisma.task.findMany.mockResolvedValue([
+        {
+          id: "t1",
+          projectId: "p1",
+          categoryId: "c1",
+          taskName: "Frontend",
+          billableDefault: false,
+          category: { name: "Software Development" },
+          assignees: [{ userId: "u1", user: { name: "Sam" } }]
+        }
+      ]);
+      const result = await service.list("w1", "u1", "MEMBER", { page: 1, limit: 20 });
+      expect(result.items[0]).toEqual({
+        id: "t1",
+        projectId: "p1",
+        categoryId: "c1",
+        categoryName: "Software Development",
+        taskName: "Frontend",
+        billableDefault: false
+      });
+    });
+
+    it("returns full rows for members when scoped to a project", async () => {
+      access.accessibleProjectIds.mockResolvedValue(["p1"]);
+      prisma.task.count.mockResolvedValue(1);
+      prisma.task.findMany.mockResolvedValue([
+        {
+          id: "t1",
+          projectId: "p1",
+          categoryId: "c1",
+          taskName: "Frontend",
+          billableDefault: true,
+          category: { name: "Software Development" },
+          assignees: [{ userId: "u1", user: { name: "Sam" } }]
+        }
+      ]);
+      const result = await service.list("w1", "u1", "MEMBER", {
+        page: 1,
+        limit: 20,
+        projectId: "p1"
+      });
+      expect(result.items[0]?.assignees).toEqual([{ userId: "u1", userName: "Sam" }]);
     });
 
     it("forwards the categoryId filter to prisma", async () => {
