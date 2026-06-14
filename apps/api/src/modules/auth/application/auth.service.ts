@@ -21,11 +21,9 @@ import {
   buildVerifyEmailUrl
 } from "../../../common/mailer/auth.mailer";
 import { PrismaService } from "../../../common/prisma/prisma.service";
-import { RedisService } from "../../../common/redis/redis.service";
 import { splitDisplayName } from "../../users/application/user-name.util";
 
-const IMPERSONATION_HANDOFF_PREFIX = "impersonation:handoff:";
-const IMPERSONATION_HANDOFF_TTL_SECONDS = 90;
+const IMPERSONATION_HANDOFF_EXPIRES = "90s";
 
 function hashToken(raw: string): string {
   return createHash("sha256").update(raw).digest("hex");
@@ -36,8 +34,7 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
-    private authMailer: AuthMailer,
-    private redis: RedisService
+    private authMailer: AuthMailer
   ) {}
 
   async switchWorkspace(userId: string, workspaceId: string): Promise<AuthSessionDto> {
@@ -803,6 +800,24 @@ export class AuthService {
     return { session, accessToken, refreshToken: issued.raw };
   }
 
+  private signImpersonationHandoffToken(
+    adminUserId: string,
+    workspaceId: string,
+    targetUserId: string
+  ): string {
+    const secret = process.env.JWT_REFRESH_SECRET?.trim();
+    if (!secret) throw new Error("JWT_REFRESH_SECRET is not set on the API service");
+    return this.jwt.sign(
+      {
+        typ: "impersonation_handoff",
+        sub: targetUserId,
+        workspaceId,
+        impersonatorId: adminUserId
+      },
+      { secret, expiresIn: IMPERSONATION_HANDOFF_EXPIRES }
+    );
+  }
+
   async createImpersonationHandoff(
     adminUserId: string,
     workspaceId: string,
@@ -818,15 +833,7 @@ export class AuthService {
       workspaceId,
       targetUserId
     );
-    const handoffToken = randomBytes(32).toString("base64url");
-    const redisKey = `${IMPERSONATION_HANDOFF_PREFIX}${hashToken(handoffToken)}`;
-    await this.redis
-      .getClient()
-      .setex(
-        redisKey,
-        IMPERSONATION_HANDOFF_TTL_SECONDS,
-        JSON.stringify({ session, accessToken, refreshToken })
-      );
+    const handoffToken = this.signImpersonationHandoffToken(adminUserId, workspaceId, targetUserId);
     return { session, handoffToken, accessToken, refreshToken };
   }
 
@@ -835,15 +842,27 @@ export class AuthService {
     accessToken: string;
     refreshToken: string;
   } | null> {
-    const redisKey = `${IMPERSONATION_HANDOFF_PREFIX}${hashToken(handoffToken)}`;
-    const raw = await this.redis.getClient().get(redisKey);
-    if (!raw) return null;
-    await this.redis.getClient().del(redisKey);
-    return JSON.parse(raw) as {
-      session: AuthSessionDto;
-      accessToken: string;
-      refreshToken: string;
-    };
+    const secret = process.env.JWT_REFRESH_SECRET?.trim();
+    if (!secret) return null;
+    try {
+      const payload = this.jwt.verify(handoffToken, { secret }) as {
+        typ?: string;
+        sub?: string;
+        workspaceId?: string;
+        impersonatorId?: string;
+      };
+      if (
+        payload.typ !== "impersonation_handoff" ||
+        !payload.sub ||
+        !payload.workspaceId ||
+        !payload.impersonatorId
+      ) {
+        return null;
+      }
+      return this.impersonate(payload.impersonatorId, payload.workspaceId, payload.sub);
+    } catch {
+      return null;
+    }
   }
 
   async verifyImpersonator(

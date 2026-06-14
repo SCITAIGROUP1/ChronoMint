@@ -24,21 +24,10 @@ describe("AuthService unit tests", () => {
       sign: vi.fn().mockReturnValue("mocked-token"),
       verify: vi.fn()
     } as any;
-    authService = new AuthService(
-      mockPrisma,
-      mockJwt,
-      {
-        sendPasswordReset: vi.fn().mockResolvedValue({ sent: true }),
-        sendEmailVerification: vi.fn().mockResolvedValue({ sent: true })
-      } as never,
-      {
-        getClient: () => ({
-          setex: vi.fn().mockResolvedValue("OK"),
-          get: vi.fn().mockResolvedValue(null),
-          del: vi.fn().mockResolvedValue(1)
-        })
-      } as never
-    );
+    authService = new AuthService(mockPrisma, mockJwt, {
+      sendPasswordReset: vi.fn().mockResolvedValue({ sent: true }),
+      sendEmailVerification: vi.fn().mockResolvedValue({ sent: true })
+    } as never);
   });
 
   afterEach(() => {
@@ -172,29 +161,9 @@ describe("AuthService unit tests", () => {
   });
 
   describe("impersonation handoff", () => {
-    it("stores and consumes one-time handoff tokens", async () => {
-      const redisStore = new Map<string, string>();
-      const mockRedis = {
-        getClient: () => ({
-          setex: vi.fn(async (key: string, _ttl: number, value: string) => {
-            redisStore.set(key, value);
-            return "OK";
-          }),
-          get: vi.fn(async (key: string) => redisStore.get(key) ?? null),
-          del: vi.fn(async (key: string) => (redisStore.delete(key) ? 1 : 0))
-        })
-      };
-      const service = new AuthService(
-        mockPrisma,
-        mockJwt,
-        {
-          sendPasswordReset: vi.fn(),
-          sendEmailVerification: vi.fn()
-        } as never,
-        mockRedis as never
-      );
-
-      vi.spyOn(service, "impersonate").mockResolvedValue({
+    it("issues and verifies signed handoff tokens", async () => {
+      process.env.JWT_REFRESH_SECRET = "ci-refresh-secret-min-32-chars-long";
+      const impersonationResult = {
         session: {
           user: {
             id: "target-user",
@@ -203,28 +172,45 @@ describe("AuthService unit tests", () => {
             defaultHourlyRate: null
           },
           workspaceId: "ws-1",
-          workspaceRole: "MEMBER",
+          workspaceRole: "MEMBER" as const,
           impersonatorId: "admin-user",
           impersonatorName: "Admin"
         },
         accessToken: "access-token",
         refreshToken: "refresh-token"
+      };
+
+      mockJwt.sign.mockImplementation((payload: Record<string, unknown>) => {
+        if (payload.typ === "impersonation_handoff") return "signed-handoff-token";
+        return "mocked-token";
       });
+      mockJwt.verify.mockImplementation((token: string) => {
+        if (token !== "signed-handoff-token") throw new Error("invalid token");
+        return {
+          typ: "impersonation_handoff",
+          sub: "target-user",
+          workspaceId: "ws-1",
+          impersonatorId: "admin-user"
+        };
+      });
+
+      const service = new AuthService(mockPrisma, mockJwt, {
+        sendPasswordReset: vi.fn(),
+        sendEmailVerification: vi.fn()
+      } as never);
+
+      vi.spyOn(service, "impersonate").mockResolvedValue(impersonationResult);
 
       const { handoffToken } = await service.createImpersonationHandoff(
         "admin-user",
         "ws-1",
         "target-user"
       );
-      expect(handoffToken.length).toBeGreaterThan(10);
+      expect(handoffToken).toBe("signed-handoff-token");
 
       const consumed = await service.consumeImpersonationHandoff(handoffToken);
-      expect(consumed?.accessToken).toBe("access-token");
-      expect(consumed?.refreshToken).toBe("refresh-token");
-      expect(consumed?.session.user.id).toBe("target-user");
-
-      const secondAttempt = await service.consumeImpersonationHandoff(handoffToken);
-      expect(secondAttempt).toBeNull();
+      expect(consumed).toEqual(impersonationResult);
+      expect(service.impersonate).toHaveBeenCalledTimes(2);
     });
   });
 });

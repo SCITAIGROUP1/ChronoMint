@@ -34,6 +34,7 @@ import { Clock, Plus, Shield, UserCheck, UserPlus, Users } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { formatLastActive, formatWeekHours } from "./format-last-active";
+import { buildClientImpersonationUrl } from "./impersonation-redirect";
 import { TeamMemberActions } from "./team-member-actions";
 import { TeamMemberEditDialog } from "./team-member-edit-dialog";
 import { TeamMemberProfileDialog } from "./team-member-profile-dialog";
@@ -128,6 +129,9 @@ export function TeamManagementPage() {
         workspaceId: ws,
         body: JSON.stringify({ userId: member.userId })
       });
+      if (!result.handoffToken) {
+        throw new Error("Impersonation handoff token missing from API response");
+      }
       toast.success("Impersonation ready. Redirecting to Client...");
       let clientUrl = process.env.NEXT_PUBLIC_CLIENT_URL;
       if (!clientUrl) {
@@ -142,8 +146,7 @@ export function TeamManagementPage() {
           clientUrl = "http://localhost:3000";
         }
       }
-      const handoff = encodeURIComponent(result.handoffToken);
-      window.location.href = `${clientUrl}/dashboard?handoff=${handoff}`;
+      window.location.href = buildClientImpersonationUrl(clientUrl, result.handoffToken);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to view as member");
     } finally {
