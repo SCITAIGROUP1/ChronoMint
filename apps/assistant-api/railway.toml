@@ -1,16 +1,16 @@
 # Assistant API — Railway service config
 # https://docs.railway.com/guides/config-as-code
 #
-# On the assistant-api Railway service:
-#   Settings → Config-as-code → Config file path: apps/assistant-api/railway.toml
-#   Root directory can stay / (repo root) — this file overrides the root railway.toml.
+# Railway monorepo setup (recommended):
+#   Root Directory: assistant-api /  (apps/assistant-api)
+#   Config file path: /apps/assistant-api/railway.toml
 #
-# See docs/runbooks/railway.md § Assistant API service.
+# Paths in this file are relative to Root Directory when it is apps/assistant-api.
 
 [build]
 builder = "DOCKERFILE"
-dockerfilePath = "apps/assistant-api/Dockerfile"
-watchPatterns = ["apps/assistant-api/**"]
+dockerfilePath = "Dockerfile"
+watchPatterns = ["**"]
 
 [deploy]
 healthcheckPath = "/health"

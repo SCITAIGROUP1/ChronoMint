@@ -186,13 +186,16 @@ The member help assistant runs as a **second Railway service** (`apps/assistant-
 ### Add assistant service
 
 1. **+ New** → **GitHub Repo** → same monorepo.
-2. **Settings → Config-as-code** → **Config file path:** `apps/assistant-api/railway.toml`
-   - This is required when root directory stays `/` — the repo root [`railway.toml`](../../railway.toml) points at the NestJS API and will break assistant builds if not overridden.
-3. **Settings → Source:** Root directory can stay `/` (repo root). Do **not** fight the UI if it won't change — the config file above sets `dockerfilePath = "apps/assistant-api/Dockerfile"`.
-4. Enable **Private Networking** — do **not** assign a public domain.
-5. Health check: `GET /health` (set in `apps/assistant-api/railway.toml`).
+2. **Settings → Source → Root Directory:** select **`assistant-api /`** from the dropdown (maps to `apps/assistant-api`), then **Apply** changes.
+   - Railway only pulls that folder; the Dockerfile there uses `COPY requirements.txt` (not a monorepo path).
+3. **Settings → Config-as-code → Config file path:** `/apps/assistant-api/railway.toml` (leading `/` required).
+4. Confirm **Build → Dockerfile path** is `Dockerfile` (from the config file — not `apps/api/Dockerfile`).
+5. Enable **Private Networking** — do **not** assign a public domain.
+6. Health check: `GET /health`.
 
-**Alternative:** If Railway lets you set root to `assistant-api /` (`apps/assistant-api`), use Dockerfile path `Dockerfile` instead and skip the separate config file (optional).
+**If Root Directory is stuck on `/`:** set service variable `RAILWAY_DOCKERFILE_PATH=/apps/assistant-api/Dockerfile.monorepo-root` and use the repo-root Dockerfile variant (see `apps/assistant-api/Dockerfile.monorepo-root`). Prefer fixing Root Directory instead.
+
+**Build failed in ~2 seconds?** Usually Root Directory is `apps/assistant-api` but Dockerfile path still points at `apps/assistant-api/Dockerfile` (file not found in that context). Fix root + config file path above.
 
 ### Variables
 
