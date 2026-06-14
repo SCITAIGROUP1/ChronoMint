@@ -186,9 +186,13 @@ The member help assistant runs as a **second Railway service** (`apps/assistant-
 ### Add assistant service
 
 1. **+ New** → **GitHub Repo** → same monorepo.
-2. **Settings → Source:** Dockerfile path `apps/assistant-api/Dockerfile`.
-3. Enable **Private Networking** — do **not** assign a public domain.
-4. Health check: `GET /health`.
+2. **Settings → Config-as-code** → **Config file path:** `apps/assistant-api/railway.toml`
+   - This is required when root directory stays `/` — the repo root [`railway.toml`](../../railway.toml) points at the NestJS API and will break assistant builds if not overridden.
+3. **Settings → Source:** Root directory can stay `/` (repo root). Do **not** fight the UI if it won't change — the config file above sets `dockerfilePath = "apps/assistant-api/Dockerfile"`.
+4. Enable **Private Networking** — do **not** assign a public domain.
+5. Health check: `GET /health` (set in `apps/assistant-api/railway.toml`).
+
+**Alternative:** If Railway lets you set root to `assistant-api /` (`apps/assistant-api`), use Dockerfile path `Dockerfile` instead and skip the separate config file (optional).
 
 ### Variables
 
