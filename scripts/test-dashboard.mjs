@@ -21,7 +21,7 @@ const REPORT_PATHS = {
   "admin-playwright": "apps/admin/playwright-report/index.html",
   "client-playwright": "apps/client/playwright-report/index.html",
   "api-junit": "apps/api/test-results/unit-junit.xml",
-  "api-e2e-junit": "apps/api/test-results/e2e-junit.xml"
+  "api-integration-junit": "apps/api/test-results/integration-junit.xml"
 };
 
 function exists(rel) {

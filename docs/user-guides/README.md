@@ -39,7 +39,9 @@ Profile and settings use the same `/profile` and `/settings` pages as the member
 
 For testers and QA engineers — setup from scratch, manual checklists, automated tests, and sign-off:
 
-- **[QA testing guide](qa/testing-guide.md)** — start here if you are non-technical QA
+- **[QA engineer guide](../../qa/QA_ENGINEER_GUIDE.md)** — official manual + automated workflow (start here)
+- **[QA testing guide](qa/testing-guide.md)** — local setup and smoke checklists
+- **[QA hub (board workflow)](../qa/README.md)** — Project #4, AC sign-off, release process
 
 ## More for developers
 

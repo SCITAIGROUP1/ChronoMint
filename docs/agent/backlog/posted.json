@@ -1,0 +1,52 @@
+{
+  "postedAt": "2026-06-15",
+  "repo": "SCITAIGROUP1/ChronoMint",
+  "project": "SCITAIGROUP1/projects/4",
+  "issues": [
+    {
+      "number": 198,
+      "title": "[Epic][F-12] Export — hours only (MVP)",
+      "lane": "backlog",
+      "url": "https://github.com/SCITAIGROUP1/ChronoMint/issues/198"
+    },
+    {
+      "number": 199,
+      "title": "[Story][F-12] Wire member timesheet CSV export",
+      "lane": "ready",
+      "url": "https://github.com/SCITAIGROUP1/ChronoMint/issues/199"
+    },
+    {
+      "number": 200,
+      "title": "[Story][F-X] Map workspace and timesheet mutations to contract DTOs",
+      "lane": "ready",
+      "url": "https://github.com/SCITAIGROUP1/ChronoMint/issues/200"
+    },
+    {
+      "number": 201,
+      "title": "[Story][F-11] Add PresenceService unit tests",
+      "lane": "ready",
+      "url": "https://github.com/SCITAIGROUP1/ChronoMint/issues/201"
+    },
+    {
+      "number": 202,
+      "title": "[Story][F-X] Reconcile PRODUCT_ROADMAP",
+      "lane": "done",
+      "url": "https://github.com/SCITAIGROUP1/ChronoMint/issues/202",
+      "state": "closed"
+    },
+    {
+      "number": 203,
+      "title": "[Story][F-10] Mount MyWeekSummary on member dashboard",
+      "lane": "backlog",
+      "url": "https://github.com/SCITAIGROUP1/ChronoMint/issues/203"
+    },
+    {
+      "number": 204,
+      "title": "[Story][F-05] Remove orphan /tasks route and TasksPage",
+      "lane": "backlog",
+      "url": "https://github.com/SCITAIGROUP1/ChronoMint/issues/204"
+    }
+  ],
+  "projectAddedAt": "2026-06-15",
+  "projectNote": "All 7 issues on Project #4 with Status lanes. Switch view: Layout → Board → Group by Status."
+}

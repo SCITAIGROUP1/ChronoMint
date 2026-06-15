@@ -26,6 +26,7 @@ import {
 } from "@kloqra/ui";
 import { fetchListItems, toDateInputValue } from "@kloqra/web-shared";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { apiDownloadPost, saveDownloadResponse } from "@/lib/download";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
@@ -83,6 +84,20 @@ export function TimesheetExport({
           : {})
       };
       const res = await apiDownloadPost(ROUTES.EXPORT.ME, ws, body);
+      if (!res.ok) {
+        throw new Error(`Export failed (${res.status})`);
+      }
+      if (format === "csv") {
+        const text = await res.clone().text();
+        const lines = text
+          .trim()
+          .split(/\r?\n/)
+          .filter((line) => line.length > 0);
+        if (lines.length <= 1) {
+          toast.error("No entries to export");
+          return;
+        }
+      }
       const fallback = buildExportFilename({
         workspaceSlug,
         from: body.from,
@@ -219,7 +234,7 @@ export function TimesheetExport({
           </Select>
         </div>
         <Button type="button" onClick={() => void runExport()} disabled={exporting}>
-          {exporting ? "Exporting…" : "Download"}
+          {exporting ? "Exporting…" : "Export"}
         </Button>
         {error ? <p className="w-full text-sm text-destructive">{error}</p> : null}
       </CardContent>

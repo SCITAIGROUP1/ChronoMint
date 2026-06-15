@@ -87,6 +87,42 @@ describe("Timesheets E2E", () => {
       .patch(`/timesheets/${pending.id}/approve`)
       .send({ reviewNote: "E2E approved" });
     expect(approveRes.status).toBe(200);
-    expect(approveRes.body.ok).toBe(true);
+    expect(approveRes.body).toEqual({ ok: true });
+    expect(approveRes.body).not.toHaveProperty("createdAt");
+  });
+
+  it("admin reject returns { ok: true } not raw Prisma row (AC-2)", async () => {
+    let submitRes: Awaited<ReturnType<ReturnType<typeof authedAgent>["post"]>> | undefined;
+    for (let attempt = 0; attempt < 12; attempt++) {
+      const salt = Date.now() + attempt * 7919 + 1;
+      const year = 2100 + (salt % 50);
+      const month = Math.floor(salt / 50) % 12;
+      const day = 1 + (Math.floor(salt / 600) % 28);
+      const date = new Date(Date.UTC(year, month, day, 12, 0, 0)).toISOString();
+
+      submitRes = await authedAgent(app, memberSession).post("/timesheets/submit").send({
+        projectId: approvalProjectId,
+        date,
+        note: "E2E reject path",
+        confirmCascade: true
+      });
+      if (submitRes.status !== 403) break;
+    }
+    expect(submitRes).toBeDefined();
+    expect(submitRes!.status).toBe(201);
+
+    const pendingRes = await authedAgent(app, adminSession).get("/timesheets/pending");
+    const pending = pendingRes.body.items.find(
+      (p: { projectId: string; userId: string }) =>
+        p.projectId === approvalProjectId && p.userId === memberSession.userId
+    );
+    expect(pending?.id).toBeTruthy();
+
+    const rejectRes = await authedAgent(app, adminSession)
+      .patch(`/timesheets/${pending.id}/reject`)
+      .send({ reviewNote: "E2E rejected" });
+    expect(rejectRes.status).toBe(200);
+    expect(rejectRes.body).toEqual({ ok: true });
+    expect(rejectRes.body).not.toHaveProperty("status");
   });
 });

@@ -1,0 +1,2491 @@
+{
+  "generatedAt": "2026-06-15T11:34:15.407Z",
+  "source": ".cursor/plans/*.plan.md",
+  "mode": "all",
+  "summary": {
+    "total": 152,
+    "toPost": 76,
+    "toPostDone": 24,
+    "rollupDone": 23,
+    "onHold": 8,
+    "skipped": 21
+  },
+  "items": [
+    {
+      "planFile": ".cursor/plans/account_settings_transform_d4d9a4de.plan.md",
+      "planSlug": "account_settings_transform_d4d9a4de",
+      "planName": "Account Settings Transform",
+      "todoId": "__rollup__",
+      "content": "Shipped plan rollup: Account Settings Transform (12 todos completed)",
+      "status": "completed",
+      "epic": "F-X",
+      "action": "rollup_done",
+      "lane": "done",
+      "rollupTodos": [
+        {
+          "id": "contracts-profile-prefs",
+          "content": "Extend user-profile.dto.ts, user-preferences.ts (theme, date/time format, notifications, account prefs), routes.ts, contracts.spec.ts"
+        },
+        {
+          "id": "prisma-migration",
+          "content": "Migration: User profile columns + totp fields; RefreshToken session metadata; backfill firstName/lastName from name"
+        },
+        {
+          "id": "api-profile-activity",
+          "content": "Extend UsersService/Controller for profile fields + activityStats aggregation; update users.service.spec.ts"
+        },
+        {
+          "id": "api-preferences",
+          "content": "Wire expanded preferences merge + effective display helpers in GET /users/me"
+        },
+        {
+          "id": "api-sessions",
+          "content": "Persist session metadata on login/refresh; GET/DELETE /users/me/sessions endpoints + tests"
+        },
+        {
+          "id": "api-2fa",
+          "content": "TOTP enable/verify/disable services; login requires2fa gate; auth contract + UI step"
+        },
+        {
+          "id": "ui-settings-shell",
+          "content": "Build SettingsShell, SettingsCard, SettingsNav, SaveBar in web-shared; refactor AccountSettingsPage to sidebar layout"
+        },
+        {
+          "id": "ui-settings-sections",
+          "content": "Implement Appearance, Time Settings, Notifications, Security, Account Preferences sections wired to API"
+        },
+        {
+          "id": "ui-profile-page",
+          "content": "Build ProfilePage (hero + Personal Info / Work Details tabs); add /profile routes in client + admin"
+        },
+        {
+          "id": "nav-wiring",
+          "content": "Update workspace-shell profileHref to /profile; add Settings entry point to /settings"
+        },
+        {
+          "id": "preference-consumers",
+          "content": "Hydrate theme on login; apply date/time format, timezone, weekStart, startupPage in client features"
+        },
+        {
+          "id": "tests-docs",
+          "content": "RTL specs for sections, Playwright e2e for profile/settings, update docs/specs/user-profile.md"
+        }
+      ]
+    },
+    {
+      "planFile": ".cursor/plans/admin_member_provisioning_67318806.plan.md",
+      "planSlug": "admin_member_provisioning_67318806",
+      "planName": "Admin member provisioning",
+      "todoId": "contracts",
+      "content": "inviteMemberResponseSchema, addTeamMemberSchema, set-password + login union, ErrorCodes, routes",
+      "status": "completed",
+      "epic": "F-01",
+      "synthetic": false,
+      "action": "skip_completed"
+    },
+    {
+      "planFile": ".cursor/plans/admin_member_provisioning_67318806.plan.md",
+      "planSlug": "admin_member_provisioning_67318806",
+      "planName": "Admin member provisioning",
+      "todoId": "migration",
+      "content": "Add User.mustChangePassword + Prisma migrate",
+      "status": "pending",
+      "epic": "F-01",
+      "synthetic": false,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/admin_member_provisioning_67318806.plan.md",
+      "planSlug": "admin_member_provisioning_67318806",
+      "planName": "Admin member provisioning",
+      "todoId": "disable-register",
+      "content": "Return 403 on POST /auth/register; remove client register page and login link",
+      "status": "pending",
+      "epic": "F-01",
+      "synthetic": false,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/admin_member_provisioning_67318806.plan.md",
+      "planSlug": "admin_member_provisioning_67318806",
+      "planName": "Admin member provisioning",
+      "todoId": "provision-invite",
+      "content": "Workspace invite creates user + temp password + structured response (emailSent)",
+      "status": "pending",
+      "epic": "F-01",
+      "synthetic": false,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/admin_member_provisioning_67318806.plan.md",
+      "planSlug": "admin_member_provisioning_67318806",
+      "planName": "Admin member provisioning",
+      "todoId": "forced-password",
+      "content": "Login gate (before 2FA), POST /auth/set-password, shared set-password UI (client + admin)",
+      "status": "pending",
+      "epic": "F-01",
+      "synthetic": false,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/admin_member_provisioning_67318806.plan.md",
+      "planSlug": "admin_member_provisioning_67318806",
+      "planName": "Admin member provisioning",
+      "todoId": "project-direct-add",
+      "content": "POST /projects/:id/team/members + Project Team tab workspace member picker (replace invite link card)",
+      "status": "pending",
+      "epic": "F-01",
+      "synthetic": false,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/admin_member_provisioning_67318806.plan.md",
+      "planSlug": "admin_member_provisioning_67318806",
+      "planName": "Admin member provisioning",
+      "todoId": "admin-ui-polish",
+      "content": "Team management modal UX: name, API-driven errors/toasts, load errors, cross-links",
+      "status": "pending",
+      "epic": "F-01",
+      "synthetic": false,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/admin_member_provisioning_67318806.plan.md",
+      "planSlug": "admin_member_provisioning_67318806",
+      "planName": "Admin member provisioning",
+      "todoId": "brevo-ops",
+      "content": "Brevo account, domain auth, SMTP_* local + Railway (see brevo_email_setup plan)",
+      "status": "pending",
+      "epic": "F-01",
+      "synthetic": false,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/admin_member_provisioning_67318806.plan.md",
+      "planSlug": "admin_member_provisioning_67318806",
+      "planName": "Admin member provisioning",
+      "todoId": "brevo-code",
+      "content": "MemberProvisioningMailer, mailer send result type, .env.example + deploy templates",
+      "status": "pending",
+      "epic": "F-01",
+      "synthetic": false,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/admin_member_provisioning_67318806.plan.md",
+      "planSlug": "admin_member_provisioning_67318806",
+      "planName": "Admin member provisioning",
+      "todoId": "tests-docs",
+      "content": "Unit/e2e: provision, set-password, direct project add, team-management e2e; update user guides",
+      "status": "completed",
+      "epic": "F-01",
+      "synthetic": false,
+      "action": "skip_completed"
+    },
+    {
+      "planFile": ".cursor/plans/api_surface_audit_a1003183.plan.md",
+      "planSlug": "api_surface_audit_a1003183",
+      "planName": "API Surface Audit",
+      "todoId": "p0-billing-guard",
+      "content": "Add @Roles(ADMIN) to GET /billing/summary or remove endpoint",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "on_hold_post_mvp",
+      "lane": "on-hold"
+    },
+    {
+      "planFile": ".cursor/plans/api_surface_audit_a1003183.plan.md",
+      "planSlug": "api_surface_audit_a1003183",
+      "planName": "API Surface Audit",
+      "todoId": "p0-prisma-dto",
+      "content": "Map workspace update and timesheet approve/reject responses to contract DTOs (strip createdAt/updatedAt)",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "skip_duplicate_board",
+      "duplicateOf": 200
+    },
+    {
+      "planFile": ".cursor/plans/api_surface_audit_a1003183.plan.md",
+      "planSlug": "api_surface_audit_a1003183",
+      "planName": "API Surface Audit",
+      "todoId": "p0-hourly-rate-scope",
+      "content": "Omit defaultHourlyRate from AuthUserDto for MEMBER; keep on admin profile only",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "on_hold_post_mvp",
+      "lane": "on-hold"
+    },
+    {
+      "planFile": ".cursor/plans/api_surface_audit_a1003183.plan.md",
+      "planSlug": "api_surface_audit_a1003183",
+      "planName": "API Surface Audit",
+      "todoId": "p0-slim-session",
+      "content": "Slim AuthSessionDto: drop email from session user; add defaultWorkspaceId to avoid full profile fetch",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "post",
+      "lane": "ready"
+    },
+    {
+      "planFile": ".cursor/plans/api_surface_audit_a1003183.plan.md",
+      "planSlug": "api_surface_audit_a1003183",
+      "planName": "API Surface Audit",
+      "todoId": "p1-slim-list-dtos",
+      "content": "Introduce list-view DTOs: ProjectListItem, TaskListItem, CategoryListItem with only fields UI reads",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "skip_duplicate_board",
+      "duplicateOf": 230
+    },
+    {
+      "planFile": ".cursor/plans/api_surface_audit_a1003183.plan.md",
+      "planSlug": "api_surface_audit_a1003183",
+      "planName": "API Surface Audit",
+      "todoId": "p1-slim-members",
+      "content": "Strip workspaceId/role/memberSince from member list responses where unused",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/api_surface_audit_a1003183.plan.md",
+      "planSlug": "api_surface_audit_a1003183",
+      "planName": "API Surface Audit",
+      "todoId": "p1-approvals-fetch",
+      "content": "Fix approvals card: projectId timelog filter, drop full task/project lists, batch/lazy audit",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/api_surface_audit_a1003183.plan.md",
+      "planSlug": "api_surface_audit_a1003183",
+      "planName": "API Surface Audit",
+      "todoId": "p1-dashboard-budget",
+      "content": "Embed budget in DashboardReportDto or add batch budgets endpoint",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "on_hold_post_mvp",
+      "lane": "on-hold"
+    },
+    {
+      "planFile": ".cursor/plans/api_surface_audit_a1003183.plan.md",
+      "planSlug": "api_surface_audit_a1003183",
+      "planName": "API Surface Audit",
+      "todoId": "p1-bootstrap-trim",
+      "content": "Add effectiveTimerStaleWarningHours to profile; remove member GET /workspaces on timer page",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/api_surface_audit_a1003183.plan.md",
+      "planSlug": "api_surface_audit_a1003183",
+      "planName": "API Surface Audit",
+      "todoId": "p2-profile-cache",
+      "content": "Shared user profile cache in web-shared; stop duplicate GET /users/me",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/api_surface_audit_a1003183.plan.md",
+      "planSlug": "api_surface_audit_a1003183",
+      "planName": "API Surface Audit",
+      "todoId": "p2-slim-notifications",
+      "content": "Omit workspaceId and unused metadata keys from notification list response",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/api_surface_audit_a1003183.plan.md",
+      "planSlug": "api_surface_audit_a1003183",
+      "planName": "API Surface Audit",
+      "todoId": "p2-list-limits",
+      "content": "Lower fetchListItems default limits at dropdown call sites",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/api_surface_audit_a1003183.plan.md",
+      "planSlug": "api_surface_audit_a1003183",
+      "planName": "API Surface Audit",
+      "todoId": "p3-dead-routes",
+      "content": "Remove or deprecate unused contract routes (GET /export, /users/me/activity, register stub)",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/assistant_ui_ux_polish_d8ab21af.plan.md",
+      "planSlug": "assistant_ui_ux_polish_d8ab21af",
+      "planName": "Assistant UI UX polish",
+      "todoId": "__rollup__",
+      "content": "Shipped plan rollup: Assistant UI UX polish (5 todos completed)",
+      "status": "completed",
+      "epic": "F-14",
+      "action": "rollup_done",
+      "lane": "done",
+      "rollupTodos": [
+        {
+          "id": "provider-states",
+          "content": "Extend assistant-provider with collapsed/expanded/minimized view state, sessionStorage persistence, and ⌘/ keyboard toggle"
+        },
+        {
+          "id": "widget-shell",
+          "content": "Split assistant-panel into AssistantWidget + launcher FAB + chat panel with minimize/expand animations"
+        },
+        {
+          "id": "visual-polish",
+          "content": "Polish chat bubbles, header, loading state, link pills, mobile sizing, and a11y (focus trap, Escape, live region)"
+        },
+        {
+          "id": "smart-ux",
+          "content": "Add page-aware starter prompts (assistant-prompts.ts) and in-panel error + New chat + thumbs feedback"
+        },
+        {
+          "id": "tests",
+          "content": "Update RTL specs and Playwright e2e for FAB entry, Help menu parity, New chat, and keyboard shortcut"
+        }
+      ]
+    },
+    {
+      "planFile": ".cursor/plans/auth_token_hardening_6d59ab8f.plan.md",
+      "planSlug": "auth_token_hardening_6d59ab8f",
+      "planName": "Auth Token Hardening",
+      "todoId": "__rollup__",
+      "content": "Shipped plan rollup: Auth Token Hardening (6 todos completed)",
+      "status": "completed",
+      "epic": "F-01",
+      "action": "rollup_done",
+      "lane": "done",
+      "rollupTodos": [
+        {
+          "id": "cookie-cross-site",
+          "content": "Add AUTH_COOKIE_SAME_SITE env + centralized cookie-options.ts; default none+secure in production cross-site"
+        },
+        {
+          "id": "jwt-token-service",
+          "content": "Create JwtTokenService with typ/scope claims, structured errors (expired vs invalid), update JwtAuthGuard"
+        },
+        {
+          "id": "refresh-hardening",
+          "content": "Harden POST /auth/refresh: scope validation, refresh typ claim, rotation grace window in rotateRefreshToken"
+        },
+        {
+          "id": "frontend-singleflight",
+          "content": "Refresh singleflight, skip expired Bearer, BroadcastChannel sync, shared bootstrapSession for client+admin shells"
+        },
+        {
+          "id": "impersonate-cookies",
+          "content": "Apply new cookie opts to impersonate/stop-impersonation; align scoped cookie names"
+        },
+        {
+          "id": "tests-docs-deploy",
+          "content": "Add API unit/e2e + web-shared specs; update AUTH/MULTI_DEVICE/vercel docs; Railway+Vercel deploy checklist"
+        }
+      ]
+    },
+    {
+      "planFile": ".cursor/plans/brevo_email_setup_656adf10.plan.md",
+      "planSlug": "brevo_email_setup_656adf10",
+      "planName": "Brevo Email Setup",
+      "todoId": "prereqs",
+      "content": "Confirm domain ownership (kloqra.app), DNS admin access, Brevo account, and Railway API variable access",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/brevo_email_setup_656adf10.plan.md",
+      "planSlug": "brevo_email_setup_656adf10",
+      "planName": "Brevo Email Setup",
+      "todoId": "brevo-smtp-key",
+      "content": "Create Brevo account and generate SMTP key; note server smtp-relay.brevo.com:587 and login email",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/brevo_email_setup_656adf10.plan.md",
+      "planSlug": "brevo_email_setup_656adf10",
+      "planName": "Brevo Email Setup",
+      "todoId": "domain-auth",
+      "content": "Add domain in Brevo; publish SPF, DKIM, and DMARC DNS records; verify domain and add noreply@ sender",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/brevo_email_setup_656adf10.plan.md",
+      "planSlug": "brevo_email_setup_656adf10",
+      "planName": "Brevo Email Setup",
+      "todoId": "env-local-staging",
+      "content": "Set SMTP_* vars in apps/api/.env and Railway staging API service",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/brevo_email_setup_656adf10.plan.md",
+      "planSlug": "brevo_email_setup_656adf10",
+      "planName": "Brevo Email Setup",
+      "todoId": "smoke-test",
+      "content": "Verify API boot log and send test email (optional Node script or scheduled export)",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/brevo_email_setup_656adf10.plan.md",
+      "planSlug": "brevo_email_setup_656adf10",
+      "planName": "Brevo Email Setup",
+      "todoId": "env-production",
+      "content": "Set SMTP_* on Railway production with separate SMTP key; run one production test",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/brevo_email_setup_656adf10.plan.md",
+      "planSlug": "brevo_email_setup_656adf10",
+      "planName": "Brevo Email Setup",
+      "todoId": "docs-optional",
+      "content": "Optional: document SMTP_* in .env.example, ENVIRONMENT.md, and deploy env templates",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/calendar_occupied_slots_ux_261e1990.plan.md",
+      "planSlug": "calendar_occupied_slots_ux_261e1990",
+      "planName": "Calendar Occupied Slots UX",
+      "todoId": "__rollup__",
+      "content": "Shipped plan rollup: Calendar Occupied Slots UX (6 todos completed)",
+      "status": "completed",
+      "epic": "F-07",
+      "action": "rollup_done",
+      "lane": "done",
+      "rollupTodos": [
+        {
+          "id": "spec-contracts-occupancy",
+          "content": "Add timelogs occupancy spec + Zod DTOs + ROUTES.TIMELOGS.OCCUPANCY in packages/contracts"
+        },
+        {
+          "id": "api-occupancy-endpoint",
+          "content": "Implement GET /timelogs/occupancy (user-global, labels, isLocked) with service + e2e tests"
+        },
+        {
+          "id": "client-fetch-occupancy",
+          "content": "Fetch occupancy in timesheet-page; use for global findOverlappingLog on save/move"
+        },
+        {
+          "id": "calendar-overlay-styling",
+          "content": "DayColumn hatch overlay, locked/timer entry styling, invalid EntryGhost, slot click guard"
+        },
+        {
+          "id": "overlay-toggle-preference",
+          "content": "Add Show/Hide occupied slots toggle in timesheet toolbar with localStorage persistence (default on)"
+        },
+        {
+          "id": "calendar-utils-tests",
+          "content": "Unit tests for buildDayOccupancySegments and isSlotOccupiedElsewhere"
+        }
+      ]
+    },
+    {
+      "planFile": ".cursor/plans/categories_tasks_restructure_6c897d87.plan.md",
+      "planSlug": "categories_tasks_restructure_6c897d87",
+      "planName": "Categories Tasks Restructure",
+      "todoId": "__rollup__",
+      "content": "Shipped plan rollup: Categories Tasks Restructure (10 todos completed)",
+      "status": "completed",
+      "epic": "F-04",
+      "action": "rollup_done",
+      "lane": "done",
+      "rollupTodos": [
+        {
+          "id": "contracts",
+          "content": "Add category DTO + extend task DTO + add CATEGORIES routes in packages/contracts; update contracts.spec.ts"
+        },
+        {
+          "id": "prisma",
+          "content": "Add Category model + Task.categoryId in schema.prisma; write migration with Uncategorized backfill; update seed"
+        },
+        {
+          "id": "api-categories",
+          "content": "Create apps/api/src/modules/categories module (controller, service, admin-only roles) and wire into AppModule"
+        },
+        {
+          "id": "api-tasks",
+          "content": "Lock tasks endpoints to ADMIN; validate categoryId on create/update; return categoryId/categoryName on list; add ?categoryId filter"
+        },
+        {
+          "id": "admin-fe-categories",
+          "content": "Build /categories admin page + feature folder, add nav entry in admin-shell"
+        },
+        {
+          "id": "admin-fe-projects-tasks",
+          "content": "Add Tasks panel (with category select) to admin Projects page so admins can manage tasks per project"
+        },
+        {
+          "id": "client-fe",
+          "content": "Remove inline task creation from timer, timesheet, and tasks pages; group task dropdown by category; refresh categories cache"
+        },
+        {
+          "id": "onboarding",
+          "content": "Update admin onboarding to create a default category before the default task"
+        },
+        {
+          "id": "tests",
+          "content": "Add categories.service.spec.ts, tasks.service.spec.ts (category validation + admin gating), expand contracts.spec.ts, update e2e where it touched inline task creation"
+        },
+        {
+          "id": "pre-pr",
+          "content": "Run pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build; verify migration locally"
+        }
+      ]
+    },
+    {
+      "planFile": ".cursor/plans/category_widgets_analytics_2172d1f0.plan.md",
+      "planSlug": "category_widgets_analytics_2172d1f0",
+      "planName": "Category widgets analytics",
+      "todoId": "__rollup__",
+      "content": "Shipped plan rollup: Category widgets analytics (8 todos completed)",
+      "status": "completed",
+      "epic": "F-08",
+      "action": "rollup_done",
+      "lane": "done",
+      "rollupTodos": [
+        {
+          "id": "contracts-category-dtos",
+          "content": "Add timeByCategory, byCategory on myWeekSummary, categoryName on task breakdown, by_category export type + columns to packages/contracts"
+        },
+        {
+          "id": "api-aggregation",
+          "content": "Extend TimeAggregationService fetchLogs/buildAggregates; wire reporting.service and export-rows.builder"
+        },
+        {
+          "id": "admin-widgets",
+          "content": "Add category_distribution + category_breakdown widgets; extend breakdown_table and task_breakdown"
+        },
+        {
+          "id": "client-widgets",
+          "content": "Add category_split widget; category chips on today_logs/recent_activity"
+        },
+        {
+          "id": "export-ui",
+          "content": "Admin export wizard: by_category report, category column, group-by, tabs_per_category layout; member by_category + category on time_entries"
+        },
+        {
+          "id": "category-filters",
+          "content": "Add optional categoryId to reportQuerySchema and export filters; wire admin dashboard + export UI filters"
+        },
+        {
+          "id": "category-heatmap",
+          "content": "Add category x project heatmap DTO, reporting endpoint logic, and admin dashboard widget"
+        },
+        {
+          "id": "seed-docs",
+          "content": "Update seed export preset with by_category; update export/reporting specs and ROUTES.md"
+        }
+      ]
+    },
+    {
+      "planFile": ".cursor/plans/chronomint_deploy_plan_61d940cc.plan.md",
+      "planSlug": "chronomint_deploy_plan_61d940cc",
+      "planName": "Kloqra Deploy Plan",
+      "todoId": "__rollup__",
+      "content": "Shipped plan rollup: Kloqra Deploy Plan (5 todos completed)",
+      "status": "completed",
+      "epic": "F-X",
+      "action": "rollup_done",
+      "lane": "done",
+      "rollupTodos": [
+        {
+          "id": "staging-railway",
+          "content": "Provision Railway staging: Postgres + Redis + API service from apps/api/Dockerfile; run prisma migrate deploy"
+        },
+        {
+          "id": "staging-vercel",
+          "content": "Create Vercel staging projects for apps/client and apps/admin; set NEXT_PUBLIC_API_BASE_URL and monorepo root settings"
+        },
+        {
+          "id": "wire-staging-cors",
+          "content": "Set staging API FRONTEND_ORIGIN to both Vercel URLs; run smoke tests (health, login, timer, export)"
+        },
+        {
+          "id": "prod-duplicate",
+          "content": "Repeat Railway + Vercel setup for production with isolated secrets, DB, and custom domains"
+        },
+        {
+          "id": "optional-ci-deploy",
+          "content": "Optional: add GitHub Actions workflow for migrate-before-deploy on API pushes"
+        }
+      ]
+    },
+    {
+      "planFile": ".cursor/plans/ci_cd_hardening_plan.plan.md",
+      "planSlug": "ci_cd_hardening_plan",
+      "todoId": "section-1",
+      "content": "1. Professional Overview of Current Automation Flow",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": true,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/ci_cd_hardening_plan.plan.md",
+      "planSlug": "ci_cd_hardening_plan",
+      "todoId": "section-2",
+      "content": "2. Identified Gaps and Resource Waste Issues",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": true,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/ci_cd_hardening_plan.plan.md",
+      "planSlug": "ci_cd_hardening_plan",
+      "todoId": "section-3",
+      "content": "3. Proposed Hardening Changes",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": true,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/ci_cd_hardening_plan.plan.md",
+      "planSlug": "ci_cd_hardening_plan",
+      "todoId": "section-4",
+      "content": "4. Detailed Code Diffs",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": true,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/ci_cd_hardening_plan.plan.md",
+      "planSlug": "ci_cd_hardening_plan",
+      "todoId": "section-5",
+      "content": "5. Verification Plan",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": true,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/complete_project_documentation_d3c33666.plan.md",
+      "planSlug": "complete_project_documentation_d3c33666",
+      "planName": "Complete project documentation",
+      "todoId": "__rollup__",
+      "content": "Shipped plan rollup: Complete project documentation (5 todos completed)",
+      "status": "completed",
+      "epic": "F-X",
+      "action": "rollup_done",
+      "lane": "done",
+      "rollupTodos": [
+        {
+          "id": "phase1-hub",
+          "content": "Create docs/README.md hub; expand root README Docs section; add CONTRIBUTING, ENVIRONMENT, TESTING, local-troubleshooting, per-app READMEs"
+        },
+        {
+          "id": "phase2-arch-api",
+          "content": "Add DATA_MODEL.md, AUTH.md, SECURITY.md; extend DOMAIN_MODEL; add api/OVERVIEW.md + api/ROUTES.md from contracts"
+        },
+        {
+          "id": "phase3-specs",
+          "content": "Write feature specs for all shipped modules; promote export plan to docs/specs/export.md; link from PRODUCT_ROADMAP Shipped"
+        },
+        {
+          "id": "phase4-user-guides",
+          "content": "Add docs/user-guides for member (client) and admin workflows with step-by-step guides"
+        },
+        {
+          "id": "phase5-maintain",
+          "content": "Add CHANGELOG.md; document doc-update rules in CONTRIBUTING; extend deploy runbook cross-links"
+        }
+      ]
+    },
+    {
+      "planFile": ".cursor/plans/dark_theme_palette_refresh_182aaaa0.plan.md",
+      "planSlug": "dark_theme_palette_refresh_182aaaa0",
+      "planName": "Dark theme palette refresh",
+      "todoId": "__rollup__",
+      "content": "Shipped plan rollup: Dark theme palette refresh (4 todos completed)",
+      "status": "completed",
+      "epic": "F-15",
+      "action": "rollup_done",
+      "lane": "done",
+      "rollupTodos": [
+        {
+          "id": "dark-tokens",
+          "content": "Retune `.dark` block in packages/ui/src/globals.css — surfaces, primary, semantics, charts; add status surface tokens + @theme wiring"
+        },
+        {
+          "id": "ui-primitives",
+          "content": "Migrate timesheet-approval-status-badge, badge subtle variants, modal-styles, layout empty states to status tokens"
+        },
+        {
+          "id": "feature-sweep",
+          "content": "Replace hardcoded dark Tailwind status colors in high-traffic client/admin feature files (~12 files)"
+        },
+        {
+          "id": "tests-verify",
+          "content": "Add theme-tokens.spec.ts + update badge specs; manual dark smoke + pre-PR checks"
+        }
+      ]
+    },
+    {
+      "planFile": ".cursor/plans/dashboard_calendar_responsive_f7bfe185.plan.md",
+      "planSlug": "dashboard_calendar_responsive_f7bfe185",
+      "planName": "Dashboard Calendar Responsive",
+      "todoId": "__rollup__",
+      "content": "Shipped plan rollup: Dashboard Calendar Responsive (8 todos completed)",
+      "status": "completed",
+      "epic": "F-08",
+      "action": "rollup_done",
+      "lane": "done",
+      "rollupTodos": [
+        {
+          "id": "layout-util",
+          "content": "Add generateResponsiveLayouts utility + unit tests (share via web-shared for admin)"
+        },
+        {
+          "id": "dashboard-rgl",
+          "content": "Wire responsive layouts, compactType, lg-only persist, fix -mx-4 in client + admin dashboard-page"
+        },
+        {
+          "id": "dashboard-chrome",
+          "content": "Mobile-friendly customize drawer, arrange banner, and filter toolbar"
+        },
+        {
+          "id": "widget-internals",
+          "content": "Breakpoint stacking in quick timer, today logs, and chart widgets"
+        },
+        {
+          "id": "calendar-banner",
+          "content": "Mobile Time Tracker banner + useMediaQuery hook on timesheet-page"
+        },
+        {
+          "id": "calendar-grid",
+          "content": "Horizontal scroll + min column width in timesheet-calendar; compact headers in display-format"
+        },
+        {
+          "id": "calendar-month",
+          "content": "Month view horizontal scroll wrapper"
+        },
+        {
+          "id": "e2e-viewports",
+          "content": "E2E viewport tests for dashboard (375px) and optional timesheet checks"
+        }
+      ]
+    },
+    {
+      "planFile": ".cursor/plans/dashboard_widget_system_plan.plan.md",
+      "planSlug": "dashboard_widget_system_plan",
+      "todoId": "phase-1",
+      "content": "Phase 1: Foundation & Widget Registry",
+      "status": "pending",
+      "epic": "F-08",
+      "synthetic": true,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/dashboard_widget_system_plan.plan.md",
+      "planSlug": "dashboard_widget_system_plan",
+      "todoId": "phase-2",
+      "content": "Phase 2: Widget Shell Component",
+      "status": "pending",
+      "epic": "F-08",
+      "synthetic": true,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/dashboard_widget_system_plan.plan.md",
+      "planSlug": "dashboard_widget_system_plan",
+      "todoId": "phase-3",
+      "content": "Phase 3: Grid Layout Engine",
+      "status": "pending",
+      "epic": "F-08",
+      "synthetic": true,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/dashboard_widget_system_plan.plan.md",
+      "planSlug": "dashboard_widget_system_plan",
+      "todoId": "phase-4",
+      "content": "Phase 4: Widget Control Panel",
+      "status": "pending",
+      "epic": "F-08",
+      "synthetic": true,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/dashboard_widget_system_plan.plan.md",
+      "planSlug": "dashboard_widget_system_plan",
+      "todoId": "phase-5",
+      "content": "Phase 5: Existing Widget Migration & Cleanup",
+      "status": "pending",
+      "epic": "F-08",
+      "synthetic": true,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/dashboard_widget_system_plan.plan.md",
+      "planSlug": "dashboard_widget_system_plan",
+      "todoId": "phase-6",
+      "content": "Phase 6: New Analytics Widgets (R&D)",
+      "status": "pending",
+      "epic": "F-08",
+      "synthetic": true,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/dedicated_approvals_ux_8977f56c.plan.md",
+      "planSlug": "dedicated_approvals_ux_8977f56c",
+      "planName": "Dedicated Approvals UX",
+      "todoId": "__rollup__",
+      "content": "Shipped plan rollup: Dedicated Approvals UX (8 todos completed)",
+      "status": "completed",
+      "epic": "F-03",
+      "action": "rollup_done",
+      "lane": "done",
+      "rollupTodos": [
+        {
+          "id": "contracts-scope",
+          "content": "Add optional scope query to timesheetSubmissionsQuerySchema + contracts.spec.ts"
+        },
+        {
+          "id": "api-list-assigned",
+          "content": "Extend listSubmissions for scope=assigned (project_members); add unit + e2e tests"
+        },
+        {
+          "id": "ui-nav-badge",
+          "content": "Extend SidebarNavItem with badge support in packages/ui layout-shell"
+        },
+        {
+          "id": "admin-approvals-page",
+          "content": "Create /approvals feature, extract cards/hook from team-page, update admin-shell nav"
+        },
+        {
+          "id": "admin-team-slim",
+          "content": "Remove approvals tab from team-page; refactor pending-timesheets-widget to shared hook"
+        },
+        {
+          "id": "client-approvals-page",
+          "content": "Create /approvals page with period nav + TimesheetStatusCard grid; add nav badge"
+        },
+        {
+          "id": "client-timesheet-cta",
+          "content": "Add Send to Approvals toolbar CTA on timesheet page; update widget + button copy"
+        },
+        {
+          "id": "tests",
+          "content": "RTL specs for both approvals pages + Playwright flows for submit/approve"
+        }
+      ]
+    },
+    {
+      "planFile": ".cursor/plans/export_feature_plan_1864d505.plan.md",
+      "planSlug": "export_feature_plan_1864d505",
+      "planName": "Export feature plan",
+      "todoId": "__rollup__",
+      "content": "Shipped plan rollup: Export feature plan (6 todos completed)",
+      "status": "completed",
+      "epic": "F-12",
+      "action": "rollup_done",
+      "lane": "done",
+      "rollupTodos": [
+        {
+          "id": "contracts-export-schema",
+          "content": "Extend exportQuerySchema: billable, reportTypes[], format xlsx, per-report column keys[]; export column catalogs in contracts"
+        },
+        {
+          "id": "export-column-picker-ui",
+          "content": "Admin exports page: per-report-type column checklist + reorder (up/down or drag), reset to defaults, localStorage presets optional"
+        },
+        {
+          "id": "shared-aggregation",
+          "content": "Extract time log fetch + rate resolution + aggregations from reporting.service for reuse in export.service"
+        },
+        {
+          "id": "export-renderers",
+          "content": "Implement CSV (multi-file ZIP), Excel (exceljs multi-sheet), PDF summary in export.service"
+        },
+        {
+          "id": "admin-export-wizard",
+          "content": "Upgrade exports/page.tsx: filters, report checkboxes, format selector, single Export action"
+        },
+        {
+          "id": "export-tests",
+          "content": "Add API tests comparing export totals to reporting dashboard for same period"
+        }
+      ]
+    },
+    {
+      "planFile": ".cursor/plans/export_scale_up_plan_f8a2b1c0.plan.md",
+      "planSlug": "export_scale_up_plan_f8a2b1c0",
+      "planName": "Export scale-up plan",
+      "todoId": "__rollup__",
+      "content": "Shipped plan rollup: Export scale-up plan (15 todos completed)",
+      "status": "completed",
+      "epic": "F-12",
+      "action": "rollup_done",
+      "lane": "done",
+      "rollupTodos": [
+        {
+          "id": "phase1-preview-api",
+          "content": "Add POST /export/preview (or GET) returning row counts per report type + empty-range flag; admin wizard shows ~N rows before download"
+        },
+        {
+          "id": "phase1-presets-local",
+          "content": "Admin exports page — save/load/delete named presets (filters + reports + columns + format) in localStorage keyed by workspaceId"
+        },
+        {
+          "id": "phase1-dashboard-quick-export",
+          "content": "Admin dashboard — Export button using same 7/30/90d range + dashboard project/user filters; default body time_entries+by_project xlsx"
+        },
+        {
+          "id": "phase1-date-presets-today-week",
+          "content": "Exports page — add Today and This week period chips alongside existing 7d/30d/90d/month"
+        },
+        {
+          "id": "phase2-invoice-report",
+          "content": "New report type invoice — billable time_entries + subtotal row; PDF-first defaults; extend export.dto + export.service + PDF renderer"
+        },
+        {
+          "id": "phase2-by-task-report",
+          "content": "New report type by_task — aggregate hours/amounts per task; column catalog in contracts; Excel sheet name Task"
+        },
+        {
+          "id": "phase2-weekly-summary",
+          "content": "New report type weekly_summary — ISO week × member × project (or week × project); respect workspace week start when settings exist"
+        },
+        {
+          "id": "phase2-pdf-branding",
+          "content": "PDF export — workspace name, optional logo URL from Workspace.settings, custom footer note; document in export spec"
+        },
+        {
+          "id": "phase3-users-without-time",
+          "content": "New report type users_without_time — workspace members with zero logs in range; optional project/team filter"
+        },
+        {
+          "id": "phase3-budget-vs-actual",
+          "content": "New report type budget_vs_actual — per project budgetHours, logged, remaining, pct; reuse Project.budgetHours"
+        },
+        {
+          "id": "phase3-utilization",
+          "content": "New report type utilization — member × week logged vs expected hours (settings default 40h/week)"
+        },
+        {
+          "id": "phase3-presets-server",
+          "content": "Optional v2 — ExportPreset model + CRUD API; migrate localStorage presets"
+        },
+        {
+          "id": "phase4-scheduled-export",
+          "content": "Scheduled exports — cron/queue, email attachment or S3 link; admin UI schedule form"
+        },
+        {
+          "id": "phase4-shareable-link",
+          "content": "Read-only shareable report link — tokenized filter snapshot, not raw workspace API"
+        },
+        {
+          "id": "docs-and-tests",
+          "content": "Update docs/specs/export.md, user guide, PRODUCT_ROADMAP shipped section; API tests per new report type vs aggregation"
+        }
+      ]
+    },
+    {
+      "planFile": ".cursor/plans/github_kanban_bootstrap_dbfecb2c.plan.md",
+      "planSlug": "github_kanban_bootstrap_dbfecb2c",
+      "planName": "GitHub Kanban Bootstrap",
+      "todoId": "feature-audit",
+      "content": "Phase 1: Code-first FEATURE_INVENTORY.md — MVP scope only, exclude billing/budget/revenue/client-mgmt",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "post_done",
+      "lane": "done"
+    },
+    {
+      "planFile": ".cursor/plans/github_kanban_bootstrap_dbfecb2c.plan.md",
+      "planSlug": "github_kanban_bootstrap_dbfecb2c",
+      "planName": "GitHub Kanban Bootstrap",
+      "todoId": "github-project-config",
+      "content": "Phase 2: Project #4 — 10 kanban lanes, feature labels, MVP:out-of-scope label, By-feature + QA views",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "post_done",
+      "lane": "done"
+    },
+    {
+      "planFile": ".cursor/plans/github_kanban_bootstrap_dbfecb2c.plan.md",
+      "planSlug": "github_kanban_bootstrap_dbfecb2c",
+      "planName": "GitHub Kanban Bootstrap",
+      "todoId": "create-skill",
+      "content": "Ship kloqra-github-kanban skill with AC rules, QA verification matrix, worked example, acceptance-criteria.md reference",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "post_done",
+      "lane": "done"
+    },
+    {
+      "planFile": ".cursor/plans/github_kanban_bootstrap_dbfecb2c.plan.md",
+      "planSlug": "github_kanban_bootstrap_dbfecb2c",
+      "planName": "GitHub Kanban Bootstrap",
+      "todoId": "issue-templates",
+      "content": "Add .github/ISSUE_TEMPLATE YAML with AC-IDs, Gherkin criteria, and QA verification matrix table",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "post_done",
+      "lane": "done"
+    },
+    {
+      "planFile": ".cursor/plans/github_kanban_bootstrap_dbfecb2c.plan.md",
+      "planSlug": "github_kanban_bootstrap_dbfecb2c",
+      "planName": "GitHub Kanban Bootstrap",
+      "todoId": "populate-board",
+      "content": "Create MVP epics + stories with full AC + QA matrix per item; no item in Ready without matrix",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "post_done",
+      "lane": "done"
+    },
+    {
+      "planFile": ".cursor/plans/github_kanban_bootstrap_dbfecb2c.plan.md",
+      "planSlug": "github_kanban_bootstrap_dbfecb2c",
+      "planName": "GitHub Kanban Bootstrap",
+      "todoId": "governance-retire-taskboard",
+      "content": "Update master-orchestrator + AGENTS.md; archive TASK_BOARD.json",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "post_done",
+      "lane": "done"
+    },
+    {
+      "planFile": ".cursor/plans/github_kanban_bootstrap_dbfecb2c.plan.md",
+      "planSlug": "github_kanban_bootstrap_dbfecb2c",
+      "planName": "GitHub Kanban Bootstrap",
+      "todoId": "sprint-smoke",
+      "content": "Seed Ready with member export wire-up, Prisma DTO fixes, presence tests; lane transition smoke test",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "post_done",
+      "lane": "done"
+    },
+    {
+      "planFile": ".cursor/plans/hybrid_onboarding_upgrade_9d09cc4b.plan.md",
+      "planSlug": "hybrid_onboarding_upgrade_9d09cc4b",
+      "planName": "Hybrid onboarding upgrade",
+      "todoId": "__rollup__",
+      "content": "Shipped plan rollup: Hybrid onboarding upgrade (6 todos completed)",
+      "status": "completed",
+      "epic": "F-15",
+      "action": "rollup_done",
+      "lane": "done",
+      "rollupTodos": [
+        {
+          "id": "spotlight-primitive",
+          "content": "Add SpotlightTour component + tests in packages/ui; export from index"
+        },
+        {
+          "id": "tour-anchors",
+          "content": "Add tourId/data-tour to SidebarNavItem, layout-shell, ShellHeaderActions, workspace-shell nav items"
+        },
+        {
+          "id": "wizard-refactor",
+          "content": "Extract onboarding-steps.ts + feature cards; expand to 5 steps with updated copy"
+        },
+        {
+          "id": "tour-orchestration",
+          "content": "Add onboarding-tour.tsx + tour steps; wire provider for wizard→tour flow and localStorage keys"
+        },
+        {
+          "id": "sparkles-replay",
+          "content": "Sparkles popover: Full setup vs Quick tour replay options"
+        },
+        {
+          "id": "e2e-tests",
+          "content": "Playwright onboarding.spec.ts + onboarding-steps unit spec; run pre-PR gate"
+        }
+      ]
+    },
+    {
+      "planFile": ".cursor/plans/jira_integration_options_9635311c.plan.md",
+      "planSlug": "jira_integration_options_9635311c",
+      "planName": "Jira integration options",
+      "todoId": "backend-foundation",
+      "content": "Add contracts, Prisma models, Jira OAuth, issue resolver, and PAT auth guard",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "on_hold_post_mvp",
+      "lane": "on-hold"
+    },
+    {
+      "planFile": ".cursor/plans/jira_integration_options_9635311c.plan.md",
+      "planSlug": "jira_integration_options_9635311c",
+      "planName": "Jira integration options",
+      "todoId": "deeplink-mvp",
+      "content": "Implement /timer?jiraIssue=KEY client flow + admin mapping UI",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "on_hold_post_mvp",
+      "lane": "on-hold"
+    },
+    {
+      "planFile": ".cursor/plans/jira_integration_options_9635311c.plan.md",
+      "planSlug": "jira_integration_options_9635311c",
+      "planName": "Jira integration options",
+      "todoId": "forge-app",
+      "content": "Build Forge issue panel (Start/Stop) calling resolve + timer APIs",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "on_hold_post_mvp",
+      "lane": "on-hold"
+    },
+    {
+      "planFile": ".cursor/plans/jira_integration_options_9635311c.plan.md",
+      "planSlug": "jira_integration_options_9635311c",
+      "planName": "Jira integration options",
+      "todoId": "worklog-sync",
+      "content": "Optional phase: push stopped timer worklogs back to Jira",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "on_hold_post_mvp",
+      "lane": "on-hold"
+    },
+    {
+      "planFile": ".cursor/plans/jira_integration_options_9635311c.plan.md",
+      "planSlug": "jira_integration_options_9635311c",
+      "planName": "Jira integration options",
+      "todoId": "config-docs",
+      "content": "Add docs/runbooks/jira-integration.md and update ENVIRONMENT.md + deploy env examples",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "on_hold_post_mvp",
+      "lane": "on-hold"
+    },
+    {
+      "planFile": ".cursor/plans/kloqra_brand_rebrand_0119fd2b.plan.md",
+      "planSlug": "kloqra_brand_rebrand_0119fd2b",
+      "planName": "Kloqra Brand Rebrand",
+      "todoId": "__rollup__",
+      "content": "Shipped plan rollup: Kloqra Brand Rebrand (12 todos completed)",
+      "status": "completed",
+      "epic": "F-15",
+      "action": "rollup_done",
+      "lane": "done",
+      "rollupTodos": [
+        {
+          "id": "brand-constants",
+          "content": "Add packages/contracts/src/brand.ts (name, tagline, hex palette) as single TS source for API, exports, and web-shared components"
+        },
+        {
+          "id": "tokens",
+          "content": "Rewrite packages/ui/src/globals.css only — Kloqra palette, radius scale, semantic tokens, base typography; apps inherit via existing @import"
+        },
+        {
+          "id": "primitives",
+          "content": "Update shadcn primitives in packages/ui only (Button, Card, Input, Badge, layout-shell, PageHeader); fix client globals.css to use semantic color-mix"
+        },
+        {
+          "id": "brand-shells",
+          "content": "Add BrandMark + AuthShell in web-shared; wire shells/auth/loading to use them + BRAND constants (no per-feature color changes)"
+        },
+        {
+          "id": "typography",
+          "content": "Load Inter once in both app layouts; map heading scale in globals.css @layer base — avoid sweeping feature-file font changes"
+        },
+        {
+          "id": "auth-surfaces",
+          "content": "Replace login/register pages with shared AuthShell; update metadata and favicons"
+        },
+        {
+          "id": "project-colors",
+          "content": "Update packages/contracts project-colors.ts to Kloqra accent palette + contract specs"
+        },
+        {
+          "id": "naming-sweep",
+          "content": "Rename Kloqra → Kloqra in UI copy, exports, API titles, emails, seed data, localStorage keys"
+        },
+        {
+          "id": "package-rename",
+          "content": "Rename @kloqra/* packages to @kloqra/* across monorepo (package.json, imports, CI, Docker, docs)"
+        },
+        {
+          "id": "voice-microcopy",
+          "content": "Apply voice guide to timer empty states, toasts, errors, and delete confirmations"
+        },
+        {
+          "id": "export-branding",
+          "content": "Update invoice PDF and export filenames to Kloqra colors and naming"
+        },
+        {
+          "id": "tests",
+          "content": "Update/add UI specs, contract specs, e2e auth fixtures; run full pre-PR check suite"
+        }
+      ]
+    },
+    {
+      "planFile": ".cursor/plans/level_up_improvement_plan.plan.md",
+      "planSlug": "level_up_improvement_plan",
+      "todoId": "dim-1",
+      "content": "Dimension 1: Security Hardening 🔒",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": true,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/level_up_improvement_plan.plan.md",
+      "planSlug": "level_up_improvement_plan",
+      "todoId": "dim-2",
+      "content": "Dimension 2: Product Features 🚀",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": true,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/level_up_improvement_plan.plan.md",
+      "planSlug": "level_up_improvement_plan",
+      "todoId": "dim-3",
+      "content": "Dimension 3: UX / UI Polish ✨",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": true,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/level_up_improvement_plan.plan.md",
+      "planSlug": "level_up_improvement_plan",
+      "todoId": "dim-4",
+      "content": "Dimension 4: Developer Experience 🛠️",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": true,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/level_up_improvement_plan.plan.md",
+      "planSlug": "level_up_improvement_plan",
+      "todoId": "dim-5",
+      "content": "Dimension 5: Production Readiness 🏭",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": true,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/member_ai_help_bot_851108b2.plan.md",
+      "planSlug": "member_ai_help_bot_851108b2",
+      "planName": "Member AI Help Bot",
+      "todoId": "spec-contracts",
+      "content": "Add docs/specs/assistant.md + packages/contracts assistant DTOs and ROUTES.ASSISTANT.CHAT",
+      "status": "completed",
+      "epic": "F-14",
+      "synthetic": false,
+      "action": "skip_completed"
+    },
+    {
+      "planFile": ".cursor/plans/member_ai_help_bot_851108b2.plan.md",
+      "planSlug": "member_ai_help_bot_851108b2",
+      "planName": "Member AI Help Bot",
+      "todoId": "python-assistant-service",
+      "content": "Create apps/assistant-api FastAPI service (OpenAI, knowledge base, Pydantic schemas mirroring contracts, pytest)",
+      "status": "completed",
+      "epic": "F-14",
+      "synthetic": false,
+      "action": "skip_completed"
+    },
+    {
+      "planFile": ".cursor/plans/member_ai_help_bot_851108b2.plan.md",
+      "planSlug": "member_ai_help_bot_851108b2",
+      "planName": "Member AI Help Bot",
+      "todoId": "api-assistant-proxy",
+      "content": "NestJS assistant module — JWT gate + throttle + proxy to Python service (ASSISTANT_SERVICE_URL)",
+      "status": "completed",
+      "epic": "F-14",
+      "synthetic": false,
+      "action": "skip_completed"
+    },
+    {
+      "planFile": ".cursor/plans/member_ai_help_bot_851108b2.plan.md",
+      "planSlug": "member_ai_help_bot_851108b2",
+      "planName": "Member AI Help Bot",
+      "todoId": "deploy-assistant-service",
+      "content": "Add apps/assistant-api/Dockerfile, Railway service config, env docs, local dev runbook",
+      "status": "pending",
+      "epic": "F-14",
+      "synthetic": false,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/member_ai_help_bot_851108b2.plan.md",
+      "planSlug": "member_ai_help_bot_851108b2",
+      "planName": "Member AI Help Bot",
+      "todoId": "client-assistant-ui",
+      "content": "Build assistant panel in apps/client + wire Ask Kloqra entry in ShellHeaderActions / workspace-shell",
+      "status": "completed",
+      "epic": "F-14",
+      "synthetic": false,
+      "action": "skip_completed"
+    },
+    {
+      "planFile": ".cursor/plans/member_ai_help_bot_851108b2.plan.md",
+      "planSlug": "member_ai_help_bot_851108b2",
+      "planName": "Member AI Help Bot",
+      "todoId": "docs-sync",
+      "content": "Fix member guide routes (/submissions) and keep member-help-knowledge.ts aligned with guides",
+      "status": "pending",
+      "epic": "F-14",
+      "synthetic": false,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/member_ai_help_bot_851108b2.plan.md",
+      "planSlug": "member_ai_help_bot_851108b2",
+      "planName": "Member AI Help Bot",
+      "todoId": "qa-e2e",
+      "content": "Add API e2e + client e2e for help question → deep link flow",
+      "status": "pending",
+      "epic": "F-14",
+      "synthetic": false,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/member_ai_help_bot_851108b2.plan.md",
+      "planSlug": "member_ai_help_bot_851108b2",
+      "planName": "Member AI Help Bot",
+      "todoId": "scale-foundations",
+      "content": "v1 scale-ready basics: stateless FastAPI, Redis-backed throttle on NestJS, timeouts/circuit breaker on proxy, knowledge version for future cache",
+      "status": "pending",
+      "epic": "F-14",
+      "synthetic": false,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/member_ux_rollup_578eef9f.plan.md",
+      "planSlug": "member_ux_rollup_578eef9f",
+      "planName": "Member UX Rollup",
+      "todoId": "__rollup__",
+      "content": "Shipped plan rollup: Member UX Rollup (7 todos completed)",
+      "status": "completed",
+      "epic": "F-15",
+      "action": "rollup_done",
+      "lane": "done",
+      "rollupTodos": [
+        {
+          "id": "contracts-schema",
+          "content": "Add TaskAssignee + UserProjectColor Prisma models; extend contracts (task assignees, project summary, auth names, myColor routes)"
+        },
+        {
+          "id": "api-tasks-assignees",
+          "content": "Implement assignee CRUD, member task filtering, timelog/timer access guards"
+        },
+        {
+          "id": "api-billable-colors-reporting",
+          "content": "Enforce member billable from task default; user project color API; project summary reporting endpoint"
+        },
+        {
+          "id": "ui-avatar-onboarding",
+          "content": "2-letter initials from first+last; onboarding provider + header replay button in workspace shell"
+        },
+        {
+          "id": "admin-overview-tasks",
+          "content": "Admin project overview tab + assignee picker on task create/edit"
+        },
+        {
+          "id": "client-project-detail",
+          "content": "Member project detail overview, remove billable toggles, personal color picker, assigned-task empty states"
+        },
+        {
+          "id": "tests-qa",
+          "content": "Unit/integration/e2e coverage for all seven features; run full pre-PR gate"
+        }
+      ]
+    },
+    {
+      "planFile": ".cursor/plans/motion_polish_pass_a0b83fe3.plan.md",
+      "planSlug": "motion_polish_pass_a0b83fe3",
+      "planName": "Motion polish pass",
+      "todoId": "__rollup__",
+      "content": "Shipped plan rollup: Motion polish pass (7 todos completed)",
+      "status": "completed",
+      "epic": "F-15",
+      "action": "rollup_done",
+      "lane": "done",
+      "rollupTodos": [
+        {
+          "id": "motion-tokens",
+          "content": "Add motion tokens, keyframes (fade-in-up, shimmer, highlight-pulse), and prefers-reduced-motion to packages/ui/src/globals.css"
+        },
+        {
+          "id": "motion-components",
+          "content": "Create MotionReveal, StaggerList, CrossfadePresence, DismissableList in packages/ui + export + specs; add motion dependency"
+        },
+        {
+          "id": "primitive-polish",
+          "content": "Upgrade Button, Card, SegmentedControl, CenteredLoader, TableLoadingState with micro-interactions and crossfade"
+        },
+        {
+          "id": "submissions-motion",
+          "content": "Apply stagger enter, loading crossfade, and deep-link pulse to client submissions page + SubmissionStatusCard"
+        },
+        {
+          "id": "approvals-motion",
+          "content": "Apply tab crossfade, stagger lists, dismiss animations, and activity expand to admin approvals page + cards"
+        },
+        {
+          "id": "shared-surfaces",
+          "content": "Polish notification unread indicator and sidebar active nav; fix onboarding/workspace dead animation classes"
+        },
+        {
+          "id": "verify",
+          "content": "Run ui tests and full pre-PR checks; manual reduced-motion smoke test"
+        }
+      ]
+    },
+    {
+      "planFile": ".cursor/plans/next_level_up_plan.plan.md",
+      "planSlug": "next_level_up_plan",
+      "todoId": "sprint-a1",
+      "content": "A1. Wire Real Email Delivery for Scheduled Exports",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": true,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/next_level_up_plan.plan.md",
+      "planSlug": "next_level_up_plan",
+      "todoId": "sprint-a2",
+      "content": "A2. Editable Daily Goal (persist to workspace settings)",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": true,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/next_level_up_plan.plan.md",
+      "planSlug": "next_level_up_plan",
+      "todoId": "sprint-a3",
+      "content": "A3. `GET /timelogs/yesterday-summary` Endpoint + Client Widget",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": true,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/next_level_up_plan.plan.md",
+      "planSlug": "next_level_up_plan",
+      "todoId": "sprint-b1",
+      "content": "B1. Onboarding Flow (Client)",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": true,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/next_level_up_plan.plan.md",
+      "planSlug": "next_level_up_plan",
+      "todoId": "sprint-b2",
+      "content": "B2. PWA / Installable App (Client)",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": true,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/next_level_up_plan.plan.md",
+      "planSlug": "next_level_up_plan",
+      "todoId": "sprint-b3",
+      "content": "B3. Timesheet — Confirm Dialog Instead of `window.confirm`",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": true,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/next_level_up_plan.plan.md",
+      "planSlug": "next_level_up_plan",
+      "todoId": "sprint-b4",
+      "content": "B4. Admin Dashboard — Live Presence Indicator Polish",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": true,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/next_level_up_plan.plan.md",
+      "planSlug": "next_level_up_plan",
+      "todoId": "sprint-c1",
+      "content": "C1. OpenAPI / Swagger Docs",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": true,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/next_level_up_plan.plan.md",
+      "planSlug": "next_level_up_plan",
+      "todoId": "sprint-c2",
+      "content": "C2. Cursor-Based Pagination on Timelogs",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": true,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/next_level_up_plan.plan.md",
+      "planSlug": "next_level_up_plan",
+      "todoId": "sprint-c3",
+      "content": "C3. Composite DB Indexes",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": true,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/next_level_up_plan.plan.md",
+      "planSlug": "next_level_up_plan",
+      "todoId": "sprint-c4",
+      "content": "C4. E2E Playwright Test Coverage Expansion",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": true,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/next_level_up_plan.plan.md",
+      "planSlug": "next_level_up_plan",
+      "todoId": "sprint-d1",
+      "content": "D1. Team Activity Feed (Admin)",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": true,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/next_level_up_plan.plan.md",
+      "planSlug": "next_level_up_plan",
+      "todoId": "sprint-d2",
+      "content": "D2. Personal Productivity Insights (Client)",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": true,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/next_level_up_plan.plan.md",
+      "planSlug": "next_level_up_plan",
+      "todoId": "sprint-d3",
+      "content": "D3. Project Health Score (Admin)",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": true,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/next_level_up_plan.plan.md",
+      "planSlug": "next_level_up_plan",
+      "todoId": "sprint-d4",
+      "content": "D4. Audit Log UI (Admin)",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": true,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/next_level_up_plan.plan.md",
+      "planSlug": "next_level_up_plan",
+      "todoId": "sprint-e1",
+      "content": "E1. Structured JSON Logging (API)",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": true,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/next_level_up_plan.plan.md",
+      "planSlug": "next_level_up_plan",
+      "todoId": "sprint-e2",
+      "content": "E2. Response Caching on Reporting Endpoints",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": true,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/next_level_up_plan.plan.md",
+      "planSlug": "next_level_up_plan",
+      "todoId": "sprint-e3",
+      "content": "E3. `pnpm typecheck` CI Gate",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": true,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/notifications_inbox_system_0f5fc735.plan.md",
+      "planSlug": "notifications_inbox_system_0f5fc735",
+      "planName": "Notifications Inbox System",
+      "todoId": "contracts",
+      "content": "Add notification.dto.ts, dual-channel prefs (member + admin keys), ROUTES.NOTIFICATIONS, errors, contracts.spec.ts",
+      "status": "completed",
+      "epic": "F-13",
+      "synthetic": false,
+      "action": "skip_completed"
+    },
+    {
+      "planFile": ".cursor/plans/notifications_inbox_system_0f5fc735.plan.md",
+      "planSlug": "notifications_inbox_system_0f5fc735",
+      "planName": "Notifications Inbox System",
+      "todoId": "prisma",
+      "content": "Add Notification model + migration with indexes on (userId, workspaceId, createdAt) and readAt",
+      "status": "completed",
+      "epic": "F-13",
+      "synthetic": false,
+      "action": "skip_completed"
+    },
+    {
+      "planFile": ".cursor/plans/notifications_inbox_system_0f5fc735.plan.md",
+      "planSlug": "notifications_inbox_system_0f5fc735",
+      "planName": "Notifications Inbox System",
+      "todoId": "api-module",
+      "content": "Implement notifications module: list (paginated), unread-count, patch read/unread, mark-all-read + specs/e2e",
+      "status": "completed",
+      "epic": "F-13",
+      "synthetic": false,
+      "action": "skip_completed"
+    },
+    {
+      "planFile": ".cursor/plans/notifications_inbox_system_0f5fc735.plan.md",
+      "planSlug": "notifications_inbox_system_0f5fc735",
+      "planName": "Notifications Inbox System",
+      "todoId": "dispatch-member",
+      "content": "Dispatch member events: project assign, task assign, timesheet status, timer autostop, jira sync",
+      "status": "pending",
+      "epic": "F-13",
+      "synthetic": false,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/notifications_inbox_system_0f5fc735.plan.md",
+      "planSlug": "notifications_inbox_system_0f5fc735",
+      "planName": "Notifications Inbox System",
+      "todoId": "dispatch-admin",
+      "content": "Dispatch admin events: approval request, member invite/join, member removal, export schedule result",
+      "status": "pending",
+      "epic": "F-13",
+      "synthetic": false,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/notifications_inbox_system_0f5fc735.plan.md",
+      "planSlug": "notifications_inbox_system_0f5fc735",
+      "planName": "Notifications Inbox System",
+      "todoId": "settings-ui",
+      "content": "notification-channel-row.tsx + role-aware notifications-section (member vs admin toggle sets)",
+      "status": "pending",
+      "epic": "F-13",
+      "synthetic": false,
+      "action": "post_done",
+      "lane": "done"
+    },
+    {
+      "planFile": ".cursor/plans/notifications_inbox_system_0f5fc735.plan.md",
+      "planSlug": "notifications_inbox_system_0f5fc735",
+      "planName": "Notifications Inbox System",
+      "todoId": "inbox-ui",
+      "content": "use-notifications hooks, wire notification-dropdown, build NotificationsPage with pagination and read actions",
+      "status": "pending",
+      "epic": "F-13",
+      "synthetic": false,
+      "action": "post_done",
+      "lane": "done"
+    },
+    {
+      "planFile": ".cursor/plans/notifications_inbox_system_0f5fc735.plan.md",
+      "planSlug": "notifications_inbox_system_0f5fc735",
+      "planName": "Notifications Inbox System",
+      "todoId": "client-route",
+      "content": "Add client /notifications route + sidebar nav item with unread badge in workspace-shell.tsx",
+      "status": "pending",
+      "epic": "F-13",
+      "synthetic": false,
+      "action": "post_done",
+      "lane": "done"
+    },
+    {
+      "planFile": ".cursor/plans/notifications_inbox_system_0f5fc735.plan.md",
+      "planSlug": "notifications_inbox_system_0f5fc735",
+      "planName": "Notifications Inbox System",
+      "todoId": "admin-route",
+      "content": "Add admin /notifications route + sidebar nav item with unread badge in admin-shell.tsx",
+      "status": "pending",
+      "epic": "F-13",
+      "synthetic": false,
+      "action": "post_done",
+      "lane": "done"
+    },
+    {
+      "planFile": ".cursor/plans/performance_optimization_plan_07cae470.plan.md",
+      "planSlug": "performance_optimization_plan_07cae470",
+      "planName": "Performance Optimization Plan",
+      "todoId": "__rollup__",
+      "content": "Shipped plan rollup: Performance Optimization Plan (6 todos completed)",
+      "status": "completed",
+      "epic": "F-X",
+      "action": "rollup_done",
+      "lane": "done",
+      "rollupTodos": [
+        {
+          "id": "p1-api-n1",
+          "content": "Fix billing N+1, export users_without_time batch query, reporting dashboard dedup, export duplicate workspace fetch, myWeekSummary single fetch"
+        },
+        {
+          "id": "p1-contract-guards",
+          "content": "Add max date range + timelogs limit/cursor to packages/contracts Zod DTOs"
+        },
+        {
+          "id": "p2-fe-dynamic",
+          "content": "optimizePackageImports in next.config; next/dynamic for recharts; loading.tsx on heavy routes; bundle analyzer scripts"
+        },
+        {
+          "id": "p3-prisma-select-index",
+          "content": "Replace full includes with select in TimeAggregationService; timelogs pagination; Prisma index migration"
+        },
+        {
+          "id": "p4-cache-presence",
+          "content": "Optional Redis dashboard cache + presence batch/debounce + project-access targeted queries"
+        },
+        {
+          "id": "p5-arch-ci",
+          "content": "Admin server pages + dynamic feature chunks (with hardening PR4); CI bundle baseline/budget"
+        }
+      ]
+    },
+    {
+      "planFile": ".cursor/plans/performance_optimization_plan_9c4e242b.plan.md",
+      "planSlug": "performance_optimization_plan_9c4e242b",
+      "planName": "Performance Optimization Plan",
+      "todoId": "__rollup__",
+      "content": "Shipped plan rollup: Performance Optimization Plan (6 todos completed)",
+      "status": "completed",
+      "epic": "F-X",
+      "action": "rollup_done",
+      "lane": "done",
+      "rollupTodos": [
+        {
+          "id": "baseline-analyze",
+          "content": "Run client/admin bundle analyze + record top chunks; time dev cold/warm and test:prepr segments"
+        },
+        {
+          "id": "client-dashboard-split",
+          "content": "Add dynamic dashboard route + widgets-lazy.tsx for recharts widgets; scope grid CSS to dashboard layout"
+        },
+        {
+          "id": "next-optimize-imports",
+          "content": "Expand optimizePackageImports in both next.config.ts files; re-run analyze to verify"
+        },
+        {
+          "id": "dev-fast-scripts",
+          "content": "Add dev:apps fast path + optional --turbo; document workflow in PERFORMANCE.md"
+        },
+        {
+          "id": "web-shared-prebuild",
+          "content": "Add tsup build for @kloqra/web-shared (mirror contracts) and wire into turbo dev/build"
+        },
+        {
+          "id": "ci-turbo-tuning",
+          "content": "Parallelize unit tests in test-prepr.sh; tune turbo.json cache deps; optional bundle budget gate"
+        }
+      ]
+    },
+    {
+      "planFile": ".cursor/plans/project_hardening_plan_2d9d2bb8.plan.md",
+      "planSlug": "project_hardening_plan_2d9d2bb8",
+      "planName": "Project Hardening Plan",
+      "todoId": "__rollup__",
+      "content": "Shipped plan rollup: Project Hardening Plan (7 todos completed)",
+      "status": "completed",
+      "epic": "F-X",
+      "action": "rollup_done",
+      "lane": "done",
+      "rollupTodos": [
+        {
+          "id": "eslint-prettier",
+          "content": "Implement packages/config-eslint + Prettier, wire lint/typecheck/format scripts in all workspaces"
+        },
+        {
+          "id": "precommit-ci",
+          "content": "Add husky + lint-staged + commitlint; extend .github/workflows/ci.yml with format:check and ESLint"
+        },
+        {
+          "id": "cursor-governance",
+          "content": "Migrate .cursor/rules to .mdc with globs; add .cursor/skills (feature-delivery, api-slice, fe-feature); CONTRIBUTING.md"
+        },
+        {
+          "id": "web-shared",
+          "content": "Create packages/web-shared (api, download, stores, providers, date utils, workspace-switcher); migrate client first"
+        },
+        {
+          "id": "admin-features",
+          "content": "Refactor admin to server page.tsx + features/; move PageHeader primitives to @kloqra/ui"
+        },
+        {
+          "id": "api-common-time",
+          "content": "Extract time aggregation/week/rounding to apps/api/src/common/time; fix billing DRY and Nest module exports"
+        },
+        {
+          "id": "api-soc-routes",
+          "content": "Thin controllers (auth, team-invites, presence); ROUTES in contracts; DomainException in export; rename export-share consistently"
+        }
+      ]
+    },
+    {
+      "planFile": ".cursor/plans/qa_workflow_plan_31ba9f35.plan.md",
+      "planSlug": "qa_workflow_plan_31ba9f35",
+      "planName": "QA Workflow Plan",
+      "todoId": "qa-docs-hub",
+      "content": "Create docs/qa/ hub (README, ENVIRONMENTS.md, BOARD_WORKFLOW.md, RELEASE_PROCESS.md) — align with kloqra-github-kanban lanes and AC matrix",
+      "status": "completed",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "skip_completed"
+    },
+    {
+      "planFile": ".cursor/plans/qa_workflow_plan_31ba9f35.plan.md",
+      "planSlug": "qa_workflow_plan_31ba9f35",
+      "planName": "QA Workflow Plan",
+      "todoId": "pr-template",
+      "content": "Add .github/pull_request_template.md with manual test plan, linked GH issue, and QA matrix reference",
+      "status": "completed",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "skip_completed"
+    },
+    {
+      "planFile": ".cursor/plans/qa_workflow_plan_31ba9f35.plan.md",
+      "planSlug": "qa_workflow_plan_31ba9f35",
+      "planName": "QA Workflow Plan",
+      "todoId": "update-testing-guide",
+      "content": "Update docs/user-guides/qa/testing-guide.md — Project #4 lanes, AC-ID sign-off, QA queue view, link to board stories #313+",
+      "status": "completed",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "skip_completed"
+    },
+    {
+      "planFile": ".cursor/plans/qa_workflow_plan_31ba9f35.plan.md",
+      "planSlug": "qa_workflow_plan_31ba9f35",
+      "planName": "QA Workflow Plan",
+      "todoId": "qa-queue-view",
+      "content": "Configure Project #4 QA queue view (filter ready-for-qa, qa-in-progress, testing, qa-failed) per github-fields.md",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/qa_workflow_plan_31ba9f35.plan.md",
+      "planSlug": "qa_workflow_plan_31ba9f35",
+      "planName": "QA Workflow Plan",
+      "todoId": "ci-test-reporter",
+      "content": "Execute board story #313 (testing_coverage_plan phase1-reporters-ci) — JUnit PR annotations + artifact docs",
+      "status": "completed",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "skip_completed"
+    },
+    {
+      "planFile": ".cursor/plans/qa_workflow_plan_31ba9f35.plan.md",
+      "planSlug": "qa_workflow_plan_31ba9f35",
+      "planName": "QA Workflow Plan",
+      "todoId": "test-dashboard-fix",
+      "content": "Fix integration-junit path in scripts/test-dashboard.mjs",
+      "status": "completed",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "skip_completed"
+    },
+    {
+      "planFile": ".cursor/plans/qa_workflow_plan_31ba9f35.plan.md",
+      "planSlug": "qa_workflow_plan_31ba9f35",
+      "planName": "QA Workflow Plan",
+      "todoId": "sprint1-qa-dispatch",
+      "content": "QA dispatch for Ready column — #199 export, #200 DTO mappers, #201 presence tests; lane transitions per SKILL.md",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/qa_workflow_plan_31ba9f35.plan.md",
+      "planSlug": "qa_workflow_plan_31ba9f35",
+      "planName": "QA Workflow Plan",
+      "todoId": "extend-bug-template",
+      "content": "Extend .github/ISSUE_TEMPLATE/bug.yml with environment/app fields from testing guide (templates exist — gap-fill only)",
+      "status": "completed",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "skip_completed"
+    },
+    {
+      "planFile": ".cursor/plans/qa_workflow_plan_31ba9f35.plan.md",
+      "planSlug": "qa_workflow_plan_31ba9f35",
+      "planName": "QA Workflow Plan",
+      "todoId": "update-guides",
+      "content": "Update testing-guide.md and CONTRIBUTING.md to reference GitHub Issues, Project #4, and new templates",
+      "status": "completed",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "skip_completed"
+    },
+    {
+      "planFile": ".cursor/plans/qa_workflow_plan_31ba9f35.plan.md",
+      "planSlug": "qa_workflow_plan_31ba9f35",
+      "planName": "QA Workflow Plan",
+      "todoId": "regression-policy",
+      "content": "Document bug-to-test workflow in docs/qa/BUG_TRIAGE.md (AC-ID format from kanban skill)",
+      "status": "completed",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "skip_completed"
+    },
+    {
+      "planFile": ".cursor/plans/qa_workflow_plan_31ba9f35.plan.md",
+      "planSlug": "qa_workflow_plan_31ba9f35",
+      "planName": "QA Workflow Plan",
+      "todoId": "qa-skill",
+      "content": "Ship kloqra-qa-workflow skill with scripts and templates",
+      "status": "completed",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "skip_completed"
+    },
+    {
+      "planFile": ".cursor/plans/test_coverage_hardening_e657c5ab.plan.md",
+      "planSlug": "test_coverage_hardening_e657c5ab",
+      "planName": "Test coverage hardening",
+      "todoId": "__rollup__",
+      "content": "Shipped plan rollup: Test coverage hardening (7 todos completed)",
+      "status": "completed",
+      "epic": "F-X",
+      "action": "rollup_done",
+      "lane": "done",
+      "rollupTodos": [
+        {
+          "id": "phase1-coverage-reporters",
+          "content": "Add @vitest/coverage-v8, JUnit reporters to api/contracts vitest configs, test:coverage script"
+        },
+        {
+          "id": "phase1-ci-split",
+          "content": "Split ci.yml into quality/unit/integration/e2e jobs; run API test:e2e; upload coverage + junit artifacts"
+        },
+        {
+          "id": "phase1-playwright-reporters",
+          "content": "Add junit/html/trace reporters to client playwright.config.ts"
+        },
+        {
+          "id": "phase2-api-unit",
+          "content": "Add unit specs: timer, stale-timer, projects, workspace, timesheets; extend categories delete guard"
+        },
+        {
+          "id": "phase2-api-integration",
+          "content": "Add auth, categories, projects, timer Supertest e2e specs + shared login helper"
+        },
+        {
+          "id": "phase2-strengthen-existing",
+          "content": "Refactor timelogs/reporting specs to test real service methods"
+        },
+        {
+          "id": "phase3-baseline",
+          "content": "Record coverage baseline in docs after green CI; update TESTING.md"
+        }
+      ]
+    },
+    {
+      "planFile": ".cursor/plans/test_pyramid_phase2.plan.md",
+      "planSlug": "test_pyramid_phase2",
+      "planName": "Test pyramid phase 2",
+      "todoId": "__rollup__",
+      "content": "Shipped plan rollup: Test pyramid phase 2 (10 todos completed)",
+      "status": "completed",
+      "epic": "F-X",
+      "action": "rollup_done",
+      "lane": "done",
+      "rollupTodos": [
+        {
+          "id": "phase1-admin-playwright-setup",
+          "content": "Add Playwright to apps/admin (config, scripts, login helper, junit/html reporters)"
+        },
+        {
+          "id": "phase1-admin-playwright-specs",
+          "content": "Write admin e2e specs for projects + categories CRUD smoke flows"
+        },
+        {
+          "id": "phase1-admin-playwright-ci",
+          "content": "Wire admin Playwright into CI e2e job and root test:e2e script"
+        },
+        {
+          "id": "phase2-ui-test-harness",
+          "content": "Add Vitest + RTL + jsdom to packages/ui with vitest.config.ts"
+        },
+        {
+          "id": "phase2-ui-component-specs",
+          "content": "Add specs for Button, Input, Select, ConfirmDialog, ProjectColorPicker"
+        },
+        {
+          "id": "phase3-coverage-gates-contracts",
+          "content": "Enable Vitest coverage thresholds for packages/contracts (≥90% lines)"
+        },
+        {
+          "id": "phase3-coverage-gates-api-modules",
+          "content": "Add per-module API coverage floors for auth, timer, timelogs, export, reporting"
+        },
+        {
+          "id": "phase3-coverage-baseline-refresh",
+          "content": "Refresh coverage-baseline.json and TESTING.md with gate policy"
+        },
+        {
+          "id": "phase4-turbo-setup",
+          "content": "Introduce turbo.json pipeline and wire root scripts to turbo run"
+        },
+        {
+          "id": "phase4-turbo-remote-cache",
+          "content": "Configure remote cache (Vercel or self-hosted) in CI with TURBO_TOKEN"
+        }
+      ]
+    },
+    {
+      "planFile": ".cursor/plans/testing_coverage_plan_601f0cfb.plan.md",
+      "planSlug": "testing_coverage_plan_601f0cfb",
+      "planName": "Testing coverage plan",
+      "todoId": "phase1-reporters-ci",
+      "content": "Add Vitest JUnit/coverage reporters, Playwright junit/html, split CI jobs with artifact upload, create docs/development/TESTING.md",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/testing_coverage_plan_601f0cfb.plan.md",
+      "planSlug": "testing_coverage_plan_601f0cfb",
+      "planName": "Testing coverage plan",
+      "todoId": "phase2-api-unit",
+      "content": "Deepen API unit tests (export, reporting, auth, timelogs, timer, project-access) with mocked deps; add client/admin Vitest + RTL",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/testing_coverage_plan_601f0cfb.plan.md",
+      "planSlug": "testing_coverage_plan_601f0cfb",
+      "planName": "Testing coverage plan",
+      "todoId": "phase3-api-integration",
+      "content": "Add apps/api/test helpers + DB-backed e2e specs (auth, timelogs, timer, export, projects)",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/testing_coverage_plan_601f0cfb.plan.md",
+      "planSlug": "testing_coverage_plan_601f0cfb",
+      "planName": "Testing coverage plan",
+      "todoId": "phase4-playwright-full",
+      "content": "Full client+admin Playwright suites (auth, timer, timelogs, projects, exports, reporting) with seed users and CI boot script",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/testing_coverage_plan_601f0cfb.plan.md",
+      "planSlug": "testing_coverage_plan_601f0cfb",
+      "planName": "Testing coverage plan",
+      "todoId": "phase5-coverage-gates",
+      "content": "After green baseline, add coverage thresholds and optional Codecov patch checks",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/time_tracker_week_list_81b9ec0a.plan.md",
+      "planSlug": "time_tracker_week_list_81b9ec0a",
+      "planName": "Time Tracker Week List",
+      "todoId": "__rollup__",
+      "content": "Shipped plan rollup: Time Tracker Week List (6 todos completed)",
+      "status": "completed",
+      "epic": "F-06",
+      "action": "rollup_done",
+      "lane": "done",
+      "rollupTodos": [
+        {
+          "id": "utils-grouping",
+          "content": "Add time-tracker-period.ts + group-logs-by-week.ts with unit specs (timezone + weekStart)"
+        },
+        {
+          "id": "ui-stat-card",
+          "content": "Promote DashboardStatCard to packages/ui and export from @kloqra/ui"
+        },
+        {
+          "id": "feature-components",
+          "content": "Build time-tracker toolbar, stat-cards, week-list, entry-row components"
+        },
+        {
+          "id": "page-orchestration",
+          "content": "Implement TimeTrackerPage: fetch, filters, CRUD via reused TimeEntryDialog"
+        },
+        {
+          "id": "route-nav",
+          "content": "Add /time-tracker route, loading skeleton, and workspace-shell nav item"
+        },
+        {
+          "id": "e2e-tests",
+          "content": "Add apps/client/e2e/time-tracker.spec.ts smoke test"
+        }
+      ]
+    },
+    {
+      "planFile": ".cursor/plans/timer_pause_resume_ui_redesign.plan.md",
+      "planSlug": "timer_pause_resume_ui_redesign",
+      "todoId": "full-plan",
+      "content": "Timer pause/resume UI redesign (see plan body)",
+      "status": "pending",
+      "epic": "F-06",
+      "synthetic": true,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/timer_stale_autostop.plan.md",
+      "planSlug": "timer_stale_autostop",
+      "todoId": "module-a",
+      "content": "Module A: Contracts: `packages/contracts`",
+      "status": "pending",
+      "epic": "F-06",
+      "synthetic": true,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/timer_stale_autostop.plan.md",
+      "planSlug": "timer_stale_autostop",
+      "todoId": "module-b",
+      "content": "Module B: Backend: Timer Service `apps/api/src/modules/timer`",
+      "status": "pending",
+      "epic": "F-06",
+      "synthetic": true,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/timer_stale_autostop.plan.md",
+      "planSlug": "timer_stale_autostop",
+      "todoId": "module-c",
+      "content": "Module C: Backend: Stale Timer Worker (NEW FILE)",
+      "status": "pending",
+      "epic": "F-06",
+      "synthetic": true,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/timer_stale_autostop.plan.md",
+      "planSlug": "timer_stale_autostop",
+      "todoId": "module-d",
+      "content": "Module D: Backend: New `/timer/active` response field",
+      "status": "pending",
+      "epic": "F-06",
+      "synthetic": true,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/timer_stale_autostop.plan.md",
+      "planSlug": "timer_stale_autostop",
+      "todoId": "module-e",
+      "content": "Module E: Client: Stale Timer Detection",
+      "status": "pending",
+      "epic": "F-06",
+      "synthetic": true,
+      "action": "post",
+      "lane": "backlog"
+    },
+    {
+      "planFile": ".cursor/plans/timesheet_submissions_workflow_15fe10b0.plan.md",
+      "planSlug": "timesheet_submissions_workflow_15fe10b0",
+      "planName": "Timesheet Submissions Workflow",
+      "todoId": "contracts",
+      "content": "DTOs/routes/error codes; notification templates + types (reminder.manual, amendment.*, batch submit); listPending { items }; docs/specs/timelogs.md",
+      "status": "pending",
+      "epic": "F-03",
+      "synthetic": false,
+      "action": "post_done",
+      "lane": "done"
+    },
+    {
+      "planFile": ".cursor/plans/timesheet_submissions_workflow_15fe10b0.plan.md",
+      "planSlug": "timesheet_submissions_workflow_15fe10b0",
+      "planName": "Timesheet Submissions Workflow",
+      "todoId": "prisma-amendment",
+      "content": "TimesheetAmendmentRequest model + migration; periodId+status index",
+      "status": "pending",
+      "epic": "F-03",
+      "synthetic": false,
+      "action": "post_done",
+      "lane": "done"
+    },
+    {
+      "planFile": ".cursor/plans/timesheet_submissions_workflow_15fe10b0.plan.md",
+      "planSlug": "timesheet_submissions_workflow_15fe10b0",
+      "planName": "Timesheet Submissions Workflow",
+      "todoId": "api-core",
+      "content": "Preview/submit cascade, amendments, missing, remind, status guards, notify util; per-project cron",
+      "status": "pending",
+      "epic": "F-03",
+      "synthetic": false,
+      "action": "post_done",
+      "lane": "done"
+    },
+    {
+      "planFile": ".cursor/plans/timesheet_submissions_workflow_15fe10b0.plan.md",
+      "planSlug": "timesheet_submissions_workflow_15fe10b0",
+      "planName": "Timesheet Submissions Workflow",
+      "todoId": "ui-shared",
+      "content": "packages/ui — SubmitCascadeDialog, AmendmentRequestDialog, SubmissionStatusBadge (+ amendment pending); extend notification icon map in web-shared",
+      "status": "pending",
+      "epic": "F-03",
+      "synthetic": false,
+      "action": "post_done",
+      "lane": "done"
+    },
+    {
+      "planFile": ".cursor/plans/timesheet_submissions_workflow_15fe10b0.plan.md",
+      "planSlug": "timesheet_submissions_workflow_15fe10b0",
+      "planName": "Timesheet Submissions Workflow",
+      "todoId": "client-ux",
+      "content": "Submissions page/shell/widgets/time-tracker/timesheet deep links; cascade + amendment flows; notification href handlers",
+      "status": "pending",
+      "epic": "F-03",
+      "synthetic": false,
+      "action": "post_done",
+      "lane": "done"
+    },
+    {
+      "planFile": ".cursor/plans/timesheet_submissions_workflow_15fe10b0.plan.md",
+      "planSlug": "timesheet_submissions_workflow_15fe10b0",
+      "planName": "Timesheet Submissions Workflow",
+      "todoId": "admin-ux",
+      "content": "Approvals 3-tab page, missing remind modal, amendment queue, nav badges, dashboard widget; notification deep links",
+      "status": "pending",
+      "epic": "F-03",
+      "synthetic": false,
+      "action": "post_done",
+      "lane": "done"
+    },
+    {
+      "planFile": ".cursor/plans/timesheet_submissions_workflow_15fe10b0.plan.md",
+      "planSlug": "timesheet_submissions_workflow_15fe10b0",
+      "planName": "Timesheet Submissions Workflow",
+      "todoId": "tests",
+      "content": "Unit/e2e/RTL/Playwright for UX flows, notification metadata hrefs, timezone boundaries, concurrency",
+      "status": "pending",
+      "epic": "F-03",
+      "synthetic": false,
+      "action": "post_done",
+      "lane": "done"
+    },
+    {
+      "planFile": ".cursor/plans/user_settings_management_79030cb7.plan.md",
+      "planSlug": "user_settings_management_79030cb7",
+      "planName": "User Settings Management",
+      "todoId": "contracts-settings-dto",
+      "content": "Add settings.dto.ts (userPreferences, workspaceSettings, update schemas) + routes; export from contracts index",
+      "status": "in_progress",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "skip_completed"
+    },
+    {
+      "planFile": ".cursor/plans/user_settings_management_79030cb7.plan.md",
+      "planSlug": "user_settings_management_79030cb7",
+      "planName": "User Settings Management",
+      "todoId": "prisma-user-preferences",
+      "content": "Migration: User.preferences JSONB default {}; regenerate Prisma client",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "post_done",
+      "lane": "done"
+    },
+    {
+      "planFile": ".cursor/plans/user_settings_management_79030cb7.plan.md",
+      "planSlug": "user_settings_management_79030cb7",
+      "planName": "User Settings Management",
+      "todoId": "api-auth-profile",
+      "content": "PATCH /auth/me, PATCH /auth/me/password, GET/PATCH /auth/me/preferences; include prefs + workspace settings on GET /auth/me",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "post_done",
+      "lane": "done"
+    },
+    {
+      "planFile": ".cursor/plans/user_settings_management_79030cb7.plan.md",
+      "planSlug": "user_settings_management_79030cb7",
+      "planName": "User Settings Management",
+      "todoId": "api-workspace-settings",
+      "content": "GET/PATCH /workspaces/:id/settings in workspace module (admin PATCH, member GET)",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "post_done",
+      "lane": "done"
+    },
+    {
+      "planFile": ".cursor/plans/user_settings_management_79030cb7.plan.md",
+      "planSlug": "user_settings_management_79030cb7",
+      "planName": "User Settings Management",
+      "todoId": "api-apply-rules",
+      "content": "Workspace settings util: round duration on timer/timelogs; timezone for export/reporting date grouping",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "post_done",
+      "lane": "done"
+    },
+    {
+      "planFile": ".cursor/plans/user_settings_management_79030cb7.plan.md",
+      "planSlug": "user_settings_management_79030cb7",
+      "planName": "User Settings Management",
+      "todoId": "ui-settings-pages",
+      "content": "Client /settings + Admin settings (workspace tab + account/prefs/notifications); nav links; theme sync",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "post_done",
+      "lane": "done"
+    },
+    {
+      "planFile": ".cursor/plans/user_settings_management_79030cb7.plan.md",
+      "planSlug": "user_settings_management_79030cb7",
+      "planName": "User Settings Management",
+      "todoId": "ui-integrate-rules",
+      "content": "Timesheet week start, timer last project/task, export presets to user prefs, membersCanSeeRates gate",
+      "status": "pending",
+      "epic": "F-X",
+      "synthetic": false,
+      "action": "post_done",
+      "lane": "done"
+    }
+  ]
+}

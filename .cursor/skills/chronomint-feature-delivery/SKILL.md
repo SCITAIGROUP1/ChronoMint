@@ -15,7 +15,7 @@ description: >-
 4. BE implements `apps/api/src/modules/<feature>/`
 5. FE implements `apps/client` or `apps/admin`
 6. Verify with `pnpm test:coverage` and `pnpm test:dashboard`
-7. Update `docs/agent/ROC.md` and `TASK_BOARD.json`
+7. Update `docs/agent/ROC.md`; sync GitHub issue lane on Project #4
 
 ## MIP handoff template
 

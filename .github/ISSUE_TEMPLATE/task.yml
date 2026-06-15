@@ -1,0 +1,53 @@
+name: Task
+description: Implementation task with dev handoff and QA matrix
+title: "[Task][F-XX] "
+labels:
+  - type:task
+body:
+  - type: dropdown
+    id: role
+    attributes:
+      label: Owner role
+      options:
+        - LSA
+        - BE
+        - FE
+        - QA
+        - BA
+    validations:
+      required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance criteria
+      value: |
+        - [ ] **AC-1:** Given
+        - [ ] **AC-2:** Given
+    validations:
+      required: true
+
+  - type: textarea
+    id: qa_matrix
+    attributes:
+      label: QA verification matrix
+      value: |
+        | AC | Type | Automated | Manual steps | Pass |
+        |----|------|-----------|--------------|------|
+        | AC-1 | | | | [ ] |
+    validations:
+      required: true
+
+  - type: textarea
+    id: target_paths
+    attributes:
+      label: Target paths
+    validations:
+      required: true

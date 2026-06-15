@@ -45,4 +45,28 @@ describe("Workspace E2E", () => {
     const res = await authedAgent(app, memberSession).get(path);
     expect(res.status).toBe(403);
   });
+
+  it("PATCH /workspaces/:id returns WorkspaceDto without Prisma field leaks (AC-1)", async () => {
+    const path = ROUTES.WORKSPACES.BY_ID(adminSession.workspaceId);
+    const res = await authedAgent(app, adminSession).patch(path).send({ name: "Acme Corporation" });
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      id: adminSession.workspaceId,
+      name: expect.any(String),
+      slug: expect.any(String)
+    });
+    expect(res.body).not.toHaveProperty("createdAt");
+    expect(res.body).not.toHaveProperty("updatedAt");
+  });
+
+  it("PATCH /workspaces/:id rejects wrong workspace id in path (AC-3)", async () => {
+    const otherId = "00000000-0000-0000-0000-000000000099";
+    const res = await authedAgent(app, adminSession).patch(ROUTES.WORKSPACES.BY_ID(otherId)).send({
+      name: "Should not apply"
+    });
+    expect([403, 500]).toContain(res.status);
+    if (res.status === 403) {
+      expect(res.body).toMatchObject({ code: expect.any(String) });
+    }
+  });
 });

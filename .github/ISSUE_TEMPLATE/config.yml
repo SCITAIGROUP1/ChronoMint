@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: QA engineer guide (manual + automated)
+    url: https://github.com/SCITAIGROUP1/ChronoMint/blob/main/docs/qa/QA_ENGINEER_GUIDE.md
+    about: Official per-issue QA workflow for engineers
+  - name: QA testing guide (manual smoke)
+    url: https://github.com/SCITAIGROUP1/ChronoMint/blob/main/docs/user-guides/qa/testing-guide.md
+    about: Local setup and smoke checklists
+  - name: Feature inventory
+    url: https://github.com/SCITAIGROUP1/ChronoMint/blob/main/docs/agent/FEATURE_INVENTORY.md
+    about: Code-first MVP feature audit
+  - name: Kanban skill
+    url: https://github.com/SCITAIGROUP1/ChronoMint/blob/main/.cursor/skills/kloqra-github-kanban/SKILL.md
+    about: Issue posting standards and lanes

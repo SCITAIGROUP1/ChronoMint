@@ -17,6 +17,7 @@ apps/client/e2e/.auth/
 playwright-report/
 apps/admin/playwright-report/
 apps/client/playwright-report/
+.qa-evidence/
 .tsbuildinfo
 .pnpm-store
 __pycache__/

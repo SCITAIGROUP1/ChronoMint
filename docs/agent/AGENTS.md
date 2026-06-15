@@ -7,7 +7,16 @@
 3. QA writes failing tests
 4. BE implements `apps/api/src/modules/<feature>/`
 5. FE implements `apps/client` or `apps/admin`
-6. Update `docs/agent/ROC.md` and `TASK_BOARD.json`
+6. Update `docs/agent/ROC.md`; move GitHub issue lane when done (Project #4)
+
+## Backlog & board
+
+- **Board:** https://github.com/orgs/SCITAIGROUP1/projects/4
+- **Feature inventory:** [FEATURE_INVENTORY.md](FEATURE_INVENTORY.md)
+- **Kanban skill:** [kloqra-github-kanban](../../.cursor/skills/kloqra-github-kanban/SKILL.md)
+- **QA workflow skill:** [kloqra-qa-workflow](../../.cursor/skills/kloqra-qa-workflow/SKILL.md) · [docs/qa/README.md](../qa/README.md)
+- **Lanes:** backlog, ready, on-hold, in-progress, in-review, ready-for-qa, qa-in-progress, testing, qa-failed, done
+- **MVP scope:** no budget, revenue, billing, or client-portal issues
 
 ## Role directory bounds
 

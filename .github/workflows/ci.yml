@@ -79,6 +79,22 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm prisma:generate
       - run: pnpm test:coverage
+      - name: Publish API unit test report
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Unit tests (API)
+          path: apps/api/test-results/unit-junit.xml
+          reporter: java-junit
+          fail-on-error: false
+      - name: Publish contracts unit test report
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Unit tests (contracts)
+          path: packages/contracts/test-results/unit-junit.xml
+          reporter: java-junit
+          fail-on-error: false
       - name: Upload coverage artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -141,6 +157,14 @@ jobs:
       - run: pnpm --filter @kloqra/contracts build
       - run: pnpm prisma:seed
       - run: pnpm test:integration
+      - name: Publish API integration test report
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Integration tests (API)
+          path: apps/api/test-results/integration-junit.xml
+          reporter: java-junit
+          fail-on-error: false
       - name: Upload integration JUnit
         uses: actions/upload-artifact@v4
         with:
@@ -222,6 +246,22 @@ jobs:
           done
           pnpm --filter @kloqra/admin test:e2e
           pnpm --filter @kloqra/client test:e2e
+      - name: Publish admin Playwright report
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: E2E tests (admin)
+          path: apps/admin/test-results/playwright-junit.xml
+          reporter: java-junit
+          fail-on-error: false
+      - name: Publish client Playwright report
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: E2E tests (client)
+          path: apps/client/test-results/playwright-junit.xml
+          reporter: java-junit
+          fail-on-error: false
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4

@@ -20,7 +20,13 @@ Workers return `<SYNC_BLOCK status="DONE" task_id="...">` with files modified an
 
 ## Task source
 
-`TASK_BOARD.json` is authoritative sprint state.
+**GitHub Project #4** is the authoritative sprint board: https://github.com/orgs/SCITAIGROUP1/projects/4
+
+- Issues use acceptance criteria + QA verification matrices (see `kloqra-github-kanban` skill)
+- QA verifies merged work via `kloqra-qa-workflow` skill — lanes `ready-for-qa` → `done`
+- Lanes: `backlog` → `ready` → … → `done` (10 lanes including QA)
+- `docs/agent/FEATURE_INVENTORY.md` — code-first feature audit
+- `TASK_BOARD.json` is **deprecated** (archived under `docs/agent/archive/`)
 
 ## Before PR
 

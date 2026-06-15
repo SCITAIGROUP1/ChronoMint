@@ -110,11 +110,18 @@ modules/<name>/
 
 ## Pull request checklist
 
+Use the [PR template](../../.github/pull_request_template.md) — link the GitHub issue (`Closes #NNN`) and copy the **Manual test plan** from the issue QA matrix.
+
+- [ ] Linked issue on [Project #4](https://github.com/orgs/SCITAIGROUP1/projects/4)
 - [ ] Contracts updated if API shape changed
 - [ ] `docs/specs/<feature>.md` updated for behavior changes
+- [ ] Automated tests cover QA matrix Contract/Unit/API/E2E rows
 - [ ] `pnpm test` passes
 - [ ] No secrets in committed files (`.env` stays local)
+- [ ] After merge: move issue to `ready-for-qa` (unless docs-only)
 - [ ] If feature shipped: update [PRODUCT_ROADMAP.md](../architecture/PRODUCT_ROADMAP.md) **Shipped** section with spec link
+
+QA process: [docs/qa/BOARD_WORKFLOW.md](../qa/BOARD_WORKFLOW.md)
 
 ## Documentation hygiene
 

@@ -4,22 +4,22 @@ Start here for architecture, development, API reference, feature specs, user gui
 
 ## Quick links
 
-| I want to…                   | Go to                                                                                              |
-| ---------------------------- | -------------------------------------------------------------------------------------------------- |
-| Run the app locally          | [Root README](../README.md)                                                                        |
-| Set up environment variables | [ENVIRONMENT.md](development/ENVIRONMENT.md) (local DB: `kloqra`, seed: `@kloqra.dev`)             |
-| Contribute code              | [CONTRIBUTING.md](../CONTRIBUTING.md)                                                              |
-| Build frontend features      | [FRONTEND-UI.md](development/FRONTEND-UI.md)                                                       |
-| Run tests                    | [TESTING.md](development/TESTING.md) · [QA guide (non-technical)](user-guides/qa/testing-guide.md) |
-| Understand the system        | [CONTEXT.md](architecture/CONTEXT.md)                                                              |
-| Call the API                 | [api/ROUTES.md](api/ROUTES.md)                                                                     |
-| Use the member app           | [user-guides/member/getting-started.md](user-guides/member/getting-started.md)                     |
-| Use the admin app            | [user-guides/admin/getting-started.md](user-guides/admin/getting-started.md)                       |
-| Deploy to staging            | [runbooks/deploy.md](runbooks/deploy.md)                                                           |
-| Deploy API (Railway)         | [runbooks/railway.md](runbooks/railway.md)                                                         |
-| Deploy frontends (Vercel)    | [runbooks/vercel.md](runbooks/vercel.md)                                                           |
-| Fix local dev issues         | [runbooks/local-troubleshooting.md](runbooks/local-troubleshooting.md)                             |
-| Work with AI agents          | [agent/AGENTS.md](agent/AGENTS.md)                                                                 |
+| I want to…                   | Go to                                                                                                                                                                            |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Run the app locally          | [Root README](../README.md)                                                                                                                                                      |
+| Set up environment variables | [ENVIRONMENT.md](development/ENVIRONMENT.md) (local DB: `kloqra`, seed: `@kloqra.dev`)                                                                                           |
+| Contribute code              | [CONTRIBUTING.md](../CONTRIBUTING.md)                                                                                                                                            |
+| Build frontend features      | [FRONTEND-UI.md](development/FRONTEND-UI.md)                                                                                                                                     |
+| Run tests                    | [QA engineer guide](qa/QA_ENGINEER_GUIDE.md) · [Epic #198 sample](qa/examples/WALKTHROUGH_EPIC_198_STORY_199.md) · [TESTING.md](development/TESTING.md) · [QA hub](qa/README.md) |
+| Understand the system        | [CONTEXT.md](architecture/CONTEXT.md)                                                                                                                                            |
+| Call the API                 | [api/ROUTES.md](api/ROUTES.md)                                                                                                                                                   |
+| Use the member app           | [user-guides/member/getting-started.md](user-guides/member/getting-started.md)                                                                                                   |
+| Use the admin app            | [user-guides/admin/getting-started.md](user-guides/admin/getting-started.md)                                                                                                     |
+| Deploy to staging            | [runbooks/deploy.md](runbooks/deploy.md)                                                                                                                                         |
+| Deploy API (Railway)         | [runbooks/railway.md](runbooks/railway.md)                                                                                                                                       |
+| Deploy frontends (Vercel)    | [runbooks/vercel.md](runbooks/vercel.md)                                                                                                                                         |
+| Fix local dev issues         | [runbooks/local-troubleshooting.md](runbooks/local-troubleshooting.md)                                                                                                           |
+| Work with AI agents          | [agent/AGENTS.md](agent/AGENTS.md)                                                                                                                                               |
 
 ## By audience
 
@@ -45,7 +45,7 @@ Start here for architecture, development, API reference, feature specs, user gui
 - [user-guides/README.md](user-guides/README.md) — which guide to read
 - Member (client app): [user-guides/member/](user-guides/member/)
 - Admin app: [user-guides/admin/](user-guides/admin/)
-- QA / manual testing: [user-guides/qa/testing-guide.md](user-guides/qa/testing-guide.md)
+- QA / manual testing: [user-guides/qa/testing-guide.md](user-guides/qa/testing-guide.md) · [qa/README.md](qa/README.md)
 
 ### Ops
 
@@ -59,7 +59,9 @@ Start here for architecture, development, API reference, feature specs, user gui
 
 - [agent/AGENTS.md](agent/AGENTS.md) — execution order and role bounds
 - [agent/ROC.md](agent/ROC.md) — record of changes
-- [TASK_BOARD.json](../TASK_BOARD.json) — task status
+- [FEATURE_INVENTORY.md](agent/FEATURE_INVENTORY.md) — MVP feature audit (code-first)
+- [GitHub Project #4](https://github.com/orgs/SCITAIGROUP1/projects/4) — sprint board (10 lanes)
+- [TASK_BOARD.json](../TASK_BOARD.json) — deprecated pointer; archive in `docs/agent/archive/`
 
 ## Feature specs
 

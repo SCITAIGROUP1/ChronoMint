@@ -15,51 +15,56 @@ See [DOMAIN_MODEL.md](./DOMAIN_MODEL.md) for workspace vs project team boundarie
 
 ## Shipped (baseline)
 
-| Area                                                                    | Client | Admin              | Spec                                                               |
-| ----------------------------------------------------------------------- | ------ | ------------------ | ------------------------------------------------------------------ |
-| Timer, timesheet, tasks                                                 | Yes    | —                  | [timer.md](../specs/timer.md), [timelogs.md](../specs/timelogs.md) |
-| My projects / team invites                                              | Yes    | Projects + invites | [projects.md](../specs/projects.md)                                |
-| Auth & workspace                                                        | Yes    | Yes                | [auth-workspace.md](../specs/auth-workspace.md)                    |
-| Workspace analytics dashboard                                           | —      | Yes                | [reporting.md](../specs/reporting.md)                              |
-| Team live presence                                                      | —      | Yes                | [presence.md](../specs/presence.md)                                |
-| Billing rates                                                           | —      | Yes                | [billing.md](../specs/billing.md)                                  |
-| Multi-report export wizard                                              | —      | Yes                | [export.md](../specs/export.md)                                    |
-| Export scale-up (preview, presets, schedules, shares, extended reports) | —      | Yes                | [export.md](../specs/export.md)                                    |
-| Export my timesheet + My week summary                                   | Yes    | —                  | [export.md](../specs/export.md)                                    |
+| Area                                                                    | Client  | Admin              | Spec                                                                                                                                                                      |
+| ----------------------------------------------------------------------- | ------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Timer, timesheet, tasks                                                 | Yes     | —                  | [timer.md](../specs/timer.md), [timelogs.md](../specs/timelogs.md)                                                                                                        |
+| My projects / team invites                                              | Yes     | Projects + invites | [projects.md](../specs/projects.md)                                                                                                                                       |
+| Auth & workspace                                                        | Yes     | Yes                | [auth-workspace.md](../specs/auth-workspace.md)                                                                                                                           |
+| Workspace analytics dashboard                                           | —       | Yes                | [reporting.md](../specs/reporting.md)                                                                                                                                     |
+| Team live presence                                                      | —       | Yes                | [presence.md](../specs/presence.md)                                                                                                                                       |
+| Billing rates                                                           | —       | Yes                | [billing.md](../specs/billing.md)                                                                                                                                         |
+| Multi-report export wizard                                              | —       | Yes                | [export.md](../specs/export.md)                                                                                                                                           |
+| Export scale-up (preview, presets, schedules, shares, extended reports) | —       | Yes                | [export.md](../specs/export.md)                                                                                                                                           |
+| Export my timesheet (API) + My week summary widget                      | Partial | —                  | [export.md](../specs/export.md) — `POST /export/me` shipped; client `TimesheetExport` / `MyWeekSummary` UI not wired ([FEATURE_INVENTORY](../agent/FEATURE_INVENTORY.md)) |
+| Timesheet submit / approve / amendments                                 | Yes     | Yes                | [timelogs.md](../specs/timelogs.md) — client `/submissions`, admin `/approvals`                                                                                           |
+| Notifications inbox                                                     | Yes     | Yes                | web-shared `NotificationsPage`                                                                                                                                            |
+| AI assistant (member)                                                   | Yes     | —                  | [assistant.md](../specs/assistant.md)                                                                                                                                     |
+| Member onboarding tour                                                  | Yes     | —                  | `apps/client/src/features/onboarding/`                                                                                                                                    |
 
 ---
 
 ## Recommended build order
 
-### Phase B — Finance & ops (next)
+> **MVP board scope** excludes budget, revenue, billing features, and client portal. See [FEATURE_INVENTORY](../agent/FEATURE_INVENTORY.md) and GitHub Project #4.
 
-High value, mostly extends reporting/export patterns already in the API.
+### Phase B — Finance & ops (post-MVP)
 
-| Feature                     | App   | Description                                                                           |
-| --------------------------- | ----- | ------------------------------------------------------------------------------------- |
-| **Budget burn-down widget** | Admin | Chart + alerts on `budgetHours` vs logged (export `budget_vs_actual` report shipped). |
+Deferred for current MVP kanban (`mvp:out-of-scope`).
+
+| Feature                     | App   | Description                                |
+| --------------------------- | ----- | ------------------------------------------ |
+| **Budget burn-down widget** | Admin | Chart + alerts on `budgetHours` vs logged. |
+| **Invoice generation**      | Admin | Draft invoice from billable export.        |
 
 ### Phase C — Workflow & accountability
 
-Touches API rules, both apps, and period locking.
-
-| Feature                        | App            | Description                                                                     |
-| ------------------------------ | -------------- | ------------------------------------------------------------------------------- |
-| **Timesheet submit / approve** | Client + Admin | Member submits week; admin approves/rejects; optional lock on approved periods. |
-| **Locked periods**             | API            | No edits to time logs in closed payroll weeks (admin override optional).        |
-| **Budget / idle alerts**       | Admin          | Notify when project budget ≥80%/100% or member has no logs for N days.          |
-| **Project detail view**        | Admin          | Per-project dashboard + “export this project” shortcut.                         |
+| Feature                        | App            | Status / notes                                                   |
+| ------------------------------ | -------------- | ---------------------------------------------------------------- |
+| **Timesheet submit / approve** | Client + Admin | **Shipped** — see Shipped table                                  |
+| **Locked periods**             | API            | Partial — timesheet lock service exists; payroll-week policy TBD |
+| **Budget / idle alerts**       | Admin          | Post-MVP                                                         |
+| **Project detail view**        | Admin          | Partial — admin project tabs shipped; dedicated dashboard TBD    |
 
 ### Phase D — Scale & external users
 
 Larger surface area; defer until B/C are stable.
 
-| Feature                             | App          | Description                                                                                                 |
-| ----------------------------------- | ------------ | ----------------------------------------------------------------------------------------------------------- |
-| **Client portal**                   | New or Admin | External login (client org): read-only hours/amounts for their projects — distinct from workspace `MEMBER`. |
-| **Scheduled export email delivery** | Admin        | SMTP delivery for existing `ExportSchedule` runs.                                                           |
-| **Cross-workspace export**          | Admin        | Agencies with multiple workspaces (out of scope for v1 export).                                             |
-| **Multi-currency / tax lines**      | Admin        | Beyond USD label; GST/VAT columns.                                                                          |
+| Feature                             | App          | Description                                                     |
+| ----------------------------------- | ------------ | --------------------------------------------------------------- |
+| **Client portal**                   | New or Admin | Post-MVP — external client org login                            |
+| **Scheduled export email delivery** | Admin        | SMTP delivery for existing `ExportSchedule` runs.               |
+| **Cross-workspace export**          | Admin        | Agencies with multiple workspaces (out of scope for v1 export). |
+| **Multi-currency / tax lines**      | Admin        | Beyond USD label; GST/VAT columns.                              |
 
 ---
 
@@ -69,7 +74,7 @@ Members should **capture time**, **see their progress**, and **close the loop** 
 
 | Feature                | Priority | Notes                                                               |
 | ---------------------- | -------- | ------------------------------------------------------------------- |
-| **Timesheet submit**   | Phase C  | “Submit week” → status: draft / submitted / approved / rejected.    |
+| **Timesheet submit**   | Shipped  | `/submissions`, admin `/approvals`                                  |
 | **Personal goals**     | Nice     | Optional daily target (e.g. 8h); no $ shown unless policy allows.   |
 | **Quick actions**      | Nice     | Duplicate yesterday; pin favorite project/task.                     |
 | **Reminders**          | Phase D  | Email/push: “No time logged Tuesday.”                               |
@@ -99,13 +104,13 @@ Admins **configure**, **observe**, **bill**, and **export**.
 
 ## API & contracts (cross-cutting)
 
-| Item                                       | Phase | Notes                                                   |
-| ------------------------------------------ | ----- | ------------------------------------------------------- |
-| `POST /export` presets body                | B     | Optional `presetId` or inline saved config.             |
-| `GET /reporting/projects/:id`              | B     | Project-scoped dashboard.                               |
-| `POST /timelogs/submit`, `PATCH …/approve` | C     | Workflow states on user-week aggregate or flag on logs. |
-| `Workspace.settings` schema in contracts   | B     | Zod SSOT for rounding, timezone, features flags.        |
-| Webhooks on `TimeLog` events               | D     | See [FUTURE_SCOPE.md](./FUTURE_SCOPE.md).               |
+| Item                                       | Phase   | Notes                                            |
+| ------------------------------------------ | ------- | ------------------------------------------------ |
+| `POST /export` presets body                | B       | Optional `presetId` or inline saved config.      |
+| `GET /reporting/projects/:id`              | B       | Project-scoped dashboard.                        |
+| `POST /timelogs/submit`, `PATCH …/approve` | Shipped | Timesheets module — see timelogs spec            |
+| `Workspace.settings` schema in contracts   | B       | Zod SSOT for rounding, timezone, features flags. |
+| Webhooks on `TimeLog` events               | D       | See [FUTURE_SCOPE.md](./FUTURE_SCOPE.md).        |
 
 ---
 

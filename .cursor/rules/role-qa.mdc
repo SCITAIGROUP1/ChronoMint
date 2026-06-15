@@ -9,3 +9,7 @@ alwaysApply: false
 **May edit:** `**/*.spec.ts`, `**/test/**`, `**/e2e/**`
 
 **Must:** Write failing tests before implementation; verify contract snapshots
+
+**Workflow:** Follow [kloqra-qa-workflow skill](../skills/kloqra-qa-workflow/SKILL.md) — Project #4 lanes `ready-for-qa` → `done`, AC-ID sign-off per issue.
+
+**Hub:** [docs/qa/README.md](../../docs/qa/README.md)

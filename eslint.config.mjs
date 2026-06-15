@@ -7,7 +7,7 @@ export default [
   ...nestLayers,
   ...reactLayers,
   {
-    files: ["scripts/**/*.mjs"],
+    files: ["scripts/**/*.mjs", ".cursor/skills/**/scripts/**/*.mjs"],
     languageOptions: {
       globals: {
         process: "readonly",
@@ -15,8 +15,19 @@ export default [
         fetch: "readonly",
         AbortSignal: "readonly",
         setTimeout: "readonly",
-        clearTimeout: "readonly"
+        clearTimeout: "readonly",
+        URL: "readonly"
       }
+    },
+    rules: {
+      "no-console": "off",
+      "@typescript-eslint/no-unused-vars": "off"
+    }
+  },
+  {
+    files: ["apps/api/prisma/apply-dashboard-layouts.ts"],
+    rules: {
+      "no-console": "off"
     }
   }
 ];

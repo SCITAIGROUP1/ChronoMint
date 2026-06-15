@@ -1,0 +1,107 @@
+name: Story
+description: User story with acceptance criteria and QA verification matrix
+title: "[Story][F-XX] "
+labels:
+  - type:story
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use [kloqra-github-kanban skill](.cursor/skills/kloqra-github-kanban/SKILL.md).
+        MVP excludes budget, revenue, billing, client portal.
+        All AC must have QA matrix rows before moving to **ready**.
+
+  - type: dropdown
+    id: feature
+    attributes:
+      label: Feature domain
+      options:
+        - F-01 Auth
+        - F-02 Users
+        - F-03 Workspace
+        - F-04 Projects
+        - F-05 Categories/tasks
+        - F-06 Timer
+        - F-07 Timelogs
+        - F-08 Timesheets
+        - F-10 Reporting
+        - F-11 Presence
+        - F-12 Export
+        - F-13 Notifications
+        - F-14 Assistant
+        - F-15 Onboarding
+        - F-X Platform
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - P0
+        - P1
+        - P2
+        - P3
+    validations:
+      required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: One sentence what and why
+    validations:
+      required: true
+
+  - type: textarea
+    id: user_story
+    attributes:
+      label: User story
+      description: "As a [role], I want [action], so that [benefit]"
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance criteria (Gherkin with AC-IDs)
+      description: |
+        - [ ] **AC-1:** Given ..., when ..., then ...
+        - [ ] **AC-2:** Given ..., when ..., then ...
+        - [ ] **AC-3:** Given invalid..., when ..., then error...
+      value: |
+        - [ ] **AC-1:** Given
+        - [ ] **AC-2:** Given
+        - [ ] **AC-3:** Given
+    validations:
+      required: true
+
+  - type: textarea
+    id: qa_matrix
+    attributes:
+      label: QA verification matrix
+      description: One row per AC — Type, Automated test, Manual steps
+      value: |
+        | AC | Type | Automated | Manual steps | Pass |
+        |----|------|-----------|--------------|------|
+        | AC-1 | E2E | | | [ ] |
+        | AC-2 | E2E | | | [ ] |
+        | AC-3 | E2E | | | [ ] |
+    validations:
+      required: true
+
+  - type: input
+    id: spec
+    attributes:
+      label: Spec path
+      placeholder: docs/specs/timelogs.md
+    validations:
+      required: true
+
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: Out of scope
+    validations:
+      required: true

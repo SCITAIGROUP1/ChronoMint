@@ -14,7 +14,7 @@ import type {
   UserProfileDto
 } from "@kloqra/contracts";
 import { AppBar, Button, ConfirmDialog, Badge, LoadingCrossfade } from "@kloqra/ui";
-import { api as sharedApi, fetchListItems } from "@kloqra/web-shared";
+import { api as sharedApi, fetchListItems, toDateInputValue } from "@kloqra/web-shared";
 import { Clock, Eye, EyeOff, Lock, X } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -53,6 +53,7 @@ import {
   type TimeEntryDraft
 } from "./time-entry-draft";
 import { TimeEntryDialog, TimesheetCalendar, TimesheetMonth } from "./timesheet-lazy";
+import { TimesheetExport } from "@/components/timesheet-export";
 import {
   countActionableSubmissions,
   useMySubmissions
@@ -291,6 +292,15 @@ export function TimesheetPage() {
     }
     return null;
   }, [view, anchor, weekStart, monthStart, timezone]);
+
+  const exportRange = useMemo(() => {
+    if (!visibleRange) return null;
+    const end = new Date(visibleRange.to.getTime() - 1);
+    return {
+      from: toDateInputValue(visibleRange.from),
+      to: toDateInputValue(end)
+    };
+  }, [visibleRange]);
 
   const rangeLabel = useMemo(() => {
     if (!displayFormat) {
@@ -725,6 +735,14 @@ export function TimesheetPage() {
             </Button>
           </div>
         </div>
+      ) : null}
+
+      {exportRange ? (
+        <TimesheetExport
+          workspaceSlug="workspace"
+          defaultFrom={exportRange.from}
+          defaultTo={exportRange.to}
+        />
       ) : null}
 
       <div className="flex flex-wrap items-center justify-between gap-2">

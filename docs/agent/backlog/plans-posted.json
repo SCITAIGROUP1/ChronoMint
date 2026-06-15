@@ -1,0 +1,939 @@
+{
+  "postedAt": "2026-06-15T11:38:58.498Z",
+  "created": [
+    {
+      "story": 243,
+      "tasks": 1,
+      "plan": "admin_member_provisioning_67318806",
+      "todo": "migration"
+    },
+    {
+      "story": 245,
+      "tasks": 1,
+      "plan": "admin_member_provisioning_67318806",
+      "todo": "disable-register"
+    },
+    {
+      "story": 247,
+      "tasks": 1,
+      "plan": "admin_member_provisioning_67318806",
+      "todo": "provision-invite"
+    },
+    {
+      "story": 249,
+      "tasks": 1,
+      "plan": "admin_member_provisioning_67318806",
+      "todo": "forced-password"
+    },
+    {
+      "story": 251,
+      "tasks": 1,
+      "plan": "admin_member_provisioning_67318806",
+      "todo": "project-direct-add"
+    },
+    {
+      "story": 253,
+      "tasks": 1,
+      "plan": "admin_member_provisioning_67318806",
+      "todo": "admin-ui-polish"
+    },
+    {
+      "story": 255,
+      "tasks": 1,
+      "plan": "admin_member_provisioning_67318806",
+      "todo": "brevo-ops"
+    },
+    {
+      "story": 257,
+      "tasks": 1,
+      "plan": "admin_member_provisioning_67318806",
+      "todo": "brevo-code"
+    },
+    {
+      "story": 259,
+      "tasks": 1,
+      "plan": "api_surface_audit_a1003183",
+      "todo": "p0-slim-session"
+    },
+    {
+      "story": 261,
+      "tasks": 1,
+      "plan": "api_surface_audit_a1003183",
+      "todo": "p1-slim-members"
+    },
+    {
+      "story": 263,
+      "tasks": 1,
+      "plan": "api_surface_audit_a1003183",
+      "todo": "p1-approvals-fetch"
+    },
+    {
+      "story": 265,
+      "tasks": 1,
+      "plan": "api_surface_audit_a1003183",
+      "todo": "p1-bootstrap-trim"
+    },
+    {
+      "story": 267,
+      "tasks": 1,
+      "plan": "api_surface_audit_a1003183",
+      "todo": "p2-profile-cache"
+    },
+    {
+      "story": 269,
+      "tasks": 1,
+      "plan": "api_surface_audit_a1003183",
+      "todo": "p2-slim-notifications"
+    },
+    {
+      "story": 271,
+      "tasks": 1,
+      "plan": "api_surface_audit_a1003183",
+      "todo": "p2-list-limits"
+    },
+    {
+      "story": 273,
+      "tasks": 1,
+      "plan": "api_surface_audit_a1003183",
+      "todo": "p3-dead-routes"
+    },
+    {
+      "story": 275,
+      "tasks": 1,
+      "plan": "brevo_email_setup_656adf10",
+      "todo": "prereqs"
+    },
+    {
+      "story": 277,
+      "tasks": 1,
+      "plan": "brevo_email_setup_656adf10",
+      "todo": "brevo-smtp-key"
+    },
+    {
+      "story": 279,
+      "tasks": 1,
+      "plan": "brevo_email_setup_656adf10",
+      "todo": "domain-auth"
+    },
+    {
+      "story": 281,
+      "tasks": 1,
+      "plan": "brevo_email_setup_656adf10",
+      "todo": "env-local-staging"
+    },
+    {
+      "story": 283,
+      "tasks": 2,
+      "plan": "brevo_email_setup_656adf10",
+      "todo": "smoke-test"
+    },
+    {
+      "story": 286,
+      "tasks": 2,
+      "plan": "brevo_email_setup_656adf10",
+      "todo": "env-production"
+    },
+    {
+      "story": 289,
+      "tasks": 1,
+      "plan": "brevo_email_setup_656adf10",
+      "todo": "docs-optional"
+    },
+    {
+      "story": 291,
+      "tasks": 1,
+      "plan": "jira_integration_options_9635311c",
+      "todo": "backend-foundation"
+    },
+    {
+      "story": 293,
+      "tasks": 1,
+      "plan": "jira_integration_options_9635311c",
+      "todo": "deeplink-mvp"
+    },
+    {
+      "story": 295,
+      "tasks": 2,
+      "plan": "jira_integration_options_9635311c",
+      "todo": "forge-app"
+    },
+    {
+      "story": 298,
+      "tasks": 1,
+      "plan": "jira_integration_options_9635311c",
+      "todo": "worklog-sync"
+    },
+    {
+      "story": 300,
+      "tasks": 1,
+      "plan": "jira_integration_options_9635311c",
+      "todo": "config-docs"
+    },
+    {
+      "story": 302,
+      "tasks": 1,
+      "plan": "member_ai_help_bot_851108b2",
+      "todo": "deploy-assistant-service"
+    },
+    {
+      "story": 304,
+      "tasks": 1,
+      "plan": "member_ai_help_bot_851108b2",
+      "todo": "docs-sync"
+    },
+    {
+      "story": 306,
+      "tasks": 3,
+      "plan": "member_ai_help_bot_851108b2",
+      "todo": "qa-e2e"
+    },
+    {
+      "story": 310,
+      "tasks": 2,
+      "plan": "member_ai_help_bot_851108b2",
+      "todo": "scale-foundations"
+    },
+    {
+      "story": 313,
+      "tasks": 1,
+      "plan": "testing_coverage_plan_601f0cfb",
+      "todo": "phase1-reporters-ci"
+    },
+    {
+      "story": 315,
+      "tasks": 3,
+      "plan": "testing_coverage_plan_601f0cfb",
+      "todo": "phase2-api-unit"
+    },
+    {
+      "story": 319,
+      "tasks": 2,
+      "plan": "testing_coverage_plan_601f0cfb",
+      "todo": "phase3-api-integration"
+    },
+    {
+      "story": 322,
+      "tasks": 2,
+      "plan": "testing_coverage_plan_601f0cfb",
+      "todo": "phase4-playwright-full"
+    },
+    {
+      "story": 325,
+      "tasks": 1,
+      "plan": "testing_coverage_plan_601f0cfb",
+      "todo": "phase5-coverage-gates"
+    },
+    {
+      "story": 327,
+      "tasks": 2,
+      "plan": "notifications_inbox_system_0f5fc735",
+      "todo": "dispatch-member"
+    },
+    {
+      "story": 330,
+      "tasks": 2,
+      "plan": "notifications_inbox_system_0f5fc735",
+      "todo": "dispatch-admin"
+    },
+    {
+      "story": 333,
+      "tasks": 0,
+      "plan": "account_settings_transform_d4d9a4de",
+      "todo": "__rollup__",
+      "action": "rollup_done"
+    },
+    {
+      "story": 334,
+      "tasks": 1,
+      "plan": "api_surface_audit_a1003183",
+      "todo": "p0-billing-guard",
+      "action": "on_hold_post_mvp"
+    },
+    {
+      "story": 336,
+      "tasks": 1,
+      "plan": "api_surface_audit_a1003183",
+      "todo": "p0-hourly-rate-scope",
+      "action": "on_hold_post_mvp"
+    },
+    {
+      "story": 338,
+      "tasks": 1,
+      "plan": "api_surface_audit_a1003183",
+      "todo": "p1-dashboard-budget",
+      "action": "on_hold_post_mvp"
+    },
+    {
+      "story": 340,
+      "tasks": 0,
+      "plan": "assistant_ui_ux_polish_d8ab21af",
+      "todo": "__rollup__",
+      "action": "rollup_done"
+    },
+    {
+      "story": 341,
+      "tasks": 0,
+      "plan": "auth_token_hardening_6d59ab8f",
+      "todo": "__rollup__",
+      "action": "rollup_done"
+    },
+    {
+      "story": 342,
+      "tasks": 0,
+      "plan": "calendar_occupied_slots_ux_261e1990",
+      "todo": "__rollup__",
+      "action": "rollup_done"
+    },
+    {
+      "story": 343,
+      "tasks": 0,
+      "plan": "categories_tasks_restructure_6c897d87",
+      "todo": "__rollup__",
+      "action": "rollup_done"
+    },
+    {
+      "story": 344,
+      "tasks": 0,
+      "plan": "category_widgets_analytics_2172d1f0",
+      "todo": "__rollup__",
+      "action": "rollup_done"
+    },
+    {
+      "story": 345,
+      "tasks": 0,
+      "plan": "chronomint_deploy_plan_61d940cc",
+      "todo": "__rollup__",
+      "action": "rollup_done"
+    },
+    {
+      "story": 346,
+      "tasks": 1,
+      "plan": "ci_cd_hardening_plan",
+      "todo": "section-1",
+      "action": "post"
+    },
+    {
+      "story": 348,
+      "tasks": 1,
+      "plan": "ci_cd_hardening_plan",
+      "todo": "section-2",
+      "action": "post"
+    },
+    {
+      "story": 350,
+      "tasks": 1,
+      "plan": "ci_cd_hardening_plan",
+      "todo": "section-3",
+      "action": "post"
+    },
+    {
+      "story": 352,
+      "tasks": 1,
+      "plan": "ci_cd_hardening_plan",
+      "todo": "section-4",
+      "action": "post"
+    },
+    {
+      "story": 354,
+      "tasks": 1,
+      "plan": "ci_cd_hardening_plan",
+      "todo": "section-5",
+      "action": "post"
+    },
+    {
+      "story": 356,
+      "tasks": 0,
+      "plan": "complete_project_documentation_d3c33666",
+      "todo": "__rollup__",
+      "action": "rollup_done"
+    },
+    {
+      "story": 357,
+      "tasks": 0,
+      "plan": "dark_theme_palette_refresh_182aaaa0",
+      "todo": "__rollup__",
+      "action": "rollup_done"
+    },
+    {
+      "story": 358,
+      "tasks": 0,
+      "plan": "dashboard_calendar_responsive_f7bfe185",
+      "todo": "__rollup__",
+      "action": "rollup_done"
+    },
+    {
+      "story": 359,
+      "tasks": 1,
+      "plan": "dashboard_widget_system_plan",
+      "todo": "phase-1",
+      "action": "post"
+    },
+    {
+      "story": 361,
+      "tasks": 1,
+      "plan": "dashboard_widget_system_plan",
+      "todo": "phase-2",
+      "action": "post"
+    },
+    {
+      "story": 363,
+      "tasks": 1,
+      "plan": "dashboard_widget_system_plan",
+      "todo": "phase-3",
+      "action": "post"
+    },
+    {
+      "story": 365,
+      "tasks": 1,
+      "plan": "dashboard_widget_system_plan",
+      "todo": "phase-4",
+      "action": "post"
+    },
+    {
+      "story": 367,
+      "tasks": 1,
+      "plan": "dashboard_widget_system_plan",
+      "todo": "phase-5",
+      "action": "post"
+    },
+    {
+      "story": 369,
+      "tasks": 1,
+      "plan": "dashboard_widget_system_plan",
+      "todo": "phase-6",
+      "action": "post"
+    },
+    {
+      "story": 371,
+      "tasks": 0,
+      "plan": "dedicated_approvals_ux_8977f56c",
+      "todo": "__rollup__",
+      "action": "rollup_done"
+    },
+    {
+      "story": 372,
+      "tasks": 0,
+      "plan": "export_feature_plan_1864d505",
+      "todo": "__rollup__",
+      "action": "rollup_done"
+    },
+    {
+      "story": 373,
+      "tasks": 0,
+      "plan": "export_scale_up_plan_f8a2b1c0",
+      "todo": "__rollup__",
+      "action": "rollup_done"
+    },
+    {
+      "story": 374,
+      "tasks": 0,
+      "plan": "github_kanban_bootstrap_dbfecb2c",
+      "todo": "feature-audit",
+      "action": "post_done"
+    },
+    {
+      "story": 375,
+      "tasks": 0,
+      "plan": "github_kanban_bootstrap_dbfecb2c",
+      "todo": "github-project-config",
+      "action": "post_done"
+    },
+    {
+      "story": 376,
+      "tasks": 0,
+      "plan": "github_kanban_bootstrap_dbfecb2c",
+      "todo": "create-skill",
+      "action": "post_done"
+    },
+    {
+      "story": 377,
+      "tasks": 0,
+      "plan": "github_kanban_bootstrap_dbfecb2c",
+      "todo": "issue-templates",
+      "action": "post_done"
+    },
+    {
+      "story": 378,
+      "tasks": 0,
+      "plan": "github_kanban_bootstrap_dbfecb2c",
+      "todo": "populate-board",
+      "action": "post_done"
+    },
+    {
+      "story": 379,
+      "tasks": 0,
+      "plan": "github_kanban_bootstrap_dbfecb2c",
+      "todo": "governance-retire-taskboard",
+      "action": "post_done"
+    },
+    {
+      "story": 380,
+      "tasks": 0,
+      "plan": "github_kanban_bootstrap_dbfecb2c",
+      "todo": "sprint-smoke",
+      "action": "post_done"
+    },
+    {
+      "story": 381,
+      "tasks": 0,
+      "plan": "hybrid_onboarding_upgrade_9d09cc4b",
+      "todo": "__rollup__",
+      "action": "rollup_done"
+    },
+    {
+      "story": 382,
+      "tasks": 0,
+      "plan": "kloqra_brand_rebrand_0119fd2b",
+      "todo": "__rollup__",
+      "action": "rollup_done"
+    },
+    {
+      "story": 383,
+      "tasks": 1,
+      "plan": "level_up_improvement_plan",
+      "todo": "dim-1",
+      "action": "post"
+    },
+    {
+      "story": 385,
+      "tasks": 1,
+      "plan": "level_up_improvement_plan",
+      "todo": "dim-2",
+      "action": "post"
+    },
+    {
+      "story": 387,
+      "tasks": 1,
+      "plan": "level_up_improvement_plan",
+      "todo": "dim-3",
+      "action": "post"
+    },
+    {
+      "story": 389,
+      "tasks": 1,
+      "plan": "level_up_improvement_plan",
+      "todo": "dim-4",
+      "action": "post"
+    },
+    {
+      "story": 391,
+      "tasks": 1,
+      "plan": "level_up_improvement_plan",
+      "todo": "dim-5",
+      "action": "post"
+    },
+    {
+      "story": 393,
+      "tasks": 0,
+      "plan": "member_ux_rollup_578eef9f",
+      "todo": "__rollup__",
+      "action": "rollup_done"
+    },
+    {
+      "story": 394,
+      "tasks": 0,
+      "plan": "motion_polish_pass_a0b83fe3",
+      "todo": "__rollup__",
+      "action": "rollup_done"
+    },
+    {
+      "story": 395,
+      "tasks": 0,
+      "plan": "notifications_inbox_system_0f5fc735",
+      "todo": "settings-ui",
+      "action": "post_done"
+    },
+    {
+      "story": 396,
+      "tasks": 0,
+      "plan": "notifications_inbox_system_0f5fc735",
+      "todo": "inbox-ui",
+      "action": "post_done"
+    },
+    {
+      "story": 397,
+      "tasks": 0,
+      "plan": "notifications_inbox_system_0f5fc735",
+      "todo": "client-route",
+      "action": "post_done"
+    },
+    {
+      "story": 398,
+      "tasks": 0,
+      "plan": "notifications_inbox_system_0f5fc735",
+      "todo": "admin-route",
+      "action": "post_done"
+    },
+    {
+      "story": 399,
+      "tasks": 0,
+      "plan": "performance_optimization_plan_07cae470",
+      "todo": "__rollup__",
+      "action": "rollup_done"
+    },
+    {
+      "story": 400,
+      "tasks": 0,
+      "plan": "performance_optimization_plan_9c4e242b",
+      "todo": "__rollup__",
+      "action": "rollup_done"
+    },
+    {
+      "story": 401,
+      "tasks": 0,
+      "plan": "project_hardening_plan_2d9d2bb8",
+      "todo": "__rollup__",
+      "action": "rollup_done"
+    },
+    {
+      "story": 402,
+      "tasks": 1,
+      "plan": "qa_workflow_plan_31ba9f35",
+      "todo": "qa-docs-hub",
+      "action": "post"
+    },
+    {
+      "story": 404,
+      "tasks": 2,
+      "plan": "qa_workflow_plan_31ba9f35",
+      "todo": "pr-template",
+      "action": "post"
+    },
+    {
+      "story": 407,
+      "tasks": 2,
+      "plan": "qa_workflow_plan_31ba9f35",
+      "todo": "update-testing-guide",
+      "action": "post"
+    },
+    {
+      "story": 410,
+      "tasks": 2,
+      "plan": "qa_workflow_plan_31ba9f35",
+      "todo": "qa-queue-view",
+      "action": "post"
+    },
+    {
+      "story": 413,
+      "tasks": 2,
+      "plan": "qa_workflow_plan_31ba9f35",
+      "todo": "ci-test-reporter",
+      "action": "post"
+    },
+    {
+      "story": 416,
+      "tasks": 1,
+      "plan": "qa_workflow_plan_31ba9f35",
+      "todo": "test-dashboard-fix",
+      "action": "post"
+    },
+    {
+      "story": 418,
+      "tasks": 2,
+      "plan": "qa_workflow_plan_31ba9f35",
+      "todo": "sprint1-qa-dispatch",
+      "action": "post"
+    },
+    {
+      "story": 421,
+      "tasks": 3,
+      "plan": "qa_workflow_plan_31ba9f35",
+      "todo": "extend-bug-template",
+      "action": "post"
+    },
+    {
+      "story": 425,
+      "tasks": 3,
+      "plan": "qa_workflow_plan_31ba9f35",
+      "todo": "update-guides",
+      "action": "post"
+    },
+    {
+      "story": 429,
+      "tasks": 2,
+      "plan": "qa_workflow_plan_31ba9f35",
+      "todo": "regression-policy",
+      "action": "post"
+    },
+    {
+      "story": 432,
+      "tasks": 0,
+      "plan": "test_coverage_hardening_e657c5ab",
+      "todo": "__rollup__",
+      "action": "rollup_done"
+    },
+    {
+      "story": 433,
+      "tasks": 0,
+      "plan": "test_pyramid_phase2",
+      "todo": "__rollup__",
+      "action": "rollup_done"
+    },
+    {
+      "story": 434,
+      "tasks": 0,
+      "plan": "time_tracker_week_list_81b9ec0a",
+      "todo": "__rollup__",
+      "action": "rollup_done"
+    },
+    {
+      "story": 435,
+      "tasks": 1,
+      "plan": "timer_pause_resume_ui_redesign",
+      "todo": "full-plan",
+      "action": "post"
+    },
+    {
+      "story": 437,
+      "tasks": 1,
+      "plan": "timer_stale_autostop",
+      "todo": "module-a",
+      "action": "post"
+    },
+    {
+      "story": 439,
+      "tasks": 1,
+      "plan": "timer_stale_autostop",
+      "todo": "module-b",
+      "action": "post"
+    },
+    {
+      "story": 441,
+      "tasks": 1,
+      "plan": "timer_stale_autostop",
+      "todo": "module-c",
+      "action": "post"
+    },
+    {
+      "story": 443,
+      "tasks": 1,
+      "plan": "timer_stale_autostop",
+      "todo": "module-d",
+      "action": "post"
+    },
+    {
+      "story": 445,
+      "tasks": 1,
+      "plan": "timer_stale_autostop",
+      "todo": "module-e",
+      "action": "post"
+    },
+    {
+      "story": 447,
+      "tasks": 0,
+      "plan": "timesheet_submissions_workflow_15fe10b0",
+      "todo": "contracts",
+      "action": "post_done"
+    },
+    {
+      "story": 448,
+      "tasks": 0,
+      "plan": "timesheet_submissions_workflow_15fe10b0",
+      "todo": "prisma-amendment",
+      "action": "post_done"
+    },
+    {
+      "story": 449,
+      "tasks": 0,
+      "plan": "timesheet_submissions_workflow_15fe10b0",
+      "todo": "api-core",
+      "action": "post_done"
+    },
+    {
+      "story": 450,
+      "tasks": 0,
+      "plan": "timesheet_submissions_workflow_15fe10b0",
+      "todo": "ui-shared",
+      "action": "post_done"
+    },
+    {
+      "story": 451,
+      "tasks": 0,
+      "plan": "timesheet_submissions_workflow_15fe10b0",
+      "todo": "client-ux",
+      "action": "post_done"
+    },
+    {
+      "story": 452,
+      "tasks": 0,
+      "plan": "timesheet_submissions_workflow_15fe10b0",
+      "todo": "admin-ux",
+      "action": "post_done"
+    },
+    {
+      "story": 453,
+      "tasks": 0,
+      "plan": "timesheet_submissions_workflow_15fe10b0",
+      "todo": "tests",
+      "action": "post_done"
+    },
+    {
+      "story": 454,
+      "tasks": 0,
+      "plan": "user_settings_management_79030cb7",
+      "todo": "prisma-user-preferences",
+      "action": "post_done"
+    },
+    {
+      "story": 455,
+      "tasks": 0,
+      "plan": "user_settings_management_79030cb7",
+      "todo": "api-auth-profile",
+      "action": "post_done"
+    },
+    {
+      "story": 456,
+      "tasks": 0,
+      "plan": "user_settings_management_79030cb7",
+      "todo": "api-workspace-settings",
+      "action": "post_done"
+    },
+    {
+      "story": 457,
+      "tasks": 0,
+      "plan": "user_settings_management_79030cb7",
+      "todo": "api-apply-rules",
+      "action": "post_done"
+    },
+    {
+      "story": 458,
+      "tasks": 0,
+      "plan": "user_settings_management_79030cb7",
+      "todo": "ui-settings-pages",
+      "action": "post_done"
+    },
+    {
+      "story": 459,
+      "tasks": 0,
+      "plan": "user_settings_management_79030cb7",
+      "todo": "ui-integrate-rules",
+      "action": "post_done"
+    },
+    {
+      "story": 460,
+      "tasks": 1,
+      "plan": "next_level_up_plan",
+      "todo": "sprint-a1",
+      "action": "post"
+    },
+    {
+      "story": 462,
+      "tasks": 1,
+      "plan": "next_level_up_plan",
+      "todo": "sprint-a2",
+      "action": "post"
+    },
+    {
+      "story": 464,
+      "tasks": 1,
+      "plan": "next_level_up_plan",
+      "todo": "sprint-a3",
+      "action": "post"
+    },
+    {
+      "story": 466,
+      "tasks": 1,
+      "plan": "next_level_up_plan",
+      "todo": "sprint-b1",
+      "action": "post"
+    },
+    {
+      "story": 468,
+      "tasks": 1,
+      "plan": "next_level_up_plan",
+      "todo": "sprint-b2",
+      "action": "post"
+    },
+    {
+      "story": 470,
+      "tasks": 1,
+      "plan": "next_level_up_plan",
+      "todo": "sprint-b3",
+      "action": "post"
+    },
+    {
+      "story": 472,
+      "tasks": 1,
+      "plan": "next_level_up_plan",
+      "todo": "sprint-b4",
+      "action": "post"
+    },
+    {
+      "story": 474,
+      "tasks": 1,
+      "plan": "next_level_up_plan",
+      "todo": "sprint-c1",
+      "action": "post"
+    },
+    {
+      "story": 476,
+      "tasks": 1,
+      "plan": "next_level_up_plan",
+      "todo": "sprint-c2",
+      "action": "post"
+    },
+    {
+      "story": 478,
+      "tasks": 1,
+      "plan": "next_level_up_plan",
+      "todo": "sprint-c3",
+      "action": "post"
+    },
+    {
+      "story": 480,
+      "tasks": 1,
+      "plan": "next_level_up_plan",
+      "todo": "sprint-c4",
+      "action": "post"
+    },
+    {
+      "story": 482,
+      "tasks": 1,
+      "plan": "next_level_up_plan",
+      "todo": "sprint-d1",
+      "action": "post"
+    },
+    {
+      "story": 484,
+      "tasks": 1,
+      "plan": "next_level_up_plan",
+      "todo": "sprint-d2",
+      "action": "post"
+    },
+    {
+      "story": 486,
+      "tasks": 1,
+      "plan": "next_level_up_plan",
+      "todo": "sprint-d3",
+      "action": "post"
+    },
+    {
+      "story": 488,
+      "tasks": 1,
+      "plan": "next_level_up_plan",
+      "todo": "sprint-d4",
+      "action": "post"
+    },
+    {
+      "story": 490,
+      "tasks": 1,
+      "plan": "next_level_up_plan",
+      "todo": "sprint-e1",
+      "action": "post"
+    },
+    {
+      "story": 492,
+      "tasks": 1,
+      "plan": "next_level_up_plan",
+      "todo": "sprint-e2",
+      "action": "post"
+    },
+    {
+      "story": 494,
+      "tasks": 1,
+      "plan": "next_level_up_plan",
+      "todo": "sprint-e3",
+      "action": "post"
+    }
+  ]
+}

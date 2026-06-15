@@ -1,0 +1,90 @@
+{
+  "project": "SCITAIGROUP1/projects/4",
+  "repo": "SCITAIGROUP1/ChronoMint",
+  "issues": [
+    {
+      "type": "epic",
+      "title": "[Epic][F-12] Export — hours only (MVP)",
+      "labels": ["type:epic", "feature:export", "health:gap", "priority:P1"],
+      "lane": "backlog",
+      "bodyFile": "docs/agent/backlog/bodies/epic-f-12.md"
+    },
+    {
+      "type": "story",
+      "title": "[Story][F-12] Wire member timesheet CSV export on timesheet page",
+      "labels": [
+        "type:story",
+        "feature:export",
+        "layer:client",
+        "role:FE",
+        "priority:P1",
+        "health:gap"
+      ],
+      "lane": "ready",
+      "bodyFile": "docs/agent/backlog/bodies/f-12-wire-export.md"
+    },
+    {
+      "type": "story",
+      "title": "[Story][F-X] Map workspace and timesheet mutations to contract DTOs",
+      "labels": [
+        "type:story",
+        "feature:platform",
+        "layer:api",
+        "role:BE",
+        "priority:P1",
+        "health:gap"
+      ],
+      "lane": "ready",
+      "bodyFile": "docs/agent/backlog/bodies/f-x-prisma-dto.md"
+    },
+    {
+      "type": "story",
+      "title": "[Story][F-11] Add PresenceService unit tests",
+      "labels": [
+        "type:story",
+        "feature:timer",
+        "layer:api",
+        "role:QA",
+        "priority:P1",
+        "health:gap"
+      ],
+      "lane": "ready",
+      "bodyFile": "docs/agent/backlog/bodies/f-11-presence-tests.md"
+    },
+    {
+      "type": "story",
+      "title": "[Story][F-X] Reconcile PRODUCT_ROADMAP with shipped MVP code",
+      "labels": ["type:story", "feature:platform", "role:BA", "priority:P2", "health:gap"],
+      "lane": "ready",
+      "bodyFile": "docs/agent/backlog/bodies/f-x-roadmap-reconcile.md"
+    },
+    {
+      "type": "story",
+      "title": "[Story][F-10] Mount MyWeekSummary on member dashboard",
+      "labels": [
+        "type:story",
+        "feature:timer",
+        "layer:client",
+        "role:FE",
+        "priority:P2",
+        "health:gap"
+      ],
+      "lane": "backlog",
+      "bodyFile": "docs/agent/backlog/bodies/f-10-week-summary.md"
+    },
+    {
+      "type": "story",
+      "title": "[Story][F-05] Remove orphan /tasks route and TasksPage",
+      "labels": [
+        "type:story",
+        "feature:timer",
+        "layer:client",
+        "role:FE",
+        "priority:P2",
+        "health:gap"
+      ],
+      "lane": "backlog",
+      "bodyFile": "docs/agent/backlog/bodies/f-05-tasks-cleanup.md"
+    }
+  ]
+}

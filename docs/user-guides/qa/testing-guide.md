@@ -2,6 +2,8 @@
 
 This guide is for **QA engineers and testers** who check Kloqra before releases. You do **not** need to write code. You **do** need the app running on your Mac and a browser.
 
+**Official workflow (manual + automated, one task at a time):** [QA engineer guide](../../qa/QA_ENGINEER_GUIDE.md)
+
 For developer commands and CI details, see [TESTING.md](../../development/TESTING.md).
 
 ---
@@ -178,7 +180,18 @@ Open the PR → **Checks** tab. Typical jobs:
 | **integration** | API contract tests failed                      |
 | **e2e**         | Browser robot tests failed                     |
 
-If **e2e** fails, ask for the Playwright HTML report artifact (attached to the workflow run, kept ~7 days).
+If **e2e** fails, open the PR **Checks** tab for test annotations, or download the Playwright HTML report artifact (workflow run, kept ~7 days).
+
+### Working from the QA queue (Project #4)
+
+Sprint stories are tracked on the org board, not spreadsheets:
+
+1. Open https://github.com/orgs/SCITAIGROUP1/projects/4
+2. Switch to the **QA queue** view (lanes: `ready-for-qa`, `qa-in-progress`, `testing`, `qa-failed`)
+3. Pick a `ready-for-qa` card → follow the **QA verification matrix** in the issue body
+4. Sign off per AC when done — see [BOARD_WORKFLOW.md](../../qa/BOARD_WORKFLOW.md)
+
+Developer/agent reference: [docs/qa/README.md](../../qa/README.md)
 
 ### What the robots currently cover (high level)
 
@@ -231,18 +244,23 @@ Opens **http://localhost:9321** — a simple home page linking to:
 
 ## How to report a bug
 
-Use your team’s tracker (GitHub Issues, Jira, etc.). Include:
+File on GitHub: [New Bug issue](https://github.com/SCITAIGROUP1/ChronoMint/issues/new?template=bug.yml). The card appears on [Project #4](https://github.com/orgs/SCITAIGROUP1/projects/4).
 
-1. **Which app** — Client (3000) or Admin (3002)
-2. **Account** — e.g. `member@kloqra.dev`
-3. **Workspace** — e.g. Meridian Product Co
-4. **Steps** — numbered, exact clicks
-5. **Expected** vs **Actual**
-6. **Screenshot or screen recording**
-7. **Browser** — Safari, Chrome, version
-8. **Console errors** (optional): right-click → Inspect → Console, copy red text
+Include (template fields):
 
-Good title example: _“Timesheet: red ‘now’ line shows wrong time when timezone is Browser default”_
+1. **Which app** — Client (3000) or Admin (3002) or API
+2. **Environment** — local, staging, or production
+3. **Account** — e.g. `member@kloqra.dev`
+4. **Workspace** — e.g. Meridian Product Co
+5. **Steps** — numbered, exact clicks
+6. **Expected** vs **Actual**
+7. **Fix verification AC-1** and **QA matrix** (regression test row)
+8. **Screenshot or screen recording**
+9. **Browser** — Safari, Chrome, version (add in repro steps)
+
+Triage rules: [docs/qa/BUG_TRIAGE.md](../../qa/BUG_TRIAGE.md)
+
+Good title example: _"[Bug][F-08] Timesheet: red 'now' line shows wrong time when timezone is Browser default"_
 
 ---
 
@@ -278,14 +296,31 @@ For each new feature, add 3–5 rows to the smoke tables above:
 
 ### 4. Sign-off template
 
-Copy into your ticket or PR comment:
+**Per issue** (on the GitHub issue when matrix rows pass):
+
+```bash
+node .cursor/skills/kloqra-qa-workflow/scripts/print-signoff.mjs <issue#> --env local
+```
+
+Or copy into the issue comment:
 
 ```text
-QA sign-off — [version or PR #]
+QA sign-off GH-<issue#>
 Environment: local serve / staging URL
+AC-1: PASS — evidence:
+AC-2: PASS — evidence:
+Gate: CI green on PR #
+Tester: [name] — [date]
+```
+
+**Release** (on the release PR before merge to staging/main): see [RELEASE_PROCESS.md](../../qa/RELEASE_PROCESS.md)
+
+```text
+QA release sign-off — [version]
+Environment: staging — [client URL] / [admin URL]
 Client smoke: PASS / FAIL (notes)
 Admin smoke: PASS / FAIL (notes)
-New feature [name]: PASS / FAIL (notes)
+Sprint issues: #199 done, …
 Blockers: none / list
 Tester: [name] — [date]
 ```
@@ -318,12 +353,15 @@ Tester: [name] — [date]
 
 ## Where to go next
 
-| Topic                              | Document                                                            |
-| ---------------------------------- | ------------------------------------------------------------------- |
-| Member app usage                   | [member guides](../member/)                                         |
-| Admin app usage                    | [admin guides](../admin/)                                           |
-| Developer test commands            | [TESTING.md](../../development/TESTING.md)                          |
-| Local problems                     | [local-troubleshooting.md](../../runbooks/local-troubleshooting.md) |
-| Feature behavior (source of truth) | [specs/](../../specs/)                                              |
+| Topic                                | Document                                                            |
+| ------------------------------------ | ------------------------------------------------------------------- |
+| **QA workflow (manual + automated)** | [QA engineer guide](../../qa/QA_ENGINEER_GUIDE.md)                  |
+| **QA hub (board + sign-off)**        | [docs/qa/README.md](../../qa/README.md)                             |
+| Member app usage                     | [member guides](../member/)                                         |
+| Admin app usage                      | [admin guides](../admin/)                                           |
+| Developer test commands              | [TESTING.md](../../development/TESTING.md)                          |
+| Local problems                       | [local-troubleshooting.md](../../runbooks/local-troubleshooting.md) |
+| Feature behavior (source of truth)   | [specs/](../../specs/)                                              |
+| GitHub Project board                 | https://github.com/orgs/SCITAIGROUP1/projects/4                     |
 
 If you are stuck, message the dev channel with: what you ran, what you expected, and a screenshot. You do not need to fix Terminal errors yourself.

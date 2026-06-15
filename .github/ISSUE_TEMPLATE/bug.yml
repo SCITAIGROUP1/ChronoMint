@@ -1,0 +1,112 @@
+name: Bug
+description: Defect with repro, fix verification AC, and QA matrix
+title: "[Bug][F-XX] "
+labels:
+  - type:bug
+body:
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - P0
+        - P1
+        - P2
+        - P3
+    validations:
+      required: true
+
+  - type: dropdown
+    id: app
+    attributes:
+      label: App
+      options:
+        - client
+        - admin
+        - api
+    validations:
+      required: true
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      options:
+        - local
+        - staging
+        - production
+    validations:
+      required: true
+
+  - type: input
+    id: account
+    attributes:
+      label: Account (email used)
+      placeholder: member@kloqra.dev
+    validations:
+      required: true
+
+  - type: input
+    id: workspace
+    attributes:
+      label: Workspace name
+      placeholder: Acme Corporation
+    validations:
+      required: false
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: fix_ac
+    attributes:
+      label: Fix verification (AC-1)
+      description: "Given [pre], when [action], then [expected] — actual no longer occurs"
+    validations:
+      required: true
+
+  - type: textarea
+    id: qa_matrix
+    attributes:
+      label: QA verification matrix
+      value: |
+        | AC | Type | Automated | Manual steps | Pass |
+        |----|------|-----------|--------------|------|
+        | AC-1 | Unit/API/E2E | new regression test | repro steps | [ ] |
+    validations:
+      required: true
+
+  - type: input
+    id: related_pr
+    attributes:
+      label: Related PR (optional)
+      placeholder: https://github.com/SCITAIGROUP1/ChronoMint/pull/NNN
