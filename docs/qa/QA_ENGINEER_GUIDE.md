@@ -8,14 +8,15 @@ Official workflow for Kloqra QA engineers. Work **one GitHub issue at a time** o
 
 ## Principles
 
-| Rule                        | Meaning                                                                                              |
-| --------------------------- | ---------------------------------------------------------------------------------------------------- |
-| **One task at a time**      | Finish one card (`done` + sign-off) before picking the next `ready-for-qa`                           |
-| **Automated before manual** | Run matrix **Automated** rows first; only click in the browser if robots pass                        |
-| **AC-ID traceability**      | Sign-off cites `AC-1`, `AC-2`, … with evidence — not vague “looks good” ([EVIDENCE.md](EVIDENCE.md)) |
-| **Local per issue**         | Each story is verified on **local** (`pnpm serve`)                                                   |
-| **Staging per release**     | Full smoke on **staging** once per sprint, before merge to production                                |
-| **No MVP exclusions**       | Do not QA budget, billing, revenue, or client portal — label `mvp:out-of-scope`                      |
+| Rule                        | Meaning                                                                                                                                                                                                                                 |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Two QA paths**            | **Simple:** browser + GitHub ([QA_SIMPLE_GUIDE.md](QA_SIMPLE_GUIDE.md)). **Chromium watch:** dev runs headed/UI ([QA_CHROMIUM_GUIDE.md](QA_CHROMIUM_GUIDE.md)). **Technical:** automated + manual ([this guide](QA_ENGINEER_GUIDE.md)). |
+| **One task at a time**      | Finish one card (`done` + sign-off) before picking the next `ready-for-qa`                                                                                                                                                              |
+| **Automated before manual** | Run matrix **Automated** rows first; only click in the browser if robots pass                                                                                                                                                           |
+| **AC-ID traceability**      | Sign-off cites `AC-1`, `AC-2`, … with evidence — not vague “looks good” ([EVIDENCE.md](EVIDENCE.md))                                                                                                                                    |
+| **Local per issue**         | Each story is verified on **local** (`pnpm serve`)                                                                                                                                                                                      |
+| **Staging per release**     | Full smoke on **staging** once per sprint, before merge to production                                                                                                                                                                   |
+| **No MVP exclusions**       | Do not QA budget, billing, revenue, or client portal — label `mvp:out-of-scope`                                                                                                                                                         |
 
 ---
 

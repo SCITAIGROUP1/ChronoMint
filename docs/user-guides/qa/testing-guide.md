@@ -1,8 +1,10 @@
 # QA testing guide (non-technical)
 
-This guide is for **QA engineers and testers** who check Kloqra before releases. You do **not** need to write code. You **do** need the app running on your Mac and a browser.
+This guide is for **QA engineers and testers** who check Kloqra before releases. You do **not** need to write code.
 
-**Official workflow (manual + automated, one task at a time):** [QA engineer guide](../../qa/QA_ENGINEER_GUIDE.md)
+**Start here (browser only, no Terminal):** **[QA simple guide](../../qa/QA_SIMPLE_GUIDE.md)** — pick a card, test in browser, post sign-off.
+
+**Official workflow (technical QA / leads):** [QA engineer guide](../../qa/QA_ENGINEER_GUIDE.md)
 
 For developer commands and CI details, see [TESTING.md](../../development/TESTING.md).
 

@@ -6,6 +6,9 @@ Operational docs for manual + automated QA on [GitHub Project #4](https://github
 
 | Audience                              | Document                                                                                                              |
 | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| **You (onboarding QA)**               | **[Onboarding script for managers](QA_ONBOARDING_FOR_MANAGERS.md)** — how to explain QA to non-technical testers      |
+| **QA testers (no Terminal)**          | **[QA simple guide](QA_SIMPLE_GUIDE.md)** — browser + GitHub only                                                     |
+| **QA + dev (watch Chromium)**         | **[QA Chromium guide](QA_CHROMIUM_GUIDE.md)** — see automated AC steps in the browser                                 |
 | **QA engineers (official guideline)** | **[QA engineer guide](QA_ENGINEER_GUIDE.md)** — manual + automated, one task at a time                                |
 | **QA engineers (full sample flow)**   | **[Epic #198 walkthrough](examples/WALKTHROUGH_EPIC_198_STORY_199.md)** — commands, prompts, sign-off                 |
 | **QA engineers (setup & smoke)**      | [User testing guide](../user-guides/qa/testing-guide.md) — first-time setup, checklists                               |
@@ -16,7 +19,9 @@ Operational docs for manual + automated QA on [GitHub Project #4](https://github
 
 | Doc                                                                                                                              | Purpose                                                              |
 | -------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| [QA_ENGINEER_GUIDE.md](QA_ENGINEER_GUIDE.md)                                                                                     | **Primary** — manual + automated flows per issue                     |
+| [QA_SIMPLE_GUIDE.md](QA_SIMPLE_GUIDE.md)                                                                                         | **Non-technical** — 5 steps, copy-paste sign-off, no commands        |
+| [QA_CHROMIUM_GUIDE.md](QA_CHROMIUM_GUIDE.md)                                                                                     | **Watch mode** — Playwright UI / headed Chromium for training        |
+| [QA_ENGINEER_GUIDE.md](QA_ENGINEER_GUIDE.md)                                                                                     | **Technical QA** — manual + automated flows per issue                |
 | **[WALKTHROUGH_EPIC_198_STORY_199.md](examples/WALKTHROUGH_EPIC_198_STORY_199.md)**                                              | **Full sample** — Epic #198 / Story #199 (commands, output, prompts) |
 | [QA_ENGINEER_GUIDE.md#worked-example-epic-198--story-199-export](QA_ENGINEER_GUIDE.md#worked-example-epic-198--story-199-export) | Summary + link to full walkthrough                                   |
 | [BOARD_WORKFLOW.md](BOARD_WORKFLOW.md)                                                                                           | 10 lanes, QA queue, per-issue verification                           |

@@ -37,6 +37,8 @@
     "test:coverage": "pnpm --filter @kloqra/contracts build && pnpm --filter @kloqra/web-shared build && pnpm --filter @kloqra/api test:coverage && pnpm --filter @kloqra/contracts test -- --coverage && pnpm --filter @kloqra/ui test -- --coverage && pnpm --filter @kloqra/web-shared test",
     "test:integration": "pnpm --filter @kloqra/api test:e2e",
     "test:e2e": "bash scripts/test-prepush.sh",
+    "test:e2e:ui": "pnpm --filter @kloqra/client test:e2e:ui",
+    "test:e2e:watch": "pnpm --filter @kloqra/client test:e2e:headed",
     "test:prepush": "bash scripts/test-prepush.sh",
     "test:prepr": "bash scripts/test-prepr.sh",
     "prisma:generate": "pnpm --filter @kloqra/api prisma:generate",

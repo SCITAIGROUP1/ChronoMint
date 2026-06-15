@@ -14,6 +14,7 @@ const issueNum = process.argv[2];
 const envIdx = process.argv.indexOf("--env");
 const env = envIdx >= 0 ? (process.argv[envIdx + 1] ?? "local") : "local";
 const copyPlaywright = process.argv.includes("--copy-playwright");
+const captureScreenshots = process.argv.includes("--capture-screenshots");
 
 if (!issueNum || !/^\d+$/.test(issueNum)) {
   console.error(
@@ -84,6 +85,18 @@ console.log("");
 console.log(
   `node .cursor/skills/kloqra-qa-workflow/scripts/print-signoff.mjs ${issueNum} --env ${env}`
 );
+
+if (captureScreenshots && issueNum === "199") {
+  const { execFileSync } = await import("node:child_process");
+  const clientDir = path.join(ROOT, "apps/client");
+  console.log("\nCapturing screenshots (evidence-capture-199)...");
+  execFileSync("node", ["../../scripts/e2e-prep.mjs"], { cwd: clientDir, stdio: "inherit" });
+  execFileSync("npx", ["playwright", "test", "evidence-capture-199", "--headed"], {
+    cwd: clientDir,
+    stdio: "inherit"
+  });
+  console.log("Screenshots saved to .qa-evidence/GH-199/screenshots/");
+}
 
 function copyDir(src, dest) {
   fs.mkdirSync(dest, { recursive: true });
