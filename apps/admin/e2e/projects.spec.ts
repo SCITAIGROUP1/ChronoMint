@@ -19,9 +19,9 @@ test.describe("Admin projects", () => {
     await expect(statusFilter).toHaveText("All statuses");
 
     await statusFilter.click();
-    await expect(page.getByRole("option", { name: "Active" })).toBeVisible();
-    await expect(page.getByRole("option", { name: "Inactive" })).toBeVisible();
-    await page.getByRole("option", { name: "Active" }).click();
+    await expect(page.getByRole("option", { name: "Active", exact: true })).toBeVisible();
+    await expect(page.getByRole("option", { name: "Inactive", exact: true })).toBeVisible();
+    await page.getByRole("option", { name: "Active", exact: true }).click();
     await expect(statusFilter).toHaveText("Active");
   });
 
