@@ -16,6 +16,6 @@ describe("AmendmentRequestDialog", () => {
 
     expect(screen.getByText("Support Retainer")).toBeInTheDocument();
     expect(screen.getByText("Jun 2 – Jun 8, 2025")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Send request" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Confirm request" })).toBeInTheDocument();
   });
 });

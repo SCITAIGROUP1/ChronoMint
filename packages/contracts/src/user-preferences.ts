@@ -36,14 +36,16 @@ export const memberNotificationKeySchema = z.enum([
   "timesheetReminders",
   "idleTimerAlert",
   "jiraSyncUpdates",
-  "timesheetStatus"
+  "timesheetStatus",
+  "roleChanges"
 ]);
 
 export const adminNotificationKeySchema = z.enum([
   "approvalRequest",
   "memberChanges",
   "exportSchedule",
-  "budgetAlert"
+  "budgetAlert",
+  "missingTimesheets"
 ]);
 
 export const notificationPreferenceKeySchema = z.union([
@@ -64,10 +66,12 @@ export const userNotificationsSchema = z.object({
   idleTimerAlert: notificationPreferenceSchema,
   jiraSyncUpdates: notificationPreferenceSchema,
   timesheetStatus: notificationPreferenceSchema,
+  roleChanges: notificationPreferenceSchema,
   approvalRequest: notificationPreferenceSchema,
   memberChanges: notificationPreferenceSchema,
   exportSchedule: notificationPreferenceSchema,
-  budgetAlert: notificationPreferenceSchema
+  budgetAlert: notificationPreferenceSchema,
+  missingTimesheets: notificationPreferenceSchema
 });
 
 export type ResolvedUserNotifications = {
@@ -79,10 +83,12 @@ export type ResolvedUserNotifications = {
   idleTimerAlert: NotificationChannels;
   jiraSyncUpdates: NotificationChannels;
   timesheetStatus: NotificationChannels;
+  roleChanges: NotificationChannels;
   approvalRequest: NotificationChannels;
   memberChanges: NotificationChannels;
   exportSchedule: NotificationChannels;
   budgetAlert: NotificationChannels;
+  missingTimesheets: NotificationChannels;
 };
 
 const memberChannelDefaults: Record<MemberNotificationKey, NotificationChannels> = {
@@ -92,14 +98,16 @@ const memberChannelDefaults: Record<MemberNotificationKey, NotificationChannels>
   timesheetReminders: { inApp: true, email: true },
   idleTimerAlert: { inApp: true, email: false },
   jiraSyncUpdates: { inApp: true, email: false },
-  timesheetStatus: { inApp: true, email: true }
+  timesheetStatus: { inApp: true, email: true },
+  roleChanges: { inApp: true, email: false }
 };
 
 const adminChannelDefaults: Record<AdminNotificationKey, NotificationChannels> = {
   approvalRequest: { inApp: true, email: true },
   memberChanges: { inApp: true, email: false },
   exportSchedule: { inApp: true, email: true },
-  budgetAlert: { inApp: true, email: false }
+  budgetAlert: { inApp: true, email: false },
+  missingTimesheets: { inApp: true, email: true }
 };
 
 export const DEFAULT_USER_NOTIFICATIONS: ResolvedUserNotifications = {
@@ -204,10 +212,12 @@ export function mergeUserPreferences(
       idleTimerAlert: mergeNotificationKey(cur, part, "idleTimerAlert"),
       jiraSyncUpdates: mergeNotificationKey(cur, part, "jiraSyncUpdates"),
       timesheetStatus: mergeNotificationKey(cur, part, "timesheetStatus"),
+      roleChanges: mergeNotificationKey(cur, part, "roleChanges"),
       approvalRequest: mergeNotificationKey(cur, part, "approvalRequest"),
       memberChanges: mergeNotificationKey(cur, part, "memberChanges"),
       exportSchedule: mergeNotificationKey(cur, part, "exportSchedule"),
-      budgetAlert: mergeNotificationKey(cur, part, "budgetAlert")
+      budgetAlert: mergeNotificationKey(cur, part, "budgetAlert"),
+      missingTimesheets: mergeNotificationKey(cur, part, "missingTimesheets")
     };
   }
   return merged;
@@ -275,10 +285,12 @@ export function resolveEffectiveNotifications(
     idleTimerAlert: resolve("idleTimerAlert"),
     jiraSyncUpdates: resolve("jiraSyncUpdates"),
     timesheetStatus: resolve("timesheetStatus"),
+    roleChanges: resolve("roleChanges"),
     approvalRequest: resolve("approvalRequest"),
     memberChanges: resolve("memberChanges"),
     exportSchedule: resolve("exportSchedule"),
-    budgetAlert: resolve("budgetAlert")
+    budgetAlert: resolve("budgetAlert"),
+    missingTimesheets: resolve("missingTimesheets")
   };
 }
 

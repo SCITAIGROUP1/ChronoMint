@@ -53,9 +53,9 @@ export class WorkspaceService {
     workspaceId: string,
     memberId: string,
     dto: UpdateWorkspaceMemberDto,
-    _actingUserId: string
+    actingUserId: string
   ) {
-    return this.prisma.$transaction(async (tx) => {
+    const outcome = await this.prisma.$transaction(async (tx) => {
       // Acquire write-lock on the workspace row to prevent concurrent role changes/removals
       await tx.$queryRaw`SELECT 1 FROM workspaces WHERE id = ${workspaceId} FOR UPDATE`;
 
@@ -72,7 +72,7 @@ export class WorkspaceService {
       }
 
       if (member.role === dto.role) {
-        return this.toMemberDto(member);
+        return { kind: "unchanged" as const, member: this.toMemberDto(member) };
       }
 
       if (member.role === "ADMIN" && dto.role === "MEMBER") {
@@ -93,8 +93,54 @@ export class WorkspaceService {
         data: { role: dto.role },
         include: { user: true }
       });
-      return this.toMemberDto(updated);
+      return {
+        kind: "roleChanged" as const,
+        member: this.toMemberDto(updated),
+        newRole: dto.role
+      };
     });
+
+    if (outcome.kind === "roleChanged") {
+      const [workspace, actor] = await Promise.all([
+        this.prisma.workspace.findUnique({
+          where: { id: workspaceId },
+          select: { name: true }
+        }),
+        this.prisma.user.findUnique({
+          where: { id: actingUserId },
+          select: { name: true }
+        })
+      ]);
+      const workspaceName = workspace?.name ?? "the workspace";
+      const actorName = actor?.name;
+
+      void this.notificationsDispatch
+        .notify({
+          userId: outcome.member.userId,
+          workspaceId,
+          templateId: "member.roleChanged",
+          context: {
+            workspaceName,
+            newRole: outcome.newRole,
+            actorName
+          }
+        })
+        .catch(() => undefined);
+
+      void this.notificationsDispatch
+        .notifyWorkspaceAdmins(workspaceId, {
+          templateId: "member.roleUpdated",
+          context: {
+            memberName: outcome.member.userName,
+            workspaceName,
+            newRole: outcome.newRole,
+            actorName
+          }
+        })
+        .catch(() => undefined);
+    }
+
+    return outcome.member;
   }
 
   async removeMember(workspaceId: string, memberId: string, actingUserId: string) {
@@ -170,8 +216,19 @@ export class WorkspaceService {
           memberName: member.user.name,
           workspaceName: workspace?.name ?? "the workspace",
           actorName: actor?.name
-        },
-        excludeUserId: actingUserId
+        }
+      })
+      .catch(() => undefined);
+
+    void this.notificationsDispatch
+      .notify({
+        userId: member.userId,
+        workspaceId,
+        templateId: "workspace.removed",
+        context: {
+          workspaceName: workspace?.name ?? "the workspace",
+          actorName: actor?.name
+        }
       })
       .catch(() => undefined);
 
@@ -253,8 +310,7 @@ export class WorkspaceService {
           memberName: membership.user.name,
           workspaceName: workspace.name,
           inviterName: inviterName
-        },
-        excludeUserId: invitedByUserId
+        }
       })
       .catch(() => undefined);
 

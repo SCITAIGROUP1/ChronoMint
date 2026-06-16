@@ -94,6 +94,8 @@ export const timesheetApprovalsFilterQuerySchema = z.object({
 
 export const pendingTimesheetQuerySchema = timesheetApprovalsFilterQuerySchema;
 
+export const reviewedTimesheetQuerySchema = timesheetApprovalsFilterQuerySchema;
+
 export const amendmentListQuerySchema = timesheetApprovalsFilterQuerySchema;
 
 export const missingTimesheetQuerySchema = timesheetApprovalsFilterQuerySchema.extend({
@@ -126,7 +128,19 @@ export const createAmendmentRequestSchema = z.object({
 });
 
 export const reviewAmendmentSchema = z.object({
-  adminNote: z.string().max(500).optional()
+  adminNote: z
+    .string()
+    .trim()
+    .min(1, "Admin note is required when denying an edit request")
+    .max(500)
+});
+
+export const approveTimesheetSchema = z.object({
+  reviewNote: z.string().max(2000).optional()
+});
+
+export const rejectTimesheetSchema = z.object({
+  reviewNote: z.string().trim().min(1, "Review note is required when rejecting").max(2000)
 });
 
 export const timesheetAmendmentSchema = z.object({
@@ -153,8 +167,18 @@ export const listTimesheetSubmissionsResponseSchema = z.object({
   items: z.array(timesheetPeriodSchema)
 });
 
+export const reviewedTimesheetSchema = pendingTimesheetSchema.extend({
+  status: z.enum(["APPROVED", "REJECTED"]),
+  reviewNote: z.string().nullable(),
+  reviewedAt: isoDatetimeSchema
+});
+
 export const listPendingTimesheetsResponseSchema = z.object({
   items: z.array(pendingTimesheetSchema)
+});
+
+export const listReviewedTimesheetsResponseSchema = z.object({
+  items: z.array(reviewedTimesheetSchema)
 });
 
 export const listMissingTimesheetsResponseSchema = z.object({
@@ -172,6 +196,7 @@ export type SubmitTimesheetDto = z.infer<typeof submitTimesheetSchema>;
 export type TimesheetSubmitPreviewDto = z.infer<typeof timesheetSubmitPreviewResponseSchema>;
 export type SubmitTimesheetResponseDto = z.infer<typeof submitTimesheetResponseSchema>;
 export type PendingTimesheetDto = z.infer<typeof pendingTimesheetSchema>;
+export type ReviewedTimesheetDto = z.infer<typeof reviewedTimesheetSchema>;
 export type TimesheetApprovalsFilterQuery = z.infer<typeof timesheetApprovalsFilterQuerySchema>;
 export type MissingTimesheetDto = z.infer<typeof missingTimesheetSchema>;
 export type TimesheetAmendmentDto = z.infer<typeof timesheetAmendmentSchema>;
@@ -179,5 +204,8 @@ export type ListTimesheetSubmissionsResponseDto = z.infer<
   typeof listTimesheetSubmissionsResponseSchema
 >;
 export type ListPendingTimesheetsResponseDto = z.infer<typeof listPendingTimesheetsResponseSchema>;
+export type ListReviewedTimesheetsResponseDto = z.infer<
+  typeof listReviewedTimesheetsResponseSchema
+>;
 export type ListMissingTimesheetsResponseDto = z.infer<typeof listMissingTimesheetsResponseSchema>;
 export type ListAmendmentRequestsResponseDto = z.infer<typeof listAmendmentRequestsResponseSchema>;

@@ -34,7 +34,7 @@ export function AmendmentRequestDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Request to edit timesheet"
-      description="Explain why you need to change entries in this locked period."
+      description="Confirm your request to unlock this period for edits. Admins will review it before you can make changes."
       icon={<MessageSquare className="size-5" />}
       tone="default"
       footer={
@@ -47,7 +47,7 @@ export function AmendmentRequestDialog({
             disabled={submitting || reason.trim().length === 0}
             onClick={() => onSubmit(reason.trim())}
           >
-            {submitting ? "Sending…" : "Send request"}
+            {submitting ? "Sending…" : "Confirm request"}
           </Button>
         </div>
       }

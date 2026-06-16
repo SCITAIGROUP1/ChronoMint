@@ -84,9 +84,7 @@ export const usePendingTimesheetsStore = create<PendingTimesheetsStoreState>((se
     const nextCount = (get().refCounts[key] ?? 0) + 1;
     set((s) => ({ refCounts: { ...s.refCounts, [key]: nextCount } }));
 
-    if (get().byKey[key] === undefined) {
-      void get().fetchPending(workspaceId, filterKey);
-    }
+    void get().fetchPending(workspaceId, filterKey);
 
     const shouldPoll = filterKey === "";
     if (shouldPoll && !get().pollTimer) {

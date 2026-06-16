@@ -1,6 +1,11 @@
 "use client";
 
-import { ROUTES, resolveEffectiveTheme, type ThemePreference } from "@kloqra/contracts";
+import {
+  DEFAULT_THEME,
+  ROUTES,
+  resolveEffectiveTheme,
+  type ThemePreference
+} from "@kloqra/contracts";
 import { useTheme } from "next-themes";
 import { useEffect } from "react";
 import { api } from "../api/client";
@@ -21,6 +26,7 @@ export function ThemePreferenceSync() {
   useEffect(() => {
     if (!userId) {
       clearThemeHydration();
+      setTheme(DEFAULT_THEME);
       return;
     }
     if (!workspaceId || !shouldHydrateTheme(userId)) return;

@@ -25,6 +25,10 @@ Use the **admin app** at http://localhost:3002 (or your deployed admin URL).
 
 Use the **workspace switcher** in the sidebar to change organization.
 
+## Global search
+
+Press **⌘K** (Mac) or **Ctrl+K** (Windows/Linux), or click **Search…** in the top bar, to jump to any admin page or find projects, tasks, categories, and team members.
+
 ## Typical first-day setup
 
 1. **Workspace** — confirm timezone, week start, and approval defaults.

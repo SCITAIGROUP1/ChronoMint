@@ -11,11 +11,7 @@ import {
   Button,
   Input,
   Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  SearchableSelect,
   ProjectColorDot,
   Spinner
 } from "@kloqra/ui";
@@ -183,21 +179,37 @@ export function InvoiceWizard() {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Select Project</Label>
-              <Select value={projectId} onValueChange={handleProjectSelect}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select project for invoice" />
-                </SelectTrigger>
-                <SelectContent>
-                  {projects.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      <span className="flex items-center gap-2">
-                        <ProjectColorDot color={p.color} />
-                        {p.name} {p.clientName ? `(${p.clientName})` : ""}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={projectId}
+                onValueChange={handleProjectSelect}
+                options={projects.map((p) => ({
+                  value: p.id,
+                  label: `${p.name}${p.clientName ? ` (${p.clientName})` : ""}`
+                }))}
+                placeholder="Select project for invoice"
+                searchPlaceholder="Search projects…"
+                renderOption={(option) => {
+                  const project = projects.find((p) => p.id === option.value);
+                  return (
+                    <span className="flex items-center gap-2">
+                      {project ? <ProjectColorDot color={project.color} /> : null}
+                      {option.label}
+                    </span>
+                  );
+                }}
+                renderValue={(option) => {
+                  const project = option ? projects.find((p) => p.id === option.value) : undefined;
+                  return option ? (
+                    <span className="flex items-center gap-2">
+                      {project ? <ProjectColorDot color={project.color} /> : null}
+                      {option.label}
+                    </span>
+                  ) : (
+                    "Select project for invoice"
+                  );
+                }}
+                aria-label="Select project"
+              />
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">

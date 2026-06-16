@@ -1,0 +1,46 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { GlobalSearchDialog } from "./global-search-dialog";
+import { GlobalSearchTrigger } from "./global-search-trigger";
+
+type GlobalSearchShellProps = {
+  workspaceId: string;
+};
+
+export function GlobalSearchShell({ workspaceId }: GlobalSearchShellProps) {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() !== "k") return;
+      if (!event.metaKey && !event.ctrlKey) return;
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable ||
+          target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT")
+      ) {
+        return;
+      }
+      event.preventDefault();
+      setOpen(true);
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  useEffect(() => {
+    setOpen(false);
+  }, [workspaceId]);
+
+  return (
+    <>
+      <GlobalSearchTrigger onOpen={() => setOpen(true)} />
+      <GlobalSearchDialog open={open} onOpenChange={setOpen} workspaceId={workspaceId} />
+    </>
+  );
+}

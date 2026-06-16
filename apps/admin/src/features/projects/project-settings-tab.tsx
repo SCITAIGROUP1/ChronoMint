@@ -34,7 +34,7 @@ function snapshotFromProject(project: ProjectDto): ProjectFormSnapshot {
     name: project.name,
     client: project.clientName ?? "",
     isActive: project.isActive,
-    approvalEnabled: project.timesheetApprovalEnabled,
+    approvalEnabled: project.timesheetApprovalEnabled ?? false,
     approvalPeriod: project.timesheetApprovalPeriod ?? "",
     color: project.color ?? DEFAULT_PROJECT_COLOR
   };

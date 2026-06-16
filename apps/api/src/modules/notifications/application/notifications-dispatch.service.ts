@@ -48,15 +48,13 @@ export class NotificationsDispatchService {
     input: {
       templateId: T;
       context: NotificationTemplateContextMap[T];
-      excludeUserId?: string;
     }
   ): Promise<void> {
     const rendered = buildNotificationTemplate(input.templateId, input.context);
     const admins = await this.prisma.workspaceMember.findMany({
       where: {
         workspaceId,
-        role: "ADMIN",
-        ...(input.excludeUserId ? { userId: { not: input.excludeUserId } } : {})
+        role: "ADMIN"
       },
       include: { user: { select: { id: true, email: true, preferences: true } } }
     });

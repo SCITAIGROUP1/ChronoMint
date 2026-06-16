@@ -27,6 +27,26 @@ describe("PageHeader", () => {
     expect(buttons.map((button) => button.textContent)).toEqual(["Filter", "Notify"]);
   });
 
+  it("supports structured shell toolbar in inline variant", () => {
+    render(
+      <ShellToolbarProvider
+        toolbar={{
+          search: <input aria-label="Global search" />,
+          actions: <button type="button">Notify</button>
+        }}
+      >
+        <PageHeader
+          variant="inline"
+          title="Dashboard"
+          actions={<button type="button">Filter</button>}
+        />
+      </ShellToolbarProvider>
+    );
+
+    expect(screen.getByRole("button", { name: "Notify" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Filter" })).toBeInTheDocument();
+  });
+
   it("supports inline variant without sticky header", () => {
     render(<PageHeader variant="inline" title="Section" description="Details" />);
 

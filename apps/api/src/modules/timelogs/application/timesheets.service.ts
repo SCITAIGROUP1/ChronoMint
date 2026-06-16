@@ -424,8 +424,7 @@ export class TimesheetsService {
           totalHours: (totalHours._sum?.durationSec ?? 0) / 3600,
           cascadedCount: plan.cascaded.length + 1,
           cascadedPeriodLabels: [...plan.cascaded.map((c) => c.periodLabel), periodLabel]
-        },
-        excludeUserId: userId
+        }
       })
       .catch((err: unknown) => {
         this.logger.error(
@@ -441,11 +440,27 @@ export class TimesheetsService {
   }
 
   async listPending(workspaceId: string, filter: TimesheetApprovalsFilterQuery = {}) {
+    return this.listReviewed(workspaceId, "SUBMITTED", filter);
+  }
+
+  async listApproved(workspaceId: string, filter: TimesheetApprovalsFilterQuery = {}) {
+    return this.listReviewed(workspaceId, "APPROVED", filter);
+  }
+
+  async listRejected(workspaceId: string, filter: TimesheetApprovalsFilterQuery = {}) {
+    return this.listReviewed(workspaceId, "REJECTED", filter);
+  }
+
+  private async listReviewed(
+    workspaceId: string,
+    status: "SUBMITTED" | "APPROVED" | "REJECTED",
+    filter: TimesheetApprovalsFilterQuery = {}
+  ) {
     const periodStartRange = buildPeriodStartRange(filter);
     const periods = await this.prisma.timesheetPeriod.findMany({
       where: {
         workspaceId,
-        status: "SUBMITTED",
+        status,
         ...(filter.projectId ? { projectId: filter.projectId } : {}),
         ...(filter.userId ? { userId: filter.userId } : {}),
         ...(periodStartRange ? { periodStart: periodStartRange } : {})
@@ -466,16 +481,16 @@ export class TimesheetsService {
           select: { id: true }
         }
       },
-      orderBy: {
-        submittedAt: "desc"
-      }
+      orderBy: status === "SUBMITTED" ? { submittedAt: "desc" } : { reviewedAt: "desc" }
     });
 
     const batchCounts = new Map<string, number>();
-    for (const p of periods) {
-      if (!p.submittedAt) continue;
-      const key = `${p.userId}:${p.projectId}:${p.submittedAt.toISOString()}`;
-      batchCounts.set(key, (batchCounts.get(key) ?? 0) + 1);
+    if (status === "SUBMITTED") {
+      for (const p of periods) {
+        if (!p.submittedAt) continue;
+        const key = `${p.userId}:${p.projectId}:${p.submittedAt.toISOString()}`;
+        batchCounts.set(key, (batchCounts.get(key) ?? 0) + 1);
+      }
     }
 
     if (periods.length === 0) return { items: [] };
@@ -525,7 +540,7 @@ export class TimesheetsService {
       const cascadedCount = batchKey ? (batchCounts.get(batchKey) ?? 1) : 1;
 
       const totalHours = totalDuration / 3600;
-      return {
+      const base = {
         id: p.id,
         userId: p.userId,
         userName: p.user.name,
@@ -539,6 +554,17 @@ export class TimesheetsService {
         totalHours: Math.round(totalHours * 100) / 100,
         cascadedCount: cascadedCount > 1 ? cascadedCount : undefined,
         amendmentPending: p.amendments.length > 0
+      };
+
+      if (status === "SUBMITTED") {
+        return base;
+      }
+
+      return {
+        ...base,
+        status,
+        reviewNote: p.reviewNote,
+        reviewedAt: p.reviewedAt?.toISOString() ?? new Date(0).toISOString()
       };
     });
 
@@ -821,6 +847,14 @@ export class TimesheetsService {
   }
 
   async reject(workspaceId: string, id: string, adminUserId: string, reviewNote?: string) {
+    if (!reviewNote?.trim()) {
+      throw new DomainException(
+        ErrorCodes.VALIDATION_ERROR,
+        "A review note is required when rejecting a timesheet",
+        HttpStatus.BAD_REQUEST
+      );
+    }
+
     const period = await this.prisma.$transaction(async (tx) => {
       const p = await tx.timesheetPeriod.findFirst({
         where: { id, workspaceId },

@@ -8,10 +8,11 @@ import type {
   LoginRequiresEmailVerificationResponseDto,
   StartupPagePreference
 } from "@kloqra/contracts";
-import { Button, Input, Label } from "@kloqra/ui";
+import { Button, Input, Label, PasswordInput } from "@kloqra/ui";
 import {
   applyDefaultWorkspaceIfNeeded,
   AuthShell,
+  extractFieldErrorsFromMessage,
   fetchUserProfile,
   resolveStartupPath
 } from "@kloqra/web-shared";
@@ -37,6 +38,11 @@ export function LoginForm() {
   const [totpCode, setTotpCode] = useState("");
   const [pendingToken, setPendingToken] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<{
+    email?: string;
+    password?: string;
+    totpCode?: string;
+  }>({});
 
   async function completeLogin(
     res: AuthSessionDto & { accessToken: string; refreshToken?: string }
@@ -57,6 +63,24 @@ export function LoginForm() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    setFieldErrors({});
+    if (!pendingToken) {
+      const nextFieldErrors: { email?: string; password?: string } = {};
+      if (!email.trim()) nextFieldErrors.email = "Email is required";
+      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+        nextFieldErrors.email = "Email must be a valid email address";
+      }
+      if (!password.trim()) nextFieldErrors.password = "Password is required";
+      if (Object.keys(nextFieldErrors).length > 0) {
+        setFieldErrors(nextFieldErrors);
+        return;
+      }
+    } else {
+      if (!/^\d{6}$/.test(totpCode.trim())) {
+        setFieldErrors({ totpCode: "Authentication code must be 6 digits" });
+        return;
+      }
+    }
     try {
       const res = await api<LoginResponse>(ROUTES.AUTH.LOGIN, {
         method: "POST",
@@ -81,9 +105,17 @@ export function LoginForm() {
       }
       await completeLogin(res as AuthSessionDto & { accessToken: string });
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Something went wrong. Your time is safe — try again."
-      );
+      if (err instanceof Error) {
+        const parsed = extractFieldErrorsFromMessage(err.message, {
+          email: "Email",
+          password: "Password",
+          totpCode: ["Authentication code", "Totp Code"]
+        });
+        setFieldErrors(parsed.fieldErrors);
+        setError(parsed.formError);
+        return;
+      }
+      setError("Something went wrong. Your time is safe — try again.");
     }
   }
 
@@ -102,17 +134,34 @@ export function LoginForm() {
                 id="email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (fieldErrors.email) {
+                    setFieldErrors((prev) => ({ ...prev, email: undefined }));
+                  }
+                }}
+                aria-invalid={Boolean(fieldErrors.email)}
               />
+              {fieldErrors.email ? (
+                <p className="text-xs text-destructive">{fieldErrors.email}</p>
+              ) : null}
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input
+              <PasswordInput
                 id="password"
-                type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (fieldErrors.password) {
+                    setFieldErrors((prev) => ({ ...prev, password: undefined }));
+                  }
+                }}
+                aria-invalid={Boolean(fieldErrors.password)}
               />
+              {fieldErrors.password ? (
+                <p className="text-xs text-destructive">{fieldErrors.password}</p>
+              ) : null}
             </div>
           </>
         ) : (
@@ -123,9 +172,18 @@ export function LoginForm() {
               inputMode="numeric"
               autoComplete="one-time-code"
               value={totpCode}
-              onChange={(e) => setTotpCode(e.target.value)}
+              onChange={(e) => {
+                setTotpCode(e.target.value);
+                if (fieldErrors.totpCode) {
+                  setFieldErrors((prev) => ({ ...prev, totpCode: undefined }));
+                }
+              }}
               maxLength={6}
+              aria-invalid={Boolean(fieldErrors.totpCode)}
             />
+            {fieldErrors.totpCode ? (
+              <p className="text-xs text-destructive">{fieldErrors.totpCode}</p>
+            ) : null}
             <p className="text-xs text-muted-foreground">
               Enter the 6-digit code from your authenticator app.
             </p>

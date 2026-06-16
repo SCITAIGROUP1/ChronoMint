@@ -19,11 +19,7 @@ import {
   Input,
   Label,
   ProjectColorDot,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  SearchableSelect,
   EmptyState
 } from "@kloqra/ui";
 import { fetchListItems } from "@kloqra/web-shared";
@@ -573,59 +569,67 @@ export function TimerPage() {
                       <>
                         <div className="space-y-2">
                           <Label>Project</Label>
-                          <Select value={projectId} onValueChange={onProjectChange}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select project" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {projects.map((p) => (
-                                <SelectItem key={p.id} value={p.id}>
-                                  <span className="flex items-center gap-2">
-                                    <ProjectColorDot color={p.color} />
-                                    {formatProjectLabel(p, workspaceNamesById)}
-                                  </span>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <SearchableSelect
+                            value={projectId}
+                            onValueChange={onProjectChange}
+                            options={projects.map((p) => ({
+                              value: p.id,
+                              label: formatProjectLabel(p, workspaceNamesById)
+                            }))}
+                            placeholder="Select project"
+                            searchPlaceholder="Search projects…"
+                            renderOption={(option) => (
+                              <span className="flex items-center gap-2">
+                                <ProjectColorDot
+                                  color={
+                                    projects.find((p) => p.id === option.value)?.color ?? "#236bfe"
+                                  }
+                                />
+                                {option.label}
+                              </span>
+                            )}
+                            renderValue={(option) =>
+                              option ? (
+                                <span className="flex items-center gap-2">
+                                  <ProjectColorDot
+                                    color={
+                                      projects.find((p) => p.id === option.value)?.color ??
+                                      "#236bfe"
+                                    }
+                                  />
+                                  {option.label}
+                                </span>
+                              ) : (
+                                "Select project"
+                              )
+                            }
+                            aria-label="Project"
+                          />
                         </div>
 
                         <div className="space-y-2">
                           <Label>Task</Label>
-                          <Select
+                          <SearchableSelect
                             value={taskChoice}
                             onValueChange={(v) => {
                               setTaskChoice(v);
                               setError(null);
                             }}
+                            groups={projectTasksByCategory.map(([categoryName, list]) => ({
+                              label: categoryName,
+                              options: list.map((t) => ({ value: t.id, label: t.taskName }))
+                            }))}
+                            placeholder={
+                              !projectId
+                                ? "Select a project first"
+                                : projectTasks.length === 0
+                                  ? "No tasks for this project"
+                                  : "Select a task"
+                            }
+                            searchPlaceholder="Search tasks…"
                             disabled={!projectId || projectTasks.length === 0}
-                          >
-                            <SelectTrigger>
-                              <SelectValue
-                                placeholder={
-                                  !projectId
-                                    ? "Select a project first"
-                                    : projectTasks.length === 0
-                                      ? "No tasks for this project"
-                                      : "Select a task"
-                                }
-                              />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {projectTasksByCategory.map(([categoryName, list]) => (
-                                <div key={categoryName}>
-                                  <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                                    {categoryName}
-                                  </div>
-                                  {list.map((t) => (
-                                    <SelectItem key={t.id} value={t.id}>
-                                      {t.taskName}
-                                    </SelectItem>
-                                  ))}
-                                </div>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                            aria-label="Task"
+                          />
                           {projectId && projectTasks.length === 0 && (
                             <p className="text-xs text-muted-foreground">
                               Ask your admin to assign you to tasks on this project.

@@ -27,20 +27,24 @@ import { AmendmentRequestCard } from "./amendment-request-card";
 import { ApprovalsFiltersBar } from "./approvals-filters-bar";
 import { PendingTimesheetCard } from "./pending-timesheet-card";
 import { RemindMemberDialog } from "./remind-member-dialog";
+import { ReviewedTimesheetCard } from "./reviewed-timesheet-card";
 import { useApprovalsFilterOptions } from "./use-approvals-filter-options";
 import { useApprovalsFilters } from "./use-approvals-filters";
 import { useMissingTimesheets } from "./use-missing-timesheets";
 import { usePendingAmendments } from "./use-pending-amendments";
 import { usePendingTimesheets } from "./use-pending-timesheets";
+import { useReviewedTimesheets } from "./use-reviewed-timesheets";
 import { api } from "@/lib/api";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
-type ApprovalsTab = "review" | "missing" | "amendments";
+type ApprovalsTab = "review" | "missing" | "amendments" | "approved" | "rejected";
 
 const TAB_OPTIONS: { value: ApprovalsTab; label: string }[] = [
   { value: "review", label: "Pending review" },
   { value: "missing", label: "Missing" },
-  { value: "amendments", label: "Amendments" }
+  { value: "amendments", label: "Amendments" },
+  { value: "approved", label: "Approved" },
+  { value: "rejected", label: "Rejected" }
 ];
 
 function remindedToday(lastRemindedAt: string | null): boolean {
@@ -57,10 +61,8 @@ function remindedToday(lastRemindedAt: string | null): boolean {
 export function ApprovalsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const deepLink = useMemo(
-    () => parseAdminApprovalsSearch(searchParams.toString()),
-    [searchParams]
-  );
+  const search = searchParams.toString();
+  const deepLink = useMemo(() => parseAdminApprovalsSearch(search), [search]);
   const tab: ApprovalsTab = deepLink.tab ?? "review";
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
   const { filters, setFilters, clearFilters } = useApprovalsFilters();
@@ -70,8 +72,6 @@ export function ApprovalsPage() {
     loading: filterOptionsLoading
   } = useApprovalsFilterOptions(ws, Boolean(ws));
   const [anchorDate] = useState(() => new Date());
-  const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
-  const [amendmentNotes, setAmendmentNotes] = useState<Record<string, string>>({});
   const [remindTarget, setRemindTarget] = useState<MissingTimesheetDto | null>(null);
   const [reminding, setReminding] = useState(false);
   const focusRef = useRef<HTMLDivElement>(null);
@@ -92,6 +92,18 @@ export function ApprovalsPage() {
     actioningId: amendmentActioningId,
     handleReview: handleAmendmentReview
   } = usePendingAmendments(ws, filters, tab === "amendments");
+  const { items: approved, loading: approvedLoading } = useReviewedTimesheets(
+    ws,
+    "APPROVED",
+    filters,
+    tab === "approved"
+  );
+  const { items: rejected, loading: rejectedLoading } = useReviewedTimesheets(
+    ws,
+    "REJECTED",
+    filters,
+    tab === "rejected"
+  );
 
   const setTab = useCallback(
     (next: ApprovalsTab) => {
@@ -141,6 +153,12 @@ export function ApprovalsPage() {
     if (opt.value === "amendments" && amendments.length > 0) {
       return { ...opt, label: `Amendments (${amendments.length})` };
     }
+    if (opt.value === "approved" && approved.length > 0) {
+      return { ...opt, label: `Approved (${approved.length})` };
+    }
+    if (opt.value === "rejected" && rejected.length > 0) {
+      return { ...opt, label: `Rejected (${rejected.length})` };
+    }
     return opt;
   });
 
@@ -170,7 +188,11 @@ export function ApprovalsPage() {
               ? missing.length
               : tab === "amendments"
                 ? amendments.length
-                : undefined
+                : tab === "approved"
+                  ? approved.length
+                  : tab === "rejected"
+                    ? rejected.length
+                    : undefined
         }
       />
 
@@ -201,20 +223,7 @@ export function ApprovalsPage() {
                     <PendingTimesheetCard
                       item={t}
                       workspaceId={ws}
-                      reviewNote={reviewNotes[t.id] || ""}
-                      onReviewNoteChange={(value) =>
-                        setReviewNotes((prev) => ({ ...prev, [t.id]: value }))
-                      }
-                      onReview={(action) => {
-                        const note = reviewNotes[t.id] || "";
-                        void handleReview(t.id, action, note).then(() => {
-                          setReviewNotes((prev) => {
-                            const next = { ...prev };
-                            delete next[t.id];
-                            return next;
-                          });
-                        });
-                      }}
+                      onReview={(action, note) => void handleReview(t.id, action, note)}
                       actioning={actioningId === t.id}
                       highlighted={focused}
                     />
@@ -288,7 +297,7 @@ export function ApprovalsPage() {
             </div>
           )}
         </LoadingCrossfade>
-      ) : (
+      ) : tab === "amendments" ? (
         <LoadingCrossfade loading={amendmentsLoading} loaderLabel="Loading edit requests…">
           {amendments.length === 0 ? (
             <Card className="border-dashed py-16 flex flex-col items-center justify-center text-center">
@@ -308,21 +317,9 @@ export function ApprovalsPage() {
                   <div ref={focused ? focusRef : undefined}>
                     <AmendmentRequestCard
                       item={item}
-                      reviewNote={amendmentNotes[item.id] || ""}
-                      onReviewNoteChange={(value) =>
-                        setAmendmentNotes((prev) => ({ ...prev, [item.id]: value }))
+                      onReview={(action, note) =>
+                        void handleAmendmentReview(item.id, action, note).then(() => fetchPending())
                       }
-                      onReview={(action) => {
-                        const note = amendmentNotes[item.id] || "";
-                        void handleAmendmentReview(item.id, action, note).then(() => {
-                          setAmendmentNotes((prev) => {
-                            const next = { ...prev };
-                            delete next[item.id];
-                            return next;
-                          });
-                          void fetchPending();
-                        });
-                      }}
                       actioning={amendmentActioningId === item.id}
                       highlighted={focused}
                     />
@@ -330,6 +327,64 @@ export function ApprovalsPage() {
                 );
               }}
             />
+          )}
+        </LoadingCrossfade>
+      ) : tab === "approved" ? (
+        <LoadingCrossfade loading={approvedLoading} loaderLabel="Loading approved timesheets…">
+          {approved.length === 0 ? (
+            <Card className="border-dashed py-16 flex flex-col items-center justify-center text-center">
+              <Check className="size-10 text-emerald-500 bg-emerald-500/10 p-2 rounded-full mb-3" />
+              <p className="font-medium text-sm">
+                {hasActiveApprovalsFilter(filters)
+                  ? "No matching approved timesheets"
+                  : "No approved timesheets yet"}
+              </p>
+              <p className="text-xs text-muted-foreground max-w-xs mt-1">
+                {hasActiveApprovalsFilter(filters)
+                  ? "Try clearing filters or choose a different project, member, or date range."
+                  : "Approved submissions will appear here after you review pending timesheets."}
+              </p>
+            </Card>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2">
+              {approved.map((item) => {
+                const focused = deepLink.periodId === item.id;
+                return (
+                  <div key={item.id} ref={focused ? focusRef : undefined}>
+                    <ReviewedTimesheetCard item={item} workspaceId={ws} highlighted={focused} />
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </LoadingCrossfade>
+      ) : (
+        <LoadingCrossfade loading={rejectedLoading} loaderLabel="Loading rejected timesheets…">
+          {rejected.length === 0 ? (
+            <Card className="border-dashed py-16 flex flex-col items-center justify-center text-center">
+              <Check className="size-10 text-emerald-500 bg-emerald-500/10 p-2 rounded-full mb-3" />
+              <p className="font-medium text-sm">
+                {hasActiveApprovalsFilter(filters)
+                  ? "No matching rejected timesheets"
+                  : "No rejected timesheets"}
+              </p>
+              <p className="text-xs text-muted-foreground max-w-xs mt-1">
+                {hasActiveApprovalsFilter(filters)
+                  ? "Try clearing filters or choose a different project, member, or date range."
+                  : "Rejected submissions will appear here when you send timesheets back for correction."}
+              </p>
+            </Card>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2">
+              {rejected.map((item) => {
+                const focused = deepLink.periodId === item.id;
+                return (
+                  <div key={item.id} ref={focused ? focusRef : undefined}>
+                    <ReviewedTimesheetCard item={item} workspaceId={ws} highlighted={focused} />
+                  </div>
+                );
+              })}
+            </div>
           )}
         </LoadingCrossfade>
       )}

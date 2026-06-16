@@ -48,6 +48,7 @@ export class ProjectsService {
       color: string;
       clientName: string | null;
       isActive: boolean;
+      timesheetApprovalEnabled: boolean;
     },
     workspaceName?: string,
     myColor?: string | null
@@ -58,6 +59,7 @@ export class ProjectsService {
       color: p.color,
       clientName: p.clientName,
       isActive: p.isActive,
+      timesheetApprovalEnabled: p.timesheetApprovalEnabled,
       ...(workspaceName ? { workspaceId: p.workspaceId, workspaceName } : {}),
       ...(myColor !== undefined ? { myColor } : {})
     };
@@ -199,7 +201,7 @@ export class ProjectsService {
   }
 
   async update(workspaceId: string, id: string, dto: UpdateProjectDto) {
-    await this.getAdmin(workspaceId, id);
+    const before = await this.getAdmin(workspaceId, id);
     const p = await this.prisma.project.update({
       where: { id },
       data: {
@@ -217,7 +219,47 @@ export class ProjectsService {
       },
       include: { workspace: { select: { name: true } } }
     });
+
+    if (dto.isActive === false && before.isActive) {
+      void this.notifyProjectDeactivated(workspaceId, id, p.name).catch(() => undefined);
+    }
+
     return this.toDto(p, p.workspace.name);
+  }
+
+  private async notifyProjectDeactivated(
+    workspaceId: string,
+    projectId: string,
+    projectName: string
+  ) {
+    const members = await this.prisma.teamMember.findMany({
+      where: { isActive: true, team: { projectId } },
+      select: { userId: true }
+    });
+    for (const member of members) {
+      await this.notificationsDispatch.notify({
+        userId: member.userId,
+        workspaceId,
+        templateId: "project.deactivated",
+        context: { projectName, projectId }
+      });
+    }
+  }
+
+  private notifyProjectUnassigned(
+    workspaceId: string,
+    userId: string,
+    projectId: string,
+    projectName: string
+  ) {
+    void this.notificationsDispatch
+      .notify({
+        userId,
+        workspaceId,
+        templateId: "project.unassigned",
+        context: { projectName, projectId }
+      })
+      .catch(() => undefined);
   }
 
   private async getAdmin(workspaceId: string, id: string) {
@@ -332,7 +374,7 @@ export class ProjectsService {
     memberId: string,
     isActive: boolean
   ) {
-    await this.getAdmin(workspaceId, projectId);
+    const project = await this.getAdmin(workspaceId, projectId);
     const team = await this.ensureTeam(projectId);
     const member = await this.prisma.teamMember.findFirst({
       where: { id: memberId, teamId: team.id }
@@ -349,6 +391,11 @@ export class ProjectsService {
       data: { isActive },
       include: { user: true }
     });
+
+    if (!isActive && member.isActive !== false) {
+      this.notifyProjectUnassigned(workspaceId, updated.userId, projectId, project.name);
+    }
+
     return {
       id: updated.id,
       teamId: updated.teamId,
@@ -360,7 +407,7 @@ export class ProjectsService {
   }
 
   async removeTeamMember(workspaceId: string, projectId: string, memberId: string) {
-    await this.getAdmin(workspaceId, projectId);
+    const project = await this.getAdmin(workspaceId, projectId);
     const team = await this.ensureTeam(projectId);
     const member = await this.prisma.teamMember.findFirst({
       where: { id: memberId, teamId: team.id }
@@ -372,6 +419,8 @@ export class ProjectsService {
         HttpStatus.NOT_FOUND
       );
     }
+
+    this.notifyProjectUnassigned(workspaceId, member.userId, projectId, project.name);
     await this.prisma.teamMember.delete({ where: { id: memberId } });
     return { ok: true };
   }

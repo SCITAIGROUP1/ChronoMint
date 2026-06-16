@@ -73,6 +73,30 @@ describe("notification templates", () => {
     expect(rendered.metadata.taskId).toBe(UUID);
   });
 
+  it("renders lifecycle templates for assignment changes", () => {
+    const unassigned = buildNotificationTemplate("task.unassigned", {
+      taskName: "Implement auth",
+      projectName: "Website Redesign",
+      taskId: UUID,
+      projectId: UUID
+    });
+    expect(unassigned.title).toBe("Task unassigned");
+
+    const removed = buildNotificationTemplate("workspace.removed", {
+      workspaceName: "Acme Corp",
+      actorName: "Alex Admin"
+    });
+    expect(removed.body).toContain("Alex Admin removed you");
+
+    const digest = buildNotificationTemplate("timesheet.missing.digest", {
+      workspaceName: "Acme Corp",
+      missingCount: 3,
+      periodLabel: "Week 23",
+      periodStart: PERIOD_START
+    });
+    expect(digest.metadata.href).toContain("tab=missing");
+  });
+
   it("renders timesheet approved template with submissions href", () => {
     const rendered = buildNotificationTemplate("timesheet.approved", {
       ...timesheetBase,

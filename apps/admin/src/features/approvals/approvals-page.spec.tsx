@@ -25,8 +25,6 @@ describe("PendingTimesheetCard", () => {
           totalHours: 32.5
         }}
         workspaceId="ws-1"
-        reviewNote=""
-        onReviewNoteChange={() => {}}
         onReview={() => {}}
         actioning={false}
       />

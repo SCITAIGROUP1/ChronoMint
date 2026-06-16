@@ -40,7 +40,10 @@ export const shellMobileDrawerClass =
 export const shellAppBarClass = `sticky top-0 z-30 -mx-6 mb-6 border-b border-border/80 bg-background/95 backdrop-blur-md lg:-mx-8 ${shellInsetXClass} ${shellHeaderBandYClass}`;
 
 export const shellAppBarPrimaryRowClass =
-  "flex min-h-10 flex-col gap-4 @min-[720px]/shell:flex-row @min-[720px]/shell:items-center @min-[720px]/shell:justify-between";
+  "flex min-h-10 flex-col gap-3 @min-[720px]/shell:flex-row @min-[720px]/shell:items-center @min-[720px]/shell:justify-between";
+
+export const shellAppBarUtilityRowClass =
+  "flex flex-col gap-2 @min-[720px]/shell:flex-row @min-[720px]/shell:items-center @min-[720px]/shell:justify-between @min-[720px]/shell:gap-3";
 
 export const shellAppBarSecondaryRowClass =
   "flex flex-col gap-3 border-t border-border/60 pt-4 @min-[720px]/shell:flex-row @min-[720px]/shell:items-center @min-[720px]/shell:justify-between";

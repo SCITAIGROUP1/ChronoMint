@@ -13,14 +13,11 @@ import {
   Input,
   Label,
   ProjectColorDot,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  SearchableSelect,
   TimeEntryAuditTrail,
   cn
 } from "@kloqra/ui";
+import { extractFieldErrorsFromMessage } from "@kloqra/web-shared";
 import { Clock } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { formatDraftDateLabel, formatDuration } from "./calendar-utils";
@@ -130,6 +127,16 @@ export function TimeEntryDialog({
   const canSave = draft ? canSaveTaskDraft(draft) : false;
   const saveHint = draft ? taskSaveHint(draft) : null;
 
+  const parsedValidation = error
+    ? extractFieldErrorsFromMessage<"project" | "task" | "start" | "end" | "description">(error, {
+        project: "Project",
+        task: "Task",
+        start: "Start",
+        end: "End",
+        description: "Description"
+      })
+    : { fieldErrors: {}, formError: "" };
+
   let durationHint = "";
   if (draft) {
     try {
@@ -168,7 +175,7 @@ export function TimeEntryDialog({
           </Button>
         )}
         <Button type="button" variant="outline" onClick={onClose}>
-          Cancel
+          {readOnly ? "Close" : "Cancel"}
         </Button>
         {canDelete && (
           <Button
@@ -241,9 +248,8 @@ export function TimeEntryDialog({
         >
           <div className="space-y-2">
             <Label>Project</Label>
-            <Select
+            <SearchableSelect
               value={draft.projectId}
-              disabled={!canEdit}
               onValueChange={(projectId) =>
                 patch({
                   projectId,
@@ -251,62 +257,79 @@ export function TimeEntryDialog({
                   isBillable: true
                 })
               }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select project" />
-              </SelectTrigger>
-              <SelectContent className="z-[100]">
-                {projects.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    <span className="flex items-center gap-2">
-                      <ProjectColorDot color={p.color} />
-                      {formatProjectLabel(p, workspaceNames)}
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              options={projects.map((p) => ({
+                value: p.id,
+                label: formatProjectLabel(p, workspaceNames)
+              }))}
+              placeholder="Select project"
+              searchPlaceholder="Search projects…"
+              disabled={!canEdit}
+              contentClassName="z-[100]"
+              renderOption={(option) => (
+                <span className="flex items-center gap-2">
+                  <ProjectColorDot
+                    color={projects.find((p) => p.id === option.value)?.color ?? "#236bfe"}
+                  />
+                  {option.label}
+                </span>
+              )}
+              renderValue={(option) =>
+                option ? (
+                  <span className="flex items-center gap-2">
+                    <ProjectColorDot
+                      color={projects.find((p) => p.id === option.value)?.color ?? "#236bfe"}
+                    />
+                    {option.label}
+                  </span>
+                ) : (
+                  "Select project"
+                )
+              }
+              aria-label="Project"
+              triggerClassName={
+                parsedValidation.fieldErrors.project ? "border-destructive" : undefined
+              }
+            />
+            {parsedValidation.fieldErrors.project ? (
+              <p className="text-xs text-destructive">{parsedValidation.fieldErrors.project}</p>
+            ) : null}
           </div>
 
           <div className="space-y-2">
             <Label>Task</Label>
-            <Select
+            <SearchableSelect
               key={draft.projectId}
-              disabled={!canEdit || !draft.projectId || projectTasks.length === 0}
-              value={draft.taskSelection || undefined}
+              value={draft.taskSelection || ""}
               onValueChange={(taskSelection) =>
                 patch({
                   taskSelection,
                   isBillable: suggestBillableFromTask(tasks, taskSelection)
                 })
               }
-            >
-              <SelectTrigger aria-invalid={Boolean(draft.projectId && !draft.taskSelection)}>
-                <SelectValue
-                  placeholder={
-                    !draft.projectId
-                      ? "Select a project first"
-                      : projectTasks.length === 0
-                        ? "No tasks for this project"
-                        : "Select a task"
-                  }
-                />
-              </SelectTrigger>
-              <SelectContent className="z-[100]">
-                {projectTasksByCategory.map(([categoryName, list]) => (
-                  <div key={categoryName}>
-                    <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                      {categoryName}
-                    </div>
-                    {list.map((t) => (
-                      <SelectItem key={t.id} value={t.id}>
-                        {t.taskName}
-                      </SelectItem>
-                    ))}
-                  </div>
-                ))}
-              </SelectContent>
-            </Select>
+              groups={projectTasksByCategory.map(([categoryName, list]) => ({
+                label: categoryName,
+                options: list.map((t) => ({ value: t.id, label: t.taskName }))
+              }))}
+              placeholder={
+                !draft.projectId
+                  ? "Select a project first"
+                  : projectTasks.length === 0
+                    ? "No tasks for this project"
+                    : "Select a task"
+              }
+              searchPlaceholder="Search tasks…"
+              disabled={!canEdit || !draft.projectId || projectTasks.length === 0}
+              contentClassName="z-[100]"
+              triggerClassName={
+                parsedValidation.fieldErrors.task || (draft.projectId && !draft.taskSelection)
+                  ? "border-destructive"
+                  : undefined
+              }
+              aria-label="Task"
+            />
+            {parsedValidation.fieldErrors.task ? (
+              <p className="text-xs text-destructive">{parsedValidation.fieldErrors.task}</p>
+            ) : null}
             {draft.projectId && projectTasks.length === 0 && (
               <p className="text-xs text-muted-foreground">
                 No tasks yet on this project. Ask your admin to add tasks before logging time.
@@ -333,7 +356,11 @@ export function TimeEntryDialog({
                 disabled={!canEdit}
                 onChange={(e) => patch({ startTime: e.target.value })}
                 required
+                aria-invalid={Boolean(parsedValidation.fieldErrors.start)}
               />
+              {parsedValidation.fieldErrors.start ? (
+                <p className="text-xs text-destructive">{parsedValidation.fieldErrors.start}</p>
+              ) : null}
             </div>
             <div className="space-y-2">
               <Label htmlFor="entry-end">End</Label>
@@ -344,7 +371,11 @@ export function TimeEntryDialog({
                 disabled={!canEdit}
                 onChange={(e) => patch({ endTime: e.target.value })}
                 required
+                aria-invalid={Boolean(parsedValidation.fieldErrors.end)}
               />
+              {parsedValidation.fieldErrors.end ? (
+                <p className="text-xs text-destructive">{parsedValidation.fieldErrors.end}</p>
+              ) : null}
             </div>
           </div>
           {durationHint && (
@@ -358,9 +389,23 @@ export function TimeEntryDialog({
               disabled={!canEdit}
               onChange={(e) => patch({ description: e.target.value })}
               placeholder="What did you work on?"
+              aria-invalid={Boolean(parsedValidation.fieldErrors.description)}
             />
+            {parsedValidation.fieldErrors.description ? (
+              <p className="text-xs text-destructive">{parsedValidation.fieldErrors.description}</p>
+            ) : null}
           </div>
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {readOnly && editingLog ? (
+            <p className="text-sm text-amber-600 dark:text-amber-500" role="status">
+              This timesheet period is locked (submitted or approved). Entries cannot be edited or
+              deleted.
+            </p>
+          ) : null}
+          {parsedValidation.formError ? (
+            <p className="text-sm text-destructive">{parsedValidation.formError}</p>
+          ) : error && Object.keys(parsedValidation.fieldErrors).length === 0 ? (
+            <p className="text-sm text-destructive">{error}</p>
+          ) : null}
         </form>
       ) : draft && activeTab === "history" ? (
         <div className="max-h-72 overflow-y-auto pr-1">

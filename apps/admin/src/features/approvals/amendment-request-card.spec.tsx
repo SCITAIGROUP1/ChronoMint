@@ -26,8 +26,6 @@ describe("AmendmentRequestCard", () => {
           reviewedAt: null,
           createdAt: "2025-06-09T10:00:00.000Z"
         }}
-        reviewNote=""
-        onReviewNoteChange={vi.fn()}
         onReview={vi.fn()}
         actioning={false}
       />

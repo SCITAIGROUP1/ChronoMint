@@ -12,6 +12,15 @@ test.describe("Member Submissions", () => {
     await expect(page).toHaveURL(/\/submissions/);
   });
 
+  test("shows cards and table view toggle", async ({ page }) => {
+    await page.goto("/submissions");
+    await expect(page.getByRole("button", { name: "Cards" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Table" })).toBeVisible();
+    await page.getByRole("button", { name: "Table" }).click();
+    await expect(page).toHaveURL(/view=table/);
+    await expect(page.getByRole("columnheader", { name: "Project / period" })).toBeVisible();
+  });
+
   test("timesheet page links to submissions when actionable", async ({ page }) => {
     await page.goto("/timesheet");
     const cta = page.getByRole("link", { name: /ready to submit/i });

@@ -7,6 +7,7 @@ import {
   DateRangePicker,
   Input,
   ProjectColorDot,
+  SearchableSelect,
   Select,
   SelectContent,
   SelectItem,
@@ -95,28 +96,54 @@ export function TimeTrackerToolbar({
               aria-label="Search entries"
             />
           </div>
-          <Select
+          <SearchableSelect
             value={projectId}
             onValueChange={(v) => {
               onProjectChange(v);
               onTaskChange("");
             }}
-          >
-            <SelectTrigger className="w-[180px]" aria-label="Filter by project">
-              <SelectValue placeholder="All Projects" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Projects</SelectItem>
-              {projects.map((project) => (
-                <SelectItem key={project.id} value={project.id}>
-                  <span className="flex items-center gap-2">
-                    <ProjectColorDot color={project.color} size="sm" />
-                    {formatProjectLabel(project, workspaceNamesById)}
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            options={[
+              { value: "all", label: "All Projects" },
+              ...projects.map((project) => ({
+                value: project.id,
+                label: formatProjectLabel(project, workspaceNamesById)
+              }))
+            ]}
+            placeholder="All Projects"
+            searchPlaceholder="Search projects…"
+            className="w-[180px]"
+            aria-label="Filter by project"
+            renderOption={(option) =>
+              option.value === "all" ? (
+                option.label
+              ) : (
+                <span className="flex items-center gap-2">
+                  <ProjectColorDot
+                    color={
+                      projects.find((project) => project.id === option.value)?.color ?? "#236bfe"
+                    }
+                    size="sm"
+                  />
+                  {option.label}
+                </span>
+              )
+            }
+            renderValue={(option) =>
+              option && option.value !== "all" ? (
+                <span className="flex items-center gap-2">
+                  <ProjectColorDot
+                    color={
+                      projects.find((project) => project.id === option.value)?.color ?? "#236bfe"
+                    }
+                    size="sm"
+                  />
+                  {option.label}
+                </span>
+              ) : (
+                (option?.label ?? "All Projects")
+              )
+            }
+          />
           <Select
             value={period}
             onValueChange={(v) => onPeriodChange(v as TimeTrackerPeriodSelection)}

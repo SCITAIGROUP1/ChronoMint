@@ -47,6 +47,42 @@ const FATAL_AUTH_REASONS = new Set([
   "session_revoked"
 ]);
 
+function humanizeFieldKey(key: string): string {
+  const lastSegment = key.split(".").at(-1) ?? key;
+  const spaced = lastSegment
+    .replace(/_/g, " ")
+    .replace(/-/g, " ")
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2");
+  return spaced.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function normalizeFieldError(fieldKey: string, message: string): string {
+  const label = humanizeFieldKey(fieldKey);
+
+  if (message === "Required" || message.toLowerCase() === "required") {
+    return `${label} is required`;
+  }
+
+  if (/invalid email/i.test(message)) {
+    return `${label} must be a valid email address`;
+  }
+
+  const minCharMatch = message.match(/^String must contain at least (\d+) character\(s\)$/i);
+  if (minCharMatch) {
+    const min = Number(minCharMatch[1]);
+    return min <= 1 ? `${label} is required` : `${label} must be at least ${min} characters`;
+  }
+
+  const maxCharMatch = message.match(/^String must contain at most (\d+) character\(s\)$/i);
+  if (maxCharMatch) {
+    const max = Number(maxCharMatch[1]);
+    return `${label} must be at most ${max} characters`;
+  }
+
+  // Keep other Zod messages as-is; they are usually already human readable.
+  return message;
+}
+
 async function parseApiErrorBody(res: Response): Promise<{ message: string; body: ApiErrorBody }> {
   let message = `Request failed (${res.status})`;
   let body: ApiErrorBody = {};
@@ -56,7 +92,7 @@ async function parseApiErrorBody(res: Response): Promise<{ message: string; body
     else if (Array.isArray(body.message)) message = body.message.join(", ");
     const fieldMsgs = body.details?.fieldErrors
       ? Object.entries(body.details.fieldErrors).flatMap(([k, v]) =>
-          (v ?? []).map((m) => `${k}: ${m}`)
+          (v ?? []).map((m) => normalizeFieldError(k, m))
         )
       : [];
     const formMsgs = body.details?.formErrors ?? [];
@@ -188,8 +224,8 @@ export async function publicFetch<T>(path: string, options: RequestInit = {}): P
     }
   });
   if (!res.ok) {
-    const err = (await res.json().catch(() => ({}))) as { message?: string };
-    throw new Error(err.message ?? `Request failed (${res.status})`);
+    const { message } = await parseApiErrorBody(res);
+    throw new Error(message);
   }
   if (res.headers.get("content-type")?.includes("application/json")) {
     return res.json() as Promise<T>;

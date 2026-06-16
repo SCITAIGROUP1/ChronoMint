@@ -23,6 +23,7 @@ import {
   draftToIsoRange,
   type TimeEntryDraft
 } from "../timesheet/time-entry-draft";
+import { isTimeEntryLocked } from "./entry-approval-status";
 import { groupLogsByWeek } from "./group-logs-by-week";
 import type { BillabilityFilter } from "./time-tracker-filters-panel";
 import { TimeEntryDialog, TimeTrackerWeekList } from "./time-tracker-lazy";
@@ -200,19 +201,7 @@ export function TimeTrackerPage() {
   );
 
   const isEntryLocked = useCallback(
-    (log: TimeLogDto) => {
-      const project = projectForTask(log.taskId);
-      if (!project?.timesheetApprovalEnabled) return false;
-      const start = new Date(log.startTime);
-      for (const sub of submissionByKey.values()) {
-        if (sub.projectId !== project.id) continue;
-        if (sub.status !== "SUBMITTED" && sub.status !== "APPROVED") continue;
-        const pStart = new Date(sub.periodStart);
-        const pEnd = new Date(sub.periodEnd);
-        if (start >= pStart && start <= pEnd) return true;
-      }
-      return false;
-    },
+    (log: TimeLogDto) => isTimeEntryLocked(log, projectForTask(log.taskId), submissionByKey),
     [projectForTask, submissionByKey]
   );
 
@@ -252,19 +241,6 @@ export function TimeTrackerPage() {
   }
 
   function openDraft(next: TimeEntryDraft, log: TimeLogDto | null = null) {
-    if (log && isEntryLocked(log)) {
-      const msg = "This entry is locked (submitted or approved) and cannot be edited.";
-      setError(msg);
-      toast.error(msg, {
-        action: {
-          label: "Go to Submissions",
-          onClick: () => {
-            window.location.href = "/submissions";
-          }
-        }
-      });
-      return;
-    }
     setEditingLog(log);
     setDraft(next);
     setError(null);
@@ -431,10 +407,13 @@ export function TimeTrackerPage() {
         saving={saving}
         error={error}
         editingLog={editingLog}
+        readOnly={editingLog ? isEntryLocked(editingLog) : false}
         onDraftChange={setDraft}
         onClose={closeDialog}
         onSave={() => void saveEntry()}
-        onDelete={editingLog ? () => deleteEntry(editingLog) : undefined}
+        onDelete={
+          editingLog && !isEntryLocked(editingLog) ? () => deleteEntry(editingLog) : undefined
+        }
       />
 
       <ConfirmDialog

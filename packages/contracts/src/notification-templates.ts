@@ -13,20 +13,27 @@ export type NotificationVariant = z.infer<typeof notificationVariantSchema>;
 
 export const notificationTemplateIdSchema = z.enum([
   "project.assigned",
+  "project.unassigned",
+  "project.deactivated",
   "task.assigned",
+  "task.unassigned",
   "timesheet.submitted",
   "timesheet.submitted.batch",
   "timesheet.approved",
   "timesheet.rejected",
   "timesheet.reminder",
   "timesheet.reminder.manual",
+  "timesheet.missing.digest",
   "timesheet.amendment.requested",
   "timesheet.amendment.approved",
   "timesheet.amendment.denied",
   "timer.autostopped",
   "member.joined",
   "member.removed",
+  "member.roleChanged",
+  "member.roleUpdated",
   "workspace.added",
+  "workspace.removed",
   "export.ready",
   "export.failed",
   "budget.near",
@@ -42,6 +49,17 @@ export const projectAssignedContextSchema = z.object({
   projectName: z.string().min(1).max(120),
   projectId: uuidSchema,
   addedByName: optionalName
+});
+
+export const projectUnassignedContextSchema = z.object({
+  projectName: z.string().min(1).max(120),
+  projectId: uuidSchema,
+  actorName: optionalName
+});
+
+export const projectDeactivatedContextSchema = z.object({
+  projectName: z.string().min(1).max(120),
+  projectId: uuidSchema
 });
 
 export const taskAssignedContextSchema = z.object({
@@ -120,6 +138,33 @@ export const workspaceAddedContextSchema = z.object({
   inviterName: optionalName
 });
 
+export const workspaceRemovedContextSchema = z.object({
+  workspaceName: z.string().min(1).max(120),
+  actorName: optionalName
+});
+
+const workspaceRoleSchema = z.enum(["ADMIN", "MEMBER"]);
+
+export const memberRoleChangedContextSchema = z.object({
+  workspaceName: z.string().min(1).max(120),
+  newRole: workspaceRoleSchema,
+  actorName: optionalName
+});
+
+export const memberRoleUpdatedContextSchema = z.object({
+  memberName: z.string().min(1).max(120),
+  workspaceName: z.string().min(1).max(120),
+  newRole: workspaceRoleSchema,
+  actorName: optionalName
+});
+
+export const timesheetMissingDigestContextSchema = z.object({
+  workspaceName: z.string().min(1).max(120),
+  missingCount: z.number().int().positive(),
+  periodLabel: z.string().min(1).max(120),
+  periodStart: z.string().datetime()
+});
+
 export const exportScheduleContextSchema = z.object({
   scheduleName: z.string().min(1).max(120),
   errorMessage: z.string().max(500).optional()
@@ -139,20 +184,27 @@ export const jiraSyncedContextSchema = z.object({
 
 const TEMPLATE_CONTEXT_SCHEMAS = {
   "project.assigned": projectAssignedContextSchema,
+  "project.unassigned": projectUnassignedContextSchema,
+  "project.deactivated": projectDeactivatedContextSchema,
   "task.assigned": taskAssignedContextSchema,
+  "task.unassigned": taskAssignedContextSchema,
   "timesheet.submitted": timesheetSubmittedContextSchema,
   "timesheet.submitted.batch": timesheetSubmittedContextSchema,
   "timesheet.approved": timesheetReviewedContextSchema,
   "timesheet.rejected": timesheetReviewedContextSchema,
   "timesheet.reminder": timesheetReminderContextSchema,
   "timesheet.reminder.manual": timesheetReminderContextSchema,
+  "timesheet.missing.digest": timesheetMissingDigestContextSchema,
   "timesheet.amendment.requested": timesheetAmendmentRequestedContextSchema,
   "timesheet.amendment.approved": timesheetReviewedContextSchema,
   "timesheet.amendment.denied": timesheetReviewedContextSchema,
   "timer.autostopped": timerAutostoppedContextSchema,
   "member.joined": memberJoinedContextSchema,
   "member.removed": memberRemovedContextSchema,
+  "member.roleChanged": memberRoleChangedContextSchema,
+  "member.roleUpdated": memberRoleUpdatedContextSchema,
   "workspace.added": workspaceAddedContextSchema,
+  "workspace.removed": workspaceRemovedContextSchema,
   "export.ready": exportScheduleContextSchema,
   "export.failed": exportScheduleContextSchema,
   "budget.near": budgetAlertContextSchema,
@@ -182,7 +234,16 @@ const TEMPLATE_META: Record<
     type: NotificationType.PROJECT_ASSIGNMENT,
     preferenceKey: "projectAssignment"
   },
+  "project.unassigned": {
+    type: NotificationType.PROJECT_UNASSIGNED,
+    preferenceKey: "projectAssignment"
+  },
+  "project.deactivated": {
+    type: NotificationType.PROJECT_DEACTIVATED,
+    preferenceKey: "projectAssignment"
+  },
   "task.assigned": { type: NotificationType.TASK_ASSIGNMENT, preferenceKey: "taskAssignment" },
+  "task.unassigned": { type: NotificationType.TASK_UNASSIGNED, preferenceKey: "taskAssignment" },
   "timesheet.submitted": {
     type: NotificationType.TIMESHEET_SUBMITTED,
     preferenceKey: "approvalRequest"
@@ -207,6 +268,10 @@ const TEMPLATE_META: Record<
     type: NotificationType.TIMESHEET_REMINDER,
     preferenceKey: "timesheetReminders"
   },
+  "timesheet.missing.digest": {
+    type: NotificationType.TIMESHEET_MISSING_DIGEST,
+    preferenceKey: "missingTimesheets"
+  },
   "timesheet.amendment.requested": {
     type: NotificationType.TIMESHEET_AMENDMENT_REQUESTED,
     preferenceKey: "approvalRequest"
@@ -225,7 +290,16 @@ const TEMPLATE_META: Record<
   },
   "member.joined": { type: NotificationType.MEMBER_CHANGE, preferenceKey: "memberChanges" },
   "member.removed": { type: NotificationType.MEMBER_CHANGE, preferenceKey: "memberChanges" },
+  "member.roleChanged": {
+    type: NotificationType.MEMBER_ROLE_CHANGED,
+    preferenceKey: "roleChanges"
+  },
+  "member.roleUpdated": { type: NotificationType.MEMBER_CHANGE, preferenceKey: "memberChanges" },
   "workspace.added": { type: NotificationType.WORKSPACE_ADDED, preferenceKey: "workspaceAdded" },
+  "workspace.removed": {
+    type: NotificationType.WORKSPACE_REMOVED,
+    preferenceKey: "workspaceAdded"
+  },
   "export.ready": { type: NotificationType.EXPORT_SCHEDULE, preferenceKey: "exportSchedule" },
   "export.failed": { type: NotificationType.EXPORT_SCHEDULE, preferenceKey: "exportSchedule" },
   "budget.near": { type: NotificationType.BUDGET_ALERT, preferenceKey: "budgetAlert" },
@@ -334,6 +408,10 @@ function renderTimesheetSubmitted(
   };
 }
 
+function roleLabel(role: "ADMIN" | "MEMBER"): string {
+  return role === "ADMIN" ? "Admin" : "Member";
+}
+
 function renderTemplate(
   templateId: NotificationTemplateId,
   context: NotificationTemplateContextMap[NotificationTemplateId]
@@ -360,6 +438,43 @@ function renderTemplate(
         }
       };
     }
+    case "project.unassigned": {
+      const c = context as NotificationTemplateContextMap["project.unassigned"];
+      const removedBy = c.actorName ? `${c.actorName} removed you from ` : "You were removed from ";
+      return {
+        type,
+        preferenceKey,
+        title: "Removed from project",
+        body: `${removedBy}${c.projectName}.`,
+        emailSubject: subjectPrefix(`Removed from ${c.projectName}`),
+        preheader: `You no longer have access to ${c.projectName}.`,
+        metadata: {
+          href: "/projects",
+          projectId: c.projectId,
+          variant: "warning",
+          ctaLabel: "View projects",
+          details: [{ label: "Project", value: c.projectName }]
+        }
+      };
+    }
+    case "project.deactivated": {
+      const c = context as NotificationTemplateContextMap["project.deactivated"];
+      return {
+        type,
+        preferenceKey,
+        title: "Project deactivated",
+        body: `${c.projectName} was deactivated. You can no longer log time on it.`,
+        emailSubject: subjectPrefix(`Project deactivated — ${c.projectName}`),
+        preheader: `${c.projectName} is no longer active.`,
+        metadata: {
+          href: "/projects",
+          projectId: c.projectId,
+          variant: "warning",
+          ctaLabel: "View projects",
+          details: [{ label: "Project", value: c.projectName }]
+        }
+      };
+    }
     case "task.assigned": {
       const c = context as NotificationTemplateContextMap["task.assigned"];
       return {
@@ -369,6 +484,28 @@ function renderTemplate(
         body: `You were assigned to "${c.taskName}" on ${c.projectName}.`,
         emailSubject: subjectPrefix(`Task assigned: ${c.taskName}`),
         preheader: `New task on ${c.projectName}.`,
+        metadata: {
+          href: "/tasks",
+          projectId: c.projectId,
+          taskId: c.taskId,
+          variant: "info",
+          ctaLabel: "View tasks",
+          details: [
+            { label: "Task", value: c.taskName },
+            { label: "Project", value: c.projectName }
+          ]
+        }
+      };
+    }
+    case "task.unassigned": {
+      const c = context as NotificationTemplateContextMap["task.unassigned"];
+      return {
+        type,
+        preferenceKey,
+        title: "Task unassigned",
+        body: `You were unassigned from "${c.taskName}" on ${c.projectName}.`,
+        emailSubject: subjectPrefix(`Unassigned from task: ${c.taskName}`),
+        preheader: `You are no longer assigned to ${c.taskName}.`,
         metadata: {
           href: "/tasks",
           projectId: c.projectId,
@@ -469,6 +606,30 @@ function renderTemplate(
             ...(c.dueLabel ? [{ label: "Due", value: c.dueLabel }] : []),
             ...(isManual && c.adminMessage ? [{ label: "Message", value: c.adminMessage }] : [])
           ])
+        }
+      };
+    }
+    case "timesheet.missing.digest": {
+      const c = context as NotificationTemplateContextMap["timesheet.missing.digest"];
+      const countLabel =
+        c.missingCount === 1 ? "1 missing timesheet" : `${c.missingCount} missing timesheets`;
+      return {
+        type,
+        preferenceKey,
+        title: "Missing timesheets",
+        body: `${countLabel} need attention for ${c.periodLabel} in ${c.workspaceName}.`,
+        emailSubject: subjectPrefix(`Missing timesheets — ${c.workspaceName}`),
+        preheader: `Review ${countLabel} for ${c.periodLabel}.`,
+        metadata: {
+          href: adminApprovalsHref({ tab: "missing" }),
+          periodStart: c.periodStart,
+          variant: "attention",
+          ctaLabel: "Review missing",
+          details: [
+            { label: "Workspace", value: c.workspaceName },
+            { label: "Period", value: c.periodLabel },
+            { label: "Count", value: String(c.missingCount) }
+          ]
         }
       };
     }
@@ -612,6 +773,53 @@ function renderTemplate(
         }
       };
     }
+    case "member.roleChanged": {
+      const c = context as NotificationTemplateContextMap["member.roleChanged"];
+      const role = roleLabel(c.newRole);
+      return {
+        type,
+        preferenceKey,
+        title: "Role updated",
+        body: c.actorName
+          ? `${c.actorName} changed your role to ${role} in ${c.workspaceName}.`
+          : `Your role in ${c.workspaceName} was changed to ${role}.`,
+        emailSubject: subjectPrefix(`Role updated — ${c.workspaceName}`),
+        preheader: `You are now a workspace ${role}.`,
+        metadata: {
+          href: "/settings?section=account",
+          variant: "info",
+          ctaLabel: "Open settings",
+          details: [
+            { label: "Workspace", value: c.workspaceName },
+            { label: "New role", value: role }
+          ]
+        }
+      };
+    }
+    case "member.roleUpdated": {
+      const c = context as NotificationTemplateContextMap["member.roleUpdated"];
+      const role = roleLabel(c.newRole);
+      return {
+        type,
+        preferenceKey,
+        title: "Member role updated",
+        body: `${c.memberName} is now a workspace ${role} in ${c.workspaceName}.${
+          c.actorName ? ` Updated by ${c.actorName}.` : ""
+        }`,
+        emailSubject: subjectPrefix(`Role updated — ${c.memberName}`),
+        preheader: `${c.memberName}'s workspace role changed.`,
+        metadata: {
+          href: "/team-management",
+          variant: "info",
+          ctaLabel: "View team",
+          details: [
+            { label: "Member", value: c.memberName },
+            { label: "Workspace", value: c.workspaceName },
+            { label: "New role", value: role }
+          ]
+        }
+      };
+    }
     case "workspace.added": {
       const c = context as NotificationTemplateContextMap["workspace.added"];
       return {
@@ -627,6 +835,25 @@ function renderTemplate(
           href: "/projects",
           variant: "success",
           ctaLabel: "Open workspace",
+          details: [{ label: "Workspace", value: c.workspaceName }]
+        }
+      };
+    }
+    case "workspace.removed": {
+      const c = context as NotificationTemplateContextMap["workspace.removed"];
+      return {
+        type,
+        preferenceKey,
+        title: "Removed from workspace",
+        body: c.actorName
+          ? `${c.actorName} removed you from ${c.workspaceName}.`
+          : `You were removed from ${c.workspaceName}.`,
+        emailSubject: subjectPrefix(`Removed from ${c.workspaceName}`),
+        preheader: `You no longer have access to ${c.workspaceName}.`,
+        metadata: {
+          href: "/settings?section=account",
+          variant: "warning",
+          ctaLabel: "Open settings",
           details: [{ label: "Workspace", value: c.workspaceName }]
         }
       };

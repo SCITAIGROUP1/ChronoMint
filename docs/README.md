@@ -76,6 +76,7 @@ Canonical behavior for shipped features (read before implementing changes):
 | [presence.md](specs/presence.md)             | Team live presence         |
 | [auth-workspace.md](specs/auth-workspace.md) | Auth and workspace members |
 | [user-profile.md](specs/user-profile.md)     | Profile, settings, 2FA     |
+| [global-search.md](specs/global-search.md)   | Admin command palette      |
 
 ## Product direction
 
