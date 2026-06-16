@@ -2,6 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { Home } from "lucide-react";
 import type { ReactNode } from "react";
 import { ResponsiveLayoutShell } from "./layout-shell.js";
+import { AppBar } from "./shell/app-bar.js";
 
 vi.mock("next/link", () => ({
   default: ({ children, href }: { children: ReactNode; href: string }) => (
@@ -33,6 +34,29 @@ describe("ResponsiveLayoutShell", () => {
     expect(screen.getAllByText("Dashboard").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Footer").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Workspace").length).toBeGreaterThan(0);
+  });
+
+  it("accepts structured shell toolbar parts", () => {
+    render(
+      <ResponsiveLayoutShell
+        navItems={[{ href: "/dashboard", label: "Dashboard", Icon: Home }]}
+        logoIcon={<span>K</span>}
+        logoTitle="Kloqra"
+        logoSubtitle="Admin"
+        logoLinkHref="/dashboard"
+        workspaceSwitcher={() => <div>Workspace</div>}
+        footerContent={() => <div>Footer</div>}
+        shellToolbar={{
+          search: <input aria-label="Global search" />,
+          actions: <button type="button">Notify</button>
+        }}
+      >
+        <AppBar title="Dashboard" />
+      </ResponsiveLayoutShell>
+    );
+
+    expect(screen.getByRole("textbox", { name: "Global search" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Notify" })).toBeInTheDocument();
   });
 
   it("establishes a named shell container for responsive app bar layout", () => {

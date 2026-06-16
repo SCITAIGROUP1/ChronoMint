@@ -698,16 +698,20 @@ export function DashboardPage() {
             <LivePresenceBadge />
             <AppBarActionButton
               active={isCatalogOpen}
+              aria-label={isCatalogOpen ? "Closing catalog" : "Add widgets"}
               onClick={() => {
                 setIsCatalogOpen(!isCatalogOpen);
                 setIsArranging(false);
               }}
             >
-              <LayoutGrid className="size-3.5" />
-              {isCatalogOpen ? "Closing Catalog" : "Add Widgets"}
+              <LayoutGrid className="size-3.5 shrink-0" aria-hidden />
+              <span className="hidden @min-[1080px]/shell:inline">
+                {isCatalogOpen ? "Closing Catalog" : "Add Widgets"}
+              </span>
             </AppBarActionButton>
             <AppBarActionButton
               active={isArranging}
+              aria-label={isArranging ? "Done arranging" : "Arrange grid"}
               onClick={async () => {
                 if (isArranging) {
                   try {
@@ -721,8 +725,10 @@ export function DashboardPage() {
                 setIsCatalogOpen(false);
               }}
             >
-              <Move className="size-3.5" />
-              {isArranging ? "Done Arranging" : "Arrange Grid"}
+              <Move className="size-3.5 shrink-0" aria-hidden />
+              <span className="hidden @min-[1080px]/shell:inline">
+                {isArranging ? "Done Arranging" : "Arrange Grid"}
+              </span>
             </AppBarActionButton>
           </>
         }

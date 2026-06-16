@@ -7,11 +7,7 @@ import {
   Button,
   Input,
   Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  SearchableSelect,
   AssigneeAvatarStack,
   TaskAssigneePicker,
   cn,
@@ -254,18 +250,15 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="new-task-category">Category</Label>
-                <Select value={newCategoryId} onValueChange={setNewCategoryId}>
-                  <SelectTrigger id="new-task-category">
-                    <SelectValue placeholder="Choose category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  id="new-task-category"
+                  value={newCategoryId}
+                  onValueChange={setNewCategoryId}
+                  options={categories.map((c) => ({ value: c.id, label: c.name }))}
+                  placeholder="Choose category"
+                  searchPlaceholder="Search categories…"
+                  aria-label="Category"
+                />
               </div>
             </div>
             <div className="space-y-2">
@@ -352,18 +345,15 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
                               </div>
                               <div className="space-y-2">
                                 <Label htmlFor={`edit-category-${task.id}`}>Category</Label>
-                                <Select value={editCategoryId} onValueChange={setEditCategoryId}>
-                                  <SelectTrigger id={`edit-category-${task.id}`}>
-                                    <SelectValue placeholder="Category" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {categories.map((c) => (
-                                      <SelectItem key={c.id} value={c.id}>
-                                        {c.name}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                                <SearchableSelect
+                                  id={`edit-category-${task.id}`}
+                                  value={editCategoryId}
+                                  onValueChange={setEditCategoryId}
+                                  options={categories.map((c) => ({ value: c.id, label: c.name }))}
+                                  placeholder="Category"
+                                  searchPlaceholder="Search categories…"
+                                  aria-label="Category"
+                                />
                               </div>
                             </div>
                             <label className="flex cursor-pointer items-center gap-2 text-sm">

@@ -1,7 +1,7 @@
 "use client";
 
 import { ROUTES } from "@kloqra/contracts";
-import type { ProjectDto, TeamMembersOverviewDto } from "@kloqra/contracts";
+import type { ProjectListItemDto, TeamMembersOverviewDto } from "@kloqra/contracts";
 import { fetchListItems } from "@kloqra/web-shared";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
@@ -12,7 +12,7 @@ export type ApprovalsFilterOption = {
 };
 
 export function useApprovalsFilterOptions(workspaceId: string, enabled = true) {
-  const [projects, setProjects] = useState<ProjectDto[]>([]);
+  const [projects, setProjects] = useState<ProjectListItemDto[]>([]);
   const [members, setMembers] = useState<ApprovalsFilterOption[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -20,7 +20,7 @@ export function useApprovalsFilterOptions(workspaceId: string, enabled = true) {
     if (!enabled || !workspaceId) return;
     setLoading(true);
     void Promise.all([
-      fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId }),
+      fetchListItems<ProjectListItemDto>(ROUTES.PROJECTS.LIST, { workspaceId }),
       api<TeamMembersOverviewDto>(
         `${ROUTES.WORKSPACES.MEMBERS_OVERVIEW(workspaceId)}?page=1&limit=100`,
         { workspaceId }

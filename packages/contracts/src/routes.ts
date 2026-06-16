@@ -129,6 +129,8 @@ export const ROUTES = {
     SUBMIT_PREVIEW: "/timesheets/submit-preview",
     SUBMIT: "/timesheets/submit",
     LIST_PENDING: "/timesheets/pending",
+    LIST_APPROVED: "/timesheets/approved",
+    LIST_REJECTED: "/timesheets/rejected",
     LIST_MISSING: "/timesheets/missing",
     REMIND: "/timesheets/remind",
     LIST_AMENDMENTS: "/timesheets/amendments/pending",

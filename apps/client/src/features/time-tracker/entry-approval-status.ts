@@ -27,3 +27,12 @@ export function resolveEntryApprovalStatus(
 
   return { showApproval: true, status: "DRAFT" };
 }
+
+export function isTimeEntryLocked(
+  log: TimeLogDto,
+  project: ProjectDto | undefined,
+  submissionByKey: Map<string, TimesheetPeriodDto>
+): boolean {
+  const approval = resolveEntryApprovalStatus(log, project, submissionByKey);
+  return approval.status === "SUBMITTED" || approval.status === "APPROVED";
+}

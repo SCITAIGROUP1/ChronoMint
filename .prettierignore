@@ -6,3 +6,5 @@ playwright-report
 pnpm-lock.yaml
 *.min.js
 apps/api/prisma/migrations
+
+.cursor/plans/*.md

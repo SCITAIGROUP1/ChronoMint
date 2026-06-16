@@ -1,11 +1,17 @@
 "use client";
 
-import { Button, Skeleton } from "@kloqra/ui";
+import type { PendingTimesheetDto } from "@kloqra/contracts";
+import { Button, ConfirmNoteDialog, Skeleton } from "@kloqra/ui";
 import { Check, X, Calendar, User } from "lucide-react";
 import Link from "next/link";
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { usePendingTimesheets } from "@/features/approvals/use-pending-timesheets";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
+
+type ReviewTarget = {
+  sheet: PendingTimesheetDto;
+  action: "approve" | "reject";
+};
 
 export type PendingTimesheetsWidgetProps = {
   onHeaderActions?: (actions: React.ReactNode) => void;
@@ -20,6 +26,7 @@ export function PendingTimesheetsWidget({
 }: PendingTimesheetsWidgetProps) {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
   const { pending, loading, actioningId, handleReview } = usePendingTimesheets(ws, {});
+  const [reviewTarget, setReviewTarget] = useState<ReviewTarget | null>(null);
 
   const filteredTimesheets = useMemo(() => {
     return pending.filter((sheet) => {
@@ -115,7 +122,7 @@ export function PendingTimesheetsWidget({
                     size="sm"
                     variant="outline"
                     disabled={actioningId !== null}
-                    onClick={() => void handleReview(sheet.id, "reject")}
+                    onClick={() => setReviewTarget({ sheet, action: "reject" })}
                     className="h-7 text-[10px] gap-1 text-destructive hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30"
                   >
                     <X className="size-3" />
@@ -124,7 +131,7 @@ export function PendingTimesheetsWidget({
                   <Button
                     size="sm"
                     disabled={actioningId !== null}
-                    onClick={() => void handleReview(sheet.id, "approve")}
+                    onClick={() => setReviewTarget({ sheet, action: "approve" })}
                     className="h-7 text-[10px] gap-1 bg-green-600 hover:bg-green-700 text-white"
                   >
                     <Check className="size-3" />
@@ -141,6 +148,40 @@ export function PendingTimesheetsWidget({
           <Link href="/approvals?tab=review">Open Approvals</Link>
         </Button>
       </div>
+
+      {reviewTarget ? (
+        <ConfirmNoteDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) setReviewTarget(null);
+          }}
+          title={
+            reviewTarget.action === "approve" ? "Approve this timesheet?" : "Reject this timesheet?"
+          }
+          description={
+            reviewTarget.action === "approve"
+              ? `Approve ${reviewTarget.sheet.userName}'s submission for ${reviewTarget.sheet.projectName}?`
+              : `Send ${reviewTarget.sheet.userName}'s submission back for correction.`
+          }
+          noteLabel={reviewTarget.action === "approve" ? "Review comment" : "Rejection reason"}
+          notePlaceholder={
+            reviewTarget.action === "approve"
+              ? "Optional feedback for the member"
+              : "Explain what needs to be corrected"
+          }
+          noteRequired={reviewTarget.action === "reject"}
+          destructive={reviewTarget.action === "reject"}
+          confirmLabel={
+            reviewTarget.action === "approve" ? "Approve timesheet" : "Reject timesheet"
+          }
+          submitting={actioningId === reviewTarget.sheet.id}
+          onConfirm={(note) => {
+            void handleReview(reviewTarget.sheet.id, reviewTarget.action, note).then(() =>
+              setReviewTarget(null)
+            );
+          }}
+        />
+      ) : null}
     </div>
   );
 }

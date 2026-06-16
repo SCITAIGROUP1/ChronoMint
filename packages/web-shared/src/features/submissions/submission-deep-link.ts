@@ -4,10 +4,11 @@ export type MemberSubmissionsDeepLink = {
   projectId?: string;
   periodStart?: string;
   highlight?: "remind" | "rejected" | "amendment-approved";
+  view?: "cards" | "table";
 };
 
 export type AdminApprovalsDeepLink = {
-  tab?: "review" | "missing" | "amendments";
+  tab?: "review" | "missing" | "amendments" | "approved" | "rejected";
   periodId?: string;
   amendmentId?: string;
   batch?: string;
@@ -22,6 +23,7 @@ export function buildMemberSubmissionsHref(params: MemberSubmissionsDeepLink): s
   if (params.projectId) search.set("projectId", params.projectId);
   if (params.periodStart) search.set("periodStart", params.periodStart);
   if (params.highlight) search.set("highlight", params.highlight);
+  if (params.view) search.set("view", params.view);
   const q = search.toString();
   return q ? `/submissions?${q}` : "/submissions";
 }
@@ -43,13 +45,15 @@ export function buildAdminApprovalsHref(params: AdminApprovalsDeepLink): string 
 export function parseMemberSubmissionsSearch(search: string): MemberSubmissionsDeepLink {
   const params = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
   const highlight = params.get("highlight");
+  const view = params.get("view");
   return {
     projectId: params.get("projectId") ?? undefined,
     periodStart: params.get("periodStart") ?? undefined,
     highlight:
       highlight === "remind" || highlight === "rejected" || highlight === "amendment-approved"
         ? highlight
-        : undefined
+        : undefined,
+    view: view === "table" || view === "cards" ? view : undefined
   };
 }
 
@@ -57,7 +61,14 @@ export function parseAdminApprovalsSearch(search: string): AdminApprovalsDeepLin
   const params = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
   const tab = params.get("tab");
   return {
-    tab: tab === "review" || tab === "missing" || tab === "amendments" ? tab : undefined,
+    tab:
+      tab === "review" ||
+      tab === "missing" ||
+      tab === "amendments" ||
+      tab === "approved" ||
+      tab === "rejected"
+        ? tab
+        : undefined,
     periodId: params.get("periodId") ?? undefined,
     amendmentId: params.get("amendmentId") ?? undefined,
     batch: params.get("batch") ?? undefined,

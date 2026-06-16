@@ -68,10 +68,7 @@ export function AppearanceSection({
             <button
               key={value}
               type="button"
-              onClick={() => {
-                setThemeChoice(value);
-                setTheme(value);
-              }}
+              onClick={() => setThemeChoice(value)}
               className={cn(
                 "relative flex flex-col items-center gap-3 rounded-xl border-2 bg-card p-6 text-center transition-colors",
                 selected ? "border-primary shadow-sm" : "border-border hover:border-primary/40"

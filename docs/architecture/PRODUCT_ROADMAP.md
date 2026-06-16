@@ -26,6 +26,7 @@ See [DOMAIN_MODEL.md](./DOMAIN_MODEL.md) for workspace vs project team boundarie
 | Multi-report export wizard                                              | —      | Yes                | [export.md](../specs/export.md)                                    |
 | Export scale-up (preview, presets, schedules, shares, extended reports) | —      | Yes                | [export.md](../specs/export.md)                                    |
 | Export my timesheet + My week summary                                   | Yes    | —                  | [export.md](../specs/export.md)                                    |
+| Admin global search (command palette)                                   | —      | Yes                | [global-search.md](../specs/global-search.md)                      |
 
 ---
 

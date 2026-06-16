@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Input, Label } from "@kloqra/ui";
+import { Button, PasswordInput, Label } from "@kloqra/ui";
 import { useState } from "react";
 import { toast } from "sonner";
 import { AccountSectionFooter } from "./account-section-footer";
@@ -47,9 +47,8 @@ export function ChangePasswordSection({ onChangePassword }: ChangePasswordSectio
       <div className="grid max-w-md gap-5">
         <div className="space-y-2">
           <Label htmlFor="current-password">Current password</Label>
-          <Input
+          <PasswordInput
             id="current-password"
-            type="password"
             autoComplete="current-password"
             value={currentPassword}
             onChange={(e) => setCurrentPassword(e.target.value)}
@@ -58,9 +57,8 @@ export function ChangePasswordSection({ onChangePassword }: ChangePasswordSectio
         </div>
         <div className="space-y-2">
           <Label htmlFor="new-password">New password</Label>
-          <Input
+          <PasswordInput
             id="new-password"
-            type="password"
             autoComplete="new-password"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
@@ -70,9 +68,8 @@ export function ChangePasswordSection({ onChangePassword }: ChangePasswordSectio
         </div>
         <div className="space-y-2">
           <Label htmlFor="confirm-password">Confirm new password</Label>
-          <Input
+          <PasswordInput
             id="confirm-password"
-            type="password"
             autoComplete="new-password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}

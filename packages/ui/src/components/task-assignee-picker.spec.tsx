@@ -38,6 +38,15 @@ describe("TaskAssigneePicker", () => {
     expect(onChange).toHaveBeenCalledWith(["1"]);
   });
 
+  it("filters members by search query", async () => {
+    const user = userEvent.setup();
+    render(<TaskAssigneePicker members={members} value={[]} onChange={() => {}} />);
+
+    await user.type(screen.getByPlaceholderText("Search by name or email…"), "morgan");
+    expect(screen.queryByRole("checkbox", { name: /Avery Admin/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: /Morgan Blake/i })).toBeInTheDocument();
+  });
+
   it("reopens when the last assignee is cleared", async () => {
     function Harness() {
       const [value, setValue] = useState<string[]>(["1"]);

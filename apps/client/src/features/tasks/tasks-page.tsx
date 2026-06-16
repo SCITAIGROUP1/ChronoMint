@@ -10,11 +10,7 @@ import {
   DataTableHead,
   DataTableHeaderRow,
   ProjectColorDot,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  SearchableSelect,
   Table,
   TableBody,
   TableHeader,
@@ -94,19 +90,21 @@ export function TasksPage() {
           searchAriaLabel="Search tasks"
           filters={
             <div className="w-[220px]">
-              <Select value={projectFilter} onValueChange={setProjectFilter}>
-                <SelectTrigger className="h-9 bg-background">
-                  <SelectValue placeholder="Filter by project" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ALL_PROJECTS}>All projects</SelectItem>
-                  {projects.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {formatProjectLabel(p, workspaceNamesById)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={projectFilter}
+                onValueChange={setProjectFilter}
+                options={[
+                  { value: ALL_PROJECTS, label: "All projects" },
+                  ...projects.map((p) => ({
+                    value: p.id,
+                    label: formatProjectLabel(p, workspaceNamesById)
+                  }))
+                ]}
+                placeholder="Filter by project"
+                searchPlaceholder="Search projects…"
+                triggerClassName="bg-background"
+                aria-label="Filter by project"
+              />
             </div>
           }
         />

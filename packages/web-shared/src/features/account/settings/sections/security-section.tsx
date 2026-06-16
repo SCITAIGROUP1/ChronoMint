@@ -1,7 +1,7 @@
 "use client";
 
 import type { UserProfileDto, UserSessionDto } from "@kloqra/contracts";
-import { AppModal, Button, DialogClose, Input, Label, Spinner } from "@kloqra/ui";
+import { AppModal, Button, DialogClose, Input, Label, PasswordInput, Spinner } from "@kloqra/ui";
 import { Activity, KeyRound, Shield } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -176,9 +176,8 @@ export function SecuritySection({
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="disable-password">Current password</Label>
-              <Input
+              <PasswordInput
                 id="disable-password"
-                type="password"
                 value={disablePassword}
                 onChange={(e) => setDisablePassword(e.target.value)}
               />

@@ -11,6 +11,7 @@ import {
   CardTitle,
   Input,
   Label,
+  SearchableSelect,
   Select,
   SelectContent,
   SelectItem,
@@ -240,18 +241,19 @@ export function WorkspacePage() {
                     Use System Timezone
                   </button>
                 </div>
-                <Select value={timezone} onValueChange={setTimezone}>
-                  <SelectTrigger id="timezone">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {timezoneOptions.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  id="timezone"
+                  value={timezone}
+                  onValueChange={setTimezone}
+                  options={timezoneOptions.map((opt) => ({
+                    value: opt.value,
+                    label: opt.label,
+                    keywords: opt.value
+                  }))}
+                  placeholder="Select timezone"
+                  searchPlaceholder="Search timezones…"
+                  aria-label="Timezone"
+                />
               </div>
 
               <div className="space-y-2">

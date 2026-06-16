@@ -21,6 +21,7 @@ import {
   Clock,
   Download,
   Link2,
+  Shield,
   Timer,
   Users
 } from "lucide-react";
@@ -42,19 +43,19 @@ const MEMBER_ROWS: {
   {
     key: "workspaceAdded",
     title: "Workspace Access",
-    description: "When you are added to a workspace",
+    description: "When you are added to or removed from a workspace",
     icon: Users
   },
   {
     key: "projectAssignment",
     title: "Project Assignment",
-    description: "When you are assigned to a project",
+    description: "When you are assigned to or removed from a project",
     icon: Briefcase
   },
   {
     key: "taskAssignment",
     title: "Task Assignment",
-    description: "When you are assigned to a task",
+    description: "When you are assigned to or unassigned from a task",
     icon: CheckSquare
   },
   {
@@ -68,6 +69,12 @@ const MEMBER_ROWS: {
     title: "Timesheet Status",
     description: "When your timesheet is approved or rejected",
     icon: ClipboardCheck
+  },
+  {
+    key: "roleChanges",
+    title: "Role Changes",
+    description: "When your workspace role is updated",
+    icon: Shield
   },
   {
     key: "idleTimerAlert",
@@ -98,8 +105,14 @@ const ADMIN_ROWS: {
   {
     key: "memberChanges",
     title: "Team Changes",
-    description: "When members join or leave the workspace",
+    description: "When members join, leave, or change roles",
     icon: Users
+  },
+  {
+    key: "missingTimesheets",
+    title: "Missing Timesheets",
+    description: "Weekly summary of unsubmitted timesheets",
+    icon: ClipboardCheck
   },
   {
     key: "exportSchedule",

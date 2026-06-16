@@ -40,6 +40,10 @@ export function usePendingTimesheets(
   const handleReview = useCallback(
     async (id: string, action: "approve" | "reject", reviewNote = "") => {
       if (!workspaceId) return;
+      if (action === "reject" && !reviewNote.trim()) {
+        toast.error("A rejection reason is required");
+        return;
+      }
       setActioningId(id);
       try {
         const endpoint =

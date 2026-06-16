@@ -8,11 +8,9 @@ import { useCallback, useMemo } from "react";
 export function useApprovalsFilters() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const search = searchParams.toString();
 
-  const filters = useMemo(
-    () => parseApprovalsFilterSearch(searchParams.toString()),
-    [searchParams]
-  );
+  const filters = useMemo(() => parseApprovalsFilterSearch(search), [search]);
 
   const setFilters = useCallback(
     (next: TimesheetApprovalsFilterQuery) => {
