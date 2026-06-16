@@ -23,22 +23,60 @@ export function isBrevoSmtpHost(host: string | undefined): boolean {
   return normalized.includes("brevo.com") || normalized.includes("sendinblue.com");
 }
 
+export function isBrevoSmtpKey(key: string): boolean {
+  return key.startsWith("xsmtpsib-");
+}
+
+function readEnv(name: string, env: NodeJS.ProcessEnv): string | undefined {
+  const raw = env[name]?.trim();
+  if (!raw) return undefined;
+  if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))) {
+    return raw.slice(1, -1).trim();
+  }
+  return raw;
+}
+
 export function shouldUseBrevoApi(env: NodeJS.ProcessEnv): boolean {
-  const transport = env.EMAIL_TRANSPORT?.trim().toLowerCase();
+  const transport = readEnv("EMAIL_TRANSPORT", env)?.toLowerCase();
   if (transport === "smtp") return false;
   if (transport === "brevo_api") return true;
-  if (env.BREVO_API_KEY?.trim()) return true;
+  if (readEnv("BREVO_API_KEY", env)) return true;
   // Railway Hobby/Trial blocks outbound SMTP — HTTPS API works on all plans.
-  if (env.RAILWAY_ENVIRONMENT && isBrevoSmtpHost(env.SMTP_HOST?.trim())) {
-    return Boolean(env.BREVO_API_KEY?.trim() || env.SMTP_PASS?.trim());
+  if (env.RAILWAY_ENVIRONMENT && isBrevoSmtpHost(readEnv("SMTP_HOST", env))) {
+    return true;
   }
   return false;
 }
 
+/** Brevo REST API requires an API key (xkeysib-…), not the SMTP key (xsmtpsib-…). */
 export function resolveBrevoApiKey(env: NodeJS.ProcessEnv): string | undefined {
-  const explicit = env.BREVO_API_KEY?.trim();
-  if (explicit) return explicit;
-  return env.SMTP_PASS?.trim() || undefined;
+  const key = readEnv("BREVO_API_KEY", env);
+  if (!key || isBrevoSmtpKey(key)) return undefined;
+  return key;
+}
+
+export function brevoApiKeySetupHint(env: NodeJS.ProcessEnv): string {
+  const raw = readEnv("BREVO_API_KEY", env);
+  if (raw && isBrevoSmtpKey(raw)) {
+    return (
+      "BREVO_API_KEY is an SMTP key (xsmtpsib). Generate an API key (xkeysib) under " +
+      "Brevo → SMTP & API → API keys & MCP."
+    );
+  }
+  return (
+    "Set BREVO_API_KEY to a Brevo API key (xkeysib-…). SMTP_PASS (xsmtpsib) only works for " +
+    "local SMTP, not the HTTP API used on Railway."
+  );
+}
+
+function sanitizeBrevoError(message: string): string {
+  if (/key not found/i.test(message)) {
+    return (
+      "Invalid Brevo API key. Generate an API key (xkeysib-…) under Brevo → SMTP & API → " +
+      "API keys & MCP — not the SMTP key (xsmtpsib-)."
+    );
+  }
+  return message.slice(0, 240);
 }
 
 export async function sendViaBrevoApi(
@@ -78,7 +116,7 @@ export async function sendViaBrevoApi(
 
     if (!response.ok) {
       const body = (await response.json().catch(() => null)) as { message?: string } | null;
-      const detail = (body?.message ?? `Brevo API HTTP ${response.status}`).slice(0, 240);
+      const detail = sanitizeBrevoError(body?.message ?? `Brevo API HTTP ${response.status}`);
       return { sent: false, reason: "failed", detail };
     }
 

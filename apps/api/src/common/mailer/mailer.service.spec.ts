@@ -43,7 +43,7 @@ describe("MailerService", () => {
   it("uses Brevo HTTPS API on Railway instead of blocked SMTP", async () => {
     process.env.RAILWAY_ENVIRONMENT = "production";
     process.env.SMTP_HOST = "smtp-relay.brevo.com";
-    process.env.SMTP_PASS = "xsmtpsib-test-key";
+    process.env.BREVO_API_KEY = "xkeysib-test-key";
     process.env.SMTP_FROM = "Kloqra <noreply@kloqra.app>";
     global.fetch = vi.fn().mockResolvedValue(new Response(null, { status: 201 }));
 

@@ -1,7 +1,12 @@
 import { Injectable, Logger } from "@nestjs/common";
 import * as nodemailer from "nodemailer";
 import type { Transporter } from "nodemailer";
-import { resolveBrevoApiKey, sendViaBrevoApi, shouldUseBrevoApi } from "./brevo-api.util";
+import {
+  brevoApiKeySetupHint,
+  resolveBrevoApiKey,
+  sendViaBrevoApi,
+  shouldUseBrevoApi
+} from "./brevo-api.util";
 
 export interface MailAttachment {
   filename: string;
@@ -44,7 +49,7 @@ export class MailerService {
     if (this.useBrevoApi) {
       if (!this.brevoApiKey) {
         this.logger.warn(
-          "EMAIL_TRANSPORT=brevo_api (or Railway + Brevo SMTP) but no BREVO_API_KEY or SMTP_PASS — email disabled."
+          `Brevo HTTPS API selected but not configured — ${brevoApiKeySetupHint(process.env)}`
         );
         return;
       }
@@ -95,10 +100,11 @@ export class MailerService {
   async send(opts: SendMailOptions): Promise<SendMailResult> {
     if (this.useBrevoApi) {
       if (!this.brevoApiKey) {
+        const detail = brevoApiKeySetupHint(process.env);
         this.logger.warn(
-          `Email not sent (Brevo API unconfigured): to=${opts.to.join(", ")} subject="${opts.subject}"`
+          `Email not sent (Brevo API unconfigured): to=${opts.to.join(", ")} subject="${opts.subject}" — ${detail}`
         );
-        return { sent: false, reason: "unconfigured" };
+        return { sent: false, reason: "failed", detail };
       }
 
       const result = await sendViaBrevoApi(this.brevoApiKey, this.from, opts);

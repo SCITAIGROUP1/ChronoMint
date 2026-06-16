@@ -20,9 +20,9 @@ Copy `apps/api/.env.example` to `apps/api/.env`.
 | `SMTP_HOST`            | Production          | **Required in production** for invite/password emails (e.g. `smtp-relay.brevo.com`). Without mail config, members are created but no email is sent.        |
 | `SMTP_PORT`            | With SMTP           | Usually `587` (local dev). Railway Hobby blocks outbound SMTP — see `BREVO_API_KEY` below.                                                                 |
 | `SMTP_USER`            | With SMTP           | SMTP login                                                                                                                                                 |
-| `SMTP_PASS`            | With SMTP           | Brevo SMTP key (also used as API key on Railway when `SMTP_HOST` is Brevo)                                                                                 |
+| `SMTP_PASS`            | With SMTP           | Brevo SMTP key (`xsmtpsib-…`) for local SMTP only                                                                                                          |
 | `SMTP_FROM`            | With SMTP           | From address for outbound mail (must be authorized by your SMTP provider)                                                                                  |
-| `BREVO_API_KEY`        | Railway / Brevo API | Brevo transactional API key (same `xsmtpsib-…` value as `SMTP_PASS`). Auto-used on Railway when Brevo SMTP vars are set.                                   |
+| `BREVO_API_KEY`        | Railway / Brevo API | Brevo **API** key (`xkeysib-…`) from SMTP & API → API keys. **Not** the same as `SMTP_PASS`. Required on Railway.                                          |
 | `EMAIL_TRANSPORT`      | No                  | `brevo_api` forces HTTPS API; `smtp` forces SMTP (local). Default: auto (API on Railway + Brevo, else SMTP).                                               |
 | `PUBLIC_ADMIN_URL`     | No                  | Admin app URL for links in emails. Default dev: `http://localhost:3002`                                                                                    |
 

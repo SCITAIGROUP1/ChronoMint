@@ -22,7 +22,7 @@ describe("brevo-api.util", () => {
   });
 
   describe("shouldUseBrevoApi", () => {
-    it("prefers API on Railway when Brevo SMTP credentials exist", () => {
+    it("prefers API on Railway when Brevo SMTP host is configured", () => {
       expect(
         shouldUseBrevoApi({
           RAILWAY_ENVIRONMENT: "production",
@@ -49,13 +49,21 @@ describe("brevo-api.util", () => {
   });
 
   describe("resolveBrevoApiKey", () => {
-    it("prefers BREVO_API_KEY over SMTP_PASS", () => {
+    it("returns BREVO_API_KEY when set", () => {
       expect(
         resolveBrevoApiKey({
-          BREVO_API_KEY: "explicit",
-          SMTP_PASS: "smtp"
+          BREVO_API_KEY: "xkeysib-explicit",
+          SMTP_PASS: "xsmtpsib-smtp"
         })
-      ).toBe("explicit");
+      ).toBe("xkeysib-explicit");
+    });
+
+    it("ignores SMTP_PASS because xsmtpsib keys do not work with the REST API", () => {
+      expect(resolveBrevoApiKey({ SMTP_PASS: "xsmtpsib-smtp" })).toBeUndefined();
+    });
+
+    it("rejects xsmtpsib values mistakenly stored in BREVO_API_KEY", () => {
+      expect(resolveBrevoApiKey({ BREVO_API_KEY: "xsmtpsib-wrong" })).toBeUndefined();
     });
   });
 
@@ -98,22 +106,19 @@ describe("brevo-api.util", () => {
       );
     });
 
-    it("returns sanitized failure detail from Brevo", async () => {
+    it("returns a helpful message for Key not found", async () => {
       vi.mocked(global.fetch).mockResolvedValue(
-        new Response(JSON.stringify({ message: "Invalid sender" }), { status: 400 })
+        new Response(JSON.stringify({ message: "Key not found" }), { status: 401 })
       );
 
-      const result = await sendViaBrevoApi("api-key", "noreply@kloqra.app", {
+      const result = await sendViaBrevoApi("xsmtpsib-wrong", "noreply@kloqra.app", {
         to: ["member@example.com"],
         subject: "Welcome",
         html: "<p>hi</p>"
       });
 
-      expect(result).toEqual({
-        sent: false,
-        reason: "failed",
-        detail: "Invalid sender"
-      });
+      expect(result.sent).toBe(false);
+      expect(result.detail).toContain("xkeysib");
     });
   });
 });
