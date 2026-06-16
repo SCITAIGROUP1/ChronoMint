@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import * as nodemailer from "nodemailer";
 import type { Transporter } from "nodemailer";
+import { resolveBrevoApiKey, sendViaBrevoApi, shouldUseBrevoApi } from "./brevo-api.util";
 
 export interface MailAttachment {
   filename: string;
@@ -19,31 +20,48 @@ export interface SendMailOptions {
 export type SendMailResult = {
   sent: boolean;
   reason?: "unconfigured" | "failed";
-  /** Sanitized SMTP error for admin-facing responses (no credentials). */
+  /** Sanitized delivery error for admin-facing responses (no credentials). */
   detail?: string;
 };
 
 /**
- * Thin Nodemailer wrapper.
- * Reads SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASS / SMTP_FROM from env.
- * Gracefully no-ops (with a log warning) when SMTP_HOST is not configured.
+ * Email delivery via Brevo HTTPS API (Railway-safe) or Nodemailer SMTP (local dev).
+ * Reads SMTP_* / BREVO_API_KEY / EMAIL_TRANSPORT from env.
  */
 @Injectable()
 export class MailerService {
   private readonly logger = new Logger(MailerService.name);
   private transporter: Transporter | null = null;
   private readonly from: string;
+  private readonly useBrevoApi: boolean;
+  private readonly brevoApiKey: string | undefined;
 
   constructor() {
+    this.from = readEnvValue("SMTP_FROM") ?? "Kloqra <noreply@kloqra.app>";
+    this.useBrevoApi = shouldUseBrevoApi(process.env);
+    this.brevoApiKey = this.useBrevoApi ? resolveBrevoApiKey(process.env) : undefined;
+
+    if (this.useBrevoApi) {
+      if (!this.brevoApiKey) {
+        this.logger.warn(
+          "EMAIL_TRANSPORT=brevo_api (or Railway + Brevo SMTP) but no BREVO_API_KEY or SMTP_PASS — email disabled."
+        );
+        return;
+      }
+
+      this.logger.log(`Mailer configured — Brevo HTTPS API, from: ${this.from}`);
+      return;
+    }
+
     const host = readEnvValue("SMTP_HOST");
     const user = readEnvValue("SMTP_USER");
     const pass = readEnvValue("SMTP_PASS");
-    this.from = readEnvValue("SMTP_FROM") ?? "Kloqra <noreply@kloqra.app>";
 
     if (!host) {
       this.logger.warn(
         "SMTP_HOST is not configured — email delivery is disabled. " +
-          "Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM on the API service."
+          "Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM on the API service " +
+          "or BREVO_API_KEY with EMAIL_TRANSPORT=brevo_api."
       );
       return;
     }
@@ -71,10 +89,31 @@ export class MailerService {
   }
 
   get isConfigured(): boolean {
-    return this.transporter !== null;
+    return this.useBrevoApi ? Boolean(this.brevoApiKey) : this.transporter !== null;
   }
 
   async send(opts: SendMailOptions): Promise<SendMailResult> {
+    if (this.useBrevoApi) {
+      if (!this.brevoApiKey) {
+        this.logger.warn(
+          `Email not sent (Brevo API unconfigured): to=${opts.to.join(", ")} subject="${opts.subject}"`
+        );
+        return { sent: false, reason: "unconfigured" };
+      }
+
+      const result = await sendViaBrevoApi(this.brevoApiKey, this.from, opts);
+      if (result.sent) {
+        this.logger.log(
+          `Email sent (Brevo API): to=${opts.to.join(", ")} subject="${opts.subject}"`
+        );
+      } else {
+        this.logger.error(
+          `Email send failed (Brevo API): to=${opts.to.join(", ")} subject="${opts.subject}" — ${result.detail ?? "unknown"}`
+        );
+      }
+      return result;
+    }
+
     if (!this.transporter) {
       this.logger.warn(
         `Email not sent (SMTP unconfigured): to=${opts.to.join(", ")} subject="${opts.subject}"`
@@ -99,7 +138,7 @@ export class MailerService {
       this.logger.log(`Email sent: to=${opts.to.join(", ")} subject="${opts.subject}"`);
       return { sent: true };
     } catch (err) {
-      const detail = sanitizeSmtpError(err);
+      const detail = sanitizeDeliveryError(err);
       this.logger.error(
         `Email send failed: to=${opts.to.join(", ")} subject="${opts.subject}" — ${detail}`,
         err instanceof Error ? err.stack : String(err)
@@ -109,9 +148,16 @@ export class MailerService {
   }
 }
 
-function sanitizeSmtpError(err: unknown): string {
+function sanitizeDeliveryError(err: unknown): string {
   const raw = err instanceof Error ? err.message : String(err);
-  return raw.replace(/\s+/g, " ").trim().slice(0, 240);
+  const normalized = raw.replace(/\s+/g, " ").trim().slice(0, 240);
+  if (/connection timeout/i.test(normalized)) {
+    return (
+      "SMTP connection timed out. Railway Hobby blocks outbound SMTP — " +
+      "redeploy with Brevo HTTPS API (auto on Railway) or upgrade to Railway Pro."
+    );
+  }
+  return normalized;
 }
 
 /** Strip accidental wrapping quotes copied from .env files into Railway/Vercel. */

@@ -39,4 +39,25 @@ describe("MailerService", () => {
     const { readEnvValue } = await import("./mailer.service");
     expect(readEnvValue("SMTP_FROM")).toBe("Chamal Nihathamana <cjaliya.sln2@gmail.com>");
   });
+
+  it("uses Brevo HTTPS API on Railway instead of blocked SMTP", async () => {
+    process.env.RAILWAY_ENVIRONMENT = "production";
+    process.env.SMTP_HOST = "smtp-relay.brevo.com";
+    process.env.SMTP_PASS = "xsmtpsib-test-key";
+    process.env.SMTP_FROM = "Kloqra <noreply@kloqra.app>";
+    global.fetch = vi.fn().mockResolvedValue(new Response(null, { status: 201 }));
+
+    const { MailerService: Svc } = await import("./mailer.service");
+    const mailer = new Svc();
+    expect(mailer.isConfigured).toBe(true);
+
+    const result = await mailer.send({
+      to: ["member@example.com"],
+      subject: "Welcome",
+      html: "<p>hi</p>"
+    });
+
+    expect(result).toEqual({ sent: true });
+    expect(global.fetch).toHaveBeenCalled();
+  });
 });
