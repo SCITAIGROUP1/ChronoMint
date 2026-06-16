@@ -2,6 +2,7 @@ import { ErrorCodes } from "@kloqra/contracts";
 import type {
   InviteMemberDto,
   InviteMemberResponseDto,
+  MemberEmailDeliveryDto,
   UpdateWorkspaceMemberDto,
   WorkspaceDto,
   WorkspaceListItemDto,
@@ -15,6 +16,7 @@ import {
   hashPassword
 } from "../../../common/auth/password.util";
 import { DomainException } from "../../../common/errors/domain.exception";
+import { deliverMemberEmail } from "../../../common/mailer/member-email-delivery.util";
 import { MemberProvisioningMailer } from "../../../common/mailer/member-provisioning.mailer";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 // eslint-disable-next-line no-restricted-imports
@@ -229,27 +231,20 @@ export class WorkspaceService {
       include: { user: true }
     });
 
-    let emailSent = false;
-    let emailSkipReason: "smtp_unconfigured" | "send_failed" | undefined;
-
-    if (userCreated && temporaryPassword) {
-      const mailResult = await this.memberMailer.sendNewMemberCredentials({
-        to: email,
-        workspaceName: workspace.name,
-        inviterName,
-        temporaryPassword
-      });
-      emailSent = mailResult.sent;
-      emailSkipReason = mapEmailSkipReason(mailResult.reason);
-    } else {
-      const mailResult = await this.memberMailer.sendWorkspaceAdded({
-        to: email,
-        workspaceName: workspace.name,
-        inviterName
-      });
-      emailSent = mailResult.sent;
-      emailSkipReason = mapEmailSkipReason(mailResult.reason);
-    }
+    const emailDelivery = await deliverMemberEmail(this.memberMailer.isConfigured, () =>
+      userCreated && temporaryPassword
+        ? this.memberMailer.sendNewMemberCredentials({
+            to: email,
+            workspaceName: workspace.name,
+            inviterName,
+            temporaryPassword
+          })
+        : this.memberMailer.sendWorkspaceAdded({
+            to: email,
+            workspaceName: workspace.name,
+            inviterName
+          })
+    );
 
     void this.notificationsDispatch
       .notifyWorkspaceAdmins(workspaceId, {
@@ -282,9 +277,55 @@ export class WorkspaceService {
     return {
       member: this.toMemberDto(membership),
       userCreated,
-      emailSent,
-      ...(emailSkipReason ? { emailSkipReason } : {})
+      emailSent: emailDelivery.emailSent,
+      ...(emailDelivery.emailSkipReason ? { emailSkipReason: emailDelivery.emailSkipReason } : {})
     };
+  }
+
+  async resendMemberCredentials(
+    workspaceId: string,
+    memberId: string
+  ): Promise<MemberEmailDeliveryDto> {
+    const member = await this.prisma.workspaceMember.findFirst({
+      where: { id: memberId, workspaceId },
+      include: { user: true }
+    });
+    if (!member) {
+      throw new DomainException(
+        ErrorCodes.NOT_FOUND,
+        "Workspace member not found",
+        HttpStatus.NOT_FOUND
+      );
+    }
+    if (!member.user.mustChangePassword) {
+      throw new DomainException(
+        ErrorCodes.FORBIDDEN,
+        "This member has already set their password",
+        HttpStatus.FORBIDDEN
+      );
+    }
+
+    const workspace = await this.prisma.workspace.findUnique({ where: { id: workspaceId } });
+    if (!workspace) {
+      throw new DomainException(ErrorCodes.NOT_FOUND, "Workspace not found", HttpStatus.NOT_FOUND);
+    }
+
+    const temporaryPassword = generateTempPassword();
+    await this.prisma.user.update({
+      where: { id: member.userId },
+      data: {
+        passwordHash: await hashPassword(temporaryPassword),
+        mustChangePassword: true
+      }
+    });
+
+    return deliverMemberEmail(this.memberMailer.isConfigured, () =>
+      this.memberMailer.sendNewMemberCredentials({
+        to: member.user.email,
+        workspaceName: workspace.name,
+        temporaryPassword
+      })
+    );
   }
 
   async update(id: string, dto: { name?: string; settings?: any }) {
@@ -439,12 +480,4 @@ export class WorkspaceService {
       userEmail: member.user.email
     };
   }
-}
-
-function mapEmailSkipReason(
-  reason?: "unconfigured" | "failed"
-): "smtp_unconfigured" | "send_failed" | undefined {
-  if (reason === "unconfigured") return "smtp_unconfigured";
-  if (reason === "failed") return "send_failed";
-  return undefined;
 }

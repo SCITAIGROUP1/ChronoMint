@@ -422,6 +422,9 @@ describe("contracts", () => {
   it("exposes workspace members overview route", () => {
     expect(ROUTES.WORKSPACES.MEMBERS_OVERVIEW("ws-1")).toBe("/workspaces/ws-1/members/overview");
     expect(ROUTES.WORKSPACES.MEMBER("ws-1", "m-1")).toBe("/workspaces/ws-1/members/m-1");
+    expect(ROUTES.WORKSPACES.RESEND_CREDENTIALS("ws-1", "m-1")).toBe(
+      "/workspaces/ws-1/members/m-1/resend-credentials"
+    );
   });
 
   it("validates team members overview shape", () => {

@@ -4,7 +4,7 @@ import {
   renderBrandedEmailText,
   subjectPrefix
 } from "./branded-email.layout";
-import { clientOrigin } from "./client-origin.util";
+import { memberClientOrigin } from "./client-origin.util";
 import { MailerService, type SendMailResult } from "./mailer.service";
 
 export type MemberCredentialsMailInput = {
@@ -26,8 +26,12 @@ export class MemberProvisioningMailer {
 
   constructor(private readonly mailer: MailerService) {}
 
+  get isConfigured(): boolean {
+    return this.mailer.isConfigured;
+  }
+
   async sendNewMemberCredentials(input: MemberCredentialsMailInput): Promise<SendMailResult> {
-    const loginUrl = `${clientOrigin()}/login`;
+    const loginUrl = `${memberClientOrigin()}/login`;
     const intro = input.inviterName
       ? `${input.inviterName} added you to ${input.workspaceName}.`
       : `You've been added to ${input.workspaceName}.`;
@@ -65,7 +69,7 @@ export class MemberProvisioningMailer {
   }
 
   async sendWorkspaceAdded(input: WorkspaceAddedMailInput): Promise<SendMailResult> {
-    const loginUrl = `${clientOrigin()}/login`;
+    const loginUrl = `${memberClientOrigin()}/login`;
     const intro = input.inviterName
       ? `${input.inviterName} added you to ${input.workspaceName}.`
       : `You've been added to ${input.workspaceName}.`;

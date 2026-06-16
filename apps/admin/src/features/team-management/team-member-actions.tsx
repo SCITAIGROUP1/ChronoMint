@@ -10,7 +10,7 @@ import {
   ShellMenuPanel,
   cn
 } from "@kloqra/ui";
-import { Eye, MoreVertical, Pencil, Trash2, UserCircle } from "lucide-react";
+import { Eye, Mail, MoreVertical, Pencil, Trash2, UserCircle } from "lucide-react";
 import { useState } from "react";
 
 type TeamMemberActionsProps = {
@@ -20,6 +20,7 @@ type TeamMemberActionsProps = {
   onViewProfile: () => void;
   onEditMember: () => void;
   onViewAsMember: () => void;
+  onResendCredentials?: () => void;
   onRemove: () => void;
 };
 
@@ -30,6 +31,7 @@ export function TeamMemberActions({
   onViewProfile,
   onEditMember,
   onViewAsMember,
+  onResendCredentials,
   onRemove
 }: TeamMemberActionsProps) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -87,6 +89,17 @@ export function TeamMemberActions({
             <UserCircle className="size-4 shrink-0" aria-hidden />
             View As Member
           </ShellMenuItem>
+          {member.pendingCredentials && onResendCredentials ? (
+            <ShellMenuItem
+              onClick={() => {
+                setMenuOpen(false);
+                onResendCredentials();
+              }}
+            >
+              <Mail className="size-4 shrink-0" aria-hidden />
+              Resend sign-in email
+            </ShellMenuItem>
+          ) : null}
           <ShellMenuItem
             tone="destructive"
             onClick={() => {

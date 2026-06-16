@@ -131,6 +131,7 @@ export class WorkspaceMembersOverviewService {
         userName: m.user.name,
         userEmail: m.user.email,
         role: m.role as TeamMemberOverviewDto["role"],
+        pendingCredentials: m.user.mustChangePassword,
         status,
         projectCount: projectCountByUser.get(m.userId) ?? 0,
         weekHours,

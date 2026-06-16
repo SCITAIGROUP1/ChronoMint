@@ -16,11 +16,12 @@ Copy `apps/api/.env.example` to `apps/api/.env`.
 | `FRONTEND_ORIGIN`      | Yes                 | Comma-separated CORS origins, e.g. `http://localhost:3000,http://localhost:3002`                                                                           |
 | `PORT`                 | No                  | API listen port. Default `3001`                                                                                                                            |
 | `HARD_AUTO_STOP_HOURS` | No                  | Max running timer length before auto-stop. Default `12`. Set `NEXT_PUBLIC_HARD_AUTO_STOP_HOURS` to the same value on the client.                           |
-| `SMTP_HOST`            | Member emails       | SMTP host (e.g. Brevo `smtp-relay.brevo.com`). Omit locally — temp passwords log to the API console                                                        |
+| `PUBLIC_CLIENT_URL`    | Production          | Client app URL for member login links in email. Defaults to the non-admin origin in `FRONTEND_ORIGIN`.                                                     |
+| `SMTP_HOST`            | Production          | **Required in production** for invite/password emails. Without SMTP, members are created but no email is sent.                                             |
 | `SMTP_PORT`            | With SMTP           | Usually `587`                                                                                                                                              |
 | `SMTP_USER`            | With SMTP           | SMTP login                                                                                                                                                 |
 | `SMTP_PASS`            | With SMTP           | SMTP password or API key                                                                                                                                   |
-| `SMTP_FROM`            | With SMTP           | From address for outbound mail                                                                                                                             |
+| `SMTP_FROM`            | With SMTP           | From address for outbound mail (must be authorized by your SMTP provider)                                                                                  |
 | `PUBLIC_ADMIN_URL`     | No                  | Admin app URL for links in emails. Default dev: `http://localhost:3002`                                                                                    |
 
 ## Client (`apps/client`)

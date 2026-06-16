@@ -37,7 +37,8 @@ describe("WorkspaceService", () => {
       },
       user: {
         findUnique: vi.fn(),
-        create: vi.fn()
+        create: vi.fn(),
+        update: vi.fn()
       },
       teamMember: {
         updateMany: vi.fn()
@@ -45,7 +46,8 @@ describe("WorkspaceService", () => {
     };
     mockMailer = {
       sendNewMemberCredentials: vi.fn().mockResolvedValue({ sent: true }),
-      sendWorkspaceAdded: vi.fn().mockResolvedValue({ sent: true })
+      sendWorkspaceAdded: vi.fn().mockResolvedValue({ sent: true }),
+      isConfigured: true
     } as unknown as MemberProvisioningMailer;
     service = new WorkspaceService(
       mockPrisma,
@@ -147,6 +149,24 @@ describe("WorkspaceService", () => {
     expect(mockMailer.sendWorkspaceAdded).toHaveBeenCalled();
     expect(result.userCreated).toBe(false);
     expect(result.member.role).toBe("MEMBER");
+  });
+
+  it("resendMemberCredentials rotates password and sends email", async () => {
+    mockPrisma.workspaceMember.findFirst.mockResolvedValue({
+      id: "m-new",
+      workspaceId,
+      userId: "u-new",
+      role: "MEMBER",
+      user: { id: "u-new", email: "new@kloqra.dev", mustChangePassword: true }
+    });
+    mockPrisma.workspace.findUnique.mockResolvedValue({ id: workspaceId, name: "Kloqra" });
+    mockPrisma.user.update.mockResolvedValue({});
+
+    const result = await service.resendMemberCredentials(workspaceId, "m-new");
+
+    expect(mockPrisma.user.update).toHaveBeenCalled();
+    expect(mockMailer.sendNewMemberCredentials).toHaveBeenCalled();
+    expect(result.emailSent).toBe(true);
   });
 
   it("updateMember changes role", async () => {

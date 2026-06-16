@@ -38,7 +38,9 @@ export const ROUTES = {
     MEMBERS_OVERVIEW: (id: string) => `/workspaces/${id}/members/overview`,
     MEMBER: (workspaceId: string, memberId: string) =>
       `/workspaces/${workspaceId}/members/${memberId}`,
-    INVITE: (id: string) => `/workspaces/${id}/members/invite`
+    INVITE: (id: string) => `/workspaces/${id}/members/invite`,
+    RESEND_CREDENTIALS: (workspaceId: string, memberId: string) =>
+      `/workspaces/${workspaceId}/members/${memberId}/resend-credentials`
   },
   PROJECTS: {
     LIST: "/projects",

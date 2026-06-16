@@ -63,6 +63,11 @@ export const inviteMemberResponseSchema = z.object({
   emailSkipReason: emailSkipReasonSchema.optional()
 });
 
+export const memberEmailDeliverySchema = z.object({
+  emailSent: z.boolean(),
+  emailSkipReason: emailSkipReasonSchema.optional()
+});
+
 export const updateWorkspaceMemberSchema = z.object({
   role: workspaceRoleSchema
 });
@@ -78,6 +83,7 @@ export const teamMemberOverviewSchema = z.object({
   userName: z.string(),
   userEmail: z.string().email(),
   role: workspaceRoleSchema,
+  pendingCredentials: z.boolean().optional(),
   status: teamMemberStatusSchema,
   projectCount: z.number().int().nonnegative(),
   weekHours: z.number(),
@@ -115,6 +121,7 @@ export type TeamMembersOverviewDto = z.infer<typeof teamMembersOverviewSchema>;
 export type TeamMembersOverviewQuery = z.infer<typeof teamMembersOverviewQuerySchema>;
 export type InviteMemberDto = z.infer<typeof inviteMemberSchema>;
 export type InviteMemberResponseDto = z.infer<typeof inviteMemberResponseSchema>;
+export type MemberEmailDeliveryDto = z.infer<typeof memberEmailDeliverySchema>;
 export type EmailSkipReason = z.infer<typeof emailSkipReasonSchema>;
 export type UpdateWorkspaceMemberDto = z.infer<typeof updateWorkspaceMemberSchema>;
 export type SwitchWorkspaceDto = z.infer<typeof switchWorkspaceSchema>;

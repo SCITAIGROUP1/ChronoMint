@@ -111,6 +111,17 @@ export class WorkspaceController {
   }
 
   @Roles("ADMIN")
+  @Post(ROUTES.WORKSPACES.RESEND_CREDENTIALS(":id", ":memberId"))
+  resendCredentials(
+    @Param("id") id: string,
+    @Param("memberId") memberId: string,
+    @CurrentUser() user: RequestUser
+  ) {
+    if (id !== user.workspaceId) throw new Error("Forbidden");
+    return this.workspace.resendMemberCredentials(id, memberId);
+  }
+
+  @Roles("ADMIN")
   @Patch(ROUTES.WORKSPACES.BY_ID(":id"))
   update(
     @Param("id") id: string,

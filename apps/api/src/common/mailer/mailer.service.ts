@@ -34,12 +34,21 @@ export class MailerService {
 
   constructor() {
     const host = process.env.SMTP_HOST?.trim();
+    const user = process.env.SMTP_USER?.trim();
+    const pass = process.env.SMTP_PASS?.trim();
     this.from = process.env.SMTP_FROM?.trim() ?? "Kloqra <noreply@kloqra.app>";
 
     if (!host) {
       this.logger.warn(
         "SMTP_HOST is not configured — email delivery is disabled. " +
-          "Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS to enable."
+          "Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM on the API service."
+      );
+      return;
+    }
+
+    if (!user || !pass) {
+      this.logger.warn(
+        "SMTP_HOST is set but SMTP_USER or SMTP_PASS is missing — email delivery is disabled."
       );
       return;
     }
@@ -48,10 +57,10 @@ export class MailerService {
       host,
       port: Number(process.env.SMTP_PORT ?? 587),
       secure: Number(process.env.SMTP_PORT ?? 587) === 465,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
-      }
+      connectionTimeout: 10_000,
+      greetingTimeout: 10_000,
+      socketTimeout: 15_000,
+      auth: { user, pass }
     });
 
     this.logger.log(`Mailer configured — SMTP host: ${host}`);

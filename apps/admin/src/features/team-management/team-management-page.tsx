@@ -1,7 +1,11 @@
 "use client";
 
 import { ROUTES } from "@kloqra/contracts";
-import type { InviteMemberResponseDto, TeamMemberOverviewDto } from "@kloqra/contracts";
+import type {
+  InviteMemberResponseDto,
+  MemberEmailDeliveryDto,
+  TeamMemberOverviewDto
+} from "@kloqra/contracts";
 import {
   AppModal,
   AppBar,
@@ -103,8 +107,16 @@ export function TeamManagementPage() {
       setInviteOpen(false);
       if (res.userCreated && res.emailSent) {
         toast.success("Account created and email sent.");
+      } else if (res.userCreated && res.emailSkipReason === "smtp_unconfigured") {
+        toast.warning(
+          "Member added, but email is not configured on the API. Set SMTP variables on Railway, then use Resend sign-in email."
+        );
       } else if (res.userCreated && !res.emailSent) {
-        toast.success("Member added. Email not sent — check mail configuration.");
+        toast.warning(
+          "Member added, but the welcome email could not be sent. Try Resend sign-in email."
+        );
+      } else if (!res.emailSent && res.emailSkipReason === "smtp_unconfigured") {
+        toast.warning("Member added. Email is not configured on the API service.");
       } else {
         toast.success("Existing user added to workspace.");
       }
@@ -118,6 +130,33 @@ export function TeamManagementPage() {
       toast.error(message);
     } finally {
       setInviting(false);
+    }
+  }
+
+  async function handleResendCredentials(member: TeamMemberOverviewDto) {
+    setMemberBusyId(member.id);
+    try {
+      const res = await api<MemberEmailDeliveryDto>(
+        ROUTES.WORKSPACES.RESEND_CREDENTIALS(ws, member.id),
+        {
+          method: "POST",
+          workspaceId: ws
+        }
+      );
+      if (res.emailSent) {
+        toast.success(`Sign-in email sent to ${member.userEmail}.`);
+      } else if (res.emailSkipReason === "smtp_unconfigured") {
+        toast.error(
+          "Email is not configured on the API. Add SMTP_HOST, SMTP_USER, and SMTP_PASS on Railway."
+        );
+      } else {
+        toast.error("Could not send email. Check API logs and SMTP settings.");
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Could not resend sign-in email.";
+      toast.error(message);
+    } finally {
+      setMemberBusyId(null);
     }
   }
 
@@ -348,6 +387,7 @@ export function TeamManagementPage() {
                         onViewProfile={() => setProfileTarget(member)}
                         onEditMember={() => setEditTarget(member)}
                         onViewAsMember={() => handleImpersonate(member)}
+                        onResendCredentials={() => handleResendCredentials(member)}
                         onRemove={() => setRemoveTarget(member)}
                       />
                     </DataTableCell>
