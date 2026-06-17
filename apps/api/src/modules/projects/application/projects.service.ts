@@ -4,7 +4,9 @@ import type {
   CreateProjectDto,
   CreateTeamInviteDto,
   ListProjectsQuery,
+  ListProjectsResponse,
   ListProjectTeamQuery,
+  ProjectListItemDto,
   UpdateProjectDto
 } from "@kloqra/contracts";
 import { ErrorCodes, pickDefaultProjectColor, buildPaginationMeta } from "@kloqra/contracts";
@@ -50,19 +52,51 @@ export class ProjectsService {
       isActive: boolean;
       timesheetApprovalEnabled: boolean;
     },
+    totalTrackedSec: number,
     workspaceName?: string,
     myColor?: string | null
-  ) {
+  ): ProjectListItemDto {
     return {
       id: p.id,
       name: p.name,
       color: p.color,
       clientName: p.clientName,
+      totalTrackedSec,
       isActive: p.isActive,
       timesheetApprovalEnabled: p.timesheetApprovalEnabled,
       ...(workspaceName ? { workspaceId: p.workspaceId, workspaceName } : {}),
       ...(myColor !== undefined ? { myColor } : {})
     };
+  }
+
+  private async totalTrackedSecByProjectId(projectIds: string[]) {
+    if (projectIds.length === 0) {
+      return new Map<string, number>();
+    }
+
+    const tasks = await this.prisma.task.findMany({
+      where: { projectId: { in: projectIds } },
+      select: { id: true, projectId: true }
+    });
+    if (tasks.length === 0) {
+      return new Map(projectIds.map((id) => [id, 0]));
+    }
+
+    const taskIdToProjectId = new Map(tasks.map((task) => [task.id, task.projectId]));
+    const aggregates = await this.prisma.timeLog.groupBy({
+      by: ["taskId"],
+      where: { taskId: { in: tasks.map((task) => task.id) } },
+      _sum: { durationSec: true }
+    });
+
+    const byProject = new Map<string, number>(projectIds.map((id) => [id, 0]));
+    for (const row of aggregates) {
+      const projectId = taskIdToProjectId.get(row.taskId);
+      if (!projectId) continue;
+      byProject.set(projectId, (byProject.get(projectId) ?? 0) + (row._sum.durationSec ?? 0));
+    }
+
+    return byProject;
   }
 
   toDto(
@@ -114,10 +148,10 @@ export class ProjectsService {
     userId: string,
     role: "ADMIN" | "MEMBER",
     query: ListProjectsQuery
-  ) {
+  ): Promise<ListProjectsResponse> {
     const projectIds = await this.access.accessibleProjectIds(workspaceId, userId, role);
     if (projectIds.length === 0) {
-      return emptyPaginatedResponse(query.page, query.limit);
+      return emptyPaginatedResponse<ProjectListItemDto>(query.page, query.limit);
     }
 
     const where = {
@@ -144,18 +178,17 @@ export class ProjectsService {
       })
     ]);
 
-    const myColors =
-      role === "MEMBER"
-        ? await this.myColorByProjectId(
-            userId,
-            rows.map((p) => p.id)
-          )
-        : null;
+    const projectIdsOnPage = rows.map((p) => p.id);
+    const [myColors, trackedByProject] = await Promise.all([
+      role === "MEMBER" ? this.myColorByProjectId(userId, projectIdsOnPage) : Promise.resolve(null),
+      this.totalTrackedSecByProjectId(projectIdsOnPage)
+    ]);
 
     return toPaginatedResponse(
       rows.map((p) =>
         this.toListItem(
           p,
+          trackedByProject.get(p.id) ?? 0,
           role === "MEMBER" ? p.workspace.name : undefined,
           role === "MEMBER" ? (myColors!.get(p.id) ?? null) : undefined
         )
@@ -167,6 +200,7 @@ export class ProjectsService {
   }
 
   async create(workspaceId: string, dto: CreateProjectDto) {
+    await this.assertNameAvailable(workspaceId, dto.name);
     const existingCount = await this.prisma.project.count({ where: { workspaceId } });
     const p = await this.prisma.project.create({
       data: {
@@ -202,6 +236,9 @@ export class ProjectsService {
 
   async update(workspaceId: string, id: string, dto: UpdateProjectDto) {
     const before = await this.getAdmin(workspaceId, id);
+    if (dto.name && dto.name !== before.name) {
+      await this.assertNameAvailable(workspaceId, dto.name, id);
+    }
     const p = await this.prisma.project.update({
       where: { id },
       data: {
@@ -267,6 +304,23 @@ export class ProjectsService {
     if (!p)
       throw new DomainException(ErrorCodes.NOT_FOUND, "Project not found", HttpStatus.NOT_FOUND);
     return p;
+  }
+
+  private async assertNameAvailable(workspaceId: string, name: string, excludeProjectId?: string) {
+    const existing = await this.prisma.project.findFirst({
+      where: {
+        workspaceId,
+        name,
+        ...(excludeProjectId ? { id: { not: excludeProjectId } } : {})
+      }
+    });
+    if (existing) {
+      throw new DomainException(
+        ErrorCodes.VALIDATION_ERROR,
+        "Validation failed — Name is already taken in this workspace",
+        HttpStatus.CONFLICT
+      );
+    }
   }
 
   async remove(workspaceId: string, id: string) {

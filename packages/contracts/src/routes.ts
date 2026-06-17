@@ -36,6 +36,7 @@ export const ROUTES = {
     BY_ID: (id: string) => `/workspaces/${id}`,
     MEMBERS: (id: string) => `/workspaces/${id}/members`,
     MEMBERS_OVERVIEW: (id: string) => `/workspaces/${id}/members/overview`,
+    TEAM_ACTIVITIES: (id: string) => `/workspaces/${id}/team-activities`,
     MEMBER: (workspaceId: string, memberId: string) =>
       `/workspaces/${workspaceId}/members/${memberId}`,
     INVITE: (id: string) => `/workspaces/${id}/members/invite`,

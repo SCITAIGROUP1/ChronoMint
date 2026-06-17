@@ -52,7 +52,7 @@ export const createWorkspaceSchema = z.object({
 export const inviteMemberSchema = z.object({
   email: z.string().email(),
   role: workspaceRoleSchema.default("MEMBER"),
-  name: z.string().min(1).max(120).optional()
+  name: z.string().trim().min(1).max(120)
 });
 
 export const emailSkipReasonSchema = z.enum(["smtp_unconfigured", "send_failed"]);

@@ -1,4 +1,4 @@
-import { ErrorCodes } from "@kloqra/contracts";
+import { ErrorCodes, type ListProjectsResponse } from "@kloqra/contracts";
 import { HttpStatus } from "@nestjs/common";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { DomainException } from "../../../common/errors/domain.exception";
@@ -19,6 +19,12 @@ describe("ProjectsService", () => {
         create: vi.fn(),
         findMany: vi.fn(),
         findFirst: vi.fn()
+      },
+      task: {
+        findMany: vi.fn().mockResolvedValue([])
+      },
+      timeLog: {
+        groupBy: vi.fn().mockResolvedValue([])
       },
       userProjectColor: {
         findMany: vi.fn().mockResolvedValue([])
@@ -60,7 +66,10 @@ describe("ProjectsService", () => {
       }
     ]);
 
-    const result = await service.list(workspaceId, userId, "MEMBER", { page: 1, limit: 20 });
+    const result: ListProjectsResponse = await service.list(workspaceId, userId, "MEMBER", {
+      page: 1,
+      limit: 20
+    });
 
     expect(mockPrisma.project.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -74,11 +83,50 @@ describe("ProjectsService", () => {
     );
     expect(result.items).toHaveLength(1);
     expect(result.items[0]!.name).toBe("Alpha");
+    expect(result.items[0]).toHaveProperty("totalTrackedSec", 0);
     expect(result.items[0]).toHaveProperty("timesheetApprovalEnabled", false);
     expect(result.items[0]).not.toHaveProperty("budgetHours");
   });
 
+  it("list includes aggregated total tracked seconds per project", async () => {
+    mockAccess.accessibleProjectIds.mockResolvedValue(["p1"]);
+    mockPrisma.project.count.mockResolvedValue(1);
+    mockPrisma.project.findMany.mockResolvedValue([
+      {
+        id: "p1",
+        workspaceId,
+        name: "Alpha",
+        color: "#236bfe",
+        clientName: "Acme",
+        budgetHours: null,
+        isActive: true,
+        timesheetApprovalEnabled: false,
+        timesheetApprovalPeriod: null,
+        workspace: { name: "Kloqra" }
+      }
+    ]);
+    mockPrisma.task.findMany.mockResolvedValue([
+      { id: "t1", projectId: "p1" },
+      { id: "t2", projectId: "p1" }
+    ]);
+    mockPrisma.timeLog.groupBy.mockResolvedValue([
+      { taskId: "t1", _sum: { durationSec: 3600 } },
+      { taskId: "t2", _sum: { durationSec: 1800 } }
+    ]);
+
+    const result: ListProjectsResponse = await service.list(workspaceId, userId, "ADMIN", {
+      page: 1,
+      limit: 20
+    });
+
+    expect(result.items[0]).toMatchObject({
+      name: "Alpha",
+      totalTrackedSec: 5400
+    });
+  });
+
   it("create persists a project with default color", async () => {
+    mockPrisma.project.findFirst.mockResolvedValue(null);
     mockPrisma.project.create.mockResolvedValue({
       id: "p-new",
       workspaceId,
@@ -101,6 +149,20 @@ describe("ProjectsService", () => {
     expect(mockPrisma.project.create).toHaveBeenCalled();
     expect(result.name).toBe("New Project");
     expect(result.workspaceId).toBe(workspaceId);
+  });
+
+  it("create rejects duplicate names within the same workspace", async () => {
+    mockPrisma.project.findFirst.mockResolvedValue({ id: "p-existing", name: "Alpha" });
+
+    await expect(
+      service.create(workspaceId, { name: "Alpha", clientName: "Client", isActive: true })
+    ).rejects.toSatisfy(
+      (err: unknown) =>
+        err instanceof DomainException &&
+        err.code === ErrorCodes.VALIDATION_ERROR &&
+        err.getStatus() === HttpStatus.CONFLICT
+    );
+    expect(mockPrisma.project.create).not.toHaveBeenCalled();
   });
 
   it("get throws NOT_FOUND when project is missing", async () => {

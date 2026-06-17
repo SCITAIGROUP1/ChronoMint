@@ -92,6 +92,7 @@ function MonthPanel({
           const isStart = key === draft.from;
           const isEnd = key === draft.to || (draft.from && !draft.to && key === previewEnd);
           const isToday = key === dateKeyFromDate(new Date());
+          const isSelectedEndpoint = isStart || isEnd;
 
           return (
             <button
@@ -103,13 +104,16 @@ function MonthPanel({
               className={cn(
                 "relative flex h-9 w-9 items-center justify-center rounded-md text-sm font-medium transition-colors",
                 "hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
-                (inCommittedRange || inPreviewRange) && "bg-primary/12 text-primary",
-                (isStart || isEnd) &&
+                (inCommittedRange || inPreviewRange) && !isToday && "bg-primary/12 text-primary",
+                isSelectedEndpoint &&
                   "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground",
-                isToday && !isStart && !isEnd && "ring-1 ring-primary/30"
+                isToday &&
+                  !isSelectedEndpoint &&
+                  "bg-primary font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 hover:text-primary-foreground"
               )}
               aria-label={key}
               aria-pressed={isStart || isEnd || inCommittedRange}
+              aria-current={isToday ? "date" : undefined}
             >
               {Number(key.split("-")[2])}
             </button>

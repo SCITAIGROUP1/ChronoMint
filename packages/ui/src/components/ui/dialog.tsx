@@ -33,15 +33,28 @@ type DialogContentProps = React.ComponentPropsWithoutRef<typeof DialogPrimitive.
   showClose?: boolean;
 };
 
+function isPopoverInteractTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof Element &&
+    Boolean(target.closest("[data-radix-popover-content], [data-radix-select-content]"))
+  );
+}
+
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   DialogContentProps
->(({ className, children, size = "md", showClose = true, ...props }, ref) => (
+>(({ className, children, size = "md", showClose = true, onInteractOutside, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
       ref={ref}
       className={cn(modalContentVariants({ size }), "p-0", className)}
+      onInteractOutside={(event) => {
+        if (isPopoverInteractTarget(event.target)) {
+          event.preventDefault();
+        }
+        onInteractOutside?.(event);
+      }}
       {...props}
     >
       <div className={modalAccentBarClass} aria-hidden />
@@ -63,7 +76,7 @@ const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivEleme
 DialogHeader.displayName = "DialogHeader";
 
 const DialogBody = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn(modalBodyClass, className)} {...props} />
+  <div className={cn(modalBodyClass, className)} data-dialog-body {...props} />
 );
 DialogBody.displayName = "DialogBody";
 

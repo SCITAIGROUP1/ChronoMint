@@ -23,4 +23,22 @@ describe("CalendarEntryContent", () => {
     expect(html).toContain("UX research");
     expect(html).toContain("Wireframes review");
   });
+
+  it("renders a lock icon for locked entries", () => {
+    const html = renderToStaticMarkup(
+      <CalendarEntryContent
+        task={{
+          taskName: "Executive summary",
+          categoryName: "Documentation",
+          projectName: "Annual Audit"
+        }}
+        durationSec={6300}
+        compact={false}
+        variant="locked"
+      />
+    );
+
+    expect(html).toContain('aria-label="Locked"');
+    expect(html).toContain("1h 45m");
+  });
 });

@@ -23,7 +23,7 @@ import {
   draftToIsoRange,
   type TimeEntryDraft
 } from "../timesheet/time-entry-draft";
-import { isTimeEntryLocked } from "./entry-approval-status";
+import { isTimeEntryLocked, LOCKED_ENTRY_MESSAGE } from "./entry-approval-status";
 import { groupLogsByWeek } from "./group-logs-by-week";
 import type { BillabilityFilter } from "./time-tracker-filters-panel";
 import { TimeEntryDialog, TimeTrackerWeekList } from "./time-tracker-lazy";
@@ -317,7 +317,10 @@ export function TimeTrackerPage() {
   }
 
   function deleteEntry(log: TimeLogDto) {
-    if (isEntryLocked(log)) return;
+    if (isEntryLocked(log)) {
+      toast.error(LOCKED_ENTRY_MESSAGE);
+      return;
+    }
     setConfirmDeleteLog(log);
   }
 
@@ -325,6 +328,10 @@ export function TimeTrackerPage() {
     const target = confirmDeleteLog;
     setConfirmDeleteLog(null);
     if (!target) return;
+    if (isEntryLocked(target)) {
+      toast.error(LOCKED_ENTRY_MESSAGE);
+      return;
+    }
     setSaving(true);
     setError(null);
     try {

@@ -51,4 +51,16 @@ describe("Command", () => {
     await user.click(screen.getByText("Apple"));
     expect(onSelect).toHaveBeenCalledTimes(1);
   });
+
+  it("contains overscroll inside the command list", () => {
+    const { container } = render(
+      <Command>
+        <CommandList>
+          <CommandItem value="apple">Apple</CommandItem>
+        </CommandList>
+      </Command>
+    );
+
+    expect(container.querySelector("[cmdk-list]")).toHaveClass("overscroll-contain");
+  });
 });

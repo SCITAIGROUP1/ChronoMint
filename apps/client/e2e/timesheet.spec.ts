@@ -29,4 +29,11 @@ test.describe("Timesheet calendar", () => {
     });
     expect(overflow).toBe(false);
   });
+
+  test("shows a week date picker beside navigation controls", async ({ page }) => {
+    await page.getByRole("button", { name: "week", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Jump to week" })).toBeVisible();
+    await page.getByRole("button", { name: "Jump to week" }).click();
+    await expect(page.getByText("Select any day to open that week.")).toBeVisible();
+  });
 });

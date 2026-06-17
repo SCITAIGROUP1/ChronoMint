@@ -3,8 +3,10 @@ import {
   buildMonthGrid,
   formatDateRangeLabel,
   isDateKeyInRange,
+  isSameMonthKey,
   normalizeDateRange,
-  toDateKey
+  toDateKey,
+  weekBoundsForDateKey
 } from "./date-keys.js";
 
 describe("date-keys", () => {
@@ -35,5 +37,17 @@ describe("date-keys", () => {
         .map((key) => key?.split("-")[2])
     ).toContain("1");
     expect(toDateKey(2026, 6, 30)).toBe("2026-06-30");
+  });
+
+  it("returns monday-based week bounds for a date key", () => {
+    expect(weekBoundsForDateKey("2026-06-10", 1)).toEqual({
+      from: "2026-06-08",
+      to: "2026-06-14"
+    });
+  });
+
+  it("detects same-month keys", () => {
+    expect(isSameMonthKey("2026-06-08", "2026-06-30")).toBe(true);
+    expect(isSameMonthKey("2026-06-30", "2026-07-01")).toBe(false);
   });
 });

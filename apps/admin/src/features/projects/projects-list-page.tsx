@@ -1,13 +1,12 @@
 "use client";
 
 import { ROUTES, PROJECT_COLORS, pickDefaultProjectColor } from "@kloqra/contracts";
-import type { ProjectDto } from "@kloqra/contracts";
+import type { ProjectListItemDto } from "@kloqra/contracts";
 import {
   AppModal,
   AppBar,
   AppBarListToolbar,
   appBarListFilterTriggerClass,
-  Badge,
   Button,
   DataTableCard,
   DataTableCell,
@@ -30,11 +29,13 @@ import {
   TableRow,
   TableLoadingState
 } from "@kloqra/ui";
-import { usePaginatedList } from "@kloqra/web-shared";
+import { usePaginatedList, extractFieldErrorsFromMessage } from "@kloqra/web-shared";
 import { ChevronRight, FolderPlus, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { formatDurationClock } from "@/components/report-charts";
+import { validateCreateProjectForm } from "@/features/projects/create-project-validation";
 import { projectListHref } from "@/features/projects/project-detail-nav";
 import { api } from "@/lib/api";
 import { getWorkspaceId, useSessionStore } from "@/stores/session.store";
@@ -65,7 +66,7 @@ export function ProjectsListPage() {
     loading,
     error,
     reload
-  } = usePaginatedList<ProjectDto>({
+  } = usePaginatedList<ProjectListItemDto>({
     workspaceId: ws,
     basePath: ROUTES.PROJECTS.LIST,
     filters: listFilters
@@ -76,18 +77,39 @@ export function ProjectsListPage() {
   const [clientName, setClientName] = useState("");
   const [createColor, setCreateColor] = useState(() => pickDefaultProjectColor(0));
   const [creating, setCreating] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
+  const [createFieldErrors, setCreateFieldErrors] = useState<{
+    name?: string;
+    clientName?: string;
+  }>({});
+  const [createFormError, setCreateFormError] = useState<string | null>(null);
+
+  function formatTotalTracked(totalTrackedSec: number): string {
+    return formatDurationClock(totalTrackedSec / 3600);
+  }
 
   async function createProject(e: React.FormEvent) {
     e.preventDefault();
+    setCreateFieldErrors({});
+    setCreateFormError(null);
+
+    const fieldErrors = validateCreateProjectForm(name, clientName);
+    if (Object.keys(fieldErrors).length > 0) {
+      setCreateFieldErrors(fieldErrors);
+      return;
+    }
+
     setCreating(true);
-    setActionError(null);
     try {
       const projectName = name.trim();
+      const trimmedClientName = clientName.trim();
       await api(ROUTES.PROJECTS.CREATE, {
         method: "POST",
         workspaceId: ws,
-        body: JSON.stringify({ name: projectName, clientName, color: createColor })
+        body: JSON.stringify({
+          name: projectName,
+          clientName: trimmedClientName,
+          color: createColor
+        })
       });
       setName("");
       setClientName("");
@@ -95,10 +117,16 @@ export function ProjectsListPage() {
       setCreateOpen(false);
       toast.success(`Project "${projectName}" created.`);
       await reload();
-    } catch {
-      const message = "Could not create project.";
-      setActionError(message);
-      toast.error(message);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Could not create project.";
+      const parsed = extractFieldErrorsFromMessage<"name" | "clientName">(message, {
+        name: ["Name", "Project name"],
+        clientName: "Client"
+      });
+      setCreateFieldErrors(parsed.fieldErrors);
+      setCreateFormError(
+        parsed.formError || (Object.keys(parsed.fieldErrors).length === 0 ? message : null)
+      );
     } finally {
       setCreating(false);
     }
@@ -177,9 +205,9 @@ export function ProjectsListPage() {
             <Table>
               <TableHeader>
                 <DataTableHeaderRow>
-                  <DataTableHead>Name</DataTableHead>
-                  <DataTableHead>Client</DataTableHead>
-                  <DataTableHead>Status</DataTableHead>
+                  <DataTableHead>Project Name</DataTableHead>
+                  <DataTableHead>Client Name</DataTableHead>
+                  <DataTableHead className="text-right">Total Time Tracked</DataTableHead>
                   <DataTableHead className="w-10" />
                 </DataTableHeaderRow>
               </TableHeader>
@@ -207,10 +235,8 @@ export function ProjectsListPage() {
                       <DataTableCell className="text-muted-foreground">
                         {p.clientName ?? "—"}
                       </DataTableCell>
-                      <DataTableCell>
-                        <Badge variant={p.isActive ? "default" : "secondary"}>
-                          {p.isActive ? "Active" : "Inactive"}
-                        </Badge>
+                      <DataTableCell className="text-right tabular-nums text-muted-foreground">
+                        {formatTotalTracked(p.totalTrackedSec)}
                       </DataTableCell>
                       <DataTableCell className="text-muted-foreground">
                         <ChevronRight
@@ -236,13 +262,17 @@ export function ProjectsListPage() {
         )}
       </DataTableCard>
 
-      {error || actionError ? (
-        <p className="text-sm text-destructive">{error ?? actionError}</p>
-      ) : null}
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
       <AppModal
         open={createOpen}
-        onOpenChange={setCreateOpen}
+        onOpenChange={(open) => {
+          setCreateOpen(open);
+          if (!open) {
+            setCreateFieldErrors({});
+            setCreateFormError(null);
+          }
+        }}
         title="New project"
         description="Add a project to organize tasks, teams, and time entries."
         icon={<FolderPlus className="size-5" />}
@@ -258,26 +288,45 @@ export function ProjectsListPage() {
           </>
         }
       >
-        <form id="create-project-form" onSubmit={createProject} className="space-y-4">
+        <form id="create-project-form" onSubmit={createProject} className="space-y-4" noValidate>
           <div className="space-y-2">
             <Label htmlFor="name">Name</Label>
             <Input
               id="name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                setName(e.target.value);
+                if (createFieldErrors.name) {
+                  setCreateFieldErrors((prev) => ({ ...prev, name: undefined }));
+                }
+                if (createFormError) setCreateFormError(null);
+              }}
               placeholder="Meridian Product Co"
-              required
               autoFocus
+              aria-invalid={Boolean(createFieldErrors.name)}
             />
+            {createFieldErrors.name ? (
+              <p className="text-xs text-destructive">{createFieldErrors.name}</p>
+            ) : null}
           </div>
           <div className="space-y-2">
             <Label htmlFor="client">Client</Label>
             <Input
               id="client"
               value={clientName}
-              onChange={(e) => setClientName(e.target.value)}
+              onChange={(e) => {
+                setClientName(e.target.value);
+                if (createFieldErrors.clientName) {
+                  setCreateFieldErrors((prev) => ({ ...prev, clientName: undefined }));
+                }
+                if (createFormError) setCreateFormError(null);
+              }}
               placeholder="Acme Corp"
+              aria-invalid={Boolean(createFieldErrors.clientName)}
             />
+            {createFieldErrors.clientName ? (
+              <p className="text-xs text-destructive">{createFieldErrors.clientName}</p>
+            ) : null}
           </div>
           <div className="space-y-2">
             <Label>Color</Label>
@@ -287,6 +336,7 @@ export function ProjectsListPage() {
               colors={PROJECT_COLORS}
             />
           </div>
+          {createFormError ? <p className="text-sm text-destructive">{createFormError}</p> : null}
         </form>
       </AppModal>
     </div>

@@ -66,7 +66,7 @@ export function TimesheetMonth({
                     className={cn(
                       "min-h-[5rem] border-l border-border p-2 text-left transition-colors hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
                       !inMonth && "text-muted-foreground opacity-50",
-                      isSameDayInZone(day, today, timezone) && "bg-primary/10"
+                      isSameDayInZone(day, today, timezone) && "bg-primary/[0.08]"
                     )}
                     onClick={() => onDayClick(day)}
                   >

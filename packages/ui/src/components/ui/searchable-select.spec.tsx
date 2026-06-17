@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
+import { AppModal } from "./app-modal.js";
 import { SearchableSelect } from "./searchable-select.js";
 
 const OPTIONS = [
@@ -96,5 +97,25 @@ describe("SearchableSelect", () => {
 
     await user.click(screen.getByRole("combobox", { name: "Member" }));
     expect(screen.queryByPlaceholderText("Search…")).not.toBeInTheDocument();
+  });
+
+  it("shows search input when opened inside AppModal", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <AppModal open title="Add team member" description="Choose a workspace member.">
+        <SearchableSelect
+          value=""
+          onValueChange={() => {}}
+          options={OPTIONS}
+          placeholder="Select a workspace member"
+          searchPlaceholder="Search by name or email…"
+          aria-label="Workspace member"
+        />
+      </AppModal>
+    );
+
+    await user.click(screen.getByRole("combobox", { name: "Workspace member" }));
+    expect(screen.getByPlaceholderText("Search by name or email…")).toBeVisible();
   });
 });

@@ -23,6 +23,7 @@ export { Skeleton, SkeletonText } from "./components/ui/skeleton.js";
 export { Popover, PopoverTrigger, PopoverAnchor, PopoverContent } from "./components/ui/popover.js";
 
 export { DateRangePicker, type DateRangePickerProps } from "./components/ui/date-range-picker.js";
+export { WeekDatePicker, type WeekDatePickerProps } from "./components/ui/week-date-picker.js";
 
 export {
   addMonths,
@@ -33,9 +34,11 @@ export {
   formatDateKeyLabel,
   formatDateRangeLabel,
   isDateKeyInRange,
+  isSameMonthKey,
   normalizeDateRange,
   parseDateKey,
-  toDateKey
+  toDateKey,
+  weekBoundsForDateKey
 } from "./lib/date-keys.js";
 
 export {

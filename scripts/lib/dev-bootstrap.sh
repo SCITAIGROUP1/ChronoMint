@@ -191,10 +191,78 @@ dev_bootstrap_redis_ping() {
   if command -v redis-cli >/dev/null 2>&1 && redis-cli -h localhost -p 6379 ping 2>/dev/null | grep -q PONG; then
     return 0
   fi
+  for redis_cli in /opt/homebrew/bin/redis-cli /usr/local/bin/redis-cli; do
+    if [[ -x "$redis_cli" ]] && "$redis_cli" -h localhost -p 6379 ping 2>/dev/null | grep -q PONG; then
+      return 0
+    fi
+  done
   if [[ "$DEV_BOOTSTRAP_USE_DOCKER" == "1" ]] && dev_bootstrap_docker_daemon; then
     docker compose exec -T redis redis-cli ping 2>/dev/null | grep -q PONG && return 0
   fi
   return 1
+}
+
+dev_bootstrap_brew_bin() {
+  if command -v brew >/dev/null 2>&1; then
+    command -v brew
+    return 0
+  fi
+  for candidate in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+    if [[ -x "$candidate" ]]; then
+      echo "$candidate"
+      return 0
+    fi
+  done
+  return 1
+}
+
+dev_bootstrap_redis_server_bin() {
+  if command -v redis-server >/dev/null 2>&1; then
+    command -v redis-server
+    return 0
+  fi
+  for candidate in /opt/homebrew/bin/redis-server /usr/local/bin/redis-server; do
+    if [[ -x "$candidate" ]]; then
+      echo "$candidate"
+      return 0
+    fi
+  done
+  return 1
+}
+
+dev_bootstrap_ensure_redis_native() {
+  if dev_bootstrap_redis_ping; then
+    dev_bootstrap_log "==> Redis ready on localhost:6379"
+    return 0
+  fi
+
+  dev_bootstrap_log "==> Starting local Redis on localhost:6379..."
+
+  local redis_server brew_bin
+  if redis_server="$(dev_bootstrap_redis_server_bin)"; then
+    "$redis_server" --daemonize yes --port 6379 --loglevel notice --save "" --appendonly no 2>/dev/null || true
+  fi
+
+  if ! dev_bootstrap_redis_ping && brew_bin="$(dev_bootstrap_brew_bin)"; then
+    "$brew_bin" services start redis 2>/dev/null || true
+  fi
+
+  for _ in {1..20}; do
+    if dev_bootstrap_redis_ping; then
+      dev_bootstrap_log "==> Redis ready on localhost:6379"
+      return 0
+    fi
+    sleep 1
+  done
+
+  echo "ERROR: Redis is not running on localhost:6379."
+  echo "Install and start Redis, for example:"
+  if brew_bin="$(dev_bootstrap_brew_bin)"; then
+    echo "  $brew_bin install redis && $brew_bin services start redis"
+  else
+    echo "  brew install redis && brew services start redis"
+  fi
+  exit 1
 }
 
 dev_bootstrap_try_postgres_app() {
@@ -402,6 +470,9 @@ dev_bootstrap_prep_docker() {
 
 dev_bootstrap_prep_native() {
   dev_bootstrap_ensure_postgres_native
+  if [[ "${DEV_BOOTSTRAP_REQUIRE_REDIS:-0}" == "1" ]]; then
+    dev_bootstrap_ensure_redis_native
+  fi
   dev_bootstrap_ensure_env_files_native
   dev_bootstrap_ensure_install
   dev_bootstrap_ensure_database

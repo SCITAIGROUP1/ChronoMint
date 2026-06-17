@@ -2,6 +2,7 @@
 
 import type { TimesheetApprovalStatus } from "@kloqra/ui";
 import { Badge, cn } from "@kloqra/ui";
+import { Lock } from "lucide-react";
 import type { EntryApprovalDisplay } from "./entry-approval-status";
 
 const APPROVAL_STYLES: Partial<
@@ -33,9 +34,20 @@ export function TimeTrackerEntryStatus({
 }) {
   const approvalStyle =
     approval.status && approval.showApproval ? APPROVAL_STYLES[approval.status] : undefined;
+  const isLocked = approval.status === "SUBMITTED" || approval.status === "APPROVED";
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">
+      {isLocked ? (
+        <Badge
+          variant="outline"
+          className="gap-1 border-muted-foreground/30 bg-muted/40 text-muted-foreground text-xs font-medium normal-case tracking-normal"
+          title="Locked — submitted or approved"
+        >
+          <Lock className="size-3" aria-hidden />
+          Locked
+        </Badge>
+      ) : null}
       {approvalStyle ? (
         <Badge variant="outline" className={cn("text-xs font-medium", approvalStyle.className)}>
           {approvalStyle.label}

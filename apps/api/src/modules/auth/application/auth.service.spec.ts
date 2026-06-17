@@ -82,7 +82,10 @@ describe("AuthService unit tests", () => {
 
       await expect(
         authService.login({ email: "missing@example.com", password: "wrong" })
-      ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+      ).rejects.toMatchObject({
+        code: "UNAUTHORIZED",
+        message: "Invalid email or password. Please try again."
+      });
     });
 
     it("returns session for valid credentials", async () => {

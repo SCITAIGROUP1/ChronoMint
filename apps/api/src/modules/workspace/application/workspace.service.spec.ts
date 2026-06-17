@@ -107,7 +107,7 @@ describe("WorkspaceService", () => {
 
     const result = await service.invite(
       workspaceId,
-      { email: "new@kloqra.dev", role: "MEMBER" },
+      { email: "new@kloqra.dev", role: "MEMBER", name: "New User" },
       inviterId
     );
 
@@ -124,7 +124,11 @@ describe("WorkspaceService", () => {
     mockPrisma.workspaceMember.findUnique.mockResolvedValue({ id: "m-existing" });
 
     await expect(
-      service.invite(workspaceId, { email: "member@kloqra.dev", role: "MEMBER" }, inviterId)
+      service.invite(
+        workspaceId,
+        { email: "member@kloqra.dev", role: "MEMBER", name: "Member User" },
+        inviterId
+      )
     ).rejects.toSatisfy(
       (err: unknown) =>
         err instanceof DomainException &&
@@ -147,7 +151,7 @@ describe("WorkspaceService", () => {
 
     const result = await service.invite(
       workspaceId,
-      { email: "member@kloqra.dev", role: "MEMBER" },
+      { email: "member@kloqra.dev", role: "MEMBER", name: "Member User" },
       inviterId
     );
 

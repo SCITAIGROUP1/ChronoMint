@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@kloqra/ui";
-import { SettingsCard, SettingsSaveBar } from "@kloqra/web-shared";
+import { SettingsCard, SettingsSaveBar, extractFieldErrorsFromMessage } from "@kloqra/web-shared";
 import { Palette, Save, Settings2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -51,7 +51,8 @@ export function ProjectSettingsTab() {
   );
   const [editColor, setEditColor] = useState<string>(DEFAULT_PROJECT_COLOR);
   const [snapshot, setSnapshot] = useState<ProjectFormSnapshot | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{ name?: string }>({});
+  const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -80,7 +81,8 @@ export function ProjectSettingsTab() {
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-    setError(null);
+    setFieldErrors({});
+    setFormError(null);
     try {
       const updated = await api<ProjectDto>(ROUTES.PROJECTS.BY_ID(projectId), {
         method: "PATCH",
@@ -98,10 +100,13 @@ export function ProjectSettingsTab() {
       const next = snapshotFromProject(updated);
       setSnapshot(next);
       toast.success("Project settings saved");
-    } catch {
-      const message = "Could not save project settings.";
-      setError(message);
-      toast.error(message);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Could not save project settings.";
+      const parsed = extractFieldErrorsFromMessage<"name">(message, { name: "Name" });
+      setFieldErrors(parsed.fieldErrors);
+      setFormError(
+        parsed.formError || (Object.keys(parsed.fieldErrors).length === 0 ? message : null)
+      );
     } finally {
       setSaving(false);
     }
@@ -121,9 +126,17 @@ export function ProjectSettingsTab() {
               <Input
                 id="edit-name"
                 value={editName}
-                onChange={(e) => setEditName(e.target.value)}
+                onChange={(e) => {
+                  setEditName(e.target.value);
+                  if (fieldErrors.name) setFieldErrors({});
+                  if (formError) setFormError(null);
+                }}
                 required
+                aria-invalid={Boolean(fieldErrors.name)}
               />
+              {fieldErrors.name ? (
+                <p className="text-xs text-destructive">{fieldErrors.name}</p>
+              ) : null}
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-client">Client</Label>
@@ -194,7 +207,7 @@ export function ProjectSettingsTab() {
         <ProjectColorEditor value={editColor} onChange={setEditColor} colors={PROJECT_COLORS} />
       </SettingsCard>
 
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {formError ? <p className="text-sm text-destructive">{formError}</p> : null}
 
       <SettingsSaveBar saving={saving} disabled={!isDirty}>
         <Button type="submit" disabled={!isDirty || saving} className="gap-2">

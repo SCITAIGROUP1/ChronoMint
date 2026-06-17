@@ -7,9 +7,36 @@ import {
   fromDateKey,
   isSlotOccupiedElsewhere,
   rangeOccupiedElsewhere,
+  resolveDayHeaderTotalSeconds,
   slotIntervalForIndex,
   toDateKey
 } from "./calendar-utils";
+
+describe("day header totals", () => {
+  it("sums clipped log seconds for a day", () => {
+    const day = combineDayAndTimeInZone("2026-06-15", "12:00", "UTC");
+    const logs = [
+      {
+        startTime: "2026-06-15T09:00:00.000Z",
+        endTime: "2026-06-15T10:45:00.000Z"
+      }
+    ];
+
+    const total = resolveDayHeaderTotalSeconds(logs, day, "UTC");
+    expect(total).toBe(6300);
+  });
+
+  it("includes active timer seconds clipped to the day", () => {
+    const day = combineDayAndTimeInZone("2026-06-15", "12:00", "UTC");
+    const total = resolveDayHeaderTotalSeconds([], day, "UTC", {
+      startedAt: "2026-06-15T09:00:00.000Z",
+      isPaused: true,
+      elapsedSec: 1800
+    });
+
+    expect(total).toBe(1800);
+  });
+});
 
 describe("computeLogMoveRange", () => {
   it("shifts by one hour on the same day without drift", () => {

@@ -28,12 +28,12 @@ describe("extractFieldErrorsFromMessage", () => {
   });
 
   it("returns non-validation message as form error", () => {
-    const result = extractFieldErrorsFromMessage("Invalid credentials", {
+    const result = extractFieldErrorsFromMessage("Invalid email or password. Please try again.", {
       email: "Email",
       password: "Password"
     });
 
     expect(result.fieldErrors).toEqual({});
-    expect(result.formError).toBe("Invalid credentials");
+    expect(result.formError).toBe("Invalid email or password. Please try again.");
   });
 });

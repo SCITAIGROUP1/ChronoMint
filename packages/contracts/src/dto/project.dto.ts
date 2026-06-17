@@ -37,6 +37,8 @@ export const projectListItemSchema = z.object({
   name: z.string().min(1).max(200),
   color: projectColorSchema,
   clientName: z.string().max(200).nullable(),
+  /** All-time tracked seconds across every task on the project. */
+  totalTrackedSec: z.number().int().nonnegative(),
   isActive: z.boolean(),
   timesheetApprovalEnabled: z.boolean().optional(),
   workspaceId: uuidSchema.optional(),

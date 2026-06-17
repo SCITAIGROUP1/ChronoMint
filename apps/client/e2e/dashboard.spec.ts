@@ -49,4 +49,31 @@ test.describe("Client dashboard", () => {
   test("shows arrange grid control in the app bar", async ({ page }) => {
     await expect(page.getByRole("button", { name: /arrange grid/i })).toBeVisible();
   });
+
+  test("project distribution widget shows legend table with project details", async ({ page }) => {
+    await expect(page.getByRole("heading", { name: "Project Distribution" })).toBeVisible();
+
+    const legend = page
+      .getByRole("heading", { name: "Project Distribution" })
+      .locator("..")
+      .locator("..");
+    await expect(legend.getByText("Project", { exact: true })).toBeVisible();
+    await expect(legend.getByText("Hours", { exact: true })).toBeVisible();
+    await expect(legend.getByText("%", { exact: true })).toBeVisible();
+  });
+
+  test("team activities widget shows member table columns", async ({ page }) => {
+    await expect(page.getByRole("heading", { name: "Team Activities" })).toBeVisible();
+
+    const widget = page
+      .getByRole("heading", { name: "Team Activities" })
+      .locator("..")
+      .locator("..");
+    await expect(widget.getByText("Member", { exact: true })).toBeVisible();
+    await expect(widget.getByText("Latest activity", { exact: true })).toBeVisible();
+    await expect(widget.getByText("Duration", { exact: true })).toBeVisible();
+    await expect(widget.getByText("Time since", { exact: true })).toBeVisible();
+    await expect(widget.getByText("This week", { exact: true })).toBeVisible();
+    await expect(widget.getByText("Hours by day", { exact: true })).toBeVisible();
+  });
 });

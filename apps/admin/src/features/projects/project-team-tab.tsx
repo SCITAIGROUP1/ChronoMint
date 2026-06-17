@@ -428,6 +428,7 @@ export function ProjectTeamTab() {
           ) : (
             <>
               <SearchableSelect
+                id="member-search"
                 value={selectedUserId}
                 onValueChange={setSelectedUserId}
                 options={availableWorkspaceMembers.map((member) => ({
@@ -439,6 +440,7 @@ export function ProjectTeamTab() {
                 searchPlaceholder="Search by name or email…"
                 emptyMessage="No members match your search."
                 aria-label="Workspace member"
+                contentClassName="z-[100]"
                 renderOption={(option) => {
                   const member = availableWorkspaceMembers.find(
                     (item) => item.userId === option.value

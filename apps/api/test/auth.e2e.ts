@@ -44,6 +44,7 @@ describe("Auth E2E", () => {
       .post("/auth/login")
       .send({ email: "member@kloqra.dev", password: "wrong-password" });
     expect(res.status).toBe(401);
+    expect(res.body.message).toBe("Invalid email or password. Please try again.");
   });
 
   it("POST /auth/login returns session for seeded member", async () => {

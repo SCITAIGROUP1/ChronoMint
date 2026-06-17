@@ -13,7 +13,16 @@ import type {
   TimesheetPeriodDto,
   UserProfileDto
 } from "@kloqra/contracts";
-import { AppBar, Button, ConfirmDialog, Badge, LoadingCrossfade } from "@kloqra/ui";
+import {
+  AppBar,
+  Button,
+  ConfirmDialog,
+  Badge,
+  LoadingCrossfade,
+  WeekDatePicker,
+  dateFromKey,
+  dateKeyFromDate
+} from "@kloqra/ui";
 import { api as sharedApi, fetchListItems } from "@kloqra/web-shared";
 import { Clock, Eye, EyeOff, Lock, X } from "lucide-react";
 import Link from "next/link";
@@ -57,7 +66,10 @@ import {
   countActionableSubmissions,
   useMySubmissions
 } from "@/features/submissions/use-my-submissions";
-import { isTimeEntryLocked } from "@/features/time-tracker/entry-approval-status";
+import {
+  isTimeEntryLocked,
+  LOCKED_ENTRY_MESSAGE
+} from "@/features/time-tracker/entry-approval-status";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { api } from "@/lib/api";
 import { colorForTask } from "@/lib/project-color-styles";
@@ -522,8 +534,10 @@ export function TimesheetPage() {
   async function deleteEntry(log?: TimeLogDto) {
     const target = log ?? editingLog;
     if (!target) return;
-    if (isEntryLocked(target)) return;
-    // Show confirm dialog instead of window.confirm
+    if (isEntryLocked(target)) {
+      toast.error(LOCKED_ENTRY_MESSAGE);
+      return;
+    }
     setConfirmDeleteLog(target);
   }
 
@@ -531,6 +545,10 @@ export function TimesheetPage() {
     const target = confirmDeleteLog;
     setConfirmDeleteLog(null);
     if (!target) return;
+    if (isEntryLocked(target)) {
+      toast.error(LOCKED_ENTRY_MESSAGE);
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -728,7 +746,16 @@ export function TimesheetPage() {
               ›
             </Button>
           </div>
-          <span className="text-sm font-medium">{rangeLabel}</span>
+          <WeekDatePicker
+            anchorDate={dateKeyFromDate(anchor)}
+            onChange={(key) => setAnchor(dateFromKey(key))}
+            label={rangeLabel}
+            weekStartsOn={weekStartPref === "sunday" ? 0 : 1}
+            highlightMode={view}
+            ariaLabel={
+              view === "week" ? "Jump to week" : view === "month" ? "Jump to month" : "Jump to day"
+            }
+          />
         </div>
 
         {(view === "day" || view === "week") && (
