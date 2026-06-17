@@ -29,6 +29,7 @@ import {
 import { splitDisplayName } from "../../users/application/user-name.util";
 
 const IMPERSONATION_HANDOFF_EXPIRES = "90s";
+const INVALID_LOGIN_MESSAGE = "Invalid email or password. Please try again.";
 
 function hashToken(raw: string): string {
   return createHash("sha256").update(raw).digest("hex");
@@ -121,7 +122,7 @@ export class AuthService {
     if (!user) {
       throw new DomainException(
         ErrorCodes.UNAUTHORIZED,
-        "Invalid credentials",
+        INVALID_LOGIN_MESSAGE,
         HttpStatus.UNAUTHORIZED
       );
     }
@@ -130,7 +131,7 @@ export class AuthService {
       if (!dto.email || !(await bcrypt.compare(dto.password, user.passwordHash))) {
         throw new DomainException(
           ErrorCodes.UNAUTHORIZED,
-          "Invalid credentials",
+          INVALID_LOGIN_MESSAGE,
           HttpStatus.UNAUTHORIZED
         );
       }

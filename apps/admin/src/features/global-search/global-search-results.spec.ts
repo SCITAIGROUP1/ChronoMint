@@ -15,6 +15,7 @@ describe("global-search-results", () => {
           name: "Annual Audit",
           color: "#236bfe",
           clientName: "Adventure Works",
+          totalTrackedSec: 0,
           isActive: true
         }
       ],

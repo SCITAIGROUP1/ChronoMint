@@ -1,6 +1,6 @@
 "use client";
 
-import { Skeleton } from "@kloqra/ui";
+import type { TaskDto, TimeLogDto } from "@kloqra/contracts";
 import {
   ChartContainer,
   ChartTooltip,
@@ -8,90 +8,65 @@ import {
   type ChartConfig
 } from "@kloqra/ui/chart";
 import React, { useMemo } from "react";
-import { Cell, Legend, Pie, PieChart } from "recharts";
-import { useMemberWeekSummary } from "@/hooks/use-member-week-summary";
-import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
+import { Cell, Legend, Pie, PieChart, ResponsiveContainer } from "recharts";
+import { buildCategorySplitData } from "./category-split-data";
 
-const CHART_PALETTE = [
-  "hsl(221 83% 53%)",
-  "hsl(142 76% 36%)",
-  "hsl(38 92% 50%)",
-  "hsl(280 67% 58%)",
-  "hsl(0 84% 60%)",
-  "hsl(187 85% 43%)",
-  "hsl(215 16% 55%)"
-];
+export type CategorySplitWidgetProps = {
+  logs: TimeLogDto[];
+  tasks: TaskDto[];
+  periodLabel: string;
+};
 
-export function CategorySplitWidget() {
-  const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
-  const { summary, loading } = useMemberWeekSummary(ws, Boolean(ws));
+export function CategorySplitWidget({ logs, tasks, periodLabel }: CategorySplitWidgetProps) {
+  const { chartRows, totalHours } = useMemo(
+    () => buildCategorySplitData(logs, tasks),
+    [logs, tasks]
+  );
 
-  const { chartData, totalHours, chartConfig } = useMemo(() => {
-    const byCategory = summary?.byCategory ?? [];
-    let total = 0;
+  const chartConfig = useMemo(() => {
     const config: ChartConfig = {};
-    const data = byCategory.map((c, idx) => {
-      const configKey = `cat_${idx}`;
-      const color = CHART_PALETTE[idx % CHART_PALETTE.length];
-      config[configKey] = { label: c.categoryName, color };
-      total += c.totalHours;
-      return {
-        name: c.categoryName,
-        value: c.totalHours,
-        fill: color,
-        configKey
-      };
-    });
-    return {
-      chartData: data,
-      totalHours: Math.round(total * 10) / 10,
-      chartConfig: config
-    };
-  }, [summary]);
+    for (const row of chartRows) {
+      config[row.configKey] = { label: row.categoryName, color: row.fill };
+    }
+    return config;
+  }, [chartRows]);
 
-  if (loading) {
+  if (chartRows.length === 0) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 min-h-[200px]">
-        <Skeleton className="size-32 rounded-full" />
-        <p className="text-xs text-muted-foreground">Loading categories…</p>
-      </div>
-    );
-  }
-
-  if (chartData.length === 0) {
-    return (
-      <div className="flex h-full items-center justify-center min-h-[200px]">
-        <p className="text-xs text-muted-foreground text-center">No time logged this week</p>
+      <div className="flex h-full min-h-[200px] items-center justify-center">
+        <p className="text-center text-xs text-muted-foreground">No time logged in this period</p>
       </div>
     );
   }
 
   return (
-    <div className="flex h-full flex-col justify-center relative min-h-[200px] min-w-0">
-      <div className="w-full flex-1 relative min-h-[140px]">
-        <ChartContainer config={chartConfig} className="mx-auto h-full w-full">
-          <PieChart>
-            <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-            <Pie
-              data={chartData}
-              dataKey="value"
-              nameKey="name"
-              innerRadius="65%"
-              outerRadius="90%"
-              strokeWidth={2}
-              paddingAngle={1}
-            >
-              {chartData.map((entry, index) => (
-                <Cell key={index} fill={entry.fill} />
-              ))}
-            </Pie>
-            <Legend wrapperStyle={{ fontSize: 9 }} />
-          </PieChart>
+    <div className="relative flex h-full min-h-[200px] min-w-0 flex-col justify-center">
+      <div className="relative min-h-[140px] w-full flex-1">
+        <ChartContainer config={chartConfig} className="h-full min-h-[140px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+              <Pie
+                data={chartRows}
+                dataKey="value"
+                nameKey="name"
+                innerRadius="65%"
+                outerRadius="90%"
+                strokeWidth={2}
+                paddingAngle={1}
+              >
+                {chartRows.map((entry) => (
+                  <Cell key={entry.configKey} fill={entry.fill} />
+                ))}
+              </Pie>
+              <Legend wrapperStyle={{ fontSize: 9 }} />
+            </PieChart>
+          </ResponsiveContainer>
         </ChartContainer>
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center pb-3">
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center pb-3 text-center">
           <p className="text-xl font-bold tracking-tight">{totalHours}h</p>
-          <p className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider">
-            This Week
+          <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+            {periodLabel}
           </p>
         </div>
       </div>

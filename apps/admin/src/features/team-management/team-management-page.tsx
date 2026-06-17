@@ -35,11 +35,14 @@ import {
   TableRow,
   TableLoadingState
 } from "@kloqra/ui";
+import { extractFieldErrorsFromMessage } from "@kloqra/web-shared";
 import { Clock, Plus, Shield, UserCheck, UserPlus, Users } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { formatLastActive, formatWeekHours } from "./format-last-active";
 import { buildClientImpersonationUrl } from "./impersonation-redirect";
+import { inviteMemberSuccessMessage } from "./invite-member-messages";
+import { validateInviteMemberForm } from "./invite-member-validation";
 import { TeamMemberActions } from "./team-member-actions";
 import { TeamMemberEditDialog } from "./team-member-edit-dialog";
 import { TeamMemberProfileDialog } from "./team-member-profile-dialog";
@@ -89,6 +92,7 @@ export function TeamManagementPage() {
   const [name, setName] = useState("");
   const [role, setRole] = useState<"MEMBER" | "ADMIN">("MEMBER");
   const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviteFieldErrors, setInviteFieldErrors] = useState<{ email?: string; name?: string }>({});
   const [inviting, setInviting] = useState(false);
   const [memberBusyId, setMemberBusyId] = useState<string | null>(null);
   const [removeTarget, setRemoveTarget] = useState<TeamMemberOverviewDto | null>(null);
@@ -98,15 +102,24 @@ export function TeamManagementPage() {
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault();
     setInviteError(null);
+    setInviteFieldErrors({});
+
+    const fieldErrors = validateInviteMemberForm(email, name);
+    if (Object.keys(fieldErrors).length > 0) {
+      setInviteFieldErrors(fieldErrors);
+      return;
+    }
+
     setInviting(true);
+    const invitedEmail = email.trim();
     try {
       const res = await api<InviteMemberResponseDto>(ROUTES.WORKSPACES.INVITE(ws), {
         method: "POST",
         workspaceId: ws,
         body: JSON.stringify({
-          email: email.trim(),
+          email: invitedEmail,
           role,
-          ...(name.trim() ? { name: name.trim() } : {})
+          name: name.trim()
         })
       });
       setEmail("");
@@ -114,7 +127,7 @@ export function TeamManagementPage() {
       setRole("MEMBER");
       setInviteOpen(false);
       if (res.userCreated && res.emailSent) {
-        toast.success("Account created and email sent.");
+        toast.success(inviteMemberSuccessMessage(invitedEmail));
       } else if (res.userCreated && res.emailSkipReason === "smtp_unconfigured") {
         toast.warning(
           "Member added, but email is not configured on the API. Set SMTP variables on Railway, then use Resend sign-in email."
@@ -134,8 +147,14 @@ export function TeamManagementPage() {
         err instanceof Error
           ? err.message
           : "Could not add member. They may already be in the workspace.";
-      setInviteError(message);
-      toast.error(message);
+      const parsed = extractFieldErrorsFromMessage<"email" | "name">(message, {
+        email: "Email",
+        name: "Name"
+      });
+      setInviteFieldErrors(parsed.fieldErrors);
+      setInviteError(
+        parsed.formError || (Object.keys(parsed.fieldErrors).length === 0 ? message : null)
+      );
     } finally {
       setInviting(false);
     }
@@ -512,7 +531,10 @@ export function TeamManagementPage() {
         open={inviteOpen}
         onOpenChange={(open) => {
           setInviteOpen(open);
-          if (!open) setInviteError(null);
+          if (!open) {
+            setInviteError(null);
+            setInviteFieldErrors({});
+          }
         }}
         title="Add team member"
         description="Add a workspace member. New users receive sign-in credentials by email."
@@ -525,6 +547,7 @@ export function TeamManagementPage() {
               onClick={() => {
                 setInviteOpen(false);
                 setInviteError(null);
+                setInviteFieldErrors({});
               }}
             >
               Cancel
@@ -535,27 +558,46 @@ export function TeamManagementPage() {
           </>
         }
       >
-        <form id="invite-member-form" onSubmit={handleInvite} className="space-y-4">
+        <form id="invite-member-form" onSubmit={handleInvite} className="space-y-4" noValidate>
           <div className="space-y-2">
             <Label htmlFor="invite-email">Email</Label>
             <Input
               id="invite-email"
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (inviteFieldErrors.email) {
+                  setInviteFieldErrors((prev) => ({ ...prev, email: undefined }));
+                }
+                if (inviteError) setInviteError(null);
+              }}
               placeholder="member@example.com"
-              required
               autoFocus
+              aria-invalid={Boolean(inviteFieldErrors.email)}
             />
+            {inviteFieldErrors.email ? (
+              <p className="text-xs text-destructive">{inviteFieldErrors.email}</p>
+            ) : null}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="invite-name">Name (optional)</Label>
+            <Label htmlFor="invite-name">Name</Label>
             <Input
               id="invite-name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Defaults from email if blank"
+              onChange={(e) => {
+                setName(e.target.value);
+                if (inviteFieldErrors.name) {
+                  setInviteFieldErrors((prev) => ({ ...prev, name: undefined }));
+                }
+                if (inviteError) setInviteError(null);
+              }}
+              placeholder="Alex Chen"
+              aria-invalid={Boolean(inviteFieldErrors.name)}
             />
+            {inviteFieldErrors.name ? (
+              <p className="text-xs text-destructive">{inviteFieldErrors.name}</p>
+            ) : null}
           </div>
           <div className="space-y-2">
             <Label>Role</Label>

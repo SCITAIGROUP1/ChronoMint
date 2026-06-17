@@ -32,6 +32,9 @@ describe("Projects E2E", () => {
     const items = listItems<ProjectListItemDto>(res.body);
     expect(items.length).toBeGreaterThan(0);
     expect(items.every((p) => p.id && p.name && typeof p.isActive === "boolean")).toBe(true);
+    expect(
+      items.every((p) => typeof p.totalTrackedSec === "number" && p.totalTrackedSec >= 0)
+    ).toBe(true);
     expect(items.every((p) => p.workspaceId === undefined)).toBe(true);
   });
 
@@ -42,6 +45,18 @@ describe("Projects E2E", () => {
     expect(res.status).toBe(201);
     expect(res.body.name).toContain("E2E Project");
     expect(res.body.workspaceId).toBe(adminSession.workspaceId);
+  });
+
+  it("rejects duplicate project names within the workspace", async () => {
+    const listRes = await authedAgent(app, adminSession).get("/projects");
+    const existingName = listItems<ProjectListItemDto>(listRes.body)[0]!.name;
+
+    const res = await authedAgent(app, adminSession)
+      .post("/projects")
+      .send({ name: existingName, clientName: "Duplicate Client" });
+
+    expect(res.status).toBe(409);
+    expect(res.body.message).toMatch(/already taken/i);
   });
 
   it("member cannot POST /projects", async () => {

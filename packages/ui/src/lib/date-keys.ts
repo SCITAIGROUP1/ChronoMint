@@ -82,6 +82,28 @@ export function addMonths(
   return { year: date.getFullYear(), month: date.getMonth() + 1 };
 }
 
+/** Inclusive Monday- or Sunday-based week bounds for a calendar date key. */
+export function weekBoundsForDateKey(
+  key: string,
+  weekStartsOn: 0 | 1 = 1
+): { from: string; to: string } {
+  const date = dateFromKey(key);
+  const day = date.getDay();
+  const start = new Date(date);
+  if (weekStartsOn === 1) {
+    start.setDate(start.getDate() - (day === 0 ? 6 : day - 1));
+  } else {
+    start.setDate(start.getDate() - day);
+  }
+  const end = new Date(start);
+  end.setDate(end.getDate() + 6);
+  return { from: dateKeyFromDate(start), to: dateKeyFromDate(end) };
+}
+
+export function isSameMonthKey(a: string, b: string): boolean {
+  return a.slice(0, 7) === b.slice(0, 7);
+}
+
 export function daysInMonth(year: number, month: number): number {
   return new Date(year, month, 0).getDate();
 }

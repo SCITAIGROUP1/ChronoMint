@@ -649,3 +649,38 @@ export function totalSecondsOnDay(
     return sum + (clip.end.getTime() - clip.start.getTime()) / 1000;
   }, 0);
 }
+
+export type DayHeaderTimerState = {
+  startedAt: string;
+  isPaused: boolean;
+  elapsedSec: number;
+  liveElapsedSec?: number;
+};
+
+export function resolveDayHeaderTotalSeconds(
+  logs: { startTime: string; endTime: string }[],
+  day: Date,
+  timezone: string = "UTC",
+  activeTimer?: DayHeaderTimerState | null
+): number {
+  let total = totalSecondsOnDay(logs, day, timezone);
+
+  if (!activeTimer) return total;
+
+  const timerStart = new Date(activeTimer.startedAt);
+  const elapsed = activeTimer.liveElapsedSec ?? activeTimer.elapsedSec;
+  const timerEnd = activeTimer.isPaused
+    ? new Date(timerStart.getTime() + elapsed * 1000)
+    : new Date();
+  const clip = clipLogToDay(
+    { startTime: timerStart.toISOString(), endTime: timerEnd.toISOString() },
+    day,
+    timezone
+  );
+
+  if (clip) {
+    total += (clip.end.getTime() - clip.start.getTime()) / 1000;
+  }
+
+  return total;
+}

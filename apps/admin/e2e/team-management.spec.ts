@@ -14,12 +14,24 @@ test.describe("Team Management", () => {
     await expect(page.getByRole("button", { name: "Add Team Member" })).toBeVisible();
   });
 
-  test("opens add team member modal with email field", async ({ page }) => {
+  test("opens add team member modal with email and name fields", async ({ page }) => {
     await page.goto("/team-management");
     await page.getByRole("button", { name: "Add Team Member" }).click();
     await expect(page.getByRole("heading", { name: "Add team member" })).toBeVisible();
     await expect(page.getByLabel("Email")).toBeVisible();
+    await expect(page.getByLabel("Name", { exact: true })).toBeVisible();
+    await expect(page.getByText("Name (optional)")).toHaveCount(0);
     await expect(page.getByText("New users receive sign-in credentials by email.")).toBeVisible();
+  });
+
+  test("shows inline required field errors in add team member modal", async ({ page }) => {
+    await page.goto("/team-management");
+    await page.getByRole("button", { name: "Add Team Member" }).click();
+    await page.getByRole("button", { name: "Add member" }).click();
+
+    await expect(page.getByRole("heading", { name: "Add team member" })).toBeVisible();
+    await expect(page.getByText("Email is required.")).toBeVisible();
+    await expect(page.getByText("Name is required.")).toBeVisible();
   });
 
   test("shows no-match message when search finds no members", async ({ page }) => {

@@ -33,6 +33,7 @@ export function CalendarEntryContent({
       : formatDuration(durationSec);
   const isShort = durationSec < 15 * 60 && variant !== "live";
   const showDescription = Boolean(description?.trim()) && !compact && !isShort;
+  const isLocked = variant === "locked";
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-0.5 overflow-hidden text-left">
@@ -45,20 +46,30 @@ export function CalendarEntryContent({
         >
           {task.categoryName}
         </span>
-        <span
-          className={cn(
-            "shrink-0 font-mono font-semibold tabular-nums",
-            compact || isShort ? "text-[9px]" : "text-[10px]"
-          )}
-        >
-          {elapsedLabel}
-        </span>
+        <div className="flex shrink-0 items-center gap-1">
+          {isLocked ? (
+            <span title="Locked — submitted or approved">
+              <Lock
+                className={cn(
+                  "shrink-0 text-muted-foreground",
+                  compact || isShort ? "size-2.5" : "size-3"
+                )}
+                aria-label="Locked"
+              />
+            </span>
+          ) : null}
+          <span
+            className={cn(
+              "font-mono font-semibold tabular-nums",
+              compact || isShort ? "text-[9px]" : "text-[10px]"
+            )}
+          >
+            {elapsedLabel}
+          </span>
+        </div>
       </div>
 
       <div className="flex min-w-0 items-start gap-1">
-        {variant === "locked" && (
-          <Lock className="mt-0.5 size-2.5 shrink-0 opacity-70" aria-hidden />
-        )}
         {variant === "timer" && (
           <Clock className="mt-0.5 size-2.5 shrink-0 opacity-70" aria-hidden />
         )}

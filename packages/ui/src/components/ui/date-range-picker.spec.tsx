@@ -40,4 +40,27 @@ describe("DateRangePicker", () => {
 
     expect(onChange).toHaveBeenCalledWith("2026-06-10", "2026-06-12");
   });
+
+  it("highlights today in the open calendar", async () => {
+    vi.setSystemTime(new Date("2026-06-10T12:00:00Z"));
+
+    const user = userEvent.setup();
+    render(
+      <DateRangePicker
+        from="2026-06-01"
+        to="2026-06-07"
+        onChange={vi.fn()}
+        ariaLabel="Date range"
+        numberOfMonths={1}
+      />
+    );
+
+    await user.click(screen.getByRole("button", { name: "Date range" }));
+    expect(screen.getByRole("button", { name: "2026-06-10" })).toHaveAttribute(
+      "aria-current",
+      "date"
+    );
+
+    vi.useRealTimers();
+  });
 });

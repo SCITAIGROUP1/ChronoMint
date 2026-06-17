@@ -3,6 +3,7 @@
 import { Check, ChevronDown } from "lucide-react";
 import * as React from "react";
 import { getOptionSearchText, type FilterableOption } from "../../lib/filter-options.js";
+import { useLockDialogBodyScroll } from "../../lib/use-lock-dialog-body-scroll.js";
 import { cn } from "../../lib/utils.js";
 import { Button } from "./button.js";
 import {
@@ -57,6 +58,8 @@ export function SearchableMultiSelect({
   renderOption
 }: SearchableMultiSelectProps) {
   const [open, setOpen] = React.useState(false);
+  const triggerRef = React.useRef<HTMLButtonElement>(null);
+  useLockDialogBodyScroll(open, triggerRef);
   const selected = new Set(value);
   const allSelected = options.length > 0 && options.every((option) => selected.has(option.value));
 
@@ -83,6 +86,7 @@ export function SearchableMultiSelect({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
+          ref={triggerRef}
           id={id}
           type="button"
           variant="outline"
@@ -102,8 +106,13 @@ export function SearchableMultiSelect({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className={cn("w-[var(--radix-popover-trigger-width)] p-0", contentClassName)}
+        className={cn(
+          "w-[var(--radix-popover-trigger-width)] overscroll-contain p-0",
+          contentClassName
+        )}
         align="start"
+        onCloseAutoFocus={(event) => event.preventDefault()}
+        onWheel={(event) => event.stopPropagation()}
       >
         <Command shouldFilter>
           <CommandInput placeholder={searchPlaceholder} />

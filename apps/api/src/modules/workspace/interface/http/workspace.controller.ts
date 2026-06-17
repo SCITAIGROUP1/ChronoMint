@@ -4,6 +4,8 @@ import {
   updateWorkspaceMemberSchema,
   createWorkspaceSchema,
   teamMembersOverviewQuerySchema,
+  teamActivitiesQuerySchema,
+  type TeamActivitiesQuery,
   type TeamMembersOverviewQuery,
   ROUTES
 } from "@kloqra/contracts";
@@ -27,6 +29,7 @@ import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../../../common/guards/roles.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
 import { WorkspaceMembersOverviewService } from "../../application/workspace-members-overview.service";
+import { WorkspaceTeamActivitiesService } from "../../application/workspace-team-activities.service";
 import { WorkspaceService } from "../../application/workspace.service";
 
 @Controller()
@@ -34,7 +37,8 @@ import { WorkspaceService } from "../../application/workspace.service";
 export class WorkspaceController {
   constructor(
     private workspace: WorkspaceService,
-    private overviewService: WorkspaceMembersOverviewService
+    private overviewService: WorkspaceMembersOverviewService,
+    private teamActivitiesService: WorkspaceTeamActivitiesService
   ) {}
 
   @Post(ROUTES.WORKSPACES.CREATE)
@@ -65,6 +69,16 @@ export class WorkspaceController {
   members(@Param("id") id: string, @CurrentUser() user: RequestUser) {
     if (id !== user.workspaceId) throw new Error("Forbidden");
     return this.workspace.listMembers(id);
+  }
+
+  @Get(ROUTES.WORKSPACES.TEAM_ACTIVITIES(":id"))
+  teamActivities(
+    @Param("id") id: string,
+    @Query(new ZodValidationPipe(teamActivitiesQuerySchema)) query: TeamActivitiesQuery,
+    @CurrentUser() user: RequestUser
+  ) {
+    if (id !== user.workspaceId) throw new Error("Forbidden");
+    return this.teamActivitiesService.getTeamActivities(id, query);
   }
 
   @Roles("ADMIN")

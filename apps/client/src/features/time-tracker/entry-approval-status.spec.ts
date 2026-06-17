@@ -1,6 +1,10 @@
 import type { ProjectDto, TimeLogDto, TimesheetPeriodDto } from "@kloqra/contracts";
 import { describe, expect, it } from "vitest";
-import { isTimeEntryLocked, resolveEntryApprovalStatus } from "./entry-approval-status";
+import {
+  isTimeEntryLocked,
+  resolveEntryApprovalStatus,
+  buildSubmissionByKey
+} from "./entry-approval-status";
 
 const project: ProjectDto = {
   id: "proj-1",
@@ -67,5 +71,12 @@ describe("isTimeEntryLocked", () => {
     ]);
 
     expect(isTimeEntryLocked(log, project, submissionByKey)).toBe(false);
+  });
+});
+
+describe("buildSubmissionByKey", () => {
+  it("indexes submissions by project and period start", () => {
+    const map = buildSubmissionByKey([submittedPeriod]);
+    expect(map.get("proj-1:2026-06-09T00:00:00.000Z")).toEqual(submittedPeriod);
   });
 });

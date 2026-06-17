@@ -2,7 +2,7 @@
 
 import type { TimeLogDto, ProjectDto, TaskDto } from "@kloqra/contracts";
 import { Button, ProjectColorDot } from "@kloqra/ui";
-import { Play, Trash2, Clock } from "lucide-react";
+import { Lock, Play, Trash2, Clock } from "lucide-react";
 import React, { useMemo } from "react";
 import { toDateKey } from "@/features/timesheet/calendar-utils";
 
@@ -12,6 +12,7 @@ export type TodayLogsWidgetProps = {
   tasks: TaskDto[];
   onDeleteLog: (id: string) => Promise<void>;
   onResumeTask: (taskId: string) => Promise<void>;
+  isLogLocked?: (log: TimeLogDto) => boolean;
 };
 
 export function TodayLogsWidget({
@@ -19,9 +20,9 @@ export function TodayLogsWidget({
   projects,
   tasks,
   onDeleteLog,
-  onResumeTask
+  onResumeTask,
+  isLogLocked
 }: TodayLogsWidgetProps) {
-  // Filter and sort logs for today
   const todayLogs = useMemo(() => {
     const todayStr = toDateKey(new Date());
     return logs
@@ -48,8 +49,8 @@ export function TodayLogsWidget({
 
   if (todayLogs.length === 0) {
     return (
-      <div className="flex h-full flex-col items-center justify-center min-h-[220px] text-center p-4">
-        <Clock className="size-8 text-muted-foreground/45 mb-2" />
+      <div className="flex h-full min-h-[220px] flex-col items-center justify-center p-4 text-center">
+        <Clock className="mb-2 size-8 text-muted-foreground/45" />
         <p className="text-xs text-muted-foreground">
           No time tracked yet today. Hit start and get going.
         </p>
@@ -58,19 +59,19 @@ export function TodayLogsWidget({
   }
 
   return (
-    <div className="flex flex-col gap-2 min-h-[220px]">
+    <div className="flex min-h-[220px] flex-col gap-2">
       {todayLogs.map((log) => {
         const task = tasks.find((t) => t.id === log.taskId);
         const project = task ? projects.find((p) => p.id === task.projectId) : null;
         const projectName = project?.name ?? "No Project";
         const projectColor = project?.color ?? "var(--muted)";
+        const locked = isLogLocked?.(log) ?? false;
 
         return (
           <div
             key={log.id}
-            className="flex flex-col gap-2 rounded-lg border border-border/60 bg-muted/10 p-3 text-xs transition-all hover:bg-muted/20 min-w-0 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
+            className="flex min-w-0 flex-col gap-2 rounded-lg border border-border/60 bg-muted/10 p-3 text-xs transition-all hover:bg-muted/20 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
           >
-            {/* Project & Task Details */}
             <div className="flex min-w-0 flex-1 flex-col gap-1">
               <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                 <ProjectColorDot color={projectColor} size="sm" className="shrink-0" />
@@ -79,6 +80,15 @@ export function TodayLogsWidget({
                 </span>
                 <span className="shrink-0 text-muted-foreground/40">&bull;</span>
                 <span className="truncate text-muted-foreground">{task?.taskName ?? "Other"}</span>
+                {locked ? (
+                  <span
+                    className="inline-flex shrink-0 items-center gap-1 rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground"
+                    title="Locked — submitted or approved"
+                  >
+                    <Lock className="size-2.5" aria-hidden />
+                    Locked
+                  </span>
+                ) : null}
                 {task?.categoryName ? (
                   <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
                     {task.categoryName}
@@ -95,7 +105,6 @@ export function TodayLogsWidget({
               </div>
             </div>
 
-            {/* Duration & Quick Actions */}
             <div className="flex shrink-0 items-center gap-2.5 sm:pl-1">
               <span className="font-mono font-semibold text-foreground">
                 {formatDuration(log.durationSec)}
@@ -104,21 +113,23 @@ export function TodayLogsWidget({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-7 w-7 text-primary hover:bg-primary/10 rounded"
+                  className="h-7 w-7 rounded text-primary hover:bg-primary/10"
                   onClick={() => void onResumeTask(log.taskId)}
                   title="Restart timer for this task"
                 >
                   <Play className="size-3.5 fill-current" />
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-destructive hover:bg-destructive/15 rounded"
-                  onClick={() => void onDeleteLog(log.id)}
-                  title="Delete time entry"
-                >
-                  <Trash2 className="size-3.5" />
-                </Button>
+                {!locked ? (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 rounded text-destructive hover:bg-destructive/15"
+                    onClick={() => void onDeleteLog(log.id)}
+                    title="Delete time entry"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                ) : null}
               </div>
             </div>
           </div>

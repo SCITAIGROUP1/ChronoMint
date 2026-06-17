@@ -7,7 +7,9 @@ test.describe("Admin projects", () => {
   });
 
   test("lists seeded workspace projects", async ({ page }) => {
-    await expect(page.getByRole("columnheader", { name: "Name" })).toBeVisible();
+    await expect(page.getByRole("columnheader", { name: "Project Name" })).toBeVisible();
+    await expect(page.getByRole("columnheader", { name: "Client Name" })).toBeVisible();
+    await expect(page.getByRole("columnheader", { name: "Total Time Tracked" })).toBeVisible();
     const rows = page.locator("table tbody tr");
     await expect(rows.first()).toBeVisible();
     expect(await rows.count()).toBeGreaterThan(0);
@@ -43,6 +45,27 @@ test.describe("Admin projects", () => {
       timeout: 15_000
     });
     await expect(page.getByText(clientName).first()).toBeVisible();
+  });
+
+  test("shows duplicate project name error in create modal", async ({ page }) => {
+    const existingName = "Annual Audit";
+
+    await page.getByRole("button", { name: "New project" }).click();
+    await page.locator("#name").fill(existingName);
+    await page.locator("#client").fill("Acme Corp");
+    await page.getByRole("button", { name: "Create project" }).click();
+
+    await expect(page.getByRole("heading", { name: "New project" })).toBeVisible();
+    await expect(page.getByText("Name is already taken in this workspace")).toBeVisible();
+  });
+
+  test("shows inline required field errors in create modal", async ({ page }) => {
+    await page.getByRole("button", { name: "New project" }).click();
+    await page.getByRole("button", { name: "Create project" }).click();
+
+    await expect(page.getByRole("heading", { name: "New project" })).toBeVisible();
+    await expect(page.getByText("Project name is required.")).toBeVisible();
+    await expect(page.getByText("Client is required.")).toBeVisible();
   });
 
   test("opens the clicked project row", async ({ page }) => {
@@ -85,5 +108,17 @@ test.describe("Admin projects", () => {
       .click();
     await expect(page).toHaveURL(/\/projects\/[^/]+\/team$/);
     await expect(page.getByRole("button", { name: "Add team member" })).toBeVisible();
+  });
+
+  test("add team member modal has searchable workspace member field", async ({ page }) => {
+    await page.locator("table tbody tr").first().click();
+    await page
+      .getByRole("navigation", { name: "Project sections" })
+      .getByRole("link", { name: "Team", exact: true })
+      .click();
+    await page.getByRole("button", { name: "Add team member" }).click();
+    await expect(page.getByRole("heading", { name: "Add team member" })).toBeVisible();
+    await page.getByRole("combobox", { name: "Workspace member" }).click();
+    await expect(page.getByPlaceholder("Search by name or email…")).toBeVisible();
   });
 });

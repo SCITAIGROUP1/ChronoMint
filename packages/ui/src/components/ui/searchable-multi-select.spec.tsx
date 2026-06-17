@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { Dialog, DialogBody, DialogContent } from "./dialog.js";
 import { SearchableMultiSelect } from "./searchable-multi-select.js";
 
 const OPTIONS = [
@@ -48,5 +49,30 @@ describe("SearchableMultiSelect", () => {
     await user.click(screen.getByRole("combobox", { name: "Assignees" }));
     await user.click(screen.getByText("Select all"));
     expect(onChange).toHaveBeenCalledWith(["u1", "u2", "u3"]);
+  });
+
+  it("locks dialog body scroll while the menu is open", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <Dialog open>
+        <DialogContent>
+          <DialogBody>
+            <SearchableMultiSelect
+              value={[]}
+              onChange={vi.fn()}
+              options={OPTIONS}
+              aria-label="Assignees"
+            />
+          </DialogBody>
+        </DialogContent>
+      </Dialog>
+    );
+
+    const body = document.querySelector("[data-dialog-body]") as HTMLElement;
+    expect(body.style.overflow).toBe("");
+
+    await user.click(screen.getByRole("combobox", { name: "Assignees" }));
+    expect(body.style.overflow).toBe("hidden");
   });
 });

@@ -50,6 +50,7 @@ import { useWidgetLayout, type WidgetLayoutItem } from "./use-widget-layout";
 import { WidgetControlPanel } from "./widget-control-panel";
 import { WIDGET_REGISTRY } from "./widget-registry";
 import { WidgetShell } from "./widget-shell";
+import { categorySplitPeriodLabel } from "./widgets/category-split-data";
 import {
   CategorySplitWidget,
   DailyGoalWidget,
@@ -57,10 +58,20 @@ import {
   QuickActions,
   TimesheetSubmissionsWidget,
   TodayLogsWidget,
+  TeamActivitiesWidget,
   WeeklyProgressWidget
 } from "./widgets-lazy";
 import { useSuppressAssistantLauncher } from "@/features/assistant/assistant-provider";
-import { useDashboardSubmissions } from "@/features/submissions/use-my-submissions";
+import { useTeamActivities } from "@/features/dashboard/use-team-activities";
+import {
+  useDashboardSubmissions,
+  useMySubmissions
+} from "@/features/submissions/use-my-submissions";
+import {
+  buildSubmissionByKey,
+  isTimeEntryLocked,
+  LOCKED_ENTRY_MESSAGE
+} from "@/features/time-tracker/entry-approval-status";
 import { toDateKey } from "@/features/timesheet/calendar-utils";
 import { suggestBillableFromTask } from "@/features/timesheet/time-entry-draft";
 import { useActiveTimerSession } from "@/hooks/use-active-timer-session";
@@ -123,6 +134,40 @@ export function DashboardPage() {
   const [logs, setLogs] = useState<TimeLogDto[]>([]);
   const [loading, setLoading] = useState(true);
   const { submissions } = useDashboardSubmissions(ws, Boolean(ws));
+  const { submissions: todaySubmissions } = useMySubmissions(
+    ws,
+    new Date(),
+    "assigned",
+    Boolean(ws)
+  );
+
+  const teamActivitiesFilters = useMemo(
+    () => ({
+      from: new Date(startDate + "T00:00:00").toISOString(),
+      to: new Date(endDate + "T23:59:59.999").toISOString(),
+      ...(filterProjectId ? { projectId: filterProjectId } : {}),
+      ...(filterCategoryId ? { categoryId: filterCategoryId } : {}),
+      ...(filterTaskId ? { taskId: filterTaskId } : {}),
+      ...(isAdmin && filterUserId ? { userId: filterUserId } : {})
+    }),
+    [startDate, endDate, filterProjectId, filterCategoryId, filterTaskId, filterUserId, isAdmin]
+  );
+
+  const layoutsByWorkspace = useWidgetLayout((s) => s.layoutsByWorkspace);
+  const initialized = useWidgetLayout((s) => s.initialized);
+  const teamActivitiesWidgetVisible = (layoutsByWorkspace[ws] ?? []).some(
+    (item) => item.i === "team_activities" && item.visible
+  );
+
+  const {
+    data: teamActivities,
+    loading: teamActivitiesLoading,
+    error: teamActivitiesError
+  } = useTeamActivities(
+    ws,
+    Boolean(ws) && initialized && teamActivitiesWidgetVisible,
+    teamActivitiesFilters
+  );
   useActiveTimerSession(ws, Boolean(ws));
 
   // Layout customizing states
@@ -143,8 +188,6 @@ export function DashboardPage() {
   const [resuming, setResuming] = useState(false);
 
   // Layout store selectors
-  const layoutsByWorkspace = useWidgetLayout((s) => s.layoutsByWorkspace);
-  const initialized = useWidgetLayout((s) => s.initialized);
   const initialize = useWidgetLayout((s) => s.initialize);
   const updateLayout = useWidgetLayout((s) => s.updateLayout);
   const persistLayout = useWidgetLayout((s) => s.persistLayout);
@@ -411,7 +454,23 @@ export function DashboardPage() {
     }
   }
 
+  const submissionByKey = useMemo(() => buildSubmissionByKey(todaySubmissions), [todaySubmissions]);
+
+  const isLogLocked = useCallback(
+    (log: TimeLogDto) => {
+      const task = tasks.find((t) => t.id === log.taskId);
+      const project = task ? projects.find((p) => p.id === task.projectId) : undefined;
+      return isTimeEntryLocked(log, project, submissionByKey);
+    },
+    [tasks, projects, submissionByKey]
+  );
+
   const handleDeleteLog = async (logId: string) => {
+    const log = logs.find((item) => item.id === logId);
+    if (log && isLogLocked(log)) {
+      toast.error(LOCKED_ENTRY_MESSAGE);
+      return;
+    }
     try {
       await api(`/timelogs/${logId}`, { method: "DELETE", workspaceId: ws });
       toast.success("Time entry deleted!");
@@ -788,7 +847,13 @@ export function DashboardPage() {
                             />
                           );
                         case "category_split":
-                          return <CategorySplitWidget />;
+                          return (
+                            <CategorySplitWidget
+                              logs={filteredLogs}
+                              tasks={tasks}
+                              periodLabel={categorySplitPeriodLabel(range)}
+                            />
+                          );
                         case "pinned_favorites":
                           return (
                             <QuickActions
@@ -817,6 +882,18 @@ export function DashboardPage() {
                               tasks={tasks}
                               onDeleteLog={handleDeleteLog}
                               onResumeTask={handleResumeTask}
+                              isLogLocked={isLogLocked}
+                            />
+                          );
+                        case "team_activities":
+                          return (
+                            <TeamActivitiesWidget
+                              data={teamActivities}
+                              projects={projects}
+                              loading={teamActivitiesLoading}
+                              error={teamActivitiesError}
+                              range={range}
+                              filters={teamActivitiesFilters}
                             />
                           );
                         case "timesheet_submissions":

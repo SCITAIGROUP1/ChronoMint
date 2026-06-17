@@ -8,7 +8,8 @@ import {
   History,
   ListTodo,
   Activity,
-  Tags
+  Tags,
+  Users
 } from "lucide-react";
 
 export type WidgetGroup = "kpi" | "trends" | "composition" | "workflow";
@@ -93,17 +94,17 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
   {
     id: "project_split",
     label: "Project Distribution",
-    description: "Donut chart of time logged across active projects this week",
+    description: "Donut chart with legend of time logged across projects (name, client, hours, %)",
     group: "composition",
-    defaultSize: { w: 3, h: 3 },
-    minSize: { w: 3, h: 3 },
+    defaultSize: { w: 7, h: 4 },
+    minSize: { w: 6, h: 4 },
     defaultVisible: true,
     iconName: "PieChart"
   },
   {
     id: "category_split",
     label: "Category Split",
-    description: "Donut chart of your week hours by work category",
+    description: "Donut chart of logged hours by work category for the selected period",
     group: "composition",
     defaultSize: { w: 3, h: 3 },
     minSize: { w: 3, h: 3 },
@@ -163,6 +164,17 @@ export const WIDGET_REGISTRY: WidgetDefinition[] = [
     iconName: "ListTodo"
   },
   {
+    id: "team_activities",
+    label: "Team Activities",
+    description:
+      "Workspace team table with latest activity, duration, time since, period totals, and daily hours bar",
+    group: "workflow",
+    defaultSize: { w: 12, h: 5 },
+    minSize: { w: 8, h: 4 },
+    defaultVisible: true,
+    iconName: "Users"
+  },
+  {
     id: "timesheet_submissions",
     label: "My Timesheets",
     description: "Summary of your timesheet submission periods and approval statuses",
@@ -179,13 +191,14 @@ export const DEFAULT_LAYOUT: WidgetLayoutItem[] = [
   { i: "stat_billable", x: 4, y: 0, w: 4, h: 2, visible: true },
   { i: "stat_projects", x: 8, y: 0, w: 4, h: 2, visible: true },
   { i: "weekly_progress", x: 0, y: 6, w: 8, h: 4, visible: true },
-  { i: "project_split", x: 8, y: 2, w: 4, h: 4, visible: true },
+  { i: "project_split", x: 5, y: 2, w: 7, h: 4, visible: true },
   { i: "category_split", x: 8, y: 10, w: 4, h: 4, visible: true },
-  { i: "quick_timer", x: 0, y: 2, w: 8, h: 4, visible: true },
+  { i: "quick_timer", x: 0, y: 2, w: 5, h: 4, visible: true },
   { i: "daily_progress", x: 8, y: 6, w: 4, h: 4, visible: true },
   { i: "pinned_favorites", x: 0, y: 6, w: 3, h: 3, visible: false },
   { i: "recent_activity", x: 9, y: 14, w: 3, h: 3, visible: false },
   { i: "today_logs", x: 0, y: 10, w: 8, h: 4, visible: true },
+  { i: "team_activities", x: 0, y: 14, w: 12, h: 5, visible: true },
   { i: "timesheet_submissions", x: 6, y: 13, w: 6, h: 3, visible: false }
 ];
 
@@ -199,5 +212,6 @@ export const WIDGET_ICONS: Record<string, any> = {
   History,
   ListTodo,
   Activity,
-  Tags
+  Tags,
+  Users
 };

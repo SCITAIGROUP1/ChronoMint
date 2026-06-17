@@ -47,4 +47,16 @@ describe("Dialog", () => {
     await user.click(closeButtons[0]!);
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
+
+  it("marks dialog body for nested popover scroll locking", () => {
+    render(
+      <Dialog open>
+        <DialogContent>
+          <DialogBody>Session list</DialogBody>
+        </DialogContent>
+      </Dialog>
+    );
+
+    expect(screen.getByText("Session list").closest("[data-dialog-body]")).toBeInTheDocument();
+  });
 });

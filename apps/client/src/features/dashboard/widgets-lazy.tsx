@@ -53,6 +53,14 @@ export const TodayLogsWidget = dynamic(
   { ssr: false, loading: () => <WidgetSkeleton className="min-h-[240px]" /> }
 );
 
+export const TeamActivitiesWidget = dynamic(
+  () =>
+    import("./widgets/team-activities-widget").then((m) => ({
+      default: m.TeamActivitiesWidget
+    })),
+  { ssr: false, loading: () => <WidgetSkeleton className="min-h-[280px]" /> }
+);
+
 export const QuickActions = dynamic(
   () =>
     import("@/features/timer/quick-actions").then((m) => ({

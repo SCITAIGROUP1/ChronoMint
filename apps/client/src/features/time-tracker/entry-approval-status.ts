@@ -36,3 +36,16 @@ export function isTimeEntryLocked(
   const approval = resolveEntryApprovalStatus(log, project, submissionByKey);
   return approval.status === "SUBMITTED" || approval.status === "APPROVED";
 }
+
+export function buildSubmissionByKey(
+  submissions: Iterable<TimesheetPeriodDto>
+): Map<string, TimesheetPeriodDto> {
+  const map = new Map<string, TimesheetPeriodDto>();
+  for (const item of submissions) {
+    map.set(`${item.projectId}:${item.periodStart}`, item);
+  }
+  return map;
+}
+
+export const LOCKED_ENTRY_MESSAGE =
+  "This entry is locked (submitted or approved) and cannot be deleted.";

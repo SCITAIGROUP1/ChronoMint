@@ -14,6 +14,7 @@ import {
   computeLogMoveRange,
   findOccupancyConflict,
   formatDayHeader,
+  formatDuration,
   formatSegmentTimeRange,
   formatTimeLabel,
   isSlotOccupiedElsewhere,
@@ -24,7 +25,8 @@ import {
   getZoneHourAndMinute,
   CALENDAR_START_HOUR,
   CALENDAR_END_HOUR,
-  todayInZone
+  todayInZone,
+  resolveDayHeaderTotalSeconds
 } from "./calendar-utils";
 import {
   formatClockLabel,
@@ -162,6 +164,24 @@ export function TimesheetCalendar({
     }
     return map;
   }, [days, occupancy, timezone, workspaceId]);
+
+  const dayHeaderTotals = useMemo(() => {
+    const timerState = activeTimer
+      ? {
+          startedAt: activeTimer.startedAt,
+          isPaused: activeTimer.isPaused ?? false,
+          elapsedSec: activeTimer.elapsedSec,
+          liveElapsedSec
+        }
+      : null;
+
+    return new Map(
+      days.map((day) => [
+        calendarDateKey(day, timezone),
+        resolveDayHeaderTotalSeconds(logs, day, timezone, timerState)
+      ])
+    );
+  }, [days, logs, timezone, activeTimer, liveElapsedSec]);
 
   function previewConflict(
     logId: string,
@@ -474,17 +494,41 @@ export function TimesheetCalendar({
             >
               {timezone.split("/").pop()?.replace("_", " ")}
             </div>
-            {days.map((day) => (
-              <div
-                key={day.toISOString()}
-                className={cn(
-                  "truncate border-l border-border p-2 text-center text-xs font-medium sm:text-sm",
-                  isSameDayInZone(day, today, timezone) && "bg-primary/10 text-primary"
-                )}
-              >
-                {labelDay(day)}
-              </div>
-            ))}
+            {days.map((day) => {
+              const isToday = isSameDayInZone(day, today, timezone);
+              const totalSec = dayHeaderTotals.get(calendarDateKey(day, timezone)) ?? 0;
+              const totalLabel = totalSec > 0 ? formatDuration(totalSec) : null;
+
+              return (
+                <div
+                  key={day.toISOString()}
+                  className={cn(
+                    "flex min-w-0 flex-col items-center justify-center gap-0.5 border-l border-border px-1 py-2 text-center sm:px-2",
+                    isToday && "bg-primary font-semibold text-primary-foreground"
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "w-full truncate text-[11px] font-medium leading-tight sm:text-xs md:text-sm",
+                      isToday && "font-semibold"
+                    )}
+                  >
+                    {labelDay(day)}
+                  </span>
+                  {totalLabel ? (
+                    <span
+                      className={cn(
+                        "w-full truncate text-[10px] font-semibold tabular-nums leading-tight sm:text-[11px]",
+                        isToday ? "text-primary-foreground/90" : "text-primary"
+                      )}
+                      title={`${totalLabel} logged`}
+                    >
+                      {totalLabel}
+                    </span>
+                  ) : null}
+                </div>
+              );
+            })}
           </div>
           <div className="grid" style={{ gridTemplateColumns }}>
             <div className="relative">
@@ -501,6 +545,7 @@ export function TimesheetCalendar({
               <DayColumn
                 key={day.toISOString()}
                 day={day}
+                isToday={isSameDayInZone(day, today, timezone)}
                 logs={logs}
                 elsewhereSegments={occupancyByDay.get(calendarDateKey(day, timezone)) ?? []}
                 showOccupancyOverlay={showOccupancyOverlay}
@@ -583,6 +628,7 @@ export function TimesheetCalendar({
 
 function DayColumn({
   day,
+  isToday = false,
   logs,
   elsewhereSegments,
   showOccupancyOverlay,
@@ -613,6 +659,7 @@ function DayColumn({
   formatSlotLabel
 }: {
   day: Date;
+  isToday?: boolean;
   logs: TimeLogDto[];
   elsewhereSegments: ReturnType<typeof buildDayOccupancySegments>;
   showOccupancyOverlay: boolean;
@@ -675,7 +722,14 @@ function DayColumn({
   const isMovingThis = movingLogId;
 
   return (
-    <div ref={columnRef} className="relative border-l border-border" data-day-column={dayKey}>
+    <div
+      ref={columnRef}
+      className={cn(
+        "relative border-l border-border",
+        isToday && "border-l-primary bg-primary/[0.05]"
+      )}
+      data-day-column={dayKey}
+    >
       {slotRows.map(({ hour, minute }, index) => {
         const { start: slotStart, end: slotEnd } = slotIntervalForIndex(dayKey, index, timezone);
         const elsewhereConflict =

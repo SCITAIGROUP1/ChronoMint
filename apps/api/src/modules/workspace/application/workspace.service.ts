@@ -10,11 +10,7 @@ import type {
   WorkspaceWithRoleDto
 } from "@kloqra/contracts";
 import { Injectable, HttpStatus } from "@nestjs/common";
-import {
-  deriveNameFromEmail,
-  generateTempPassword,
-  hashPassword
-} from "../../../common/auth/password.util";
+import { generateTempPassword, hashPassword } from "../../../common/auth/password.util";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { deliverMemberEmail } from "../../../common/mailer/member-email-delivery.util";
 import { MemberProvisioningMailer } from "../../../common/mailer/member-provisioning.mailer";
@@ -310,7 +306,7 @@ export class WorkspaceService {
     let temporaryPassword: string | undefined;
 
     if (!user) {
-      const displayName = dto.name?.trim() || deriveNameFromEmail(email);
+      const displayName = dto.name.trim();
       const { firstName, lastName } = splitDisplayName(displayName);
       temporaryPassword = generateTempPassword();
       const passwordHash = await hashPassword(temporaryPassword);
