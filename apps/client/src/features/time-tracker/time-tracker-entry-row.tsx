@@ -104,25 +104,36 @@ export function TimeTrackerEntryRow({
           </Button>
           {menuOpen ? (
             <ShellMenuPanel className={cn("absolute right-0 top-full z-20 mt-1 min-w-[8rem]")}>
-              <ShellMenuItem
-                disabled={locked}
-                onClick={() => {
-                  setMenuOpen(false);
-                  onEdit(log);
-                }}
-              >
-                Edit
-              </ShellMenuItem>
-              <ShellMenuItem
-                tone="destructive"
-                disabled={locked}
-                onClick={() => {
-                  setMenuOpen(false);
-                  onDelete(log);
-                }}
-              >
-                Delete
-              </ShellMenuItem>
+              {locked ? (
+                <ShellMenuItem
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onEdit(log);
+                  }}
+                >
+                  View
+                </ShellMenuItem>
+              ) : (
+                <>
+                  <ShellMenuItem
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onEdit(log);
+                    }}
+                  >
+                    Edit
+                  </ShellMenuItem>
+                  <ShellMenuItem
+                    tone="destructive"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onDelete(log);
+                    }}
+                  >
+                    Delete
+                  </ShellMenuItem>
+                </>
+              )}
             </ShellMenuPanel>
           ) : null}
         </div>

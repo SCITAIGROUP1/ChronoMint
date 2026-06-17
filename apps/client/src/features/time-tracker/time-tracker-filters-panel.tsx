@@ -4,6 +4,7 @@ import type { CategoryDto, TaskDto } from "@kloqra/contracts";
 import {
   Button,
   Label,
+  SearchableSelect,
   Select,
   SelectContent,
   SelectItem,
@@ -67,46 +68,40 @@ export function TimeTrackerFiltersPanel({
           <Label htmlFor="time-tracker-category" className="text-xs text-muted-foreground">
             Category
           </Label>
-          <Select
+          <SearchableSelect
+            id="time-tracker-category"
             value={values.categoryId || "all"}
             onValueChange={(v) => {
               onCategoryChange(v === "all" ? "" : v);
               onTaskChange("");
             }}
-          >
-            <SelectTrigger id="time-tracker-category" className="bg-background">
-              <SelectValue placeholder="All categories" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All categories</SelectItem>
-              {categories.map((category) => (
-                <SelectItem key={category.id} value={category.id}>
-                  {category.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            options={[
+              { value: "all", label: "All categories" },
+              ...categories.map((category) => ({ value: category.id, label: category.name }))
+            ]}
+            placeholder="All categories"
+            searchPlaceholder="Search categories…"
+            triggerClassName="bg-background"
+            aria-label="Category"
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="time-tracker-task" className="text-xs text-muted-foreground">
             Task
           </Label>
-          <Select
+          <SearchableSelect
+            id="time-tracker-task"
             value={values.taskId || "all"}
             onValueChange={(v) => onTaskChange(v === "all" ? "" : v)}
-          >
-            <SelectTrigger id="time-tracker-task" className="bg-background">
-              <SelectValue placeholder="All tasks" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All tasks</SelectItem>
-              {filteredTasks.map((task) => (
-                <SelectItem key={task.id} value={task.id}>
-                  {task.taskName}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            options={[
+              { value: "all", label: "All tasks" },
+              ...filteredTasks.map((task) => ({ value: task.id, label: task.taskName }))
+            ]}
+            placeholder="All tasks"
+            searchPlaceholder="Search tasks…"
+            triggerClassName="bg-background"
+            aria-label="Task"
+          />
         </div>
         <div className="space-y-2 sm:col-span-2 lg:col-span-1">
           <Label htmlFor="time-tracker-billability" className="text-xs text-muted-foreground">

@@ -18,7 +18,7 @@ import {
   shellSidebarScrollClass,
   shellSidebarScrollCollapsedClass
 } from "./shell/shell-styles.js";
-import { ShellToolbarProvider } from "./shell-toolbar-context.js";
+import { ShellToolbarProvider, type ShellToolbarValue } from "./shell-toolbar-context.js";
 
 export type SidebarNavItem = {
   href: string;
@@ -68,7 +68,7 @@ export type ResponsiveLayoutShellProps = {
   workspaceSwitcher: (collapsed: boolean) => React.ReactNode;
   footerContent: (collapsed: boolean) => React.ReactNode;
   impersonationBanner?: React.ReactNode;
-  shellToolbar?: React.ReactNode;
+  shellToolbar?: ShellToolbarValue;
 };
 
 export function ResponsiveLayoutShell({

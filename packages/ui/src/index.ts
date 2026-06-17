@@ -16,6 +16,7 @@ export { Button, buttonVariants } from "./components/ui/button.js";
 export type { ButtonProps } from "./components/ui/button.js";
 
 export { Input } from "./components/ui/input.js";
+export { PasswordInput } from "./components/ui/password-input.js";
 export { Label } from "./components/ui/label.js";
 export { Skeleton, SkeletonText } from "./components/ui/skeleton.js";
 
@@ -127,6 +128,35 @@ export {
 } from "./components/ui/select.js";
 
 export {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator
+} from "./components/ui/command.js";
+
+export {
+  SearchableSelect,
+  type SearchableSelectGroup,
+  type SearchableSelectOption,
+  type SearchableSelectProps
+} from "./components/ui/searchable-select.js";
+
+export {
+  SearchableMultiSelect,
+  type SearchableMultiSelectOption,
+  type SearchableMultiSelectProps
+} from "./components/ui/searchable-multi-select.js";
+
+export {
+  filterOptionsByQuery,
+  getOptionSearchText,
+  type FilterableOption
+} from "./lib/filter-options.js";
+
+export {
   ProjectColorDot,
   ProjectColorEditor,
   ProjectColorPicker,
@@ -174,6 +204,11 @@ export {
 } from "./components/ui/confirm-dialog.js";
 
 export {
+  ConfirmNoteDialog,
+  type ConfirmNoteDialogProps
+} from "./components/ui/confirm-note-dialog.js";
+
+export {
   Dialog,
   DialogPortal,
   DialogOverlay,
@@ -207,11 +242,21 @@ export {
   type SpotlightTourStep
 } from "./components/spotlight-tour.js";
 
-export { ShellToolbarProvider, useShellToolbar } from "./components/shell-toolbar-context.js";
+export {
+  ShellToolbarProvider,
+  useShellToolbar,
+  isShellToolbarParts,
+  resolveShellToolbar,
+  type ShellToolbarParts,
+  type ShellToolbarValue
+} from "./components/shell-toolbar-context.js";
 
 export {
   AppBar,
   type AppBarProps,
+  AppBarListToolbar,
+  type AppBarListToolbarProps,
+  appBarListFilterTriggerClass,
   AppBarSecondary,
   type AppBarSecondaryProps,
   AppBarActionButton,

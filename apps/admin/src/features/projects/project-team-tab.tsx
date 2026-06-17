@@ -1,6 +1,6 @@
 "use client";
 
-import { ROUTES } from "@kloqra/contracts";
+import { ROUTES, DEFAULT_TABLE_PAGE_SIZE } from "@kloqra/contracts";
 import type { TeamInviteDto, TeamMemberDto, WorkspaceMemberDto } from "@kloqra/contracts";
 import {
   AppModal,
@@ -19,16 +19,16 @@ import {
   EmptyState,
   Input,
   Label,
+  SearchableSelect,
   Table,
   TableBody,
   TableHeader,
   TablePagination,
   TableRow,
   TableToolbar,
-  TableLoadingState,
-  cn
+  TableLoadingState
 } from "@kloqra/ui";
-import { buildTableQuery } from "@kloqra/web-shared";
+import { buildTableQuery, extractFieldErrorsFromMessage } from "@kloqra/web-shared";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -52,7 +52,7 @@ export function ProjectTeamTab() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
-  const [limit, setLimit] = useState(20);
+  const [limit, setLimit] = useState(DEFAULT_TABLE_PAGE_SIZE);
   const [error, setError] = useState<string | null>(null);
   const [memberBusyId, setMemberBusyId] = useState<string | null>(null);
   const [loadingTeam, setLoadingTeam] = useState(true);
@@ -60,12 +60,15 @@ export function ProjectTeamTab() {
   const [workspaceMembers, setWorkspaceMembers] = useState<WorkspaceMemberDto[]>([]);
   const [loadingWorkspaceMembers, setLoadingWorkspaceMembers] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState("");
-  const [memberSearch, setMemberSearch] = useState("");
   const [addingMember, setAddingMember] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<TeamMemberDto | null>(null);
   const [invite, setInvite] = useState<TeamInviteDto | null>(null);
   const [inviteEmail, setInviteEmail] = useState("");
   const [creatingInvite, setCreatingInvite] = useState(false);
+
+  const parsedValidation = error
+    ? extractFieldErrorsFromMessage<"inviteEmail">(error, { inviteEmail: "Email" })
+    : { fieldErrors: {}, formError: "" };
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 300);
@@ -76,10 +79,15 @@ export function ProjectTeamTab() {
     setPage(1);
   }, [debouncedSearch]);
 
+  const handleLimitChange = useCallback((nextLimit: number) => {
+    setPage(1);
+    setLimit(nextLimit);
+  }, []);
+
   const loadTeam = useCallback(async () => {
     setLoadingTeam(true);
     try {
-      const query = buildTableQuery(page, debouncedSearch);
+      const query = buildTableQuery(page, debouncedSearch, undefined, limit);
       const data = await api<{
         id: string;
         projectId: string;
@@ -94,7 +102,6 @@ export function ProjectTeamTab() {
       setMembers(data.members);
       setTotal(data.total);
       setTotalPages(data.totalPages);
-      setLimit(data.limit);
     } catch {
       setTeamMeta(null);
       setMembers([]);
@@ -104,7 +111,7 @@ export function ProjectTeamTab() {
     } finally {
       setLoadingTeam(false);
     }
-  }, [workspaceId, projectId, page, debouncedSearch]);
+  }, [workspaceId, projectId, page, debouncedSearch, limit]);
 
   useEffect(() => {
     void loadTeam();
@@ -115,16 +122,6 @@ export function ProjectTeamTab() {
     return workspaceMembers.filter((m) => !onTeam.has(m.userId));
   }, [workspaceMembers, members]);
 
-  const filteredAvailableMembers = useMemo(() => {
-    const query = memberSearch.trim().toLowerCase();
-    if (!query) return availableWorkspaceMembers;
-    return availableWorkspaceMembers.filter(
-      (member) =>
-        member.userName.toLowerCase().includes(query) ||
-        member.userEmail.toLowerCase().includes(query)
-    );
-  }, [availableWorkspaceMembers, memberSearch]);
-
   const selectedMember = useMemo(
     () => availableWorkspaceMembers.find((member) => member.userId === selectedUserId),
     [availableWorkspaceMembers, selectedUserId]
@@ -133,7 +130,6 @@ export function ProjectTeamTab() {
   async function openAddModal() {
     setAddOpen(true);
     setSelectedUserId("");
-    setMemberSearch("");
     setLoadingWorkspaceMembers(true);
     try {
       const list = await api<WorkspaceMemberDto[]>(ROUTES.WORKSPACES.MEMBERS(workspaceId), {
@@ -261,8 +257,15 @@ export function ProjectTeamTab() {
               type="email"
               placeholder="member@example.com"
               value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
+              onChange={(e) => {
+                setInviteEmail(e.target.value);
+                if (error) setError(null);
+              }}
+              aria-invalid={Boolean(parsedValidation.fieldErrors.inviteEmail)}
             />
+            {parsedValidation.fieldErrors.inviteEmail ? (
+              <p className="text-xs text-destructive">{parsedValidation.fieldErrors.inviteEmail}</p>
+            ) : null}
           </div>
           <Button type="button" onClick={() => void createInviteLink()} disabled={creatingInvite}>
             {creatingInvite ? "Generating…" : "Generate invite link"}
@@ -377,6 +380,7 @@ export function ProjectTeamTab() {
               total={total}
               limit={limit}
               onPageChange={setPage}
+              onLimitChange={handleLimitChange}
               disabled={loadingTeam}
             />
           </>
@@ -388,7 +392,6 @@ export function ProjectTeamTab() {
         onOpenChange={(open) => {
           setAddOpen(open);
           if (!open) {
-            setMemberSearch("");
             setSelectedUserId("");
           }
         }}
@@ -424,13 +427,31 @@ export function ProjectTeamTab() {
             </p>
           ) : (
             <>
-              <Input
-                id="member-search"
-                type="search"
-                placeholder="Search by name or email…"
-                value={memberSearch}
-                onChange={(e) => setMemberSearch(e.target.value)}
-                autoComplete="off"
+              <SearchableSelect
+                value={selectedUserId}
+                onValueChange={setSelectedUserId}
+                options={availableWorkspaceMembers.map((member) => ({
+                  value: member.userId,
+                  label: member.userName,
+                  keywords: member.userEmail
+                }))}
+                placeholder="Select a workspace member"
+                searchPlaceholder="Search by name or email…"
+                emptyMessage="No members match your search."
+                aria-label="Workspace member"
+                renderOption={(option) => {
+                  const member = availableWorkspaceMembers.find(
+                    (item) => item.userId === option.value
+                  );
+                  return (
+                    <span className="flex flex-col items-start gap-0.5">
+                      <span className="font-medium">{option.label}</span>
+                      {member ? (
+                        <span className="text-xs text-muted-foreground">{member.userEmail}</span>
+                      ) : null}
+                    </span>
+                  );
+                }}
               />
               {selectedMember ? (
                 <p className="text-sm text-muted-foreground">
@@ -438,40 +459,7 @@ export function ProjectTeamTab() {
                   <span className="font-medium text-foreground">{selectedMember.userName}</span> (
                   {selectedMember.userEmail})
                 </p>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  Select a member from the list below.
-                </p>
-              )}
-              <div
-                className="max-h-56 overflow-y-auto rounded-md border border-border"
-                role="listbox"
-                aria-label="Available workspace members"
-              >
-                {filteredAvailableMembers.length === 0 ? (
-                  <p className="p-3 text-sm text-muted-foreground">No members match your search.</p>
-                ) : (
-                  filteredAvailableMembers.map((member) => {
-                    const selected = selectedUserId === member.userId;
-                    return (
-                      <button
-                        key={member.userId}
-                        type="button"
-                        role="option"
-                        aria-selected={selected}
-                        className={cn(
-                          "flex w-full flex-col items-start gap-0.5 border-b border-border/60 px-3 py-2.5 text-left text-sm last:border-b-0 hover:bg-muted/50",
-                          selected && "bg-primary/10 hover:bg-primary/10"
-                        )}
-                        onClick={() => setSelectedUserId(member.userId)}
-                      >
-                        <span className="font-medium">{member.userName}</span>
-                        <span className="text-xs text-muted-foreground">{member.userEmail}</span>
-                      </button>
-                    );
-                  })
-                )}
-              </div>
+              ) : null}
             </>
           )}
         </div>
@@ -493,7 +481,13 @@ export function ProjectTeamTab() {
         onCancel={() => setRemoveTarget(null)}
       />
 
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {error && parsedValidation.fieldErrors.inviteEmail ? (
+        parsedValidation.formError ? (
+          <p className="text-sm text-destructive">{parsedValidation.formError}</p>
+        ) : null
+      ) : error ? (
+        <p className="text-sm text-destructive">{error}</p>
+      ) : null}
     </div>
   );
 }

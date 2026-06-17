@@ -45,6 +45,7 @@ const userProfileSelect = {
   workStartDate: true,
   totpEnabledAt: true,
   defaultHourlyRate: true,
+  jiraEmail: true,
   preferences: true,
   createdAt: true
 } as const;
@@ -63,6 +64,7 @@ type UserProfileRecord = {
   workStartDate: Date | null;
   totpEnabledAt: Date | null;
   defaultHourlyRate: { toNumber(): number } | null;
+  jiraEmail: string | null;
   preferences: Prisma.JsonValue;
   createdAt: Date;
 };
@@ -305,7 +307,12 @@ export class UsersService {
       effectiveTimeFormat: resolveEffectiveTimeFormat(parsedPreferences),
       effectiveTheme: resolveEffectiveTheme(parsedPreferences),
       twoFactorEnabled: Boolean(user.totpEnabledAt),
-      activityStats
+      activityStats,
+      jiraEmail: user.jiraEmail,
+      jiraConnected: Boolean(
+        user.jiraEmail && workspaceSettings.jiraSiteUrl && workspaceSettings.jiraServiceToken
+      ),
+      workspaceJiraSiteUrl: workspaceSettings.jiraSiteUrl ?? null
     };
   }
 }

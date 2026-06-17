@@ -139,8 +139,7 @@ export class TimesheetAmendmentsService {
           projectId: period.projectId,
           amendmentId: row.id,
           reason
-        },
-        excludeUserId: userId
+        }
       })
       .catch((err: unknown) => {
         this.logger.error(
@@ -289,6 +288,14 @@ export class TimesheetAmendmentsService {
   }
 
   async deny(workspaceId: string, amendmentId: string, adminUserId: string, adminNote?: string) {
+    if (!adminNote?.trim()) {
+      throw new DomainException(
+        ErrorCodes.VALIDATION_ERROR,
+        "Admin note is required when denying an edit request",
+        HttpStatus.BAD_REQUEST
+      );
+    }
+
     // Non-critical but preferred: wrap the status update and detail fetch inside a single
     // transaction block to ensure atomicity and consistent database read states.
     const row = await this.prisma.$transaction(async (tx) => {
@@ -296,7 +303,7 @@ export class TimesheetAmendmentsService {
         where: { id: amendmentId, workspaceId, status: "PENDING" },
         data: {
           status: "DENIED",
-          adminNote: adminNote || null,
+          adminNote: adminNote.trim(),
           reviewedBy: adminUserId,
           reviewedAt: new Date()
         }

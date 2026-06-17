@@ -1,14 +1,46 @@
 "use client";
 
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, isValidElement, useContext, type ReactNode } from "react";
 
-const ShellToolbarContext = createContext<ReactNode>(null);
+export type ShellToolbarParts = {
+  search?: ReactNode;
+  actions?: ReactNode;
+};
+
+export type ShellToolbarValue = ReactNode | ShellToolbarParts;
+
+export function isShellToolbarParts(value: ShellToolbarValue): value is ShellToolbarParts {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !isValidElement(value) &&
+    ("search" in value || "actions" in value)
+  );
+}
+
+export function resolveShellToolbar(toolbar: ShellToolbarValue | null) {
+  if (!toolbar) {
+    return { search: null, actions: null, legacy: false as const };
+  }
+
+  if (isShellToolbarParts(toolbar)) {
+    return {
+      search: toolbar.search ?? null,
+      actions: toolbar.actions ?? null,
+      legacy: false as const
+    };
+  }
+
+  return { search: null, actions: toolbar, legacy: true as const };
+}
+
+const ShellToolbarContext = createContext<ShellToolbarValue | null>(null);
 
 export function ShellToolbarProvider({
   toolbar,
   children
 }: {
-  toolbar?: ReactNode;
+  toolbar?: ShellToolbarValue;
   children: ReactNode;
 }) {
   return (

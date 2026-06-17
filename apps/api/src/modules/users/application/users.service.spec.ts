@@ -235,4 +235,38 @@ describe("UsersService", () => {
     );
     expect(result.layout).toEqual(layout);
   });
+
+  it("includes workspaceJiraSiteUrl in profile when workspace has Jira configured", async () => {
+    mockPrisma.user.findUniqueOrThrow.mockResolvedValue({
+      ...baseUser,
+      jiraEmail: "sam@company.com"
+    });
+    mockPrisma.workspace.findUniqueOrThrow.mockResolvedValue({
+      id: "ws-1",
+      settings: {
+        jiraSiteUrl: "https://company.atlassian.net",
+        jiraServiceEmail: "svc@company.com",
+        jiraServiceToken: "token123"
+      }
+    });
+
+    const profile = await service.getProfile("user-1", "ws-1", "ADMIN");
+
+    expect(profile.workspaceJiraSiteUrl).toBe("https://company.atlassian.net");
+    expect(profile.jiraConnected).toBe(true);
+    expect(profile.jiraEmail).toBe("sam@company.com");
+  });
+
+  it("returns workspaceJiraSiteUrl as null when workspace has no Jira configured", async () => {
+    mockPrisma.user.findUniqueOrThrow.mockResolvedValue(baseUser);
+    mockPrisma.workspace.findUniqueOrThrow.mockResolvedValue({
+      id: "ws-1",
+      settings: {}
+    });
+
+    const profile = await service.getProfile("user-1", "ws-1", "MEMBER");
+
+    expect(profile.workspaceJiraSiteUrl).toBeNull();
+    expect(profile.jiraConnected).toBe(false);
+  });
 });

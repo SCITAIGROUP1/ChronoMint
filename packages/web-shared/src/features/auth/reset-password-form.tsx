@@ -1,12 +1,13 @@
 "use client";
 
 import { ROUTES } from "@kloqra/contracts";
-import { Button, Input, Label } from "@kloqra/ui";
+import { Button, PasswordInput, Label } from "@kloqra/ui";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { api } from "../../api/client";
 import { AuthShell } from "../../components/auth-shell";
+import { extractFieldErrorsFromMessage } from "../../utils/form-errors";
 
 export function ResetPasswordForm({
   token,
@@ -19,17 +20,19 @@ export function ResetPasswordForm({
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<{ password?: string; confirm?: string }>({});
   const [submitting, setSubmitting] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    setFieldErrors({});
     if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
+      setFieldErrors({ password: "Password must be at least 8 characters." });
       return;
     }
     if (password !== confirm) {
-      setError("Passwords do not match.");
+      setFieldErrors({ confirm: "Passwords do not match." });
       return;
     }
     setSubmitting(true);
@@ -40,7 +43,16 @@ export function ResetPasswordForm({
       });
       router.push(`${loginHref}?reason=password-reset`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not reset password.");
+      if (err instanceof Error) {
+        const parsed = extractFieldErrorsFromMessage(err.message, {
+          password: "New Password",
+          confirm: "Confirm Password"
+        });
+        setFieldErrors(parsed.fieldErrors);
+        setError(parsed.formError);
+      } else {
+        setError("Could not reset password.");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -62,27 +74,43 @@ export function ResetPasswordForm({
       <form onSubmit={submit} className="flex flex-col gap-4">
         <div className="space-y-2">
           <Label htmlFor="password">New password</Label>
-          <Input
+          <PasswordInput
             id="password"
-            type="password"
             autoComplete="new-password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              if (fieldErrors.password) {
+                setFieldErrors((prev) => ({ ...prev, password: undefined }));
+              }
+            }}
             minLength={8}
             required
+            aria-invalid={Boolean(fieldErrors.password)}
           />
+          {fieldErrors.password ? (
+            <p className="text-xs text-destructive">{fieldErrors.password}</p>
+          ) : null}
         </div>
         <div className="space-y-2">
           <Label htmlFor="confirm">Confirm password</Label>
-          <Input
+          <PasswordInput
             id="confirm"
-            type="password"
             autoComplete="new-password"
             value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
+            onChange={(e) => {
+              setConfirm(e.target.value);
+              if (fieldErrors.confirm) {
+                setFieldErrors((prev) => ({ ...prev, confirm: undefined }));
+              }
+            }}
             minLength={8}
             required
+            aria-invalid={Boolean(fieldErrors.confirm)}
           />
+          {fieldErrors.confirm ? (
+            <p className="text-xs text-destructive">{fieldErrors.confirm}</p>
+          ) : null}
         </div>
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
         <Button type="submit" disabled={submitting}>

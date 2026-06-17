@@ -19,6 +19,12 @@ test.describe("Admin Approvals", () => {
     await expect(page.getByText("Period range", { exact: true })).toBeVisible();
   });
 
+  test("shows approved and rejected tabs", async ({ page }) => {
+    await page.goto("/approvals");
+    await expect(page.getByRole("button", { name: "Approved" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Rejected" })).toBeVisible();
+  });
+
   test("team page is live activity only", async ({ page }) => {
     await page.goto("/team");
     await expect(page.getByRole("heading", { name: "Team Live" })).toBeVisible();

@@ -5,7 +5,14 @@ import {
   type StartupPagePreference,
   type UserProfileDto
 } from "@kloqra/contracts";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@kloqra/ui";
+import {
+  SearchableSelect,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@kloqra/ui";
 import { Globe, Home, Monitor } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -104,22 +111,18 @@ export function AccountPreferencesSection({
         title="Default Workspace"
         description="Set your default workspace"
       >
-        <Select
+        <SearchableSelect
           value={defaultWorkspaceId || "__none__"}
           onValueChange={(v) => setDefaultWorkspaceId(v === "__none__" ? "" : v)}
-        >
-          <SelectTrigger className="h-10 max-w-md bg-background">
-            <SelectValue placeholder="Select workspace" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__none__">Current workspace</SelectItem>
-            {workspaces.map((ws) => (
-              <SelectItem key={ws.id} value={ws.id}>
-                {ws.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          options={[
+            { value: "__none__", label: "Current workspace" },
+            ...workspaces.map((ws) => ({ value: ws.id, label: ws.name }))
+          ]}
+          placeholder="Select workspace"
+          searchPlaceholder="Search workspaces…"
+          triggerClassName="h-10 max-w-md bg-background"
+          aria-label="Default workspace"
+        />
       </SettingsCard>
 
       <SettingsCard

@@ -6,7 +6,11 @@ import { cn } from "../lib/utils.js";
 import { MotionReveal } from "./motion/motion-reveal.js";
 import { AppBarToolbar } from "./shell/app-bar-toolbar.js";
 import { AppBar, type AppBarProps } from "./shell/app-bar.js";
-import { useShellToolbar } from "./shell-toolbar-context.js";
+import {
+  isShellToolbarParts,
+  resolveShellToolbar,
+  useShellToolbar
+} from "./shell-toolbar-context.js";
 import { Skeleton } from "./ui/skeleton.js";
 
 export type PageHeaderProps = {
@@ -28,7 +32,13 @@ export function PageHeader({
   variant = "appBar"
 }: PageHeaderProps) {
   const shellToolbar = useShellToolbar();
-  const trailing = <AppBarToolbar pageActions={actions} shellActions={shellToolbar ?? undefined} />;
+  const legacyShellActions =
+    shellToolbar != null && isShellToolbarParts(shellToolbar)
+      ? resolveShellToolbar(shellToolbar).actions
+      : shellToolbar;
+  const trailing = (
+    <AppBarToolbar pageActions={actions} shellActions={legacyShellActions ?? undefined} />
+  );
 
   if (variant === "inline") {
     return (

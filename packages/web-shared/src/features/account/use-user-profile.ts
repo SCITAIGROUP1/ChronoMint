@@ -4,6 +4,7 @@ import {
   ROUTES,
   type TwoFactorDisableDto,
   type TwoFactorVerifyDto,
+  type UpdateJiraCredentialsDto,
   type UpdateUserProfileDto,
   type UserProfileDto,
   type UserSessionDto
@@ -134,6 +135,19 @@ export function useUserProfile() {
     [ws, reload]
   );
 
+  const updateJiraCredentials = useCallback(
+    async (dto: UpdateJiraCredentialsDto) => {
+      if (!ws) throw new Error("No workspace");
+      await api(ROUTES.JIRA.CREDENTIALS, {
+        method: "PATCH",
+        workspaceId: ws,
+        body: JSON.stringify(dto)
+      });
+      await refresh(ws);
+    },
+    [ws, refresh]
+  );
+
   const disable2fa = useCallback(
     async (dto: TwoFactorDisableDto) => {
       if (!ws) throw new Error("No workspace");
@@ -155,6 +169,7 @@ export function useUserProfile() {
     updateProfile,
     updateName,
     updatePreferences,
+    updateJiraCredentials,
     setProfile: (next: UserProfileDto) => setProfile(ws, next),
     changePassword,
     listSessions,

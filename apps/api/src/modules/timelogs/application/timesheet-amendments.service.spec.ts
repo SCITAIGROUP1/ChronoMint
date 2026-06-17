@@ -1,4 +1,6 @@
+import { ErrorCodes } from "@kloqra/contracts";
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { DomainException } from "../../../common/errors/domain.exception";
 import { TimesheetAmendmentsService } from "./timesheet-amendments.service";
 
 describe("TimesheetAmendmentsService", () => {
@@ -124,5 +126,14 @@ describe("TimesheetAmendmentsService", () => {
       include: expect.any(Object),
       orderBy: { createdAt: "desc" }
     });
+  });
+
+  it("deny requires an admin note", async () => {
+    await expect(service.deny(workspaceId, "amend-1", "admin-1")).rejects.toSatisfy(
+      (err: unknown) =>
+        err instanceof DomainException &&
+        err.code === ErrorCodes.VALIDATION_ERROR &&
+        /Admin note is required/i.test(err.message)
+    );
   });
 });

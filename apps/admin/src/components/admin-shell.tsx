@@ -10,36 +10,13 @@ import {
   useNotificationUnreadCount,
   WorkspaceSwitcher
 } from "@kloqra/web-shared";
-import {
-  Activity,
-  Bell,
-  Building2,
-  ClipboardCheck,
-  CreditCard,
-  Download,
-  FolderKanban,
-  LayoutDashboard,
-  Tags,
-  Users
-} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo } from "react";
+import { ADMIN_NAV_ITEMS } from "@/config/admin-nav";
 import { usePendingTimesheetsBadgeCount } from "@/features/approvals/use-pending-timesheets";
+import { GlobalSearchShell } from "@/features/global-search/global-search-shell";
 import { useSessionStore } from "@/stores/session.store";
 import { useWorkspacesStore } from "@/stores/workspaces.store";
-
-const baseNav = [
-  { href: "/dashboard", label: "Dashboard", Icon: LayoutDashboard },
-  { href: "/team-management", label: "Team Management", Icon: Users },
-  { href: "/projects", label: "Projects", Icon: FolderKanban },
-  { href: "/categories", label: "Categories", Icon: Tags },
-  { href: "/team", label: "Team Live", Icon: Activity },
-  { href: "/approvals", label: "Approvals", Icon: ClipboardCheck },
-  { href: "/notifications", label: "Notifications", Icon: Bell },
-  { href: "/billing", label: "Billing", Icon: CreditCard },
-  { href: "/exports", label: "Exports", Icon: Download },
-  { href: "/workspace", label: "Workspace", Icon: Building2 }
-] as const;
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -73,7 +50,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   }, [session, setWorkspaces, router]);
 
   const nav = useMemo((): readonly SidebarNavItem[] => {
-    return baseNav.map((item) => {
+    return ADMIN_NAV_ITEMS.map((item) => {
       if (item.href === "/approvals") return { ...item, badge: pendingCount };
       if (item.href === "/notifications") return { ...item, badge: notificationUnreadCount };
       return item;
@@ -92,35 +69,42 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <ResponsiveLayoutShell
-      navItems={nav}
-      logoIcon={<BrandMark size="lg" iconOnly />}
-      logoTitle={BRAND_NAME}
-      logoSubtitle="Admin Portal"
-      logoLinkHref="/dashboard"
-      shellToolbar={
-        <ShellHeaderActions
-          workspaceId={wsId}
-          profileHref="/profile"
-          settingsHref="/settings"
-          notificationsHref="/notifications"
-        />
-      }
-      workspaceSwitcher={(collapsed) => (
-        <WorkspaceSwitcher filterRole="ADMIN" defaultRedirect="/dashboard" collapsed={collapsed} />
-      )}
-      footerContent={(collapsed) => (
-        <SidebarUserFooter
-          collapsed={collapsed}
-          userName={session.user.name ?? "Admin"}
-          profileHref="/profile"
-          onLogout={() => {
-            void logoutSession(session.workspaceId).then(() => router.push("/login"));
-          }}
-        />
-      )}
-    >
-      {children}
-    </ResponsiveLayoutShell>
+    <>
+      <GlobalSearchShell workspaceId={wsId} />
+      <ResponsiveLayoutShell
+        navItems={nav}
+        logoIcon={<BrandMark size="lg" iconOnly />}
+        logoTitle={BRAND_NAME}
+        logoSubtitle="Admin Portal"
+        logoLinkHref="/dashboard"
+        shellToolbar={
+          <ShellHeaderActions
+            workspaceId={wsId}
+            profileHref="/profile"
+            settingsHref="/settings"
+            notificationsHref="/notifications"
+          />
+        }
+        workspaceSwitcher={(collapsed) => (
+          <WorkspaceSwitcher
+            filterRole="ADMIN"
+            defaultRedirect="/dashboard"
+            collapsed={collapsed}
+          />
+        )}
+        footerContent={(collapsed) => (
+          <SidebarUserFooter
+            collapsed={collapsed}
+            userName={session.user.name ?? "Admin"}
+            profileHref="/profile"
+            onLogout={() => {
+              void logoutSession(session.workspaceId).then(() => router.push("/login"));
+            }}
+          />
+        )}
+      >
+        {children}
+      </ResponsiveLayoutShell>
+    </>
   );
 }

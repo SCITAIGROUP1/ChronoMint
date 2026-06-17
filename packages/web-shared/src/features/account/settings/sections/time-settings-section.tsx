@@ -8,6 +8,7 @@ import {
 } from "@kloqra/contracts";
 import {
   Label,
+  SearchableSelect,
   Select,
   SelectContent,
   SelectItem,
@@ -139,21 +140,18 @@ export function TimeSettingsSection({
   return (
     <div className="space-y-4">
       <SettingsCard icon={Globe} title="Timezone" description="Select your local timezone">
-        <Select
+        <SearchableSelect
           value={timezone || "__default__"}
           onValueChange={(v) => setTimezone(v === "__default__" ? "" : v)}
-        >
-          <SelectTrigger className="h-10 max-w-md bg-background">
-            <SelectValue placeholder="Browser default" />
-          </SelectTrigger>
-          <SelectContent>
-            {TIMEZONE_OPTIONS.map((tz) => (
-              <SelectItem key={tz.value || "default"} value={tz.value || "__default__"}>
-                {tz.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          options={TIMEZONE_OPTIONS.map((tz) => ({
+            value: tz.value || "__default__",
+            label: tz.label
+          }))}
+          placeholder="Browser default"
+          searchPlaceholder="Search timezones…"
+          triggerClassName="h-10 max-w-md bg-background"
+          aria-label="Timezone"
+        />
       </SettingsCard>
 
       <SettingsCard

@@ -6,10 +6,13 @@ import {
   timesheetSubmitPreviewQuerySchema,
   missingTimesheetQuerySchema,
   pendingTimesheetQuerySchema,
+  reviewedTimesheetQuerySchema,
   amendmentListQuerySchema,
   remindTimesheetSchema,
   createAmendmentRequestSchema,
-  reviewAmendmentSchema
+  reviewAmendmentSchema,
+  approveTimesheetSchema,
+  rejectTimesheetSchema
 } from "@kloqra/contracts";
 import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
 import { z } from "zod";
@@ -20,10 +23,6 @@ import { RolesGuard } from "../../../../common/guards/roles.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
 import { TimesheetAmendmentsService } from "../../application/timesheet-amendments.service";
 import { TimesheetsService } from "../../application/timesheets.service";
-
-const reviewTimesheetSchema = z.object({
-  reviewNote: z.string().optional()
-});
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -104,6 +103,26 @@ export class TimesheetsController {
   }
 
   @Roles("ADMIN")
+  @Get(ROUTES.TIMESHEETS.LIST_APPROVED)
+  async listApproved(
+    @CurrentUser() user: RequestUser,
+    @Query(new ZodValidationPipe(reviewedTimesheetQuerySchema))
+    query: z.infer<typeof reviewedTimesheetQuerySchema>
+  ) {
+    return this.timesheets.listApproved(user.workspaceId, query);
+  }
+
+  @Roles("ADMIN")
+  @Get(ROUTES.TIMESHEETS.LIST_REJECTED)
+  async listRejected(
+    @CurrentUser() user: RequestUser,
+    @Query(new ZodValidationPipe(reviewedTimesheetQuerySchema))
+    query: z.infer<typeof reviewedTimesheetQuerySchema>
+  ) {
+    return this.timesheets.listRejected(user.workspaceId, query);
+  }
+
+  @Roles("ADMIN")
   @Get(ROUTES.TIMESHEETS.LIST_MISSING)
   async listMissing(
     @CurrentUser() user: RequestUser,
@@ -162,7 +181,8 @@ export class TimesheetsController {
   async approve(
     @CurrentUser() user: RequestUser,
     @Param("id") id: string,
-    @Body(new ZodValidationPipe(reviewTimesheetSchema)) body: z.infer<typeof reviewTimesheetSchema>
+    @Body(new ZodValidationPipe(approveTimesheetSchema))
+    body: z.infer<typeof approveTimesheetSchema>
   ) {
     return this.timesheets.approve(user.workspaceId, id, user.userId, body.reviewNote);
   }
@@ -172,7 +192,7 @@ export class TimesheetsController {
   async reject(
     @CurrentUser() user: RequestUser,
     @Param("id") id: string,
-    @Body(new ZodValidationPipe(reviewTimesheetSchema)) body: z.infer<typeof reviewTimesheetSchema>
+    @Body(new ZodValidationPipe(rejectTimesheetSchema)) body: z.infer<typeof rejectTimesheetSchema>
   ) {
     return this.timesheets.reject(user.workspaceId, id, user.userId, body.reviewNote);
   }

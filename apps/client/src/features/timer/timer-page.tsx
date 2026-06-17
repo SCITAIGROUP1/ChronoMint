@@ -19,11 +19,7 @@ import {
   Input,
   Label,
   ProjectColorDot,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  SearchableSelect,
   EmptyState
 } from "@kloqra/ui";
 import { fetchListItems } from "@kloqra/web-shared";
@@ -33,6 +29,8 @@ import { toast } from "sonner";
 import { formatAutoStopToastMessage } from "./timer-autostop-message";
 import { DailyGoalWidget, QuickActions, StaleTimerDialog } from "./timer-lazy";
 import { resolveTimerStartErrorMessage } from "./timer-start-error";
+import { JiraIssuePicker } from "@/components/jira-issue-picker";
+import { useJiraIssues } from "@/hooks/use-jira-issues";
 import { api } from "@/lib/api";
 import { formatProjectLabel, formatTaskLabel } from "@/lib/project-labels";
 import { useProjectsStore } from "@/stores/projects.store";
@@ -148,6 +146,8 @@ export function TimerPage() {
   const [pausing, setPausing] = useState(false);
   const [resuming, setResuming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [jiraConnected, setJiraConnected] = useState(false);
+  const { issues: jiraIssues } = useJiraIssues(jiraConnected);
 
   const [todayLogs, setTodayLogs] = useState<any[]>([]);
 
@@ -159,12 +159,16 @@ export function TimerPage() {
   // Load stale warning from profile effective setting (via daily goal / session bootstrap)
   useEffect(() => {
     if (!ws) return;
-    void api<{ effectiveTimerStaleWarningHours: number }>(ROUTES.USERS.ME, { workspaceId: ws })
+    void api<{ effectiveTimerStaleWarningHours: number; jiraConnected?: boolean }>(
+      ROUTES.USERS.ME,
+      { workspaceId: ws }
+    )
       .then((profile) => {
         const hours = profile.effectiveTimerStaleWarningHours;
         if (typeof hours === "number" && hours > 0) {
           setStaleWarningHours(hours);
         }
+        setJiraConnected(profile.jiraConnected ?? false);
       })
       .catch(() => {});
   }, [ws]);
@@ -521,6 +525,10 @@ export function TimerPage() {
                         onChange={(e) => setStopDescription(e.target.value)}
                         placeholder="What did you work on?"
                       />
+                      <JiraIssuePicker
+                        issues={jiraIssues}
+                        onSelect={(value) => setStopDescription(value)}
+                      />
                     </div>
                     {/* Actions Row */}
                     <div className="grid grid-cols-2 gap-3">
@@ -573,59 +581,67 @@ export function TimerPage() {
                       <>
                         <div className="space-y-2">
                           <Label>Project</Label>
-                          <Select value={projectId} onValueChange={onProjectChange}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select project" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {projects.map((p) => (
-                                <SelectItem key={p.id} value={p.id}>
-                                  <span className="flex items-center gap-2">
-                                    <ProjectColorDot color={p.color} />
-                                    {formatProjectLabel(p, workspaceNamesById)}
-                                  </span>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <SearchableSelect
+                            value={projectId}
+                            onValueChange={onProjectChange}
+                            options={projects.map((p) => ({
+                              value: p.id,
+                              label: formatProjectLabel(p, workspaceNamesById)
+                            }))}
+                            placeholder="Select project"
+                            searchPlaceholder="Search projects…"
+                            renderOption={(option) => (
+                              <span className="flex items-center gap-2">
+                                <ProjectColorDot
+                                  color={
+                                    projects.find((p) => p.id === option.value)?.color ?? "#236bfe"
+                                  }
+                                />
+                                {option.label}
+                              </span>
+                            )}
+                            renderValue={(option) =>
+                              option ? (
+                                <span className="flex items-center gap-2">
+                                  <ProjectColorDot
+                                    color={
+                                      projects.find((p) => p.id === option.value)?.color ??
+                                      "#236bfe"
+                                    }
+                                  />
+                                  {option.label}
+                                </span>
+                              ) : (
+                                "Select project"
+                              )
+                            }
+                            aria-label="Project"
+                          />
                         </div>
 
                         <div className="space-y-2">
                           <Label>Task</Label>
-                          <Select
+                          <SearchableSelect
                             value={taskChoice}
                             onValueChange={(v) => {
                               setTaskChoice(v);
                               setError(null);
                             }}
+                            groups={projectTasksByCategory.map(([categoryName, list]) => ({
+                              label: categoryName,
+                              options: list.map((t) => ({ value: t.id, label: t.taskName }))
+                            }))}
+                            placeholder={
+                              !projectId
+                                ? "Select a project first"
+                                : projectTasks.length === 0
+                                  ? "No tasks for this project"
+                                  : "Select a task"
+                            }
+                            searchPlaceholder="Search tasks…"
                             disabled={!projectId || projectTasks.length === 0}
-                          >
-                            <SelectTrigger>
-                              <SelectValue
-                                placeholder={
-                                  !projectId
-                                    ? "Select a project first"
-                                    : projectTasks.length === 0
-                                      ? "No tasks for this project"
-                                      : "Select a task"
-                                }
-                              />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {projectTasksByCategory.map(([categoryName, list]) => (
-                                <div key={categoryName}>
-                                  <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                                    {categoryName}
-                                  </div>
-                                  {list.map((t) => (
-                                    <SelectItem key={t.id} value={t.id}>
-                                      {t.taskName}
-                                    </SelectItem>
-                                  ))}
-                                </div>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                            aria-label="Task"
+                          />
                           {projectId && projectTasks.length === 0 && (
                             <p className="text-xs text-muted-foreground">
                               Ask your admin to assign you to tasks on this project.

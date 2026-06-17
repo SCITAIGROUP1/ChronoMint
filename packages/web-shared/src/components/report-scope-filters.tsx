@@ -1,18 +1,7 @@
 "use client";
 
 import type { CategoryDto, ProjectDto, TaskDto } from "@kloqra/contracts";
-import {
-  Badge,
-  Button,
-  Label,
-  ProjectColorDot,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  cn
-} from "@kloqra/ui";
+import { Badge, Button, Label, ProjectColorDot, SearchableSelect, cn } from "@kloqra/ui";
 import { ChevronDown, Filter, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -204,67 +193,76 @@ export function ReportScopeFilters({
         >
           <div className="space-y-2">
             <Label className="text-xs font-medium text-muted-foreground">Project</Label>
-            <Select
+            <SearchableSelect
               value={values.projectId || "__all__"}
               onValueChange={(v) => onProjectChange(v === "__all__" ? "" : v)}
-            >
-              <SelectTrigger className={triggerClass}>
-                <SelectValue placeholder="All projects" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">All projects</SelectItem>
-                {projects.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    <span className="flex items-center gap-2">
-                      <ProjectColorDot color={p.color} />
-                      {p.name}
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              options={[
+                { value: "__all__", label: "All projects" },
+                ...projects.map((p) => ({ value: p.id, label: p.name }))
+              ]}
+              placeholder="All projects"
+              searchPlaceholder="Search projects…"
+              triggerClassName={triggerClass}
+              renderOption={(option) =>
+                option.value === "__all__" ? (
+                  option.label
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <ProjectColorDot
+                      color={projects.find((p) => p.id === option.value)?.color ?? "#236bfe"}
+                    />
+                    {option.label}
+                  </span>
+                )
+              }
+              renderValue={(option) =>
+                option && option.value !== "__all__" ? (
+                  <span className="flex items-center gap-2">
+                    <ProjectColorDot
+                      color={projects.find((p) => p.id === option.value)?.color ?? "#236bfe"}
+                    />
+                    {option.label}
+                  </span>
+                ) : (
+                  (option?.label ?? "All projects")
+                )
+              }
+              aria-label="Project"
+            />
           </div>
 
           <div className="space-y-2">
             <Label className="text-xs font-medium text-muted-foreground">Category</Label>
-            <Select
+            <SearchableSelect
               value={values.categoryId || "__all__"}
               onValueChange={(v) => onCategoryChange(v === "__all__" ? "" : v)}
-            >
-              <SelectTrigger className={triggerClass}>
-                <SelectValue placeholder="All categories" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">All categories</SelectItem>
-                {categories.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              options={[
+                { value: "__all__", label: "All categories" },
+                ...categories.map((c) => ({ value: c.id, label: c.name }))
+              ]}
+              placeholder="All categories"
+              searchPlaceholder="Search categories…"
+              triggerClassName={triggerClass}
+              aria-label="Category"
+            />
           </div>
 
           <div className="space-y-2">
             <Label className="text-xs font-medium text-muted-foreground">Task</Label>
             {!taskRequiresProject || values.projectId ? (
-              <Select
+              <SearchableSelect
                 value={values.taskId || "__all__"}
                 onValueChange={(v) => onTaskChange(v === "__all__" ? "" : v)}
+                options={[
+                  { value: "__all__", label: "All tasks" },
+                  ...tasks.map((t) => ({ value: t.id, label: t.taskName }))
+                ]}
+                placeholder="All tasks"
+                searchPlaceholder="Search tasks…"
                 disabled={taskRequiresProject && !values.projectId}
-              >
-                <SelectTrigger className={triggerClass}>
-                  <SelectValue placeholder="All tasks" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__">All tasks</SelectItem>
-                  {tasks.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      {t.taskName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                triggerClassName={triggerClass}
+                aria-label="Task"
+              />
             ) : (
               <p className={placeholderClass}>Select a project first</p>
             )}
@@ -274,23 +272,19 @@ export function ReportScopeFilters({
             <div className="space-y-2">
               <Label className="text-xs font-medium text-muted-foreground">Member</Label>
               {!memberRequiresProject || values.projectId ? (
-                <Select
+                <SearchableSelect
                   value={values.userId || "__all__"}
                   onValueChange={(v) => onUserChange(v === "__all__" ? "" : v)}
+                  options={[
+                    { value: "__all__", label: memberAllLabel },
+                    ...members.map((m) => ({ value: m.userId, label: m.userName }))
+                  ]}
+                  placeholder={memberPlaceholder}
+                  searchPlaceholder="Search members…"
                   disabled={memberRequiresProject && !values.projectId}
-                >
-                  <SelectTrigger className={triggerClass}>
-                    <SelectValue placeholder={memberPlaceholder} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__all__">{memberAllLabel}</SelectItem>
-                    {members.map((m) => (
-                      <SelectItem key={m.userId} value={m.userId}>
-                        {m.userName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  triggerClassName={triggerClass}
+                  aria-label="Member"
+                />
               ) : (
                 <p className={placeholderClass}>Select a project first</p>
               )}

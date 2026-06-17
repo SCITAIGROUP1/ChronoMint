@@ -34,6 +34,9 @@ import {
   memberEmailDeliverySchema,
   teamMembersOverviewSchema,
   timesheetSubmissionsQuerySchema,
+  approveTimesheetSchema,
+  rejectTimesheetSchema,
+  reviewAmendmentSchema,
   updateCategorySchema,
   updateTimeLogSchema,
   updateUserPreferencesSchema,
@@ -61,6 +64,8 @@ describe("contracts", () => {
     expect(ROUTES.TIMESHEETS.MY_SUBMISSIONS).toBe("/timesheets/submissions");
     expect(ROUTES.TIMESHEETS.SUBMIT_PREVIEW).toBe("/timesheets/submit-preview");
     expect(ROUTES.TIMESHEETS.LIST_MISSING).toBe("/timesheets/missing");
+    expect(ROUTES.TIMESHEETS.LIST_APPROVED).toBe("/timesheets/approved");
+    expect(ROUTES.TIMESHEETS.LIST_REJECTED).toBe("/timesheets/rejected");
     expect(ROUTES.TIMESHEETS.REMIND).toBe("/timesheets/remind");
     expect(ROUTES.TIMESHEETS.LIST_AMENDMENTS).toBe("/timesheets/amendments/pending");
     expect(ROUTES.TIMESHEETS.CREATE_AMENDMENT(UUID)).toBe(`/timesheets/${UUID}/amendments`);
@@ -80,6 +85,19 @@ describe("contracts", () => {
     if (r.success) {
       expect(r.data.scope).toBe("assigned");
     }
+  });
+
+  it("requires a review note when rejecting a timesheet", () => {
+    expect(approveTimesheetSchema.safeParse({}).success).toBe(true);
+    expect(rejectTimesheetSchema.safeParse({}).success).toBe(false);
+    expect(rejectTimesheetSchema.safeParse({ reviewNote: "Missing task notes" }).success).toBe(
+      true
+    );
+  });
+
+  it("requires an admin note when denying an edit request", () => {
+    expect(reviewAmendmentSchema.safeParse({}).success).toBe(false);
+    expect(reviewAmendmentSchema.safeParse({ adminNote: "Not allowed" }).success).toBe(true);
   });
 
   it("exposes user profile routes", () => {
@@ -437,6 +455,7 @@ describe("contracts", () => {
           userName: "Sam Rivera",
           userEmail: "sam@kloqra.dev",
           role: "ADMIN",
+          isActive: true,
           status: "active",
           projectCount: 2,
           weekHours: 32.5,

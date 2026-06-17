@@ -7,6 +7,7 @@ import { TimelogAuditService } from "./application/timelog-audit.service";
 import { TimelogsService } from "./application/timelogs.service";
 import { TimesheetAmendmentsService } from "./application/timesheet-amendments.service";
 import { TimesheetLockService } from "./application/timesheet-lock.service";
+import { TimesheetMissingDigestService } from "./application/timesheet-missing-digest.service";
 import { TimesheetReminderService } from "./application/timesheet-reminder.service";
 import { TimesheetsService } from "./application/timesheets.service";
 import { TimelogsController } from "./interface/http/timelogs.controller";
@@ -20,6 +21,7 @@ import { TimesheetsController } from "./interface/http/timesheets.controller";
     TimesheetsService,
     TimesheetAmendmentsService,
     TimesheetReminderService,
+    TimesheetMissingDigestService,
     TimelogAuditService,
     TimesheetLockService
   ],

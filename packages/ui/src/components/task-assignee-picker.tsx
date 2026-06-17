@@ -1,10 +1,12 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Search } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { filterOptionsByQuery } from "../lib/filter-options.js";
 import { cn } from "../lib/utils.js";
 import { AssigneeAvatarStack } from "./assignee-avatar-stack.js";
 import { UserAvatar } from "./shell/user-avatar.js";
+import { Input } from "./ui/input.js";
 import { Label } from "./ui/label.js";
 
 export type TaskAssigneeOption = {
@@ -39,7 +41,26 @@ export function TaskAssigneePicker({
   );
 
   const [open, setOpen] = useState(value.length === 0);
+  const [searchQuery, setSearchQuery] = useState("");
   const prevValueLength = useRef(value.length);
+
+  const filteredMembers = useMemo(
+    () =>
+      filterOptionsByQuery(
+        members.map((member) => ({
+          ...member,
+          value: member.userId,
+          label: member.userName,
+          keywords: member.email
+        })),
+        searchQuery
+      ),
+    [members, searchQuery]
+  );
+
+  useEffect(() => {
+    if (!open) setSearchQuery("");
+  }, [open]);
 
   useEffect(() => {
     const prev = prevValueLength.current;
@@ -98,6 +119,21 @@ export function TaskAssigneePicker({
 
       {open ? (
         <div className="space-y-3 border-t border-border/70 px-3 py-3">
+          <div className="relative">
+            <Search
+              className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
+              aria-hidden
+            />
+            <Input
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search by name or email…"
+              className="h-8 border-border/70 bg-muted/20 pl-8 text-xs shadow-none"
+              autoComplete="off"
+              disabled={disabled}
+            />
+          </div>
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
@@ -109,39 +145,43 @@ export function TaskAssigneePicker({
             <span className="font-medium">Select all</span>
           </label>
           <div className="max-h-48 space-y-2 overflow-y-auto rounded-lg border border-border/70 p-3">
-            {members.map((member) => {
-              const id = `assignee-${member.userId}`;
-              return (
-                <div key={member.userId} className="flex items-center gap-2.5">
-                  <input
-                    id={id}
-                    type="checkbox"
-                    className="size-4 shrink-0 rounded border border-input accent-primary"
-                    checked={selected.has(member.userId)}
-                    disabled={disabled}
-                    onChange={(e) => toggle(member.userId, e.target.checked)}
-                  />
-                  <UserAvatar
-                    name={member.userName}
-                    firstName={member.firstName}
-                    lastName={member.lastName}
-                    size="xs"
-                    className="ring-0"
-                  />
-                  <Label
-                    htmlFor={id}
-                    className="min-w-0 flex-1 cursor-pointer text-sm leading-snug"
-                  >
-                    <span className="font-medium">{member.userName}</span>
-                    {member.email ? (
-                      <span className="block truncate text-xs text-muted-foreground">
-                        {member.email}
-                      </span>
-                    ) : null}
-                  </Label>
-                </div>
-              );
-            })}
+            {filteredMembers.length === 0 ? (
+              <p className="py-2 text-center text-xs text-muted-foreground">No members found.</p>
+            ) : (
+              filteredMembers.map((member) => {
+                const id = `assignee-${member.userId}`;
+                return (
+                  <div key={member.userId} className="flex items-center gap-2.5">
+                    <input
+                      id={id}
+                      type="checkbox"
+                      className="size-4 shrink-0 rounded border border-input accent-primary"
+                      checked={selected.has(member.userId)}
+                      disabled={disabled}
+                      onChange={(e) => toggle(member.userId, e.target.checked)}
+                    />
+                    <UserAvatar
+                      name={member.userName}
+                      firstName={member.firstName}
+                      lastName={member.lastName}
+                      size="xs"
+                      className="ring-0"
+                    />
+                    <Label
+                      htmlFor={id}
+                      className="min-w-0 flex-1 cursor-pointer text-sm leading-snug"
+                    >
+                      <span className="font-medium">{member.userName}</span>
+                      {member.email ? (
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {member.email}
+                        </span>
+                      ) : null}
+                    </Label>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       ) : null}

@@ -19,6 +19,11 @@ import { DomainException } from "../../../common/errors/domain.exception";
 import { deliverMemberEmail } from "../../../common/mailer/member-email-delivery.util";
 import { MemberProvisioningMailer } from "../../../common/mailer/member-provisioning.mailer";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import {
+  activeWorkspaceMemberWhere,
+  toWorkspaceMemberWithUser,
+  type WorkspaceMemberWithUser
+} from "../../../common/workspace/workspace-member.types";
 // eslint-disable-next-line no-restricted-imports
 import { AuthService } from "../../auth/application/auth.service";
 import { NotificationsDispatchService } from "../../notifications/application/notifications-dispatch.service";
@@ -53,31 +58,43 @@ export class WorkspaceService {
     workspaceId: string,
     memberId: string,
     dto: UpdateWorkspaceMemberDto,
-    _actingUserId: string
+    actingUserId: string
   ) {
-    return this.prisma.$transaction(async (tx) => {
+    const outcome = await this.prisma.$transaction(async (tx) => {
       // Acquire write-lock on the workspace row to prevent concurrent role changes/removals
       await tx.$queryRaw`SELECT 1 FROM workspaces WHERE id = ${workspaceId} FOR UPDATE`;
 
-      const member = await tx.workspaceMember.findFirst({
+      const foundMember = await tx.workspaceMember.findFirst({
         where: { id: memberId, workspaceId },
         include: { user: true }
       });
-      if (!member) {
+      if (!foundMember) {
         throw new DomainException(
           ErrorCodes.NOT_FOUND,
           "Workspace member not found",
           HttpStatus.NOT_FOUND
         );
       }
+      const member = toWorkspaceMemberWithUser(foundMember);
 
-      if (member.role === dto.role) {
-        return this.toMemberDto(member);
+      const nextRole = dto.role ?? (member.role as "ADMIN" | "MEMBER");
+      const nextIsActive = dto.isActive ?? member.isActive;
+
+      if (dto.isActive === false && member.userId === actingUserId) {
+        throw new DomainException(
+          ErrorCodes.FORBIDDEN,
+          "Cannot deactivate yourself",
+          HttpStatus.FORBIDDEN
+        );
       }
 
-      if (member.role === "ADMIN" && dto.role === "MEMBER") {
+      if (nextRole === member.role && nextIsActive === member.isActive) {
+        return { kind: "unchanged" as const, member: this.toMemberDto(member) };
+      }
+
+      if (member.role === "ADMIN" && nextRole === "MEMBER") {
         const adminCount = await tx.workspaceMember.count({
-          where: { workspaceId, role: "ADMIN" }
+          where: activeWorkspaceMemberWhere({ workspaceId, role: "ADMIN" })
         });
         if (adminCount <= 1) {
           throw new DomainException(
@@ -88,13 +105,98 @@ export class WorkspaceService {
         }
       }
 
-      const updated = await tx.workspaceMember.update({
-        where: { id: memberId },
-        data: { role: dto.role },
-        include: { user: true }
-      });
-      return this.toMemberDto(updated);
+      if (member.role === "ADMIN" && nextIsActive === false) {
+        const activeAdminCount = await tx.workspaceMember.count({
+          where: activeWorkspaceMemberWhere({ workspaceId, role: "ADMIN" })
+        });
+        if (activeAdminCount <= 1) {
+          throw new DomainException(
+            ErrorCodes.FORBIDDEN,
+            "Cannot deactivate the last workspace admin",
+            HttpStatus.FORBIDDEN
+          );
+        }
+      }
+
+      const updated = toWorkspaceMemberWithUser(
+        await tx.workspaceMember.update({
+          where: { id: memberId },
+          data: {
+            ...(dto.role !== undefined ? { role: dto.role } : {}),
+            ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {})
+          },
+          include: { user: true }
+        })
+      );
+
+      if (dto.isActive === false && member.isActive) {
+        await tx.teamMember.updateMany({
+          where: {
+            userId: member.userId,
+            team: {
+              project: {
+                workspaceId
+              }
+            }
+          },
+          data: {
+            isActive: false
+          }
+        });
+      }
+
+      const roleChanged = dto.role !== undefined && dto.role !== member.role;
+      const statusChanged = dto.isActive !== undefined && dto.isActive !== member.isActive;
+
+      return {
+        kind: roleChanged ? ("roleChanged" as const) : ("statusChanged" as const),
+        member: this.toMemberDto(updated),
+        newRole: roleChanged ? dto.role! : undefined,
+        statusChanged
+      };
     });
+
+    if (outcome.kind === "roleChanged" && outcome.newRole) {
+      const [workspace, actor] = await Promise.all([
+        this.prisma.workspace.findUnique({
+          where: { id: workspaceId },
+          select: { name: true }
+        }),
+        this.prisma.user.findUnique({
+          where: { id: actingUserId },
+          select: { name: true }
+        })
+      ]);
+      const workspaceName = workspace?.name ?? "the workspace";
+      const actorName = actor?.name;
+
+      void this.notificationsDispatch
+        .notify({
+          userId: outcome.member.userId,
+          workspaceId,
+          templateId: "member.roleChanged",
+          context: {
+            workspaceName,
+            newRole: outcome.newRole,
+            actorName
+          }
+        })
+        .catch(() => undefined);
+
+      void this.notificationsDispatch
+        .notifyWorkspaceAdmins(workspaceId, {
+          templateId: "member.roleUpdated",
+          context: {
+            memberName: outcome.member.userName,
+            workspaceName,
+            newRole: outcome.newRole,
+            actorName
+          }
+        })
+        .catch(() => undefined);
+    }
+
+    return outcome.member;
   }
 
   async removeMember(workspaceId: string, memberId: string, actingUserId: string) {
@@ -170,8 +272,19 @@ export class WorkspaceService {
           memberName: member.user.name,
           workspaceName: workspace?.name ?? "the workspace",
           actorName: actor?.name
-        },
-        excludeUserId: actingUserId
+        }
+      })
+      .catch(() => undefined);
+
+    void this.notificationsDispatch
+      .notify({
+        userId: member.userId,
+        workspaceId,
+        templateId: "workspace.removed",
+        context: {
+          workspaceName: workspace?.name ?? "the workspace",
+          actorName: actor?.name
+        }
       })
       .catch(() => undefined);
 
@@ -253,8 +366,7 @@ export class WorkspaceService {
           memberName: membership.user.name,
           workspaceName: workspace.name,
           inviterName: inviterName
-        },
-        excludeUserId: invitedByUserId
+        }
       })
       .catch(() => undefined);
 
@@ -275,7 +387,7 @@ export class WorkspaceService {
     }
 
     return {
-      member: this.toMemberDto(membership),
+      member: this.toMemberDto(toWorkspaceMemberWithUser(membership)),
       userCreated,
       emailSent: emailDelivery.emailSent,
       ...(emailDelivery.emailSkipReason ? { emailSkipReason: emailDelivery.emailSkipReason } : {}),
@@ -467,18 +579,13 @@ export class WorkspaceService {
     });
   }
 
-  private toMemberDto(member: {
-    id: string;
-    workspaceId: string;
-    userId: string;
-    role: string;
-    user: { name: string; email: string };
-  }) {
+  private toMemberDto(member: WorkspaceMemberWithUser) {
     return {
       id: member.id,
       workspaceId: member.workspaceId,
       userId: member.userId,
       role: member.role as "ADMIN" | "MEMBER",
+      isActive: member.isActive,
       userName: member.user.name,
       userEmail: member.user.email
     };

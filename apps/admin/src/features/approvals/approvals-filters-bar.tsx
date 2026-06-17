@@ -1,15 +1,7 @@
 "use client";
 
 import type { TimesheetApprovalsFilterQuery } from "@kloqra/contracts";
-import {
-  Button,
-  DateRangePicker,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@kloqra/ui";
+import { Button, DateRangePicker, SearchableSelect } from "@kloqra/ui";
 import { hasActiveApprovalsFilter } from "@kloqra/web-shared";
 import type { ApprovalsFilterOption } from "./use-approvals-filter-options";
 
@@ -47,48 +39,40 @@ export function ApprovalsFiltersBar({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div className="flex min-w-0 flex-col gap-2">
           <FilterFieldLabel>Project</FilterFieldLabel>
-          <Select
+          <SearchableSelect
             value={filters.projectId ?? "all"}
             onValueChange={(value) =>
               onChange({ ...filters, projectId: value === "all" ? undefined : value })
             }
+            options={[
+              { value: "all", label: "All projects" },
+              ...projectOptions.map((option) => ({ value: option.value, label: option.label }))
+            ]}
+            placeholder="All projects"
+            searchPlaceholder="Search projects…"
             disabled={loading}
-          >
-            <SelectTrigger className="h-9 w-full">
-              <SelectValue placeholder="All projects" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All projects</SelectItem>
-              {projectOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            aria-label="Project"
+            triggerClassName="bg-background"
+          />
         </div>
 
         <div className="flex min-w-0 flex-col gap-2">
           <FilterFieldLabel>Member</FilterFieldLabel>
-          <Select
+          <SearchableSelect
             value={filters.userId ?? "all"}
             onValueChange={(value) =>
               onChange({ ...filters, userId: value === "all" ? undefined : value })
             }
+            options={[
+              { value: "all", label: "All members" },
+              ...memberOptions.map((option) => ({ value: option.value, label: option.label }))
+            ]}
+            placeholder="All members"
+            searchPlaceholder="Search members…"
             disabled={loading}
-          >
-            <SelectTrigger className="h-9 w-full">
-              <SelectValue placeholder="All members" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All members</SelectItem>
-              {memberOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            aria-label="Member"
+            triggerClassName="bg-background"
+          />
         </div>
 
         <div className="flex min-w-0 flex-col gap-2">

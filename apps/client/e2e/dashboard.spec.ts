@@ -45,4 +45,8 @@ test.describe("Client dashboard", () => {
     });
     expect(overflow).toBe(false);
   });
+
+  test("shows arrange grid control in the app bar", async ({ page }) => {
+    await expect(page.getByRole("button", { name: /arrange grid/i })).toBeVisible();
+  });
 });

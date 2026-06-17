@@ -17,7 +17,7 @@
     }
   },
   "scripts": {
-    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "build": "node -e \"try{require('fs').rmSync('dist',{recursive:true,force:true})}catch(_){}\" && tsc -p tsconfig.build.json",
     "dev": "tsc -p tsconfig.build.json --watch",
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -29,6 +29,7 @@
     "react-dom": "^19.0.0"
   },
   "dependencies": {
+    "@kloqra/contracts": "workspace:*",
     "@radix-ui/react-alert-dialog": "^1.1.16",
     "@radix-ui/react-dialog": "^1.1.16",
     "@radix-ui/react-label": "^2.1.1",
@@ -37,6 +38,7 @@
     "@radix-ui/react-slot": "^1.1.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
     "lucide-react": "^0.469.0",
     "motion": "^12.0.0",
     "recharts": "^2.15.4",

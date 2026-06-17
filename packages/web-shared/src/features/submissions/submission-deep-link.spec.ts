@@ -38,9 +38,16 @@ describe("submission deep links", () => {
       {
         projectId: "p1",
         periodStart: "iso",
-        highlight: "rejected"
+        highlight: "rejected",
+        view: undefined
       }
     );
+    expect(parseMemberSubmissionsSearch("view=table")).toEqual({
+      projectId: undefined,
+      periodStart: undefined,
+      highlight: undefined,
+      view: "table"
+    });
     expect(parseAdminApprovalsSearch("tab=review&periodId=x&projectId=p1&userId=u1")).toEqual({
       tab: "review",
       periodId: "x",

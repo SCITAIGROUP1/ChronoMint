@@ -30,6 +30,7 @@ model User {
   passwordResetTokenHash String?          @map("password_reset_token_hash")
   passwordResetExpiresAt DateTime?        @map("password_reset_expires_at")
   defaultHourlyRate     Decimal?          @map("default_hourly_rate") @db.Decimal(10, 2)
+  jiraEmail             String?           @map("jira_email")
   preferences           Json              @default("{}")
   createdAt             DateTime          @default(now()) @map("created_at")
   updatedAt             DateTime          @updatedAt @map("updated_at")
@@ -109,6 +110,7 @@ model WorkspaceMember {
   workspaceId String    @map("workspace_id")
   userId      String    @map("user_id")
   role        String
+  isActive    Boolean   @default(true) @map("is_active")
   createdAt   DateTime  @default(now()) @map("created_at")
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)

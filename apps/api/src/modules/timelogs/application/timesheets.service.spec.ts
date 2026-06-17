@@ -215,6 +215,14 @@ describe("TimesheetsService", () => {
     expect(result).toEqual({ ok: true });
   });
 
+  it("reject requires a review note", async () => {
+    await expect(service.reject(workspaceId, "period-1", adminUserId)).rejects.toSatisfy(
+      (err: unknown) =>
+        err instanceof DomainException && /review note is required/i.test(err.message)
+    );
+    expect(mockPrisma.timesheetPeriod.update).not.toHaveBeenCalled();
+  });
+
   it("listPending returns items wrapper", async () => {
     mockPrisma.timesheetPeriod.findMany.mockResolvedValue([]);
     const result = await service.listPending(workspaceId);
@@ -241,6 +249,28 @@ describe("TimesheetsService", () => {
           userId: "user-1",
           periodStart: expect.objectContaining({ gte: expect.any(Date), lte: expect.any(Date) })
         })
+      })
+    );
+  });
+
+  it("listApproved filters by APPROVED status", async () => {
+    mockPrisma.timesheetPeriod.findMany.mockResolvedValue([]);
+    await service.listApproved(workspaceId, { projectId: "proj-1" });
+    expect(mockPrisma.timesheetPeriod.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ status: "APPROVED", projectId: "proj-1" }),
+        orderBy: { reviewedAt: "desc" }
+      })
+    );
+  });
+
+  it("listRejected filters by REJECTED status", async () => {
+    mockPrisma.timesheetPeriod.findMany.mockResolvedValue([]);
+    await service.listRejected(workspaceId, { userId: "user-1" });
+    expect(mockPrisma.timesheetPeriod.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ status: "REJECTED", userId: "user-1" }),
+        orderBy: { reviewedAt: "desc" }
       })
     );
   });

@@ -171,6 +171,14 @@ export class TasksService {
 
   async update(workspaceId: string, id: string, dto: UpdateTaskDto) {
     const task = await this.assertWorkspaceTask(workspaceId, id);
+    const existingAssigneeIds = dto.assigneeUserIds
+      ? (
+          await this.prisma.taskAssignee.findMany({
+            where: { taskId: task.id },
+            select: { userId: true }
+          })
+        ).map((row) => row.userId)
+      : [];
     if (dto.categoryId && dto.categoryId !== task.categoryId) {
       await this.assertCategoryInWorkspace(workspaceId, dto.categoryId);
     }
@@ -199,6 +207,51 @@ export class TasksService {
         include: this.taskInclude()
       });
     });
+
+    if (dto.assigneeUserIds) {
+      const addedAssigneeIds = dto.assigneeUserIds.filter(
+        (assigneeUserId) => !existingAssigneeIds.includes(assigneeUserId)
+      );
+      const removedAssigneeIds = existingAssigneeIds.filter(
+        (assigneeUserId) => !dto.assigneeUserIds!.includes(assigneeUserId)
+      );
+      const project = await this.prisma.project.findUnique({
+        where: { id: task.projectId },
+        select: { name: true, workspaceId: true }
+      });
+      if (project) {
+        for (const assigneeUserId of addedAssigneeIds) {
+          void this.notificationsDispatch
+            .notify({
+              userId: assigneeUserId,
+              workspaceId: project.workspaceId,
+              templateId: "task.assigned",
+              context: {
+                taskName: t.taskName,
+                projectName: project.name,
+                taskId: t.id,
+                projectId: t.projectId
+              }
+            })
+            .catch(() => undefined);
+        }
+        for (const assigneeUserId of removedAssigneeIds) {
+          void this.notificationsDispatch
+            .notify({
+              userId: assigneeUserId,
+              workspaceId: project.workspaceId,
+              templateId: "task.unassigned",
+              context: {
+                taskName: t.taskName,
+                projectName: project.name,
+                taskId: t.id,
+                projectId: t.projectId
+              }
+            })
+            .catch(() => undefined);
+        }
+      }
+    }
 
     return this.toDto(t);
   }

@@ -15,6 +15,7 @@ function makePrisma() {
       count: vi.fn() as AnyMock
     },
     taskAssignee: {
+      findMany: vi.fn() as AnyMock,
       createMany: vi.fn() as AnyMock,
       deleteMany: vi.fn() as AnyMock
     },
@@ -43,18 +44,19 @@ describe("TasksService", () => {
   let prisma: ReturnType<typeof makePrisma>;
   let access: ReturnType<typeof makeAccess>;
   let service: TasksService;
+  let notificationsDispatch: {
+    notify: AnyMock;
+    notifyWorkspaceAdmins: AnyMock;
+  };
 
   beforeEach(() => {
     prisma = makePrisma();
     access = makeAccess();
-    service = new TasksService(
-      prisma as any,
-      access as any,
-      {
-        notify: vi.fn().mockResolvedValue(undefined),
-        notifyWorkspaceAdmins: vi.fn().mockResolvedValue(undefined)
-      } as never
-    );
+    notificationsDispatch = {
+      notify: vi.fn().mockResolvedValue(undefined),
+      notifyWorkspaceAdmins: vi.fn().mockResolvedValue(undefined)
+    };
+    service = new TasksService(prisma as any, access as any, notificationsDispatch as never);
   });
 
   describe("list", () => {
@@ -154,7 +156,15 @@ describe("TasksService", () => {
         limit: 20,
         projectId: "p1"
       });
-      expect(result.items[0]?.assignees).toEqual([{ userId: "u1", userName: "Sam" }]);
+      expect(result.items[0]).toEqual({
+        id: "t1",
+        projectId: "p1",
+        categoryId: "c1",
+        categoryName: "Software Development",
+        taskName: "Frontend",
+        billableDefault: true,
+        assignees: [{ userId: "u1", userName: "Sam" }]
+      });
     });
 
     it("forwards the categoryId filter to prisma", async () => {
@@ -277,6 +287,84 @@ describe("TasksService", () => {
       await service.update("w1", "t1", { taskName: "Renamed" });
       expect(prisma.category.findFirst).not.toHaveBeenCalled();
       expect(prisma.task.update).toHaveBeenCalled();
+    });
+
+    it("notifies only newly added assignees when assignment changes", async () => {
+      prisma.task.findFirst.mockResolvedValue({
+        id: "t1",
+        projectId: "p1",
+        categoryId: "c1"
+      });
+      prisma.taskAssignee.findMany.mockResolvedValue([{ userId: "u1" }]);
+      prisma.teamMember.findMany.mockResolvedValue([{ userId: "u1" }, { userId: "u2" }]);
+      prisma.project.findUnique.mockResolvedValue({
+        id: "p1",
+        name: "Website",
+        workspaceId: "w1"
+      });
+      prisma.$transaction.mockImplementation(async (fn: (tx: typeof prisma) => Promise<unknown>) =>
+        fn(prisma as any)
+      );
+      prisma.task.update.mockResolvedValue({
+        id: "t1",
+        projectId: "p1",
+        categoryId: "c1",
+        taskName: "Frontend",
+        billableDefault: true,
+        category: { name: "Software Development" },
+        assignees: [
+          { userId: "u1", user: { name: "Sam" } },
+          { userId: "u2", user: { name: "Avery" } }
+        ]
+      });
+
+      await service.update("w1", "t1", { assigneeUserIds: ["u1", "u2"] });
+
+      expect(notificationsDispatch.notify).toHaveBeenCalledTimes(1);
+      expect(notificationsDispatch.notify).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: "u2",
+          workspaceId: "w1",
+          templateId: "task.assigned"
+        })
+      );
+    });
+
+    it("notifies removed assignees when assignment changes", async () => {
+      prisma.task.findFirst.mockResolvedValue({
+        id: "t1",
+        projectId: "p1",
+        categoryId: "c1"
+      });
+      prisma.taskAssignee.findMany.mockResolvedValue([{ userId: "u1" }, { userId: "u2" }]);
+      prisma.teamMember.findMany.mockResolvedValue([{ userId: "u1" }]);
+      prisma.project.findUnique.mockResolvedValue({
+        id: "p1",
+        name: "Website",
+        workspaceId: "w1"
+      });
+      prisma.$transaction.mockImplementation(async (fn: (tx: typeof prisma) => Promise<unknown>) =>
+        fn(prisma as any)
+      );
+      prisma.task.update.mockResolvedValue({
+        id: "t1",
+        projectId: "p1",
+        categoryId: "c1",
+        taskName: "Frontend",
+        billableDefault: true,
+        category: { name: "Software Development" },
+        assignees: [{ userId: "u1", user: { name: "Sam" } }]
+      });
+
+      await service.update("w1", "t1", { assigneeUserIds: ["u1"] });
+
+      expect(notificationsDispatch.notify).toHaveBeenCalledTimes(1);
+      expect(notificationsDispatch.notify).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: "u2",
+          templateId: "task.unassigned"
+        })
+      );
     });
   });
 

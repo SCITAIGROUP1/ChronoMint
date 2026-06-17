@@ -27,7 +27,7 @@ export const projectSchema = z.object({
   clientName: z.string().max(200).nullable(),
   budgetHours: z.number().positive().nullable(),
   isActive: z.boolean(),
-  timesheetApprovalEnabled: z.boolean(),
+  timesheetApprovalEnabled: z.boolean().optional(),
   timesheetApprovalPeriod: timesheetApprovalPeriodSchema.nullable()
 });
 
@@ -38,6 +38,7 @@ export const projectListItemSchema = z.object({
   color: projectColorSchema,
   clientName: z.string().max(200).nullable(),
   isActive: z.boolean(),
+  timesheetApprovalEnabled: z.boolean().optional(),
   workspaceId: uuidSchema.optional(),
   workspaceName: z.string().min(1).max(120).optional(),
   myColor: z

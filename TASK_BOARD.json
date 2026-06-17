@@ -33,6 +33,12 @@
       "title": "Time entry audit trail + per-project approval",
       "status": "done",
       "owner": "BE"
+    },
+    {
+      "id": "P2-13",
+      "title": "Admin global search (command palette)",
+      "status": "done",
+      "owner": "FE"
     }
   ]
 }

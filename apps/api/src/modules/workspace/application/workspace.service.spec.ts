@@ -15,11 +15,19 @@ describe("WorkspaceService", () => {
   let service: WorkspaceService;
   let mockPrisma: any;
   let mockMailer: MemberProvisioningMailer;
+  let mockNotificationsDispatch: {
+    notify: ReturnType<typeof vi.fn>;
+    notifyWorkspaceAdmins: ReturnType<typeof vi.fn>;
+  };
 
   const workspaceId = "ws-1";
   const inviterId = "admin-1";
 
   beforeEach(() => {
+    mockNotificationsDispatch = {
+      notify: vi.fn().mockResolvedValue(undefined),
+      notifyWorkspaceAdmins: vi.fn().mockResolvedValue(undefined)
+    };
     mockPrisma = {
       $transaction: vi.fn().mockImplementation((cb) => cb(mockPrisma)),
       $queryRaw: vi.fn().mockResolvedValue([1]),
@@ -52,10 +60,7 @@ describe("WorkspaceService", () => {
     service = new WorkspaceService(
       mockPrisma,
       mockMailer,
-      {
-        notify: vi.fn().mockResolvedValue(undefined),
-        notifyWorkspaceAdmins: vi.fn().mockResolvedValue(undefined)
-      } as never,
+      mockNotificationsDispatch as never,
       { sendEmailVerification: vi.fn().mockResolvedValue(undefined) } as never
     );
   });
@@ -197,6 +202,7 @@ describe("WorkspaceService", () => {
       workspaceId,
       userId: "u2",
       role: "MEMBER",
+      isActive: true,
       user: { name: "Member User", email: "member@kloqra.dev" }
     });
     mockPrisma.workspaceMember.count.mockResolvedValue(2);
@@ -205,12 +211,26 @@ describe("WorkspaceService", () => {
       workspaceId,
       userId: "u2",
       role: "ADMIN",
+      isActive: true,
       user: { name: "Member User", email: "member@kloqra.dev" }
     });
+    mockPrisma.workspace.findUnique.mockResolvedValue({ name: "Kloqra" });
+    mockPrisma.user.findUnique.mockResolvedValue({ name: "Admin User" });
 
     const result = await service.updateMember(workspaceId, "m2", { role: "ADMIN" }, "u1");
 
     expect(result.role).toBe("ADMIN");
+    expect(mockNotificationsDispatch.notify).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "u2",
+        workspaceId,
+        templateId: "member.roleChanged"
+      })
+    );
+    expect(mockNotificationsDispatch.notifyWorkspaceAdmins).toHaveBeenCalledWith(
+      workspaceId,
+      expect.objectContaining({ templateId: "member.roleUpdated" })
+    );
   });
 
   it("updateMember blocks demoting the last admin", async () => {
@@ -219,6 +239,7 @@ describe("WorkspaceService", () => {
       workspaceId,
       userId: "u1",
       role: "ADMIN",
+      isActive: true,
       user: { name: "Admin User", email: "admin@kloqra.dev" }
     });
     mockPrisma.workspaceMember.count.mockResolvedValue(1);
@@ -239,14 +260,53 @@ describe("WorkspaceService", () => {
       workspaceId,
       userId: "u2",
       role: "MEMBER",
+      isActive: true,
       user: { name: "Member User", email: "member@kloqra.dev" }
     });
+    mockPrisma.workspace.findUnique.mockResolvedValue({ id: workspaceId, name: "Kloqra" });
+    mockPrisma.user.findUnique.mockResolvedValue({ name: "Admin User" });
     mockPrisma.workspaceMember.delete.mockResolvedValue({ id: "m2" });
 
     const result = await service.removeMember(workspaceId, "m2", "u1");
 
     expect(result).toEqual({ ok: true });
     expect(mockPrisma.workspaceMember.delete).toHaveBeenCalledWith({ where: { id: "m2" } });
+    expect(mockNotificationsDispatch.notifyWorkspaceAdmins).toHaveBeenCalledWith(
+      workspaceId,
+      expect.objectContaining({ templateId: "member.removed" })
+    );
+    expect(mockNotificationsDispatch.notify).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "u2",
+        templateId: "workspace.removed"
+      })
+    );
+  });
+
+  it("updateMember deactivates membership and project teams", async () => {
+    mockPrisma.workspaceMember.findFirst.mockResolvedValue({
+      id: "m2",
+      workspaceId,
+      userId: "u2",
+      role: "MEMBER",
+      isActive: true,
+      user: { name: "Member User", email: "member@kloqra.dev" }
+    });
+    mockPrisma.workspaceMember.count.mockResolvedValue(2);
+    mockPrisma.workspaceMember.update.mockResolvedValue({
+      id: "m2",
+      workspaceId,
+      userId: "u2",
+      role: "MEMBER",
+      isActive: false,
+      user: { name: "Member User", email: "member@kloqra.dev" }
+    });
+    mockPrisma.teamMember = { updateMany: vi.fn().mockResolvedValue({ count: 1 }) };
+
+    const result = await service.updateMember(workspaceId, "m2", { isActive: false }, "u1");
+
+    expect(result.isActive).toBe(false);
+    expect(mockPrisma.teamMember.updateMany).toHaveBeenCalled();
   });
 
   it("removeMember blocks removing yourself", async () => {
@@ -255,6 +315,7 @@ describe("WorkspaceService", () => {
       workspaceId,
       userId: "u1",
       role: "ADMIN",
+      isActive: true,
       user: { name: "Admin User", email: "admin@kloqra.dev" }
     });
 

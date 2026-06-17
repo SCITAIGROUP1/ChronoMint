@@ -70,4 +70,42 @@ describe("api client auth refresh", () => {
     await Promise.all([p1, p2]);
     expect(fetch).toHaveBeenCalledTimes(1);
   });
+
+  it("normalizes validation errors into user-friendly field messages", async () => {
+    mockGetAccessToken.mockReturnValue("fresh-token");
+    const { api } = await import("./client");
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 400,
+        headers: { get: () => "application/json" },
+        json: async () => ({
+          message: "Validation failed",
+          details: {
+            fieldErrors: {
+              email: ["Required"],
+              password: ["String must contain at least 1 character(s)"]
+            }
+          }
+        })
+      })
+    );
+
+    let err: unknown;
+    try {
+      await api("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email: "", password: "" })
+      });
+    } catch (e) {
+      err = e;
+    }
+
+    expect(err).toBeInstanceOf(Error);
+    expect((err as Error).message).toBe(
+      "Validation failed — Email is required; Password is required"
+    );
+  });
 });

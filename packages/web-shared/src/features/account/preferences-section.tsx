@@ -1,16 +1,6 @@
 "use client";
 
-import {
-  Button,
-  Input,
-  Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  SegmentedControl
-} from "@kloqra/ui";
+import { Button, Input, Label, SearchableSelect, SegmentedControl } from "@kloqra/ui";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AccountSectionFooter } from "./account-section-footer";
@@ -109,21 +99,18 @@ export function PreferencesSection({ profile, onSavePreferences }: PreferencesSe
 
         <div className="space-y-2">
           <Label>Timezone</Label>
-          <Select
+          <SearchableSelect
             value={timezone || "__default__"}
             onValueChange={(v) => setTimezone(v === "__default__" ? "" : v)}
-          >
-            <SelectTrigger className="h-10 bg-background">
-              <SelectValue placeholder="Browser default" />
-            </SelectTrigger>
-            <SelectContent>
-              {TIMEZONE_OPTIONS.map((tz) => (
-                <SelectItem key={tz.value || "default"} value={tz.value || "__default__"}>
-                  {tz.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            options={TIMEZONE_OPTIONS.map((tz) => ({
+              value: tz.value || "__default__",
+              label: tz.label
+            }))}
+            placeholder="Browser default"
+            searchPlaceholder="Search timezones…"
+            triggerClassName="h-10 bg-background"
+            aria-label="Timezone"
+          />
           <p className="text-xs text-muted-foreground">
             Used for timesheet day boundaries.
             {!timezone && (
