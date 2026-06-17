@@ -3,16 +3,25 @@
 import { AppBar, Card, CardContent, SegmentedControl, Skeleton } from "@kloqra/ui";
 import Link from "next/link";
 import { useState } from "react";
+import { IntegrationsSection } from "./profile/integrations-section";
 import { PersonalInfoSection } from "./profile/personal-info-section";
 import { ProfileHero } from "./profile/profile-hero";
 import { WorkDetailsSection } from "./profile/work-details-section";
 import { useUserProfile } from "./use-user-profile";
 
-type ProfileTab = "personal" | "work";
+type ProfileTab = "personal" | "work" | "integrations";
 
 export function ProfilePage() {
   const [tab, setTab] = useState<ProfileTab>("personal");
-  const { profile, loading, error, updateProfile, workspaceRole, workspaceName } = useUserProfile();
+  const {
+    profile,
+    loading,
+    error,
+    updateProfile,
+    updateJiraCredentials,
+    workspaceRole,
+    workspaceName
+  } = useUserProfile();
 
   if (loading) {
     return (
@@ -63,7 +72,8 @@ export function ProfilePage() {
             onChange={setTab}
             options={[
               { value: "personal", label: "Personal Info" },
-              { value: "work", label: "Work Details" }
+              { value: "work", label: "Work Details" },
+              { value: "integrations", label: "Integrations" }
             ]}
             size="md"
             fullWidth
@@ -77,13 +87,15 @@ export function ProfilePage() {
               await updateProfile(data);
             }}
           />
-        ) : (
+        ) : tab === "work" ? (
           <WorkDetailsSection
             profile={profile}
             onSave={async (data) => {
               await updateProfile(data);
             }}
           />
+        ) : (
+          <IntegrationsSection profile={profile} onSave={(data) => updateJiraCredentials(data)} />
         )}
       </div>
     </div>

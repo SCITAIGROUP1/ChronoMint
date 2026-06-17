@@ -38,6 +38,7 @@ import { TimeTrackerStatCards } from "./time-tracker-stat-cards";
 import { computeTimeTrackerStats } from "./time-tracker-stats";
 import { TimeTrackerToolbar } from "./time-tracker-toolbar";
 import { useTimeTrackerLogs } from "./use-time-tracker-logs";
+import { useJiraIssues } from "@/hooks/use-jira-issues";
 import { api } from "@/lib/api";
 import { colorForTask } from "@/lib/project-color-styles";
 import { formatTaskLabel } from "@/lib/project-labels";
@@ -48,6 +49,8 @@ export function TimeTrackerPage() {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
   const [displayFormat, setDisplayFormat] = useState<TimesheetDisplayFormat | null>(null);
   const [weekStartPref, setWeekStartPref] = useState<"monday" | "sunday">("monday");
+  const [jiraConnected, setJiraConnected] = useState(false);
+  const { issues: jiraIssues } = useJiraIssues(jiraConnected);
 
   useEffect(() => {
     if (!ws) return;
@@ -56,6 +59,7 @@ export function TimeTrackerPage() {
         const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
         const timezone = resolveEffectiveTimezone(profile.preferences, browserTz);
         setWeekStartPref(profile.preferences.weekStart ?? "monday");
+        setJiraConnected(profile.jiraConnected ?? false);
         setDisplayFormat({
           timezone,
           dateFormat: profile.effectiveDateFormat,
@@ -414,6 +418,7 @@ export function TimeTrackerPage() {
         onDelete={
           editingLog && !isEntryLocked(editingLog) ? () => deleteEntry(editingLog) : undefined
         }
+        jiraSuggestions={jiraIssues}
       />
 
       <ConfirmDialog

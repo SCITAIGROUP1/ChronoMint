@@ -14,11 +14,8 @@ if (existsSync(distIndex)) {
   process.exit(0);
 }
 
-execFileSync(
-  "bash",
-  [path.join(root, "scripts/pnpm-wrap.sh"), "--filter", "@kloqra/web-shared", "build"],
-  {
-    stdio: "inherit",
-    cwd: root
-  }
-);
+const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+execFileSync(pnpm, ["--filter", "@kloqra/web-shared", "build"], {
+  stdio: "inherit",
+  cwd: root
+});

@@ -40,6 +40,17 @@ const DEFAULT_TIMEZONES = [
   { value: "Pacific/Auckland", label: "Pacific/Auckland (New Zealand)" }
 ];
 
+function extractAtlassianOrigin(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return "";
+  try {
+    const withProtocol = trimmed.startsWith("http") ? trimmed : `https://${trimmed}`;
+    return new URL(withProtocol).origin;
+  } catch {
+    return trimmed;
+  }
+}
+
 export function WorkspacePage() {
   const router = useRouter();
   const session = useSessionStore((s) => s.session);
@@ -48,6 +59,13 @@ export function WorkspacePage() {
   const ws = session?.workspaceId ?? getWorkspaceId() ?? "";
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+
+  const [jiraSiteUrl, setJiraSiteUrl] = useState("");
+  const [jiraServiceEmail, setJiraServiceEmail] = useState("");
+  const [jiraServiceToken, setJiraServiceToken] = useState("");
+  const [jiraLoading, setJiraLoading] = useState(false);
+  const [jiraError, setJiraError] = useState<string | null>(null);
+  const [jiraSuccess, setJiraSuccess] = useState<string | null>(null);
 
   const [workspaceName, setWorkspaceName] = useState("");
   const [weekStart, setWeekStart] = useState<"monday" | "sunday">("monday");
@@ -97,6 +115,8 @@ export function WorkspacePage() {
           setTimezone(
             settings.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"
           );
+          setJiraSiteUrl(settings.jiraSiteUrl || "");
+          setJiraServiceEmail(settings.jiraServiceEmail || "");
         }
       })
       .catch(() => {});
@@ -142,6 +162,60 @@ export function WorkspacePage() {
       toast.error(message);
     } finally {
       setSettingsLoading(false);
+    }
+  }
+
+  async function saveJiraSettings(e: React.FormEvent) {
+    e.preventDefault();
+    setJiraLoading(true);
+    setJiraError(null);
+    setJiraSuccess(null);
+
+    const siteUrl = extractAtlassianOrigin(jiraSiteUrl);
+    const serviceEmail = jiraServiceEmail.trim();
+    const token = jiraServiceToken.trim();
+
+    try {
+      // Step 1: verify credentials with Jira before saving anything
+      const verifyBody: Record<string, string> = {
+        jiraSiteUrl: siteUrl,
+        jiraServiceEmail: serviceEmail
+      };
+      if (token) verifyBody.jiraServiceToken = token;
+
+      const verified = await api<{ ok: boolean; displayName?: string }>(ROUTES.JIRA.VERIFY, {
+        method: "POST",
+        workspaceId: ws,
+        body: JSON.stringify(verifyBody)
+      });
+
+      if (!verified.ok) {
+        throw new Error("Jira verification failed — please check your credentials");
+      }
+
+      // Step 2: credentials valid — now save to workspace settings
+      const settingsUpdate: Record<string, string | null> = {
+        jiraSiteUrl: siteUrl || null,
+        jiraServiceEmail: serviceEmail || null
+      };
+      if (token) settingsUpdate.jiraServiceToken = token;
+
+      await api(ROUTES.WORKSPACES.BY_ID(ws), {
+        method: "PATCH",
+        workspaceId: ws,
+        body: JSON.stringify({ settings: settingsUpdate })
+      });
+
+      const name = verified.displayName ? ` (${verified.displayName})` : "";
+      setJiraSuccess(`Connected successfully${name}. Settings saved.`);
+      setJiraServiceToken("");
+      toast.success("Jira workspace connection verified and saved.");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to connect to Jira";
+      setJiraError(message);
+      toast.error(message);
+    } finally {
+      setJiraLoading(false);
     }
   }
 
@@ -353,6 +427,84 @@ export function WorkspacePage() {
             <div className="flex justify-end lg:col-span-2">
               <Button type="submit" disabled={settingsLoading} className="min-w-[160px]">
                 {settingsLoading ? "Saving settings…" : "Save settings"}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border/70 shadow-sm">
+        <CardHeader className="border-b border-border/60 bg-muted/20">
+          <CardTitle className="text-base">Jira Integration</CardTitle>
+        </CardHeader>
+        <CardContent className="pt-6">
+          <p className="mb-4 text-sm text-muted-foreground">
+            Connect this workspace to your Jira Cloud instance. Members can then map their Jira
+            email in their profile to see assigned ticket suggestions when logging time.
+          </p>
+          <form onSubmit={saveJiraSettings} className="grid gap-6 lg:grid-cols-2">
+            <div className="space-y-2 lg:col-span-2">
+              <Label htmlFor="jiraSiteUrl">Jira Site URL</Label>
+              <Input
+                id="jiraSiteUrl"
+                type="url"
+                placeholder="https://yourcompany.atlassian.net"
+                value={jiraSiteUrl}
+                onChange={(e) => setJiraSiteUrl(e.target.value)}
+                onBlur={(e) => setJiraSiteUrl(extractAtlassianOrigin(e.target.value))}
+                onPaste={(e) => {
+                  e.preventDefault();
+                  const pasted = e.clipboardData.getData("text");
+                  setJiraSiteUrl(extractAtlassianOrigin(pasted));
+                }}
+              />
+              <p className="text-xs text-muted-foreground">
+                Paste any Jira URL — the site base will be extracted automatically.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="jiraServiceEmail">Service Account Email</Label>
+              <Input
+                id="jiraServiceEmail"
+                type="email"
+                placeholder="jira-service@company.com"
+                value={jiraServiceEmail}
+                onChange={(e) => setJiraServiceEmail(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="jiraServiceToken">
+                Service Account API Token
+                {jiraSiteUrl && (
+                  <span className="ml-2 text-xs font-normal text-muted-foreground">
+                    (leave blank to keep existing)
+                  </span>
+                )}
+              </Label>
+              <Input
+                id="jiraServiceToken"
+                type="password"
+                placeholder={jiraSiteUrl ? "••••••••••••••••••••" : "Paste API token"}
+                value={jiraServiceToken}
+                onChange={(e) => setJiraServiceToken(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Generate at id.atlassian.com → Security → API tokens for the service account.
+              </p>
+            </div>
+
+            {jiraError ? (
+              <p className="text-sm text-destructive lg:col-span-2">{jiraError}</p>
+            ) : null}
+            {jiraSuccess ? (
+              <p className="text-sm text-primary lg:col-span-2">{jiraSuccess}</p>
+            ) : null}
+
+            <div className="flex justify-end lg:col-span-2">
+              <Button type="submit" disabled={jiraLoading} className="min-w-[160px]">
+                {jiraLoading ? "Verifying & Saving…" : "Verify & Save"}
               </Button>
             </div>
           </form>

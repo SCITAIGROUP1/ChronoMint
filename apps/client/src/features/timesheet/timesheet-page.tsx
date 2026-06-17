@@ -58,6 +58,7 @@ import {
   useMySubmissions
 } from "@/features/submissions/use-my-submissions";
 import { isTimeEntryLocked } from "@/features/time-tracker/entry-approval-status";
+import { useJiraIssues } from "@/hooks/use-jira-issues";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { api } from "@/lib/api";
 import { colorForTask } from "@/lib/project-color-styles";
@@ -92,6 +93,8 @@ export function TimesheetPage() {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
   const [displayFormat, setDisplayFormat] = useState<TimesheetDisplayFormat | null>(null);
   const [weekStartPref, setWeekStartPref] = useState<"monday" | "sunday">("monday");
+  const [jiraConnected, setJiraConnected] = useState(false);
+  const { issues: jiraIssues } = useJiraIssues(jiraConnected);
 
   useEffect(() => {
     if (!ws) return;
@@ -100,6 +103,7 @@ export function TimesheetPage() {
         const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
         const timezone = resolveEffectiveTimezone(profile.preferences, browserTz);
         setWeekStartPref(profile.preferences.weekStart ?? "monday");
+        setJiraConnected(profile.jiraConnected ?? false);
         setDisplayFormat({
           timezone,
           dateFormat: profile.effectiveDateFormat,
@@ -835,6 +839,7 @@ export function TimesheetPage() {
         onSave={saveEntry}
         onDelete={editingLog && !isEntryLocked(editingLog) ? deleteEntry : undefined}
         timezone={timezone}
+        jiraSuggestions={jiraIssues}
       />
 
       <ConfirmDialog
