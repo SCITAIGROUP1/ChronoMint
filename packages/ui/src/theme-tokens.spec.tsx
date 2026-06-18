@@ -65,9 +65,9 @@ describe("theme tokens", () => {
     expect(new Set([muted, secondary, accent]).size).toBe(3);
   });
 
-  it("uses overlay scrollbars on overflow containers", () => {
-    expect(css).toContain("--scrollbar-thumb:");
-    expect(css).toContain(".overflow-y-auto:has(:hover)");
-    expect(css).toContain("scrollbar-color: transparent transparent");
+  it("hides scrollbar chrome on overflow containers while keeping scroll", () => {
+    expect(css).toContain("scrollbar-width: none");
+    expect(css).toContain(".overflow-y-auto::-webkit-scrollbar");
+    expect(css).toContain("display: none");
   });
 });
