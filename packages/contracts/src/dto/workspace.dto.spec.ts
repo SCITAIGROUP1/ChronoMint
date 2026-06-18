@@ -1,5 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { inviteMemberSchema } from "./workspace.dto";
+import { createWorkspaceSchema, inviteMemberSchema } from "./workspace.dto";
+
+describe("createWorkspaceSchema", () => {
+  it("accepts name without slug", () => {
+    const result = createWorkspaceSchema.safeParse({ name: "Design Agency" });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts name and slug", () => {
+    const result = createWorkspaceSchema.safeParse({
+      name: "Design Agency",
+      slug: "design-agency"
+    });
+    expect(result.success).toBe(true);
+  });
+});
 
 describe("inviteMemberSchema", () => {
   it("requires name when inviting a member", () => {

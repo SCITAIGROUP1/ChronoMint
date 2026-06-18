@@ -46,7 +46,7 @@ export const workspaceMemberPickerSchema = z.object({
 
 export const createWorkspaceSchema = z.object({
   name: z.string().min(1).max(120),
-  slug: slugSchema
+  slug: slugSchema.optional()
 });
 
 export const inviteMemberSchema = z.object({
