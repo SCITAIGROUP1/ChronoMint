@@ -410,6 +410,7 @@ export class TimesheetsService {
 
     const templateId =
       plan.cascaded.length > 0 ? "timesheet.submitted.batch" : "timesheet.submitted";
+    const submittedHours = (totalHours._sum?.durationSec ?? 0) / 3600;
     void this.notificationsDispatch
       .notifyWorkspaceAdmins(workspaceId, {
         templateId,
@@ -421,7 +422,7 @@ export class TimesheetsService {
           periodId: saved.id,
           projectId,
           periodStart: saved.periodStart.toISOString(),
-          totalHours: (totalHours._sum?.durationSec ?? 0) / 3600,
+          ...(submittedHours > 0 ? { totalHours: submittedHours } : {}),
           cascadedCount: plan.cascaded.length + 1,
           cascadedPeriodLabels: [...plan.cascaded.map((c) => c.periodLabel), periodLabel]
         }
