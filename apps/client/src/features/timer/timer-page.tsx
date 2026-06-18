@@ -29,7 +29,9 @@ import { toast } from "sonner";
 import { formatAutoStopToastMessage } from "./timer-autostop-message";
 import { DailyGoalWidget, QuickActions, StaleTimerDialog } from "./timer-lazy";
 import { resolveTimerStartErrorMessage } from "./timer-start-error";
+import { JiraIssuePicker } from "@/components/jira-issue-picker";
 import { useIsImpersonating } from "@/hooks/use-is-impersonating";
+import { useJiraIssues } from "@/hooks/use-jira-issues";
 import { api } from "@/lib/api";
 import { formatProjectLabel, formatTaskLabel } from "@/lib/project-labels";
 import { useProjectsStore } from "@/stores/projects.store";
@@ -147,6 +149,8 @@ export function TimerPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [todayLogs, setTodayLogs] = useState<any[]>([]);
+  const [jiraConnected, setJiraConnected] = useState(false);
+  const { issues: jiraIssues } = useJiraIssues(jiraConnected);
 
   // Stale Warning Dialog state
   const [showStaleDialog, setShowStaleDialog] = useState(false);
@@ -156,12 +160,16 @@ export function TimerPage() {
   // Load stale warning from profile effective setting (via daily goal / session bootstrap)
   useEffect(() => {
     if (!ws) return;
-    void api<{ effectiveTimerStaleWarningHours: number }>(ROUTES.USERS.ME, { workspaceId: ws })
+    void api<{ effectiveTimerStaleWarningHours: number; jiraConnected?: boolean }>(
+      ROUTES.USERS.ME,
+      { workspaceId: ws }
+    )
       .then((profile) => {
         const hours = profile.effectiveTimerStaleWarningHours;
         if (typeof hours === "number" && hours > 0) {
           setStaleWarningHours(hours);
         }
+        setJiraConnected(profile.jiraConnected ?? false);
       })
       .catch(() => {});
   }, [ws]);
@@ -542,6 +550,10 @@ export function TimerPage() {
                             value={stopDescription}
                             onChange={(e) => setStopDescription(e.target.value)}
                             placeholder="What did you work on?"
+                          />
+                          <JiraIssuePicker
+                            issues={jiraIssues}
+                            onSelect={(value) => setStopDescription(value)}
                           />
                         </div>
                         {/* Actions Row */}
