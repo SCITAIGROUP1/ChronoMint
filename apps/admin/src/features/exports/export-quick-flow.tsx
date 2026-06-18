@@ -242,7 +242,7 @@ export function ExportQuickFlow({
               Pick a report purpose. We&apos;ll set up the file for you.
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-3 sm:grid-cols-2">
+          <CardContent className="grid gap-3 @min-[960px]/shell:grid-cols-2">
             {EXPORT_SCENARIOS.map((s) => (
               <button
                 key={s.id}
@@ -272,14 +272,14 @@ export function ExportQuickFlow({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 @min-[960px]/shell:gap-3">
         {STEPS.map((label, index) => (
           <button
             key={label}
             type="button"
             onClick={() => goToStep(index)}
             disabled={index > step && !canAdvanceFromStep(step)}
-            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+            className={`max-w-full truncate rounded-full px-3 py-1 text-xs font-medium transition-colors ${
               step === index
                 ? "bg-primary text-primary-foreground"
                 : index < step
@@ -292,8 +292,8 @@ export function ExportQuickFlow({
         ))}
       </div>
 
-      <div className="grid gap-8 @min-[1100px]/shell:grid-cols-12">
-        <div className="space-y-6 @min-[1100px]/shell:col-span-8">
+      <div className="grid gap-8 @min-[1280px]/shell:grid-cols-12">
+        <div className="space-y-6 @min-[1280px]/shell:col-span-8">
           {step === 0 ? (
             <Card>
               <CardHeader className="pb-4">
@@ -302,7 +302,7 @@ export function ExportQuickFlow({
                   Pick a report purpose. We&apos;ll set up the file for you.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="grid gap-3 sm:grid-cols-2">
+              <CardContent className="grid gap-3 @min-[960px]/shell:grid-cols-2">
                 {EXPORT_SCENARIOS.map((s) => (
                   <button
                     key={s.id}
@@ -358,7 +358,7 @@ export function ExportQuickFlow({
                     ))}
                   </div>
                 </Section>
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-4 @min-[960px]/shell:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="quick-from">From</Label>
                     <Input
@@ -419,7 +419,7 @@ export function ExportQuickFlow({
                 <CardDescription>Optional overrides before you download.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-5">
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-4 @min-[960px]/shell:grid-cols-2">
                   <div className="space-y-2">
                     <Label>Billable entries</Label>
                     <Select
@@ -485,8 +485,8 @@ export function ExportQuickFlow({
           </div>
         </div>
 
-        <div className="@min-[1100px]/shell:col-span-4">
-          <div className="sticky top-6">
+        <div className="@min-[1280px]/shell:col-span-4">
+          <div className="@min-[1280px]/shell:sticky @min-[1280px]/shell:top-6">
             <ExportDownloadPanel
               workspaceId={workspaceId}
               workspaceSlug={workspaceSlug}

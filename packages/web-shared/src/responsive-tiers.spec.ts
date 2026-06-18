@@ -4,7 +4,8 @@ import {
   COMPACT_LAPTOP_SHELL_MIN,
   COMPACT_LAPTOP_VIEWPORT,
   COMPACT_LAPTOP_VIEWPORT_MAX,
-  COMFORTABLE_DESKTOP_SHELL_MIN
+  COMFORTABLE_DESKTOP_SHELL_MIN,
+  EXPORT_TWO_COLUMN_SHELL_MIN
 } from "./responsive-tiers";
 
 describe("responsive-tiers", () => {
@@ -19,5 +20,9 @@ describe("responsive-tiers", () => {
 
   it("documents the standard QA viewport", () => {
     expect(COMPACT_LAPTOP_VIEWPORT).toEqual({ width: 1366, height: 768 });
+  });
+
+  it("keeps export side-by-side layout for wide shells only", () => {
+    expect(EXPORT_TWO_COLUMN_SHELL_MIN).toBeGreaterThan(COMPACT_LAPTOP_SHELL_MAX);
   });
 });

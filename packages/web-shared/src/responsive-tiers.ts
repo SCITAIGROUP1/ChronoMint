@@ -19,5 +19,8 @@ export const COMFORTABLE_DESKTOP_SHELL_MIN = 1101;
 /** Team Activities desktop table needs roughly this widget column width. */
 export const TEAM_ACTIVITIES_TABLE_MIN = 700;
 
+/** Shell width where export quick/custom flows use a side-by-side form + download panel. */
+export const EXPORT_TWO_COLUMN_SHELL_MIN = 1280;
+
 /** Playwright / manual QA viewport for common 1366×768 laptops. */
 export const COMPACT_LAPTOP_VIEWPORT = { width: 1366, height: 768 } as const;

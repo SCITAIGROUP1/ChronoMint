@@ -44,7 +44,8 @@ test.describe("Admin projects", () => {
     await expect(page.getByRole("link", { name: `Open ${projectName}` })).toBeVisible({
       timeout: 15_000
     });
-    await expect(page.getByText(clientName).first()).toBeVisible();
+    const projectRow = page.getByRole("link", { name: `Open ${projectName}` });
+    await expect(projectRow.getByText(clientName, { exact: true })).toBeVisible();
   });
 
   test("shows duplicate project name error in create modal", async ({ page }) => {
