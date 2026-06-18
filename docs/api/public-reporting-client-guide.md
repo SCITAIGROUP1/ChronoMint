@@ -6,12 +6,12 @@ You do **not** need a Kloqra user account. Your workspace admin provides an **AP
 
 ## What you receive from the admin
 
-| Item | Example | Notes |
-| ---- | ------- | ----- |
-| API base URL | `https://api.your-kloqra-host.com` | No trailing slash |
-| API key | `klr_a1b2c3d4e5f6...` | Public identifier; safe to label in config |
-| API secret | `sk_x9y8z7w6v5u4...` | **Confidential** — treat like a password |
-| Project scope | Names or IDs | You only see data for projects the admin assigned |
+| Item          | Example                            | Notes                                             |
+| ------------- | ---------------------------------- | ------------------------------------------------- |
+| API base URL  | `https://api.your-kloqra-host.com` | No trailing slash                                 |
+| API key       | `klr_a1b2c3d4e5f6...`              | Public identifier; safe to label in config        |
+| API secret    | `sk_x9y8z7w6v5u4...`               | **Confidential** — treat like a password          |
+| Project scope | Names or IDs                       | You only see data for projects the admin assigned |
 
 Store the secret in a secrets manager or environment variable. Do not embed it in source code committed to git.
 
@@ -19,9 +19,9 @@ Store the secret in a secrets manager or environment variable. Do not embed it i
 
 Every request to `/public/reporting/*` must include these headers:
 
-| Header | Value |
-| ------ | ----- |
-| `x-api-key` | Your API key (`klr_...`) |
+| Header         | Value                      |
+| -------------- | -------------------------- |
+| `x-api-key`    | Your API key (`klr_...`)   |
 | `x-api-secret` | Your API secret (`sk_...`) |
 
 No `Authorization: Bearer` token and no `X-Workspace-Id` header are required — your workspace and project scope are resolved from the key.
@@ -57,14 +57,14 @@ GET /public/reporting/dashboard?from={iso}&to={iso}
 
 Optional query filters (must stay within your project scope):
 
-| Param | Type | Description |
-| ----- | ---- | ----------- |
-| `from` | ISO datetime | Range start (required) |
-| `to` | ISO datetime | Range end (required) |
-| `projectId` | UUID | Narrow to one project (must be in your scope) |
-| `userId` | UUID | Filter by member |
-| `categoryId` | UUID | Filter by category |
-| `taskId` | UUID | Filter by task |
+| Param        | Type         | Description                                   |
+| ------------ | ------------ | --------------------------------------------- |
+| `from`       | ISO datetime | Range start (required)                        |
+| `to`         | ISO datetime | Range end (required)                          |
+| `projectId`  | UUID         | Narrow to one project (must be in your scope) |
+| `userId`     | UUID         | Filter by member                              |
+| `categoryId` | UUID         | Filter by category                            |
+| `taskId`     | UUID         | Filter by task                                |
 
 **Response highlights:** `workspace` totals, `timeByProject`, `timeByUser`, `timeByCategory`, `weeklyHours`, `dailyHours`, `currency`.
 
@@ -76,12 +76,12 @@ Maximum date range: **366 days**.
 GET /public/reporting/utilization?from={iso}&to={iso}&page=1&limit=20
 ```
 
-| Param | Default | Description |
-| ----- | ------- | ----------- |
-| `page` | `1` | Page number |
-| `limit` | `20` | Page size (max 1000) |
-| `search` | — | Filter by member name |
-| `userId` | — | Filter to one user |
+| Param    | Default | Description           |
+| -------- | ------- | --------------------- |
+| `page`   | `1`     | Page number           |
+| `limit`  | `20`    | Page size (max 1000)  |
+| `search` | —       | Filter by member name |
+| `userId` | —       | Filter to one user    |
 
 Returns paginated `members` with logged vs target hours.
 
@@ -140,12 +140,12 @@ Use **ISO 8601** datetimes with a timezone offset or `Z`:
 }
 ```
 
-| HTTP status | Typical cause |
-| ----------- | ------------- |
-| `400` | Invalid query params or date range |
-| `401` | Missing/wrong key or secret, expired or revoked key |
-| `403` | Project not in your key’s scope |
-| `404` | Budget endpoint — project not found |
+| HTTP status | Typical cause                                       |
+| ----------- | --------------------------------------------------- |
+| `400`       | Invalid query params or date range                  |
+| `401`       | Missing/wrong key or secret, expired or revoked key |
+| `403`       | Project not in your key’s scope                     |
+| `404`       | Budget endpoint — project not found                 |
 
 ## Postman collection tips
 

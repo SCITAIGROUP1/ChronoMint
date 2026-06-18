@@ -6,13 +6,13 @@ Give an external client or integration read-only access to workspace reporting d
 
 Each API key is scoped to one or more **projects** you choose. The client can call these read-only endpoints:
 
-| Endpoint | Purpose |
-| -------- | ------- |
-| `GET /public/reporting/dashboard` | Workspace-style totals, hours by project/user/category, trends |
-| `GET /public/reporting/utilization` | Member utilization for the date range |
-| `GET /public/reporting/heatmap` | Hours by day-of-week and hour |
-| `GET /public/reporting/categories-heatmap` | Category × project heatmap |
-| `GET /public/reporting/tasks` | Top tasks by hours |
+| Endpoint                                    | Purpose                                                              |
+| ------------------------------------------- | -------------------------------------------------------------------- |
+| `GET /public/reporting/dashboard`           | Workspace-style totals, hours by project/user/category, trends       |
+| `GET /public/reporting/utilization`         | Member utilization for the date range                                |
+| `GET /public/reporting/heatmap`             | Hours by day-of-week and hour                                        |
+| `GET /public/reporting/categories-heatmap`  | Category × project heatmap                                           |
+| `GET /public/reporting/tasks`               | Top tasks by hours                                                   |
 | `GET /public/reporting/projects/:id/budget` | Budget burn-down for one project (must be in the key’s project list) |
 
 Data is limited to time logged on the projects assigned to that key.
@@ -77,11 +77,11 @@ Content-Type: application/json
 }
 ```
 
-| Field | Required | Notes |
-| ----- | -------- | ----- |
-| `name` | Yes | Label for your records (e.g. client name) |
-| `projectIds` | Yes | At least one active project UUID in your workspace |
-| `expiresAt` | No | ISO datetime with timezone; omit for no expiry |
+| Field        | Required | Notes                                              |
+| ------------ | -------- | -------------------------------------------------- |
+| `name`       | Yes      | Label for your records (e.g. client name)          |
+| `projectIds` | Yes      | At least one active project UUID in your workspace |
+| `expiresAt`  | No       | ISO datetime with timezone; omit for no expiry     |
 
 ### Response — save the secret immediately
 
@@ -171,13 +171,13 @@ Revoked keys stop working immediately.
 
 ## Troubleshooting
 
-| Problem | What to check |
-| ------- | ------------- |
-| `401 Invalid API credentials` | Wrong key/secret, revoked key, or expired `expiresAt` |
-| `403 Project not accessible` | Budget endpoint project not in key’s `projectIds` |
-| `400 One or more projects are invalid` | Project deleted, wrong UUID, or inactive |
-| Empty dashboard | No time logs on scoped projects in the date range |
-| Client gets `401` with JWT | They must use `/public/reporting/*` with `x-api-key` / `x-api-secret`, not admin JWT on `/reporting/*` |
+| Problem                                | What to check                                                                                          |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `401 Invalid API credentials`          | Wrong key/secret, revoked key, or expired `expiresAt`                                                  |
+| `403 Project not accessible`           | Budget endpoint project not in key’s `projectIds`                                                      |
+| `400 One or more projects are invalid` | Project deleted, wrong UUID, or inactive                                                               |
+| Empty dashboard                        | No time logs on scoped projects in the date range                                                      |
+| Client gets `401` with JWT             | They must use `/public/reporting/*` with `x-api-key` / `x-api-secret`, not admin JWT on `/reporting/*` |
 
 ## Related
 
