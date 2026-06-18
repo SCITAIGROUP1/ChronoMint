@@ -3,7 +3,11 @@ import { ExportService } from "./export.service";
 
 describe("ExportService loadContext", () => {
   let service: ExportService;
-  let mockPrisma: { workspace: { findUniqueOrThrow: ReturnType<typeof vi.fn> } };
+  let mockPrisma: {
+    workspace: { findUniqueOrThrow: ReturnType<typeof vi.fn> };
+    user: { findUnique: ReturnType<typeof vi.fn> };
+    project: { findUnique: ReturnType<typeof vi.fn> };
+  };
   let mockAggregation: {
     fetchLogs: ReturnType<typeof vi.fn>;
     resolveRateMaps: ReturnType<typeof vi.fn>;
@@ -23,6 +27,12 @@ describe("ExportService loadContext", () => {
           slug: "acme",
           settings: {}
         })
+      },
+      user: {
+        findUnique: vi.fn().mockResolvedValue({ name: "Member User" })
+      },
+      project: {
+        findUnique: vi.fn().mockResolvedValue(null)
       }
     };
     mockAggregation = {

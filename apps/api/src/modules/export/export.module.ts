@@ -4,6 +4,7 @@ import { AuthModule } from "../auth/auth.module";
 import { NotificationsModule } from "../notifications/notifications.module";
 import { ProjectsModule } from "../projects/projects.module";
 import { ReportingModule } from "../reporting/reporting.module";
+import { ExportJobService } from "./application/export-job.service";
 import { ExportPresetService } from "./application/export-preset.service";
 import { ExportRowsBuilder } from "./application/export-rows.builder";
 import { ExportScheduleService } from "./application/export-schedule.service";
@@ -22,8 +23,9 @@ import { ExportController } from "./interface/http/export.controller";
     ExportPresetService,
     ExportScheduleService,
     ExportShareService,
+    ExportJobService,
     InvoiceService
   ],
-  exports: [ExportService, InvoiceService]
+  exports: [ExportService, ExportJobService, InvoiceService]
 })
 export class ExportModule {}

@@ -5,10 +5,12 @@ import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
+  DonutChartCenter,
+  DonutLegend,
   type ChartConfig
 } from "@kloqra/ui/chart";
 import React, { useMemo } from "react";
-import { Cell, Legend, Pie, PieChart, ResponsiveContainer } from "recharts";
+import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts";
 import { buildCategorySplitData } from "./category-split-data";
 
 export type CategorySplitWidgetProps = {
@@ -40,11 +42,12 @@ export function CategorySplitWidget({ logs, tasks, periodLabel }: CategorySplitW
   }
 
   return (
-    <div className="relative flex h-full min-h-[200px] min-w-0 flex-col justify-center">
-      <div className="relative min-h-[140px] w-full flex-1">
-        <ChartContainer config={chartConfig} className="h-full min-h-[140px] w-full">
+    <DonutChartCenter
+      className="h-full min-h-[200px] justify-center"
+      chart={
+        <ChartContainer config={chartConfig} className="aspect-square h-full w-full min-h-0">
           <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
+            <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
               <ChartTooltip content={<ChartTooltipContent hideLabel />} />
               <Pie
                 data={chartRows}
@@ -54,23 +57,35 @@ export function CategorySplitWidget({ logs, tasks, periodLabel }: CategorySplitW
                 outerRadius="90%"
                 strokeWidth={2}
                 paddingAngle={1}
+                cx="50%"
+                cy="50%"
               >
                 {chartRows.map((entry) => (
                   <Cell key={entry.configKey} fill={entry.fill} />
                 ))}
               </Pie>
-              <Legend wrapperStyle={{ fontSize: 9 }} />
             </PieChart>
           </ResponsiveContainer>
         </ChartContainer>
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center pb-3 text-center">
+      }
+      center={
+        <>
           <p className="text-xl font-bold tracking-tight">{totalHours}h</p>
           <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
             {periodLabel}
           </p>
-        </div>
-      </div>
-    </div>
+        </>
+      }
+      legend={
+        <DonutLegend
+          items={chartRows.map((entry) => ({
+            key: entry.configKey,
+            label: entry.categoryName,
+            color: entry.fill
+          }))}
+        />
+      }
+    />
   );
 }
 

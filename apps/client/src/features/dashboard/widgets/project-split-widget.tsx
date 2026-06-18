@@ -5,6 +5,7 @@ import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
+  DonutChartCenter,
   type ChartConfig
 } from "@kloqra/ui/chart";
 import React, { useMemo } from "react";
@@ -42,33 +43,44 @@ export function ProjectSplitWidget({ logs, projects, tasks }: ProjectSplitWidget
 
   return (
     <div className="flex h-full min-h-[220px] min-w-0 flex-col gap-4 sm:flex-row sm:items-stretch sm:gap-5">
-      <div className="relative min-h-[10rem] w-full shrink-0 sm:min-h-0 sm:h-auto sm:max-w-[44%] sm:flex-1">
-        <ChartContainer config={chartConfig} className="h-full min-h-[10rem] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-              <Pie
-                data={chartRows}
-                dataKey="value"
-                nameKey="projectName"
-                innerRadius="62%"
-                outerRadius="88%"
-                strokeWidth={2}
-                paddingAngle={1}
-              >
-                {chartRows.map((entry) => (
-                  <Cell key={entry.configKey} fill={entry.fill} />
-                ))}
-              </Pie>
-            </PieChart>
-          </ResponsiveContainer>
-        </ChartContainer>
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-2 text-center">
-          <p className="text-base font-bold tracking-tight sm:text-lg md:text-xl">{totalHours}h</p>
-          <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
-            Total Logged
-          </p>
-        </div>
+      <div className="min-h-[10rem] w-full shrink-0 sm:min-h-0 sm:h-auto sm:max-w-[44%] sm:flex-1">
+        <DonutChartCenter
+          chartClassName="max-w-none"
+          chart={
+            <ChartContainer config={chartConfig} className="aspect-square h-full w-full min-h-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+                  <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+                  <Pie
+                    data={chartRows}
+                    dataKey="value"
+                    nameKey="projectName"
+                    innerRadius="62%"
+                    outerRadius="88%"
+                    strokeWidth={2}
+                    paddingAngle={1}
+                    cx="50%"
+                    cy="50%"
+                  >
+                    {chartRows.map((entry) => (
+                      <Cell key={entry.configKey} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+          }
+          center={
+            <>
+              <p className="text-base font-bold tracking-tight sm:text-lg md:text-xl">
+                {totalHours}h
+              </p>
+              <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                Total Logged
+              </p>
+            </>
+          }
+        />
       </div>
 
       <DistributionLegendTable rows={rows} />

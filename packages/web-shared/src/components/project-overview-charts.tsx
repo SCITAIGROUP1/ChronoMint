@@ -4,10 +4,10 @@ import type { ProjectSummaryDto } from "@kloqra/contracts";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@kloqra/ui";
 import {
   ChartContainer,
-  ChartLegend,
-  ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
+  DonutChartCenter,
+  DonutLegend,
   type ChartConfig
 } from "@kloqra/ui/chart";
 import { useMemo, useState } from "react";
@@ -137,35 +137,49 @@ export function ProjectOverviewDistributionDonut({
         </Select>
       </div>
 
-      <div className="relative mx-auto w-full min-w-0">
-        <ChartContainer config={chartConfig} className="mx-auto min-h-[220px] w-full">
-          <PieChart>
-            <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-            <Pie
-              data={chartData}
-              dataKey="value"
-              nameKey="name"
-              innerRadius="58%"
-              outerRadius="88%"
-              strokeWidth={2}
-              paddingAngle={1}
-            >
-              {chartData.map((entry) => (
-                <Cell key={entry.configKey} fill={entry.fill} />
-              ))}
-            </Pie>
-            <ChartLegend content={<ChartLegendContent nameKey="name" />} />
-          </PieChart>
-        </ChartContainer>
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center pb-8 text-center">
-          <p className="text-xl font-bold tabular-nums tracking-tight">
-            {formatOverviewHours(summary.totalHours)}
-          </p>
-          <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
-            Total
-          </p>
-        </div>
-      </div>
+      <DonutChartCenter
+        chart={
+          <ChartContainer config={chartConfig} className="aspect-square h-full w-full min-h-0">
+            <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+              <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+              <Pie
+                data={chartData}
+                dataKey="value"
+                nameKey="name"
+                innerRadius="58%"
+                outerRadius="88%"
+                strokeWidth={2}
+                paddingAngle={1}
+                cx="50%"
+                cy="50%"
+              >
+                {chartData.map((entry) => (
+                  <Cell key={entry.configKey} fill={entry.fill} />
+                ))}
+              </Pie>
+            </PieChart>
+          </ChartContainer>
+        }
+        center={
+          <>
+            <p className="text-xl font-bold tabular-nums tracking-tight">
+              {formatOverviewHours(summary.totalHours)}
+            </p>
+            <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+              Total
+            </p>
+          </>
+        }
+        legend={
+          <DonutLegend
+            items={chartData.map((entry) => ({
+              key: entry.configKey,
+              label: entry.name,
+              color: entry.fill
+            }))}
+          />
+        }
+      />
     </div>
   );
 }

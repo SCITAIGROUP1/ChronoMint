@@ -7,10 +7,12 @@ import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
+  DonutChartCenter,
+  DonutLegend,
   type ChartConfig
 } from "@kloqra/ui/chart";
 import React, { useEffect, useState, useCallback } from "react";
-import { Cell, Legend, Pie, PieChart } from "recharts";
+import { Cell, Pie, PieChart } from "recharts";
 import { formatDurationClock } from "@/components/report-charts";
 import { api } from "@/lib/api";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
@@ -126,10 +128,11 @@ export function TaskBreakdownWidget({
   });
 
   return (
-    <div className="flex h-full flex-col justify-center relative min-h-[220px] min-w-0">
-      <div className="w-full flex-1 relative min-h-[160px]">
-        <ChartContainer config={chartConfig} className="mx-auto h-full w-full">
-          <PieChart>
+    <DonutChartCenter
+      className="h-full min-h-[220px] justify-center"
+      chart={
+        <ChartContainer config={chartConfig} className="aspect-square h-full w-full min-h-0">
+          <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
             <ChartTooltip content={<ChartTooltipContent hideLabel />} />
             <Pie
               data={chartData}
@@ -139,27 +142,34 @@ export function TaskBreakdownWidget({
               outerRadius="85%"
               strokeWidth={2}
               paddingAngle={1}
+              cx="50%"
+              cy="50%"
             >
               {chartData.map((entry, index) => (
                 <Cell key={index} fill={entry.fill} />
               ))}
             </Pie>
-            <Legend
-              wrapperStyle={{ fontSize: 9 }}
-              layout="horizontal"
-              verticalAlign="bottom"
-              align="center"
-            />
           </PieChart>
         </ChartContainer>
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center pb-8">
+      }
+      center={
+        <>
           <p className="text-xl font-bold tracking-tight">{formatDurationClock(totalHoursSum)}</p>
-          <p className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider">
+          <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
             Logged
           </p>
-        </div>
-      </div>
-    </div>
+        </>
+      }
+      legend={
+        <DonutLegend
+          items={chartData.map((entry, index) => ({
+            key: String(index),
+            label: entry.name,
+            color: entry.fill
+          }))}
+        />
+      }
+    />
   );
 }
 

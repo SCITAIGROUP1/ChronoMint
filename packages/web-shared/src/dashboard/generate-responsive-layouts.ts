@@ -3,7 +3,7 @@ import type { WidgetLayoutItemDto } from "@kloqra/contracts";
 export type DashboardBreakpoint = "lg" | "md" | "sm" | "xs" | "xxs";
 
 export const DASHBOARD_GRID_BREAKPOINTS: Record<DashboardBreakpoint, number> = {
-  lg: 1200,
+  lg: 1080,
   md: 996,
   sm: 768,
   xs: 480,

@@ -8,6 +8,7 @@ import { useState } from "react";
 import { api } from "../../api/client";
 import { AuthShell } from "../../components/auth-shell";
 import { extractFieldErrorsFromMessage } from "../../utils/form-errors";
+import { validateResetPasswordFields } from "./reset-password-validation";
 
 export function ResetPasswordForm({
   token,
@@ -27,12 +28,9 @@ export function ResetPasswordForm({
     e.preventDefault();
     setError("");
     setFieldErrors({});
-    if (password.length < 8) {
-      setFieldErrors({ password: "Password must be at least 8 characters." });
-      return;
-    }
-    if (password !== confirm) {
-      setFieldErrors({ confirm: "Passwords do not match." });
+    const validationErrors = validateResetPasswordFields(password, confirm);
+    if (Object.keys(validationErrors).length > 0) {
+      setFieldErrors(validationErrors);
       return;
     }
     setSubmitting(true);

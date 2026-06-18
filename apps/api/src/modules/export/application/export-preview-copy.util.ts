@@ -12,6 +12,8 @@ function layoutNoun(layout: ExportSheetLayout): string | null {
       return "project";
     case "tabs_per_client":
       return "client";
+    case "tabs_per_category":
+      return "category";
     default:
       return null;
   }

@@ -2,6 +2,7 @@
 
 import { DateRangePicker, SegmentedControl, cn } from "@kloqra/ui";
 import type { ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { DashboardPeriodPreset } from "../utils/dashboard-period-presets.js";
 
 export type DashboardPeriodSelection = DashboardPeriodPreset | "custom";
@@ -23,6 +24,9 @@ export type DashboardPeriodFilterProps = {
   className?: string;
 };
 
+/** Two-month picker needs this filter container width (compact laptops stack earlier). */
+const WIDE_FILTER_MIN_PX = 900;
+
 function FilterFieldLabel({ children }: { children: ReactNode }) {
   return (
     <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -42,14 +46,37 @@ export function DashboardPeriodFilter({
   dateRangeAriaLabel = "Date range",
   className
 }: DashboardPeriodFilterProps) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [wideLayout, setWideLayout] = useState(false);
+
+  useEffect(() => {
+    const node = rootRef.current;
+    if (!node) return;
+
+    const sync = (width: number) => setWideLayout(width >= WIDE_FILTER_MIN_PX);
+    sync(node.getBoundingClientRect().width);
+
+    const observer = new ResizeObserver(([entry]) => {
+      sync(entry.contentRect.width);
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <div
+      ref={rootRef}
       className={cn(
         "@container rounded-xl border border-border/70 bg-muted/20 p-3 sm:p-4",
         className
       )}
     >
-      <div className="grid grid-cols-1 gap-4 @min-[860px]:grid-cols-[minmax(0,1fr)_auto_minmax(220px,320px)] @min-[860px]:items-end @min-[860px]:gap-5">
+      <div
+        className={cn(
+          "grid grid-cols-1 gap-4",
+          wideLayout && "grid-cols-[minmax(0,1fr)_auto_minmax(220px,320px)] items-end gap-5"
+        )}
+      >
         <div className="flex min-w-0 flex-col gap-2">
           <FilterFieldLabel>Period</FilterFieldLabel>
           <SegmentedControl
@@ -61,7 +88,9 @@ export function DashboardPeriodFilter({
           />
         </div>
 
-        <div className="hidden @min-[860px]:block w-px self-stretch bg-border/60" aria-hidden />
+        {wideLayout ? (
+          <div className="hidden w-px self-stretch bg-border/60 sm:block" aria-hidden />
+        ) : null}
 
         <div className="flex min-w-0 flex-col gap-2">
           <FilterFieldLabel>Range</FilterFieldLabel>
@@ -72,7 +101,7 @@ export function DashboardPeriodFilter({
             weekStartsOn={weekStartsOn}
             ariaLabel={dateRangeAriaLabel}
             className="w-full min-w-0"
-            numberOfMonths={2}
+            numberOfMonths={wideLayout ? 2 : 1}
             popoverAlign="end"
           />
         </div>

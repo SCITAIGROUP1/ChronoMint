@@ -14,7 +14,8 @@ describe("groupByForSheetLayout", () => {
     ]);
   });
 
-  it("clears layout dimensions for standard workbook", () => {
-    expect(groupByForSheetLayout("standard", ["member", "day"])).toEqual(["day"]);
+  it("preserves reading order when switching to standard workbook", () => {
+    expect(groupByForSheetLayout("standard", ["member", "day"])).toEqual(["member", "day"]);
+    expect(groupByForSheetLayout("standard", [])).toEqual([]);
   });
 });

@@ -36,6 +36,7 @@ export const notificationTemplateIdSchema = z.enum([
   "workspace.removed",
   "export.ready",
   "export.failed",
+  "export.job_ready",
   "budget.near",
   "budget.over",
   "jira.synced"
@@ -170,6 +171,11 @@ export const exportScheduleContextSchema = z.object({
   errorMessage: z.string().max(500).optional()
 });
 
+export const exportJobReadyContextSchema = z.object({
+  filename: z.string().min(1).max(200),
+  jobId: uuidSchema
+});
+
 export const budgetAlertContextSchema = z.object({
   projectName: z.string().min(1).max(120),
   projectId: uuidSchema,
@@ -207,6 +213,7 @@ const TEMPLATE_CONTEXT_SCHEMAS = {
   "workspace.removed": workspaceRemovedContextSchema,
   "export.ready": exportScheduleContextSchema,
   "export.failed": exportScheduleContextSchema,
+  "export.job_ready": exportJobReadyContextSchema,
   "budget.near": budgetAlertContextSchema,
   "budget.over": budgetAlertContextSchema,
   "jira.synced": jiraSyncedContextSchema
@@ -302,6 +309,7 @@ const TEMPLATE_META: Record<
   },
   "export.ready": { type: NotificationType.EXPORT_SCHEDULE, preferenceKey: "exportSchedule" },
   "export.failed": { type: NotificationType.EXPORT_SCHEDULE, preferenceKey: "exportSchedule" },
+  "export.job_ready": { type: NotificationType.EXPORT_SCHEDULE, preferenceKey: "exportSchedule" },
   "budget.near": { type: NotificationType.BUDGET_ALERT, preferenceKey: "budgetAlert" },
   "budget.over": { type: NotificationType.BUDGET_ALERT, preferenceKey: "budgetAlert" },
   "jira.synced": { type: NotificationType.JIRA_SYNC_UPDATE, preferenceKey: "jiraSyncUpdates" }
@@ -894,6 +902,23 @@ function renderTemplate(
             { label: "Schedule", value: c.scheduleName },
             ...(c.errorMessage ? [{ label: "Error", value: c.errorMessage }] : [])
           ]
+        }
+      };
+    }
+    case "export.job_ready": {
+      const c = context as NotificationTemplateContextMap["export.job_ready"];
+      return {
+        type,
+        preferenceKey,
+        title: "Export ready to download",
+        body: `Your export "${c.filename}" is ready.`,
+        emailSubject: subjectPrefix(`Export ready — ${c.filename}`),
+        preheader: "Open Exports to download your file.",
+        metadata: {
+          href: "/exports",
+          variant: "success",
+          ctaLabel: "View exports",
+          details: [{ label: "File", value: c.filename }]
         }
       };
     }

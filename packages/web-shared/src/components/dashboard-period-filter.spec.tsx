@@ -62,6 +62,6 @@ describe("DashboardPeriodFilter", () => {
 
     const root = container.firstElementChild as HTMLElement | null;
     expect(root?.className).toContain("@container");
-    expect(root?.querySelector(".grid")?.className).toContain("@min-[860px]:grid-cols-");
+    expect(root?.querySelector(".grid")?.className).toContain("grid-cols-1");
   });
 });

@@ -185,7 +185,10 @@ export const utilizationQuerySchema = z
   .object({
     from: isoDatetimeSchema,
     to: isoDatetimeSchema,
-    userId: uuidSchema.optional()
+    userId: uuidSchema.optional(),
+    projectId: uuidSchema.optional(),
+    categoryId: uuidSchema.optional(),
+    taskId: uuidSchema.optional()
   })
   .merge(listPaginationQuerySchema)
   .superRefine((v, ctx) => assertMaxDateRange(v.from, v.to, ctx));

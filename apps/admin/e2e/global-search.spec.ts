@@ -52,4 +52,18 @@ test.describe("Admin global search", () => {
     await expect(page).toHaveURL(/\/approvals$/);
     await expect(page.getByRole("heading", { name: "Approvals" })).toBeVisible();
   });
+
+  test("dashboard does not horizontally overflow on a 1366×768 laptop viewport", async ({
+    page
+  }) => {
+    await page.setViewportSize({ width: 1366, height: 768 });
+    await page.goto("/dashboard");
+    await expect(page.getByRole("heading", { name: "Dashboard", exact: true })).toBeVisible();
+
+    const overflow = await page.evaluate(() => {
+      const doc = document.documentElement;
+      return doc.scrollWidth > doc.clientWidth + 1;
+    });
+    expect(overflow).toBe(false);
+  });
 });

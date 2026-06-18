@@ -22,6 +22,7 @@ import { Building2, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useMemo } from "react";
 import { toast } from "sonner";
+import { validateCreateWorkspaceForm } from "./create-workspace-validation";
 import { api } from "@/lib/api";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 import { useWorkspacesStore } from "@/stores/workspaces.store";
@@ -68,6 +69,7 @@ export function WorkspacePage() {
   const [settingsSuccess, setSettingsSuccess] = useState<string | null>(null);
 
   const [newWorkspaceName, setNewWorkspaceName] = useState("");
+  const [createFieldErrors, setCreateFieldErrors] = useState<{ name?: string }>({});
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [createSuccess, setCreateSuccess] = useState<string | null>(null);
@@ -147,9 +149,17 @@ export function WorkspacePage() {
 
   async function handleCreateWorkspace(e: React.FormEvent) {
     e.preventDefault();
-    setCreateLoading(true);
+    setCreateFieldErrors({});
     setCreateError(null);
     setCreateSuccess(null);
+
+    const fieldErrors = validateCreateWorkspaceForm(newWorkspaceName);
+    if (Object.keys(fieldErrors).length > 0) {
+      setCreateFieldErrors(fieldErrors);
+      return;
+    }
+
+    setCreateLoading(true);
     try {
       const res = await api<any>(ROUTES.WORKSPACES.CREATE, {
         method: "POST",
@@ -366,6 +376,7 @@ export function WorkspacePage() {
           if (!open) {
             setCreateError(null);
             setCreateSuccess(null);
+            setCreateFieldErrors({});
             setNewWorkspaceName("");
           }
         }}
@@ -381,6 +392,7 @@ export function WorkspacePage() {
                 setIsCreateOpen(false);
                 setCreateError(null);
                 setCreateSuccess(null);
+                setCreateFieldErrors({});
                 setNewWorkspaceName("");
               }}
             >
@@ -398,11 +410,19 @@ export function WorkspacePage() {
             <Input
               id="newWorkspaceName"
               value={newWorkspaceName}
-              onChange={(e) => setNewWorkspaceName(e.target.value)}
+              onChange={(e) => {
+                setNewWorkspaceName(e.target.value);
+                if (createFieldErrors.name) {
+                  setCreateFieldErrors({});
+                }
+              }}
               placeholder="e.g. Design Agency"
-              required
               autoFocus
+              aria-invalid={Boolean(createFieldErrors.name)}
             />
+            {createFieldErrors.name ? (
+              <p className="text-xs text-destructive">{createFieldErrors.name}</p>
+            ) : null}
           </div>
 
           {createError && <p className="text-sm text-destructive font-medium">{createError}</p>}

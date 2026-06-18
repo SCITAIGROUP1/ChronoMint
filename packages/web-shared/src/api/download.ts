@@ -16,6 +16,18 @@ export function apiDownloadPost(path: string, workspaceId: string, body: unknown
   });
 }
 
+export function apiDownloadGet(path: string, workspaceId: string) {
+  const token = getAccessToken();
+  return fetch(`${getApiBase()}${path}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "X-Workspace-Id": workspaceId
+    },
+    credentials: "include"
+  });
+}
+
 export async function saveDownloadResponse(res: Response, fallbackFilename: string): Promise<void> {
   if (!res.ok) throw new Error(`Download failed (${res.status})`);
   const blob = await res.blob();

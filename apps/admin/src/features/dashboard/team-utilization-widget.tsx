@@ -2,23 +2,11 @@
 
 import { ROUTES } from "@kloqra/contracts";
 import type { UtilizationResponseDto } from "@kloqra/contracts";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  DataTableCell,
-  DataTableHead,
-  DataTableHeaderRow,
-  Table,
-  TableBody,
-  TableHeader,
-  TablePagination,
-  TableRow
-} from "@kloqra/ui";
+import { Card, CardContent, CardHeader, CardTitle } from "@kloqra/ui";
 import { buildListQuery } from "@kloqra/web-shared";
-import { Users, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Users } from "lucide-react";
 import { useEffect, useState, useCallback, useMemo } from "react";
+import { TeamUtilizationTable, TeamUtilizationTargetBadge } from "./team-utilization-table";
 import { api } from "@/lib/api";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
@@ -28,14 +16,18 @@ export function TeamUtilizationWidget({
   from,
   to,
   userId,
-  projectMemberIds,
+  projectId,
+  categoryId,
+  taskId,
   cardless = false,
   onHeaderActions
 }: {
   from: string;
   to: string;
   userId?: string;
-  projectMemberIds?: string[];
+  projectId?: string;
+  categoryId?: string;
+  taskId?: string;
   cardless?: boolean;
   onHeaderActions?: (actions: React.ReactNode) => void;
 }) {
@@ -52,11 +44,14 @@ export function TeamUtilizationWidget({
     try {
       const query = buildListQuery({
         page,
-        limit: projectMemberIds?.length ? 1000 : WIDGET_PAGE_SIZE,
+        limit: projectId ? 1000 : WIDGET_PAGE_SIZE,
         filters: {
           from,
           to,
-          ...(userId ? { userId } : {})
+          ...(userId ? { userId } : {}),
+          ...(projectId ? { projectId } : {}),
+          ...(categoryId ? { categoryId } : {}),
+          ...(taskId ? { taskId } : {})
         }
       });
       const res = await api<UtilizationResponseDto>(`${ROUTES.REPORTING.UTILIZATION}?${query}`, {
@@ -68,31 +63,19 @@ export function TeamUtilizationWidget({
     } finally {
       setLoading(false);
     }
-  }, [ws, from, to, page, userId, projectMemberIds]);
+  }, [ws, from, to, page, userId, projectId, categoryId, taskId]);
 
   useEffect(() => {
     setPage(1);
-  }, [from, to, userId, projectMemberIds]);
+  }, [from, to, userId, projectId, categoryId, taskId]);
 
   useEffect(() => {
     void fetchUtilization();
   }, [fetchUtilization]);
 
-  const filteredMembers = useMemo(() => {
-    if (!data) return [];
-    if (projectMemberIds?.length) {
-      return data.members.filter((m) => projectMemberIds.includes(m.userId));
-    }
-    return data.members;
-  }, [data, projectMemberIds]);
-
   const headerActionsNode = useMemo(() => {
     if (!data) return null;
-    return (
-      <span className="rounded-full border bg-muted px-2 py-0.5 text-[10px] font-medium">
-        Target: {data.targetHours.toFixed(1)} hrs in range
-      </span>
-    );
+    return <TeamUtilizationTargetBadge data={data} />;
   }, [data]);
 
   useEffect(() => {
@@ -129,85 +112,14 @@ export function TeamUtilizationWidget({
     return null;
   }
 
-  const statusConfigs = {
-    on_track: {
-      label: "On Track",
-      color: "text-status-success-fg bg-status-success-bg border-status-success-border",
-      icon: CheckCircle2
-    },
-    low: {
-      label: "Low",
-      color: "text-status-warning-fg bg-status-warning-bg border-status-warning-border",
-      icon: AlertCircle
-    },
-    critical: {
-      label: "Critical",
-      color: "text-status-danger-fg bg-status-danger-bg border-status-danger-border",
-      icon: AlertCircle
-    }
-  };
-
-  const widgetContent =
-    filteredMembers.length === 0 ? (
-      <p className="py-4 text-center text-xs text-muted-foreground">No team members found.</p>
-    ) : (
-      <div className="space-y-0">
-        <div className="overflow-x-auto">
-          <Table className="text-xs">
-            <TableHeader>
-              <DataTableHeaderRow>
-                <DataTableHead className="h-9 px-3">Member</DataTableHead>
-                <DataTableHead className="h-9 px-3 text-right">Logged</DataTableHead>
-                <DataTableHead className="h-9 px-3 text-right">Billable</DataTableHead>
-                <DataTableHead className="h-9 px-3 text-right">Utilization</DataTableHead>
-                <DataTableHead className="h-9 px-3 text-center">Status</DataTableHead>
-              </DataTableHeaderRow>
-            </TableHeader>
-            <TableBody>
-              {filteredMembers.map((m) => {
-                const config = statusConfigs[m.status];
-                const StatusIcon = config.icon;
-
-                return (
-                  <TableRow key={m.userId} className="hover:bg-muted/30">
-                    <DataTableCell className="px-3 py-2 text-xs font-medium">
-                      {m.userName}
-                    </DataTableCell>
-                    <DataTableCell className="px-3 py-2 text-right font-mono text-xs">
-                      {m.loggedHours.toFixed(1)}h
-                    </DataTableCell>
-                    <DataTableCell className="px-3 py-2 text-right font-mono text-xs text-muted-foreground">
-                      {m.billableHours.toFixed(1)}h
-                    </DataTableCell>
-                    <DataTableCell className="px-3 py-2 text-right font-mono text-xs font-bold">
-                      {m.utilizationPct}%
-                    </DataTableCell>
-                    <DataTableCell className="px-3 py-2 text-center">
-                      <span
-                        className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${config.color}`}
-                      >
-                        <StatusIcon className="size-3" />
-                        {config.label}
-                      </span>
-                    </DataTableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
-        {!projectMemberIds?.length && data.totalPages > 1 ? (
-          <TablePagination
-            page={page}
-            totalPages={data.totalPages}
-            total={data.total}
-            limit={data.limit}
-            onPageChange={setPage}
-            disabled={loading}
-          />
-        ) : null}
-      </div>
-    );
+  const widgetContent = (
+    <TeamUtilizationTable
+      data={data}
+      page={page}
+      onPageChange={setPage}
+      showPagination={!projectId}
+    />
+  );
 
   if (cardless) {
     return widgetContent;

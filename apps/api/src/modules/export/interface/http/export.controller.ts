@@ -1,4 +1,5 @@
 import {
+  createExportJobSchema,
   createExportPresetSchema,
   createExportScheduleSchema,
   createReportShareSchema,
@@ -35,6 +36,7 @@ import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../../../common/guards/roles.guard";
 import { sendAttachment } from "../../../../common/http/attachment.util";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
+import { ExportJobService } from "../../application/export-job.service";
 import { ExportPresetService } from "../../application/export-preset.service";
 import { ExportScheduleService } from "../../application/export-schedule.service";
 import { ExportShareService } from "../../application/export-share.service";
@@ -46,6 +48,7 @@ import { InvoiceService } from "../../application/invoice.service";
 export class ExportController {
   constructor(
     private exportService: ExportService,
+    private exportJobs: ExportJobService,
     private exportPresets: ExportPresetService,
     private exportSchedules: ExportScheduleService,
     private exportShares: ExportShareService,
@@ -80,6 +83,42 @@ export class ExportController {
       contentType: "application/pdf",
       filename: result.filename
     });
+  }
+
+  @Roles("ADMIN")
+  @Post(ROUTES.EXPORT.JOBS)
+  async createJob(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodValidationPipe(createExportJobSchema)) body: unknown
+  ) {
+    return this.exportJobs.create(
+      user.workspaceId,
+      user.userId,
+      body as Parameters<ExportJobService["create"]>[2]
+    );
+  }
+
+  @Roles("ADMIN")
+  @Get(ROUTES.EXPORT.JOBS)
+  async listJobs(@CurrentUser() user: RequestUser) {
+    return this.exportJobs.list(user.workspaceId);
+  }
+
+  @Roles("ADMIN")
+  @Get(ROUTES.EXPORT.JOB(":id"))
+  async getJob(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+    return this.exportJobs.get(user.workspaceId, id);
+  }
+
+  @Roles("ADMIN")
+  @Get(ROUTES.EXPORT.JOB_DOWNLOAD(":id"))
+  async downloadJob(
+    @CurrentUser() user: RequestUser,
+    @Param("id") id: string,
+    @Res() res: Response
+  ) {
+    const result = await this.exportJobs.download(user.workspaceId, id);
+    sendAttachment(res, result);
   }
 
   @Roles("ADMIN")

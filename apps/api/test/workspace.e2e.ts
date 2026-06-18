@@ -72,6 +72,22 @@ describe("Workspace E2E", () => {
     expect((res.body as TeamActivitiesDto).members.length).toBeGreaterThan(0);
   });
 
+  it("POST /workspaces rejects duplicate workspace names", async () => {
+    const res = await authedAgent(app, adminSession)
+      .post(ROUTES.WORKSPACES.CREATE)
+      .send({ name: "Acme Corporation" });
+    expect(res.status).toBe(409);
+    expect(res.body.message).toBe("A workspace with this name already exists.");
+  });
+
+  it("POST /workspaces rejects duplicate workspace names case-insensitively", async () => {
+    const res = await authedAgent(app, adminSession)
+      .post(ROUTES.WORKSPACES.CREATE)
+      .send({ name: "acme corporation" });
+    expect(res.status).toBe(409);
+    expect(res.body.message).toBe("A workspace with this name already exists.");
+  });
+
   it("deactivates TeamMember rows when workspace member is removed", async () => {
     const prisma = app.get(PrismaService);
     const workspaceId = adminSession.workspaceId;

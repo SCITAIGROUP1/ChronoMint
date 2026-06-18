@@ -13,14 +13,20 @@ const REPORT_LABELS: Record<ExportReportType, string> = {
   invoice: "Invoice",
   daily_summary: "Daily summary",
   weekly_summary: "Weekly summary",
+  member_daily_total: "Daily hours per person",
   by_project: "By project",
   by_member: "By member",
   by_client: "By client",
   by_task: "By task",
   by_category: "By category",
-  users_without_time: "Users without time",
+  member_project_breakdown: "Hours by person & project",
+  users_without_time: "People with no time logged",
+  missing_days: "Days with no time logged",
   budget_vs_actual: "Budget vs actual",
-  utilization: "Utilization"
+  utilization: "Utilization",
+  overtime_summary: "Over / under hours",
+  hours_by_source: "Timer vs manual entries",
+  timesheet_approval_status: "Timesheet approval status"
 };
 
 type Props = {
@@ -65,14 +71,14 @@ export function ExportColumnPicker({ report, selected, onChange }: Props) {
   }
 
   return (
-    <div className="p-1">
-      <div className="mb-2 flex items-center justify-between">
+    <div className="min-w-0 p-1">
+      <div className="mb-2 flex min-w-0 flex-wrap items-center justify-between gap-2">
         <Label className="text-sm font-medium">{REPORT_LABELS[report]} columns</Label>
         <Button type="button" variant="ghost" size="sm" onClick={reset}>
           Reset columns
         </Button>
       </div>
-      <p className="mb-3 text-xs text-muted-foreground">
+      <p className="mb-3 text-xs text-muted-foreground break-words">
         {selected.length} selected (export order): {selected.map((k) => labels[k]).join(" → ")}
       </p>
 
@@ -94,7 +100,7 @@ export function ExportColumnPicker({ report, selected, onChange }: Props) {
               if (dragIndex !== null) reorder(dragIndex, index);
               setDragIndex(null);
             }}
-            className={`flex cursor-grab items-center gap-2 rounded border border-transparent px-1 py-0.5 text-sm active:cursor-grabbing hover:bg-accent/50 ${
+            className={`flex min-w-0 cursor-grab items-center gap-2 rounded border border-transparent px-1 py-0.5 text-sm active:cursor-grabbing hover:bg-accent/50 ${
               dragIndex === index ? "border-primary/40 bg-accent/60" : ""
             }`}
           >
@@ -107,7 +113,7 @@ export function ExportColumnPicker({ report, selected, onChange }: Props) {
               onChange={() => toggle(key, false)}
               className="h-4 w-4"
             />
-            <span className="flex-1">
+            <span className="min-w-0 flex-1 truncate">
               <span className="text-muted-foreground">{index + 1}.</span> {labels[key]}
             </span>
             <span className="flex gap-0.5">

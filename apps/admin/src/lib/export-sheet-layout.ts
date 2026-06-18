@@ -30,12 +30,15 @@ export function groupByForSheetLayout(
   layout: ExportSheetLayout,
   current: ExportGroupByDimension[]
 ): ExportGroupByDimension[] {
-  const extras = (Array.isArray(current) ? current : []).filter(
-    (d) => !LAYOUT_GROUP_BY_DIMS.includes(d)
-  );
-  const primary = primaryGroupByForSheetLayout(layout);
-  if (!primary) return extras;
-  return [primary, ...extras];
+  const currentArr = Array.isArray(current) ? current : [];
+  const layoutPrimary = primaryGroupByForSheetLayout(layout);
+
+  if (!layoutPrimary) {
+    return currentArr;
+  }
+
+  const extras = currentArr.filter((d) => d !== layoutPrimary && !LAYOUT_GROUP_BY_DIMS.includes(d));
+  return [layoutPrimary, ...extras];
 }
 
 export const SHEET_LAYOUT_OPTIONS: {

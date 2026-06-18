@@ -4,7 +4,7 @@ import { DEFAULT_PROJECT_COLOR } from "@kloqra/contracts";
 import type { ProjectDto, TeamActivitiesDto } from "@kloqra/contracts";
 import { CenteredLoader, EmptyState } from "@kloqra/ui";
 import type { DashboardPeriodSelection } from "@kloqra/web-shared";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   countActiveTeamActivityFilters,
   teamActivitiesPeriodTotalLabel,
@@ -15,7 +15,6 @@ import {
   TeamActivityMemberCard,
   TeamActivityMemberTableRow
 } from "./team-activity-member-row";
-import { useMediaQuery } from "@/hooks/use-media-query";
 
 export type TeamActivitiesWidgetProps = {
   data: TeamActivitiesDto | null;
@@ -38,8 +37,6 @@ export function TeamActivitiesWidget({
   range,
   filters
 }: TeamActivitiesWidgetProps) {
-  const [mounted, setMounted] = useState(false);
-  const isDesktop = useMediaQuery("(min-width: 1024px)");
   const periodTotalLabel = teamActivitiesPeriodTotalLabel(range);
   const activeFilterCount = countActiveTeamActivityFilters(filters);
 
@@ -53,10 +50,6 @@ export function TeamActivitiesWidget({
       ),
     [projects]
   );
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   if (loading) {
     return <CenteredLoader label="Loading team activities…" />;
@@ -84,70 +77,70 @@ export function TeamActivitiesWidget({
     );
   }
 
-  const showDesktop = !mounted || isDesktop;
-
   return (
-    <div className="flex min-h-[220px] flex-col overflow-hidden">
+    <div className="@container flex min-h-[220px] flex-col overflow-hidden">
       <p className="mb-3 text-[11px] text-muted-foreground">
         Respects your dashboard period
         {activeFilterCount > 0 ? " and scope filters" : ""}. Bar height shows daily hours — hover
         for exact values. Today is highlighted.
       </p>
 
-      {showDesktop ? (
-        <div className="flex min-h-0 flex-1 flex-col" role="table" aria-label="Team activities">
-          <div className="overflow-x-auto">
-            <div className="min-w-[52rem]">
-              <div
-                role="row"
-                className={`${TEAM_ACTIVITY_DESKTOP_GRID} pb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground`}
-              >
-                <span role="columnheader">Member</span>
-                <span role="columnheader">Latest activity</span>
-                <span role="columnheader" className="text-right">
-                  Duration
-                </span>
-                <span role="columnheader">Time since</span>
-                <span role="columnheader" className="text-right">
-                  {periodTotalLabel}
-                </span>
-                <span role="columnheader" title="Bar height = hours logged that day">
-                  Hours by day
-                </span>
-              </div>
+      <div
+        className="hidden min-h-0 flex-1 flex-col @min-[700px]:flex"
+        role="table"
+        aria-label="Team activities"
+      >
+        <div className="min-h-0 flex-1 overflow-x-auto">
+          <div className="min-w-0 @min-[700px]:min-w-[36rem] @min-[900px]:min-w-[48rem]">
+            <div
+              role="row"
+              className={`${TEAM_ACTIVITY_DESKTOP_GRID} pb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground`}
+            >
+              <span role="columnheader">Member</span>
+              <span role="columnheader">Latest activity</span>
+              <span role="columnheader" className="text-right">
+                Duration
+              </span>
+              <span role="columnheader">Time since</span>
+              <span role="columnheader" className="text-right">
+                {periodTotalLabel}
+              </span>
+              <span role="columnheader" title="Bar height = hours logged that day">
+                Hours by day
+              </span>
+            </div>
 
-              <div className="divide-y divide-border/40" role="rowgroup">
-                {data.members.map((member) => (
-                  <TeamActivityMemberTableRow
-                    key={member.userId}
-                    member={member}
-                    projectColor={
-                      member.latestActivity
-                        ? resolveProjectColor(member.latestActivity.projectId, projectColorById)
-                        : "var(--muted)"
-                    }
-                  />
-                ))}
-              </div>
+            <div className="divide-y divide-border/40" role="rowgroup">
+              {data.members.map((member) => (
+                <TeamActivityMemberTableRow
+                  key={member.userId}
+                  member={member}
+                  projectColor={
+                    member.latestActivity
+                      ? resolveProjectColor(member.latestActivity.projectId, projectColorById)
+                      : "var(--muted)"
+                  }
+                />
+              ))}
             </div>
           </div>
         </div>
-      ) : (
-        <div className="flex flex-col gap-3">
-          {data.members.map((member) => (
-            <TeamActivityMemberCard
-              key={member.userId}
-              member={member}
-              periodTotalLabel={periodTotalLabel}
-              projectColor={
-                member.latestActivity
-                  ? resolveProjectColor(member.latestActivity.projectId, projectColorById)
-                  : "var(--muted)"
-              }
-            />
-          ))}
-        </div>
-      )}
+      </div>
+
+      <div className="flex flex-col gap-3 @min-[700px]:hidden">
+        {data.members.map((member) => (
+          <TeamActivityMemberCard
+            key={member.userId}
+            member={member}
+            periodTotalLabel={periodTotalLabel}
+            projectColor={
+              member.latestActivity
+                ? resolveProjectColor(member.latestActivity.projectId, projectColorById)
+                : "var(--muted)"
+            }
+          />
+        ))}
+      </div>
     </div>
   );
 }

@@ -1,37 +1,42 @@
 # Admin: Exports
 
-Download workspace time data for payroll, clients, or analysis.
+Download workspace time data for payroll, clients, or team reviews — without learning spreadsheet jargon.
 
-## Open the export wizard
+## Quick reports (recommended)
 
 1. Go to **Exports** (`/exports`).
-2. Or use **Export** on the dashboard (7 / 30 / 90 day range) and **Customize…** to open the wizard with the same period.
+2. Or click **Export period** on the **Dashboard** to open with the same date range.
+3. Pick a purpose card (e.g. **Payroll & timesheets**, **Team summary**, **Who hasn't logged time?**).
+4. Choose **When** — presets like This week, Last 30 days, or custom dates.
+5. Optionally filter **Who & which projects** (empty = everyone and all projects).
+6. Review the live preview: sheet summary, sample rows, and file name.
+7. Click the scenario download button (e.g. **Download timesheets**).
 
-## Configure the export
+Large exports are prepared in the background and appear under **Recent exports** (kept 7 days).
 
-1. **Period** — presets include Today, This week, Last 7/30/90 days, This month, or custom dates.
-2. **Filters** (optional): project, member, billable, team-only (when a project is selected).
-3. **Presets** — save locally or to the workspace; click a preset name to load settings.
-4. **Reports** — time entries, invoice (billable), daily/weekly summary, by project/member/task, users without time, budget vs actual, utilization.
-5. **Columns** — per report: checkboxes, drag reorder, reset to defaults.
-6. **Format** — CSV, Excel, or PDF (footer note from workspace settings when configured).
+## Custom export
 
-A preview line under the reports shows approximate row counts before you download.
+Use **Custom export** when you need specific report types, columns, or file structure:
 
-## Download and share
+1. Set period and filters.
+2. **Organize the file** — one file vs separate sheets per person/project/client.
+3. Toggle reports and choose columns per report.
+4. Download or save a preset (**Save on this computer** vs **Save for whole team**).
+5. **Scheduled exports** — email recurring runs to comma-separated addresses.
 
-1. Click **Export** for a file download (CSV, ZIP, Excel, or PDF per spec).
-2. Click **Create share link** for a 30-day public read-only JSON view (copy URL to share).
+## Share links
 
-## Scheduled exports
+Create a read-only link (7, 30, or 90 days) from the download panel. Use **Copy link** to share with stakeholders.
 
-In **Scheduled exports**, name a schedule, pick daily/weekly/monthly frequency, add recipient emails, and create from current wizard settings. The server runs exports on schedule (logged until email delivery is configured).
+## Formal invoice PDF
+
+Use **Need a formal invoice PDF?** for a client-facing invoice document (separate from billing spreadsheets).
 
 ## Tips
 
 - Match the dashboard date range when reconciling totals.
-- Use **Invoice** for client-facing billable detail; **Time entries** for payroll tools.
-- Empty ranges show a preview warning; some reports (e.g. users without time) can still have rows.
+- Prefer **Excel** for payroll tools; **PDF** is summary-only.
+- Empty periods show guidance in the preview — widen dates or remove filters.
 
 ## Related
 

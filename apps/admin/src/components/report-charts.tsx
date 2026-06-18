@@ -29,6 +29,8 @@ import {
   ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
+  DonutChartCenter,
+  DonutLegend,
   type ChartConfig
 } from "@kloqra/ui/chart";
 import { useClientTablePagination } from "@kloqra/web-shared";
@@ -285,45 +287,62 @@ export function ReportDonutChart({ report, groupBy, projectColors }: DonutProps)
   }
 
   return (
-    <div className="relative mx-auto w-full max-w-sm">
-      <ChartContainer config={chartConfig} className="mx-auto min-h-[280px] w-full">
-        <PieChart>
-          <ChartTooltip
-            content={
-              <ChartTooltipContent
-                hideLabel
-                formatter={(value, _name, item) => {
-                  const amt = (item.payload as { amount?: number }).amount ?? 0;
-                  return (
-                    <span>
-                      {Number(value).toFixed(2)}h · ${formatMoney(amt)}
-                    </span>
-                  );
-                }}
-              />
-            }
-          />
-          <Pie
-            data={segments}
-            dataKey="value"
-            nameKey="name"
-            innerRadius="58%"
-            outerRadius="88%"
-            strokeWidth={2}
-            paddingAngle={1}
-          >
-            {segments.map((entry) => (
-              <Cell key={entry.id} fill={entry.fill} />
-            ))}
-          </Pie>
-          <ChartLegend content={<ChartLegendContent nameKey="name" />} />
-        </PieChart>
-      </ChartContainer>
-      <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
-        <p className="text-2xl font-bold tabular-nums">{formatDurationClock(totalHours)}</p>
-        <p className="text-sm text-muted-foreground tabular-nums">{formatMoney(totalAmount)} USD</p>
-      </div>
-    </div>
+    <DonutChartCenter
+      chart={
+        <ChartContainer config={chartConfig} className="aspect-square h-full w-full min-h-0">
+          <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+            <ChartTooltip
+              content={
+                <ChartTooltipContent
+                  hideLabel
+                  formatter={(value, _name, item) => {
+                    const amt = (item.payload as { amount?: number }).amount ?? 0;
+                    return (
+                      <span>
+                        {Number(value).toFixed(2)}h · ${formatMoney(amt)}
+                      </span>
+                    );
+                  }}
+                />
+              }
+            />
+            <Pie
+              data={segments}
+              dataKey="value"
+              nameKey="name"
+              innerRadius="58%"
+              outerRadius="88%"
+              strokeWidth={2}
+              paddingAngle={1}
+              cx="50%"
+              cy="50%"
+            >
+              {segments.map((entry) => (
+                <Cell key={entry.id} fill={entry.fill} />
+              ))}
+            </Pie>
+          </PieChart>
+        </ChartContainer>
+      }
+      center={
+        <>
+          <p className="text-2xl font-bold tabular-nums">{formatDurationClock(totalHours)}</p>
+          <p className="text-sm text-muted-foreground tabular-nums">
+            {formatMoney(totalAmount)} USD
+          </p>
+        </>
+      }
+      legend={
+        <DonutLegend
+          items={segments.map((segment) => ({
+            key: segment.id,
+            label: segment.name,
+            color: segment.fill ?? CHART_PALETTE[0]!
+          }))}
+        />
+      }
+      className="mx-auto max-w-sm"
+    />
   );
 }
 
@@ -443,8 +462,8 @@ export function ReportVisualsSection({ report, projectColors }: ReportVisualsSec
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-5">
-        <Card className="lg:col-span-3 border-primary/10 shadow-sm">
+      <div className="grid gap-6 xl:grid-cols-5">
+        <Card className="border-primary/10 shadow-sm xl:col-span-3">
           <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-4 space-y-0 pb-2">
             <div>
               <CardTitle className="text-base">Breakdown</CardTitle>
@@ -469,7 +488,7 @@ export function ReportVisualsSection({ report, projectColors }: ReportVisualsSec
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-2 border-primary/10 shadow-sm">
+        <Card className="border-primary/10 shadow-sm xl:col-span-2">
           <CardHeader>
             <CardTitle className="text-base">Distribution</CardTitle>
             <CardDescription>Share of time in this period</CardDescription>

@@ -10,6 +10,16 @@ export {
 } from "./auth/workspace-context";
 export { api, getApiBase, publicFetch } from "./api/client";
 export {
+  COMPACT_LAPTOP_SHELL_MAX,
+  COMPACT_LAPTOP_SHELL_MIN,
+  COMPACT_LAPTOP_VIEWPORT,
+  COMPACT_LAPTOP_VIEWPORT_MAX,
+  COMFORTABLE_DESKTOP_SHELL_MIN,
+  EXPORT_TWO_COLUMN_SHELL_MIN,
+  SIDEBAR_COLLAPSED_STORAGE_KEY,
+  TEAM_ACTIVITIES_TABLE_MIN
+} from "./responsive-tiers";
+export {
   buildWidgetMinSizeMap,
   DASHBOARD_GRID_BREAKPOINTS,
   DASHBOARD_GRID_COLS,
@@ -30,13 +40,14 @@ export type {
 export {
   fetchListItems,
   fetchPaginatedList,
+  invalidateListItemsCache,
   normalizePaginatedListResponse
 } from "./api/fetch-list-items";
 export { coerceListItems } from "./utils/coerce-list-items";
 export { extractFieldErrorsFromMessage, type FieldErrorMap } from "./utils/form-errors";
 export { fetchProjectTeam } from "./api/fetch-project-team";
 export { appendListQuery, buildListQuery, buildTableQuery } from "./api/list-query";
-export { apiDownloadPost, saveDownloadResponse } from "./api/download";
+export { apiDownloadGet, apiDownloadPost, saveDownloadResponse } from "./api/download";
 export {
   Providers,
   ThemeToggle,
@@ -61,6 +72,7 @@ export { toDateInputValue } from "./utils/date-input";
 export { resolveStartupPath } from "./utils/startup-page";
 export { useDisplayPreferences } from "./hooks/use-display-preferences";
 export { usePaginatedList } from "./hooks/use-paginated-list";
+export { useRefetchOnWindowFocus } from "./hooks/use-refetch-on-window-focus";
 export {
   formatNotificationTimeAgo,
   markAllNotificationsRead,

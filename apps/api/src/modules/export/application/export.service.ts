@@ -1,6 +1,10 @@
 import { PassThrough } from "stream";
 import {
   buildExportFilename,
+  buildExportScopeHint,
+  deriveExportPurpose,
+  EXPORT_LARGE_ROW_THRESHOLD,
+  formatExportDateRange,
   ErrorCodes,
   EXPORT_COLUMN_LABELS,
   MEMBER_EXPORT_COLUMN_LABELS,
@@ -17,15 +21,16 @@ import {
 } from "@kloqra/contracts";
 import { HttpStatus, Injectable } from "@nestjs/common";
 import archiver from "archiver";
-import ExcelJS from "exceljs";
 import PDFDocument from "pdfkit";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { roundExport } from "../../../common/time/round.util";
 import { TimeAggregationService } from "../../../common/time/time-aggregation.service";
+import { formatExportClockTime } from "./export-format.util";
 import { buildExportPreviewCopy } from "./export-preview-copy.util";
 import { projectRows, rowsToCsv } from "./export-render.util";
 import { ExportRowsBuilder, type ExportRowContext } from "./export-rows.builder";
+import { buildExportPreviewSampleRows } from "./export-sample-rows.util";
 import {
   allocateSheetName,
   groupRowsByField,
@@ -34,16 +39,28 @@ import {
   splitFieldForLayout
 } from "./export-sheet.util";
 import { sortRowsForGroupBy } from "./export-sort.util";
+import { buildStyledXlsxBuffer, type ExportSheetPayload } from "./export-xlsx-render.util";
+import {
+  applyPurposeColumnPreset,
+  buildSplitSheetName,
+  resolvePurposeSlug,
+  type ExportSheetReport
+} from "./export-xlsx-template.util";
 
-type SheetData = {
-  name: string;
-  report: ExportReportType | MemberExportReportType;
+type SheetData = ExportSheetPayload & {
   reportSlug: string;
-  headers: string[];
-  lines: string[][];
 };
 
 type ExportScope = "admin" | "member";
+
+type ExportFileBase = {
+  workspaceSlug: string;
+  from: string;
+  to: string;
+  scope: ExportScope;
+  purposeSlug: string;
+  scopeHint?: string;
+};
 
 @Injectable()
 export class ExportService {
@@ -139,6 +156,16 @@ export class ExportService {
       };
     });
     const { headline, detail } = buildExportPreviewCopy(body, sheets, ctx.logs.length);
+    const estimatedRowCount = sheetPlan.reduce((sum, s) => sum + s.lines.length, 0);
+    const warnLargeExport =
+      estimatedRowCount >= EXPORT_LARGE_ROW_THRESHOLD ||
+      ctx.logs.length >= EXPORT_LARGE_ROW_THRESHOLD;
+    const sampleRows = isEmpty
+      ? []
+      : buildExportPreviewSampleRows(sheetPlan, {
+          focusReport: body.sampleReportType,
+          maxRows: 5
+        });
 
     return {
       counts,
@@ -146,7 +173,10 @@ export class ExportService {
       isEmpty,
       sheets,
       headline,
-      detail
+      detail,
+      sampleRows,
+      estimatedRowCount,
+      warnLargeExport
     };
   }
 
@@ -168,17 +198,34 @@ export class ExportService {
       );
     }
 
-    let userIds: string[] | undefined;
-    if (filters.teamOnly && filters.projectId) {
-      userIds = await this.aggregation.teamMemberUserIds(filters.projectId);
+    let userIds: string[] | undefined = filters.userIds?.length
+      ? [...filters.userIds]
+      : filters.userId
+        ? [filters.userId]
+        : undefined;
+
+    const projectIds = filters.projectIds?.length
+      ? [...filters.projectIds]
+      : filters.projectId
+        ? [filters.projectId]
+        : undefined;
+
+    if (filters.teamOnly && projectIds?.length) {
+      const teamUnion = new Set<string>();
+      for (const pid of projectIds) {
+        const ids = await this.aggregation.teamMemberUserIds(pid);
+        for (const id of ids) teamUnion.add(id);
+      }
+      userIds = userIds?.length ? userIds.filter((id) => teamUnion.has(id)) : [...teamUnion];
     }
 
     const logs = await this.aggregation.fetchLogs(workspaceId, {
       from,
       to,
-      projectId: filters.projectId,
-      userId: filters.userId,
-      userIds,
+      projectId: projectIds?.length === 1 ? projectIds[0] : filters.projectId,
+      projectIds: projectIds && projectIds.length > 1 ? projectIds : undefined,
+      userId: userIds?.length === 1 ? userIds[0] : filters.userId,
+      userIds: userIds && userIds.length > 1 ? userIds : undefined,
       categoryId: filters.categoryId,
       taskId: filters.taskId,
       billable: filters.billable
@@ -211,18 +258,20 @@ export class ExportService {
     const settings = ctx.settings;
     const sheets = await this.buildSheets(workspaceId, body, scope, memberBody, ctx);
 
-    const fileBase = {
-      workspaceSlug: ctx.workspaceSlug,
-      from: body.from,
-      to: body.to,
-      scope
-    } as const;
+    const fileBase = await this.buildFileBase(ctx, body, scope);
 
     if (body.format === "csv") {
       return this.renderCsv(sheets, fileBase);
     }
     if (body.format === "xlsx") {
-      return this.renderXlsx(sheets, fileBase);
+      return this.renderXlsx(sheets, fileBase, {
+        workspaceName: ctx.workspaceName,
+        from: body.from,
+        to: body.to,
+        purposeSlug: fileBase.purposeSlug,
+        scopeHint: fileBase.scopeHint,
+        settings
+      });
     }
     return this.renderPdf(sheets, fileBase, body, ctx.workspaceName, settings);
   }
@@ -236,13 +285,12 @@ export class ExportService {
   ): Promise<SheetData[]> {
     const isMember = scope === "member";
     const layout = body.sheetLayout ?? "standard";
+    const purposeSlug = resolvePurposeSlug(body);
     const sheets: SheetData[] = [];
     const usedNames = new Set<string>();
 
     for (const report of body.reportTypes) {
-      const columnKeys = isMember
-        ? resolveMemberExportColumns(report as MemberExportReportType, memberBody?.columns)
-        : resolveExportColumns(report, body.columns);
+      const columnKeys = this.resolveColumnKeys(report, body, isMember, memberBody, purposeSlug);
 
       const labels = isMember
         ? MEMBER_EXPORT_COLUMN_LABELS[report as MemberExportReportType]
@@ -253,7 +301,8 @@ export class ExportService {
             report as MemberExportReportType,
             ctx.logs,
             ctx.aggregates,
-            ctx.resolveRate
+            ctx.resolveRate,
+            ctx.settings.timezone
           )
         : await this.rowsBuilder.buildRows(report, ctx);
 
@@ -266,10 +315,14 @@ export class ExportService {
           splitField
         )) {
           const { headers, lines } = projectRows(groupRows, columnKeys, labels);
-          const name = allocateSheetName(groupName, usedNames);
+          const name = allocateSheetName(
+            buildSplitSheetName(groupName, report as ExportSheetReport),
+            usedNames
+          );
           sheets.push({
             name,
             report,
+            columnKeys,
             reportSlug: `${this.fileSlug(report)}-${name.toLowerCase().replace(/\s+/g, "-")}`,
             headers,
             lines
@@ -283,6 +336,7 @@ export class ExportService {
       sheets.push({
         name,
         report,
+        columnKeys,
         reportSlug: this.fileSlug(report),
         headers,
         lines
@@ -292,11 +346,31 @@ export class ExportService {
     return sheets;
   }
 
+  private resolveColumnKeys(
+    report: ExportReportType,
+    body: ExportBodyDto,
+    isMember: boolean,
+    memberBody: MemberExportBodyDto | undefined,
+    purposeSlug: string
+  ): string[] {
+    const hasCustomColumns = isMember
+      ? Boolean(memberBody?.columns?.[report as MemberExportReportType]?.length)
+      : Boolean(body.columns?.[report]?.length);
+
+    const base = isMember
+      ? resolveMemberExportColumns(report as MemberExportReportType, memberBody?.columns)
+      : resolveExportColumns(report, body.columns);
+
+    if (hasCustomColumns) return base;
+    return applyPurposeColumnPreset(base, report as ExportSheetReport, purposeSlug);
+  }
+
   private buildMemberRows(
     report: MemberExportReportType,
     logs: ExportRowContext["logs"],
     aggregates: ExportRowContext["aggregates"],
-    resolveRate: ExportRowContext["resolveRate"]
+    resolveRate: ExportRowContext["resolveRate"],
+    timeZone?: string
   ): Record<string, string | number>[] {
     if (report === "time_entries") {
       return logs.map((l) => {
@@ -314,8 +388,8 @@ export class ExportService {
           category: categoryName,
           task: l.task.taskName,
           date: l.startTime.toISOString().slice(0, 10),
-          start_time: l.startTime.toISOString(),
-          end_time: l.endTime.toISOString(),
+          start_time: formatExportClockTime(l.startTime, timeZone),
+          end_time: formatExportClockTime(l.endTime, timeZone),
           hours: roundExport(hours),
           billable: l.isBillable ? "yes" : "no",
           rate: roundExport(rate),
@@ -376,7 +450,13 @@ export class ExportService {
       by_category: "By category",
       users_without_time: "Users without time",
       budget_vs_actual: "Budget vs actual",
-      utilization: "Utilization"
+      utilization: "Utilization",
+      member_daily_total: "Daily hours per person",
+      member_project_breakdown: "Hours by person and project",
+      missing_days: "Days with no time logged",
+      overtime_summary: "Over / under hours",
+      hours_by_source: "Timer vs manual",
+      timesheet_approval_status: "Timesheet approvals"
     };
     return (names[report] ?? report).slice(0, 31);
   }
@@ -394,14 +474,57 @@ export class ExportService {
       by_category: "by-category",
       users_without_time: "users-without-time",
       budget_vs_actual: "budget-vs-actual",
-      utilization: "utilization"
+      utilization: "utilization",
+      member_daily_total: "member-daily-total",
+      member_project_breakdown: "member-project-breakdown",
+      missing_days: "missing-days",
+      overtime_summary: "overtime-summary",
+      hours_by_source: "hours-by-source",
+      timesheet_approval_status: "timesheet-approvals"
     };
     return slugs[report] ?? "report";
   }
 
+  private async buildFileBase(ctx: ExportRowContext, body: ExportBodyDto, scope: ExportScope) {
+    const projectIds = body.projectIds ?? (body.projectId ? [body.projectId] : undefined);
+    const userIds = body.userIds ?? (body.userId ? [body.userId] : undefined);
+
+    let projectNames: string[] | undefined;
+    if (projectIds?.length === 1) {
+      const p = await this.prisma.project.findUnique({
+        where: { id: projectIds[0] },
+        select: { name: true }
+      });
+      projectNames = p ? [p.name] : undefined;
+    }
+
+    let userNames: string[] | undefined;
+    if (userIds?.length === 1) {
+      const u = await this.prisma.user.findUnique({
+        where: { id: userIds[0] },
+        select: { name: true }
+      });
+      userNames = u ? [u.name] : undefined;
+    }
+
+    return {
+      workspaceSlug: ctx.workspaceSlug,
+      from: body.from,
+      to: body.to,
+      scope,
+      purposeSlug: deriveExportPurpose(body),
+      scopeHint: buildExportScopeHint({
+        projectIds,
+        userIds,
+        projectNames,
+        userNames
+      })
+    } as const;
+  }
+
   private async renderCsv(
     sheets: SheetData[],
-    fileBase: { workspaceSlug: string; from: string; to: string; scope: ExportScope }
+    fileBase: ExportFileBase
   ): Promise<{ buffer: Buffer; contentType: string; filename: string }> {
     if (sheets.length === 1) {
       const s = sheets[0]!;
@@ -425,10 +548,7 @@ export class ExportService {
     };
   }
 
-  private zipCsvFiles(
-    sheets: SheetData[],
-    fileBase: { workspaceSlug: string; from: string; to: string; scope: ExportScope }
-  ): Promise<Buffer> {
+  private zipCsvFiles(sheets: SheetData[], fileBase: ExportFileBase): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       const archive = archiver("zip", { zlib: { level: 9 } });
       const stream = new PassThrough();
@@ -454,29 +574,17 @@ export class ExportService {
 
   private async renderXlsx(
     sheets: SheetData[],
-    fileBase: { workspaceSlug: string; from: string; to: string; scope: ExportScope }
-  ): Promise<{ buffer: Buffer; contentType: string; filename: string }> {
-    const stream = new PassThrough();
-    const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({ stream });
-
-    for (const s of sheets) {
-      const ws = workbook.addWorksheet(s.name);
-      ws.addRow(s.headers);
-      for (const line of s.lines) {
-        ws.addRow(line);
-      }
-      ws.getRow(1).font = { bold: true };
-      ws.commit();
+    fileBase: ExportFileBase,
+    meta: {
+      workspaceName: string;
+      from: string;
+      to: string;
+      purposeSlug: string;
+      scopeHint?: string;
+      settings: ReturnType<typeof parseWorkspaceSettings>;
     }
-    await workbook.commit();
-
-    const chunks: Buffer[] = [];
-    stream.on("data", (chunk) => chunks.push(chunk));
-    await new Promise<void>((resolve) => {
-      stream.on("end", resolve);
-    });
-
-    const buffer = Buffer.concat(chunks);
+  ): Promise<{ buffer: Buffer; contentType: string; filename: string }> {
+    const buffer = await buildStyledXlsxBuffer(sheets, meta);
 
     return {
       buffer,
@@ -487,7 +595,7 @@ export class ExportService {
 
   private async renderPdf(
     sheets: SheetData[],
-    fileBase: { workspaceSlug: string; from: string; to: string; scope: ExportScope },
+    fileBase: ExportFileBase,
     body: ExportBodyDto,
     workspaceName: string,
     settings: ReturnType<typeof parseWorkspaceSettings>
@@ -496,7 +604,10 @@ export class ExportService {
     const chunks: Buffer[] = [];
     doc.on("data", (c: Buffer) => chunks.push(c));
 
-    const title = fileBase.scope === "member" ? "Kloqra — My timesheet" : "Kloqra Export";
+    const title =
+      fileBase.scope === "member"
+        ? `My timesheet — ${formatExportDateRange(body.from, body.to)}`
+        : `${fileBase.purposeSlug.replace(/-/g, " ")} — ${formatExportDateRange(body.from, body.to)}`;
     doc.fontSize(18).text(title, { align: "center" });
     doc.moveDown(0.5);
     doc.fontSize(11).text(workspaceName, { align: "center" });

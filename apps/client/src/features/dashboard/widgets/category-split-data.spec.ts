@@ -54,6 +54,8 @@ describe("buildCategorySplitData", () => {
       hours: 1,
       percentage: 33.3
     });
+    expect(result.chartRows[0]?.configKey).toBe("category_0");
+    expect(result.chartRows[0]?.fill).toMatch(/^(#|hsl\()/);
   });
 
   it("returns empty data when no logs exist", () => {

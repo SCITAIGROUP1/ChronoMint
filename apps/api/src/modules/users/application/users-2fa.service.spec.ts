@@ -1,5 +1,5 @@
-import { generateSecret, generateSync } from "otplib";
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { generateSecret, generateSync } from "../../../common/auth/otplib.util";
 import { Users2faService } from "./users-2fa.service";
 
 describe("Users2faService", () => {
@@ -31,8 +31,8 @@ describe("Users2faService", () => {
   });
 
   it("verifies code and enables 2FA", async () => {
-    const secret = generateSecret();
-    const code = generateSync({ secret });
+    const secret = await generateSecret();
+    const code = await generateSync({ secret });
     mockPrisma.user.findUniqueOrThrow.mockResolvedValue({
       id: "user-1",
       totpSecret: secret

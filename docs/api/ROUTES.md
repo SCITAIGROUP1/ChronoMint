@@ -110,13 +110,14 @@ List responses are paginated (`page`, `limit`, `search`).
 
 ## Reporting
 
-| Method | Path                            | Roles         | DTO           | Controller           |
-| ------ | ------------------------------- | ------------- | ------------- | -------------------- |
-| GET    | `/reporting/dashboard`          | ADMIN         | reporting.dto | reporting.controller |
-| GET    | `/reporting/me`                 | ADMIN, MEMBER | reporting.dto | reporting.controller |
-| GET    | `/reporting/categories-heatmap` | ADMIN         | reporting.dto | reporting.controller |
-| GET    | `/reporting/utilization`        | ADMIN         | paginated     | reporting.controller |
-| GET    | `/reporting/utilization`        | ADMIN         | paginated     | reporting.controller |
+| Method | Path                             | Roles         | DTO              | Controller                                                                                                   |
+| ------ | -------------------------------- | ------------- | ---------------- | ------------------------------------------------------------------------------------------------------------ |
+| GET    | `/reporting/dashboard`           | ADMIN         | reporting.dto    | reporting.controller                                                                                         |
+| GET    | `/reporting/me`                  | ADMIN, MEMBER | reporting.dto    | reporting.controller                                                                                         |
+| GET    | `/reporting/categories-heatmap`  | ADMIN         | reporting.dto    | reporting.controller                                                                                         |
+| GET    | `/reporting/utilization`         | ADMIN         | paginated        | reporting.controller                                                                                         |
+| POST   | `/reporting/widget-shares`       | ADMIN         | widget-share.dto | reporting.controller                                                                                         |
+| GET    | `/reporting/widget-share/:token` | Public        | widget-share.dto | [widget-share.controller.ts](../../apps/api/src/modules/reporting/interface/http/widget-share.controller.ts) |
 
 ## Presence
 

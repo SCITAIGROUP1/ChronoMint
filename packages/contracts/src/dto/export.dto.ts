@@ -13,7 +13,13 @@ export const exportReportTypeSchema = z.enum([
   "weekly_summary",
   "users_without_time",
   "budget_vs_actual",
-  "utilization"
+  "utilization",
+  "member_daily_total",
+  "member_project_breakdown",
+  "missing_days",
+  "overtime_summary",
+  "hours_by_source",
+  "timesheet_approval_status"
 ]);
 
 /** One grouping dimension (combine up to 5 in order). */
@@ -212,6 +218,60 @@ export const UTILIZATION_COLUMNS = [
   "utilization_pct"
 ] as const;
 
+export const MEMBER_DAILY_TOTAL_COLUMNS = [
+  "date",
+  "member",
+  "email",
+  "total_hours",
+  "billable_hours",
+  "non_billable_hours",
+  "billable_amount"
+] as const;
+
+export const MEMBER_PROJECT_BREAKDOWN_COLUMNS = [
+  "member",
+  "email",
+  "project",
+  "client",
+  "total_hours",
+  "billable_hours",
+  "non_billable_hours",
+  "billable_amount"
+] as const;
+
+export const MISSING_DAYS_COLUMNS = ["member", "email", "date", "weekday"] as const;
+
+export const OVERTIME_SUMMARY_COLUMNS = [
+  "week_start",
+  "week_label",
+  "member",
+  "email",
+  "logged_hours",
+  "expected_hours",
+  "over_hours",
+  "under_hours",
+  "status"
+] as const;
+
+export const HOURS_BY_SOURCE_COLUMNS = [
+  "member",
+  "email",
+  "timer_hours",
+  "manual_hours",
+  "total_hours"
+] as const;
+
+export const TIMESHEET_APPROVAL_STATUS_COLUMNS = [
+  "member",
+  "email",
+  "project",
+  "period_label",
+  "status",
+  "submitted_at",
+  "reviewed_at",
+  "review_note"
+] as const;
+
 export const EXPORT_COLUMN_LABELS: Record<ExportReportType, Record<string, string>> = {
   time_entries: {
     workspace: "Workspace",
@@ -333,6 +393,59 @@ export const EXPORT_COLUMN_LABELS: Record<ExportReportType, Record<string, strin
     logged_hours: "Logged hours",
     expected_hours: "Expected hours",
     utilization_pct: "Utilization %"
+  },
+  member_daily_total: {
+    date: "Date",
+    member: "Member",
+    email: "Email",
+    total_hours: "Total hours",
+    billable_hours: "Billable hours",
+    non_billable_hours: "Non-billable hours",
+    billable_amount: "Billable amount"
+  },
+  member_project_breakdown: {
+    member: "Member",
+    email: "Email",
+    project: "Project",
+    client: "Client",
+    total_hours: "Total hours",
+    billable_hours: "Billable hours",
+    non_billable_hours: "Non-billable hours",
+    billable_amount: "Billable amount"
+  },
+  missing_days: {
+    member: "Member",
+    email: "Email",
+    date: "Date",
+    weekday: "Weekday"
+  },
+  overtime_summary: {
+    week_start: "Week start",
+    week_label: "Week",
+    member: "Member",
+    email: "Email",
+    logged_hours: "Logged hours",
+    expected_hours: "Expected hours",
+    over_hours: "Over hours",
+    under_hours: "Under hours",
+    status: "Status"
+  },
+  hours_by_source: {
+    member: "Member",
+    email: "Email",
+    timer_hours: "Timer hours",
+    manual_hours: "Manual hours",
+    total_hours: "Total hours"
+  },
+  timesheet_approval_status: {
+    member: "Member",
+    email: "Email",
+    project: "Project",
+    period_label: "Period",
+    status: "Status",
+    submitted_at: "Submitted",
+    reviewed_at: "Reviewed",
+    review_note: "Review note"
   }
 };
 
@@ -348,7 +461,13 @@ export const DEFAULT_EXPORT_COLUMNS: Record<ExportReportType, readonly string[]>
   by_category: BY_CATEGORY_COLUMNS,
   users_without_time: USERS_WITHOUT_TIME_COLUMNS,
   budget_vs_actual: BUDGET_VS_ACTUAL_COLUMNS,
-  utilization: UTILIZATION_COLUMNS
+  utilization: UTILIZATION_COLUMNS,
+  member_daily_total: MEMBER_DAILY_TOTAL_COLUMNS,
+  member_project_breakdown: MEMBER_PROJECT_BREAKDOWN_COLUMNS,
+  missing_days: MISSING_DAYS_COLUMNS,
+  overtime_summary: OVERTIME_SUMMARY_COLUMNS,
+  hours_by_source: HOURS_BY_SOURCE_COLUMNS,
+  timesheet_approval_status: TIMESHEET_APPROVAL_STATUS_COLUMNS
 };
 
 const columnsForReport = (report: ExportReportType) => {
@@ -374,44 +493,86 @@ export const exportColumnsSchema = z
     by_category: columnsForReport("by_category").optional(),
     users_without_time: columnsForReport("users_without_time").optional(),
     budget_vs_actual: columnsForReport("budget_vs_actual").optional(),
-    utilization: columnsForReport("utilization").optional()
+    utilization: columnsForReport("utilization").optional(),
+    member_daily_total: columnsForReport("member_daily_total").optional(),
+    member_project_breakdown: columnsForReport("member_project_breakdown").optional(),
+    missing_days: columnsForReport("missing_days").optional(),
+    overtime_summary: columnsForReport("overtime_summary").optional(),
+    hours_by_source: columnsForReport("hours_by_source").optional(),
+    timesheet_approval_status: columnsForReport("timesheet_approval_status").optional()
   })
   .optional();
 
-const exportFiltersBaseSchema = z.object({
+function dedupeUuidList(primary: unknown, legacy: unknown): string[] {
+  const fromArr = Array.isArray(primary)
+    ? primary.filter((id): id is string => typeof id === "string" && id.length > 0)
+    : [];
+  const legacyId = typeof legacy === "string" && legacy.length > 0 ? [legacy] : [];
+  return [...new Set([...fromArr, ...legacyId])];
+}
+
+/** Merge legacy singular scope IDs into arrays for export filters. */
+export function normalizeExportFiltersInput(val: unknown): unknown {
+  if (!val || typeof val !== "object") return val;
+  const input = { ...(val as Record<string, unknown>) };
+  const projectIds = dedupeUuidList(input.projectIds, input.projectId);
+  const userIds = dedupeUuidList(input.userIds, input.userId);
+  if (projectIds.length) input.projectIds = projectIds;
+  else delete input.projectIds;
+  if (userIds.length) input.userIds = userIds;
+  else delete input.userIds;
+  if (typeof input.exportPurpose === "string") {
+    const trimmed = input.exportPurpose.trim().slice(0, 48);
+    if (trimmed) input.exportPurpose = trimmed;
+    else delete input.exportPurpose;
+  }
+  return input;
+}
+
+const exportFiltersObjectSchema = z.object({
   from: isoDatetimeSchema,
   to: isoDatetimeSchema,
   projectId: uuidSchema.optional(),
   userId: uuidSchema.optional(),
+  projectIds: z.array(uuidSchema).max(50).optional(),
+  userIds: z.array(uuidSchema).max(100).optional(),
   categoryId: uuidSchema.optional(),
   taskId: uuidSchema.optional(),
   teamOnly: z.boolean().optional(),
   billable: exportBillableFilterSchema.default("all"),
   groupBy: exportGroupByListSchema.default([]),
-  sheetLayout: exportSheetLayoutSchema.default("standard")
+  sheetLayout: exportSheetLayoutSchema.default("standard"),
+  exportPurpose: z.string().max(48).optional()
 });
+
+const withExportFiltersPreprocess = <T extends z.ZodTypeAny>(schema: T) =>
+  z.preprocess(normalizeExportFiltersInput, schema);
+
+export const exportFiltersBaseSchema = withExportFiltersPreprocess(exportFiltersObjectSchema);
 
 export const exportFiltersSchema = exportFiltersBaseSchema.superRefine((v, ctx) =>
   assertMaxDateRange(v.from, v.to, ctx)
 );
 
-export type ExportFiltersDto = z.infer<typeof exportFiltersBaseSchema>;
+export type ExportFiltersDto = z.infer<typeof exportFiltersObjectSchema>;
 
-export const exportBodySchema = exportFiltersBaseSchema
-  .extend({
+export const exportBodySchema = withExportFiltersPreprocess(
+  exportFiltersObjectSchema.extend({
     reportTypes: z.array(exportReportTypeSchema).min(1),
     format: exportFormatSchema,
     columns: exportColumnsSchema
   })
-  .superRefine((v, ctx) => assertMaxDateRange(v.from, v.to, ctx));
+).superRefine((v, ctx) => assertMaxDateRange(v.from, v.to, ctx));
 
 export type ExportBodyDto = z.infer<typeof exportBodySchema>;
 
-export const exportPreviewBodySchema = exportFiltersBaseSchema
-  .extend({
-    reportTypes: z.array(exportReportTypeSchema).min(1)
+export const exportPreviewBodySchema = withExportFiltersPreprocess(
+  exportFiltersObjectSchema.extend({
+    reportTypes: z.array(exportReportTypeSchema).min(1),
+    columns: exportColumnsSchema.optional(),
+    sampleReportType: exportReportTypeSchema.optional()
   })
-  .superRefine((v, ctx) => assertMaxDateRange(v.from, v.to, ctx));
+).superRefine((v, ctx) => assertMaxDateRange(v.from, v.to, ctx));
 
 export type ExportPreviewBodyDto = z.infer<typeof exportPreviewBodySchema>;
 
@@ -423,13 +584,27 @@ export const exportPreviewSheetSchema = z.object({
 
 export type ExportPreviewSheetDto = z.infer<typeof exportPreviewSheetSchema>;
 
+export const EXPORT_LARGE_ROW_THRESHOLD = 10_000;
+
+export const exportPreviewSampleRowsSchema = z.object({
+  reportType: exportReportTypeSchema,
+  sheetName: z.string().optional(),
+  columns: z.array(z.string()),
+  rows: z.array(z.record(z.union([z.string(), z.number()])))
+});
+
+export type ExportPreviewSampleRowsDto = z.infer<typeof exportPreviewSampleRowsSchema>;
+
 export const exportPreviewResponseSchema = z.object({
   counts: z.record(exportReportTypeSchema, z.number()),
   totalLogRows: z.number(),
   isEmpty: z.boolean(),
   sheets: z.array(exportPreviewSheetSchema),
   headline: z.string(),
-  detail: z.string()
+  detail: z.string(),
+  sampleRows: z.array(exportPreviewSampleRowsSchema).optional(),
+  estimatedRowCount: z.number().optional(),
+  warnLargeExport: z.boolean().optional()
 });
 
 export type ExportPreviewResponseDto = z.infer<typeof exportPreviewResponseSchema>;
@@ -685,3 +860,28 @@ export const generateInvoiceSchema = z.object({
 });
 
 export type GenerateInvoiceDto = z.infer<typeof generateInvoiceSchema>;
+
+export const exportJobStatusSchema = z.enum(["queued", "running", "ready", "failed", "expired"]);
+
+export type ExportJobStatus = z.infer<typeof exportJobStatusSchema>;
+
+export const createExportJobSchema = exportBodySchema;
+
+export type CreateExportJobDto = z.infer<typeof createExportJobSchema>;
+
+export const exportJobDtoSchema = z.object({
+  id: uuidSchema,
+  workspaceId: uuidSchema,
+  requestedByUserId: uuidSchema,
+  body: exportBodySchema,
+  status: exportJobStatusSchema,
+  filename: z.string().nullable(),
+  contentType: z.string().nullable(),
+  byteSize: z.number().int().nullable(),
+  errorMessage: z.string().nullable(),
+  createdAt: isoDatetimeSchema,
+  completedAt: isoDatetimeSchema.nullable(),
+  expiresAt: isoDatetimeSchema.nullable()
+});
+
+export type ExportJobDto = z.infer<typeof exportJobDtoSchema>;
