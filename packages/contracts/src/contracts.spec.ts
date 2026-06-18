@@ -53,6 +53,23 @@ describe("contracts", () => {
     expect(r.success).toBe(true);
   });
 
+  it("exposes public reporting routes", () => {
+    expect(ROUTES.PUBLIC_REPORTING.DASHBOARD).toBe("/public/reporting/dashboard");
+    expect(ROUTES.PUBLIC_REPORTING.UTILIZATION).toBe("/public/reporting/utilization");
+    expect(ROUTES.PUBLIC_REPORTING.BUDGET(UUID)).toBe(`/public/reporting/projects/${UUID}/budget`);
+    expect(ROUTES.PUBLIC_REPORTING.HEATMAP).toBe("/public/reporting/heatmap");
+    expect(ROUTES.PUBLIC_REPORTING.CATEGORIES_HEATMAP).toBe(
+      "/public/reporting/categories-heatmap"
+    );
+    expect(ROUTES.PUBLIC_REPORTING.TASKS).toBe("/public/reporting/tasks");
+  });
+
+  it("exposes reporting API key management routes", () => {
+    expect(ROUTES.REPORTING_API_KEYS.LIST).toBe("/reporting-api-keys");
+    expect(ROUTES.REPORTING_API_KEYS.CREATE).toBe("/reporting-api-keys");
+    expect(ROUTES.REPORTING_API_KEYS.BY_ID(UUID)).toBe(`/reporting-api-keys/${UUID}`);
+  });
+
   it("exposes timelog audit route", () => {
     expect(ROUTES.TIMELOGS.AUDIT_EVENTS("abc")).toBe("/timelogs/abc/audit-events");
   });

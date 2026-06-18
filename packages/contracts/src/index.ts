@@ -16,6 +16,7 @@ export * from "./dto/timelog-audit.dto";
 export * from "./dto/timer.dto";
 export * from "./dto/billing.dto";
 export * from "./dto/reporting.dto";
+export * from "./dto/reporting-api-key.dto";
 export * from "./dto/presence.dto";
 export * from "./dto/export.dto";
 export * from "./dto/notification.dto";

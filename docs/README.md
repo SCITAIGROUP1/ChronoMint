@@ -13,6 +13,8 @@ Start here for architecture, development, API reference, feature specs, user gui
 | Run tests                    | [TESTING.md](development/TESTING.md) · [QA guide (non-technical)](user-guides/qa/testing-guide.md) |
 | Understand the system        | [CONTEXT.md](architecture/CONTEXT.md)                                                              |
 | Call the API                 | [api/ROUTES.md](api/ROUTES.md)                                                                     |
+| Connect as external client   | [api/public-reporting-client-guide.md](api/public-reporting-client-guide.md)                       |
+| Issue API keys (admin)       | [user-guides/admin/public-reporting-api.md](user-guides/admin/public-reporting-api.md)             |
 | Use the member app           | [user-guides/member/getting-started.md](user-guides/member/getting-started.md)                     |
 | Use the admin app            | [user-guides/admin/getting-started.md](user-guides/admin/getting-started.md)                       |
 | Deploy to staging            | [runbooks/deploy.md](runbooks/deploy.md)                                                           |

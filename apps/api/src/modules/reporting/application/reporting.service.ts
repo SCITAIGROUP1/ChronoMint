@@ -303,7 +303,11 @@ export class ReportingService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  async dashboard(workspaceId: string, query: ReportQueryDto): Promise<DashboardReportDto> {
+  async dashboard(
+    workspaceId: string,
+    query: ReportQueryDto,
+    allowedProjectIds?: string[]
+  ): Promise<DashboardReportDto> {
     const cacheKey = this.reportCache.dashboardKey(
       workspaceId,
       query.from,
@@ -311,19 +315,21 @@ export class ReportingService implements OnModuleInit, OnModuleDestroy {
       query.userId,
       query.projectId,
       query.categoryId,
-      query.taskId
+      query.taskId,
+      allowedProjectIds
     );
     const cached = await this.reportCache.getDashboard(cacheKey);
     if (cached) return cached;
 
-    const result = await this.buildDashboard(workspaceId, query);
+    const result = await this.buildDashboard(workspaceId, query, allowedProjectIds);
     await this.reportCache.setDashboard(cacheKey, workspaceId, result);
     return result;
   }
 
   private async buildDashboard(
     workspaceId: string,
-    query: ReportQueryDto
+    query: ReportQueryDto,
+    allowedProjectIds?: string[]
   ): Promise<DashboardReportDto> {
     const workspaceRow = await this.prisma.workspace.findUnique({
       where: { id: workspaceId },
@@ -341,7 +347,8 @@ export class ReportingService implements OnModuleInit, OnModuleDestroy {
       userId: query.userId,
       projectId: query.projectId,
       categoryId: query.categoryId,
-      taskId: query.taskId
+      taskId: query.taskId,
+      ...(allowedProjectIds !== undefined ? { projectIds: allowedProjectIds } : {})
     });
     const { resolveRate } = await this.aggregation.resolveRateMaps(workspaceId);
     const { workspaceAgg, byProject, byUser, byCategory } = this.aggregation.buildAggregates(
@@ -634,7 +641,7 @@ export class ReportingService implements OnModuleInit, OnModuleDestroy {
 
   // ── Team Utilization ──────────────────────────────────────────────────────
 
-  async utilization(workspaceId: string, query: UtilizationQueryDto) {
+  async utilization(workspaceId: string, query: UtilizationQueryDto, allowedProjectIds?: string[]) {
     const from = new Date(query.from);
     const to = new Date(query.to);
 
@@ -645,7 +652,11 @@ export class ReportingService implements OnModuleInit, OnModuleDestroy {
     const settings = (workspace.settings as Record<string, unknown>) ?? {};
     const expectedWeeklyHours = (settings.expectedWeeklyHours as number | undefined) ?? 40;
 
-    const logs = await this.aggregation.fetchLogs(workspaceId, { from, to });
+    const logs = await this.aggregation.fetchLogs(workspaceId, {
+      from,
+      to,
+      ...(allowedProjectIds !== undefined ? { projectIds: allowedProjectIds } : {})
+    });
 
     // Days in range for target calculation
     const dayMs = 86_400_000;
@@ -664,15 +675,17 @@ export class ReportingService implements OnModuleInit, OnModuleDestroy {
       byUser.set(log.userId, e);
     }
 
-    // Also include members who logged nothing (target still applies)
-    const members = await this.prisma.workspaceMember.findMany({
-      where: { workspaceId },
-      include: { user: { select: { id: true, name: true } } }
-    });
+    // Include workspace members with zero logs (admin view only — skip for scoped public API keys)
+    if (allowedProjectIds === undefined) {
+      const members = await this.prisma.workspaceMember.findMany({
+        where: { workspaceId },
+        include: { user: { select: { id: true, name: true } } }
+      });
 
-    for (const m of members) {
-      if (!byUser.has(m.userId)) {
-        byUser.set(m.userId, { name: m.user.name, hours: 0, billableHours: 0 });
+      for (const m of members) {
+        if (!byUser.has(m.userId)) {
+          byUser.set(m.userId, { name: m.user.name, hours: 0, billableHours: 0 });
+        }
       }
     }
 
@@ -719,7 +732,7 @@ export class ReportingService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  async heatmap(workspaceId: string, query: ReportQueryDto) {
+  async heatmap(workspaceId: string, query: ReportQueryDto, allowedProjectIds?: string[]) {
     const from = new Date(query.from);
     const to = new Date(query.to);
     const logs = await this.aggregation.fetchLogs(workspaceId, {
@@ -728,7 +741,8 @@ export class ReportingService implements OnModuleInit, OnModuleDestroy {
       userId: query.userId,
       projectId: query.projectId,
       categoryId: query.categoryId,
-      taskId: query.taskId
+      taskId: query.taskId,
+      ...(allowedProjectIds !== undefined ? { projectIds: allowedProjectIds } : {})
     });
 
     const slotsMap = new Map<string, number>();
@@ -759,7 +773,7 @@ export class ReportingService implements OnModuleInit, OnModuleDestroy {
     return { slots };
   }
 
-  async tasks(workspaceId: string, query: ReportQueryDto) {
+  async tasks(workspaceId: string, query: ReportQueryDto, allowedProjectIds?: string[]) {
     const from = new Date(query.from);
     const to = new Date(query.to);
     const logs = await this.aggregation.fetchLogs(workspaceId, {
@@ -768,7 +782,8 @@ export class ReportingService implements OnModuleInit, OnModuleDestroy {
       userId: query.userId,
       projectId: query.projectId,
       categoryId: query.categoryId,
-      taskId: query.taskId
+      taskId: query.taskId,
+      ...(allowedProjectIds !== undefined ? { projectIds: allowedProjectIds } : {})
     });
 
     const tasksMap = new Map<
@@ -837,7 +852,8 @@ export class ReportingService implements OnModuleInit, OnModuleDestroy {
 
   async categoryProjectHeatmap(
     workspaceId: string,
-    query: ReportQueryDto
+    query: ReportQueryDto,
+    allowedProjectIds?: string[]
   ): Promise<CategoryProjectHeatmapResponseDto> {
     const from = new Date(query.from);
     const to = new Date(query.to);
@@ -847,7 +863,8 @@ export class ReportingService implements OnModuleInit, OnModuleDestroy {
       userId: query.userId,
       projectId: query.projectId,
       categoryId: query.categoryId,
-      taskId: query.taskId
+      taskId: query.taskId,
+      ...(allowedProjectIds !== undefined ? { projectIds: allowedProjectIds } : {})
     });
 
     const TOP_N = 8;
