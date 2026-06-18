@@ -106,7 +106,9 @@ export const ROUTES = {
     HEATMAP: "/reporting/heatmap",
     CATEGORIES_HEATMAP: "/reporting/categories-heatmap",
     TASKS: "/reporting/tasks",
-    PROJECT_SUMMARY: (projectId: string) => `/reporting/projects/${projectId}/summary`
+    PROJECT_SUMMARY: (projectId: string) => `/reporting/projects/${projectId}/summary`,
+    WIDGET_SHARE: (token: string) => `/reporting/widget-share/${token}`,
+    WIDGET_SHARES: "/reporting/widget-shares"
   },
   PRESENCE: {
     STREAM: "/presence/stream",
@@ -122,7 +124,10 @@ export const ROUTES = {
     SCHEDULE: (id: string) => `/export/schedules/${id}`,
     SHARE: (token: string) => `/export/share/${token}`,
     SHARES: "/export/shares",
-    INVOICE: "/export/invoice"
+    INVOICE: "/export/invoice",
+    JOBS: "/export/jobs",
+    JOB: (id: string) => `/export/jobs/${id}`,
+    JOB_DOWNLOAD: (id: string) => `/export/jobs/${id}/download`
   },
   TIMESHEETS: {
     MY_STATUS: "/timesheets/status",

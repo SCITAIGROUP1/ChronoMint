@@ -10,7 +10,7 @@ describe("export-render.util", () => {
       EXPORT_COLUMN_LABELS.time_entries
     );
     expect(headers).toEqual(["Project", "Date", "Hours"]);
-    expect(lines[0]).toEqual(["Acme", "2025-01-01", "2"]);
+    expect(lines[0]).toEqual(["Acme", "2025-01-01", 2]);
   });
 
   it("escapes commas in CSV cells", () => {

@@ -15,6 +15,15 @@
 
 Totals use the same billing rules as exports and the billing summary page.
 
+### Share a widget publicly
+
+1. On any shareable dashboard widget, click the **share** icon in the widget header.
+2. A read-only link is created (valid for 30 days).
+3. Copy the URL and send it to clients or stakeholders — no login required.
+4. The shared page shows the widget with the same date range and filters you had selected.
+
+Shareable widgets include charts, KPI cards, and breakdown tables. Live or action widgets (pending approvals, live presence, active timers) cannot be shared.
+
 ## Team live
 
 1. Go to **Team** (`/team`).

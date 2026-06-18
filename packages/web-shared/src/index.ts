@@ -36,7 +36,7 @@ export { coerceListItems } from "./utils/coerce-list-items";
 export { extractFieldErrorsFromMessage, type FieldErrorMap } from "./utils/form-errors";
 export { fetchProjectTeam } from "./api/fetch-project-team";
 export { appendListQuery, buildListQuery, buildTableQuery } from "./api/list-query";
-export { apiDownloadPost, saveDownloadResponse } from "./api/download";
+export { apiDownloadGet, apiDownloadPost, saveDownloadResponse } from "./api/download";
 export {
   Providers,
   ThemeToggle,

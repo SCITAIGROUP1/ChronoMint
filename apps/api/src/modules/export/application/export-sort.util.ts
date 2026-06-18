@@ -39,6 +39,12 @@ function buildSortKeys(report: ExportReportType, dimensions: ExportGroupByDimens
           report === "daily_summary" ||
           report === "weekly_summary" ||
           report === "utilization" ||
+          report === "overtime_summary" ||
+          report === "member_daily_total" ||
+          report === "member_project_breakdown" ||
+          report === "missing_days" ||
+          report === "hours_by_source" ||
+          report === "timesheet_approval_status" ||
           report === "by_member"
         ) {
           push("member", (r) => String(r.member ?? ""));
@@ -91,6 +97,10 @@ function buildSortKeys(report: ExportReportType, dimensions: ExportGroupByDimens
     push("date", (r) => String(r.date ?? ""));
     push("start_time", (r) => String(r.start_time ?? ""));
   } else if (report === "daily_summary" && !used.has("date")) {
+    push("date", (r) => String(r.date ?? ""));
+  } else if (report === "member_daily_total" && !used.has("date")) {
+    push("date", (r) => String(r.date ?? ""));
+  } else if (report === "missing_days" && !used.has("date")) {
     push("date", (r) => String(r.date ?? ""));
   } else if (report === "weekly_summary" && !used.has("week_start")) {
     push("week_start", (r) => String(r.week_start ?? ""));

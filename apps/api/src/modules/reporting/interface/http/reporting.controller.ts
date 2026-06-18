@@ -3,10 +3,11 @@ import {
   projectSummaryQuerySchema,
   reportQuerySchema,
   utilizationQuerySchema,
+  createWidgetShareSchema,
   type UtilizationQueryDto,
   ROUTES
 } from "@kloqra/contracts";
-import { Controller, Get, Query, Param, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Query, Param, Body, UseGuards, HttpCode } from "@nestjs/common";
 import {
   CurrentUser,
   type RequestUser
@@ -16,11 +17,15 @@ import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../../../common/guards/roles.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
 import { ReportingService } from "../../application/reporting.service";
+import { WidgetShareService } from "../../application/widget-share.service";
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ReportingController {
-  constructor(private reporting: ReportingService) {}
+  constructor(
+    private reporting: ReportingService,
+    private widgetShares: WidgetShareService
+  ) {}
 
   @Roles("ADMIN")
   @Get(ROUTES.REPORTING.DASHBOARD)
@@ -111,6 +116,28 @@ export class ReportingController {
       user.workspaceId,
       user.userId,
       query as Parameters<ReportingService["myWeekSummary"]>[2]
+    );
+  }
+
+  @Roles("ADMIN")
+  @HttpCode(200)
+  @Post(ROUTES.REPORTING.WIDGET_SHARES)
+  createWidgetShare(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodValidationPipe(createWidgetShareSchema)) body: unknown
+  ) {
+    const adminBase =
+      process.env.PUBLIC_ADMIN_URL ??
+      process.env.ADMIN_PUBLIC_URL ??
+      (process.env.FRONTEND_ORIGIN ?? "http://localhost:3000")
+        .split(",")
+        .map((o) => o.trim())
+        .find((o) => o.includes(":3002")) ??
+      "http://localhost:3002";
+    return this.widgetShares.create(
+      user.workspaceId,
+      body as Parameters<WidgetShareService["create"]>[1],
+      adminBase
     );
   }
 }

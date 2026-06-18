@@ -1,6 +1,6 @@
 "use client";
 
-import { ROUTES } from "@kloqra/contracts";
+import { isShareableWidgetId, ROUTES } from "@kloqra/contracts";
 import type {
   CategoryDto,
   DashboardReportDto,
@@ -39,7 +39,8 @@ import {
   type DashboardPeriodSelection,
   fetchListItems
 } from "@kloqra/web-shared";
-import { Clock, DollarSign, Folder, LayoutGrid, Move, Users } from "lucide-react";
+import { Clock, DollarSign, Download, Folder, LayoutGrid, Move, Users } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { WidthProvider, Responsive } from "react-grid-layout";
 import { toast } from "sonner";
@@ -47,6 +48,8 @@ import { useWidgetLayout } from "./use-widget-layout";
 import type { WidgetLayoutItem } from "./use-widget-layout";
 import { WidgetControlPanel } from "./widget-control-panel";
 import { WIDGET_REGISTRY } from "./widget-registry";
+import { WidgetShareButton } from "./widget-share-button";
+import { widgetShareOptionsForId } from "./widget-share-utils";
 import {
   ActiveTimersWidget,
   BillabilityGaugeWidget,
@@ -479,7 +482,9 @@ export function DashboardPage() {
             from={report!.period.from}
             to={report!.period.to}
             userId={userId || undefined}
-            projectMemberIds={projectId ? teamMembers.map((m) => m.userId) : undefined}
+            projectId={projectId || undefined}
+            categoryId={categoryId || undefined}
+            taskId={taskId || undefined}
             cardless
             onHeaderActions={handleTeamUtilizationActions}
           />
@@ -612,90 +617,116 @@ export function DashboardPage() {
   }
 
   // Get dynamic header action controls (e.g. filters) per widget type
+  function renderWidgetShareButton(id: string) {
+    if (!isShareableWidgetId(id)) return null;
+    const widgetDef = WIDGET_REGISTRY.find((w) => w.id === id);
+    return (
+      <WidgetShareButton
+        workspaceId={ws}
+        widgetId={id}
+        widgetLabel={widgetDef?.label ?? "Widget"}
+        startDate={startDate}
+        endDate={endDate}
+        projectId={projectId || undefined}
+        userId={userId || undefined}
+        categoryId={categoryId || undefined}
+        taskId={taskId || undefined}
+        options={widgetShareOptionsForId(id, {
+          dailyChartBy,
+          breakdownGroupBy,
+          distributionGroupBy
+        })}
+      />
+    );
+  }
+
+  function wrapWidgetHeaderControls(id: string, controls: React.ReactNode) {
+    const shareButton = renderWidgetShareButton(id);
+    if (!shareButton && !controls) return null;
+    if (!shareButton) return controls;
+    return (
+      <div
+        className="flex items-center gap-1.5 mr-1 select-none widget-no-drag"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {controls}
+        {shareButton}
+      </div>
+    );
+  }
+
   function renderWidgetHeaderControls(id: string) {
     if (id === "daily_chart") {
-      return (
-        <div
-          className="flex items-center gap-1.5 mr-1 select-none"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <Select value={dailyChartBy} onValueChange={(v) => setDailyChartBy(v as ChartByMode)}>
-            <SelectTrigger className="h-6 w-24 text-[10px] px-2 py-0 bg-background/50 hover:bg-background border-border/60">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="billability" className="text-[10px] py-1">
-                Billability
-              </SelectItem>
-              <SelectItem value="project" className="text-[10px] py-1">
-                Project
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+      return wrapWidgetHeaderControls(
+        id,
+        <Select value={dailyChartBy} onValueChange={(v) => setDailyChartBy(v as ChartByMode)}>
+          <SelectTrigger className="h-6 w-24 text-[10px] px-2 py-0 bg-background/50 hover:bg-background border-border/60">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="billability" className="text-[10px] py-1">
+              Billability
+            </SelectItem>
+            <SelectItem value="project" className="text-[10px] py-1">
+              Project
+            </SelectItem>
+          </SelectContent>
+        </Select>
       );
     }
 
     if (id === "breakdown_table") {
-      return (
-        <div
-          className="flex items-center gap-1.5 mr-1 select-none"
-          onClick={(e) => e.stopPropagation()}
+      return wrapWidgetHeaderControls(
+        id,
+        <Select
+          value={breakdownGroupBy}
+          onValueChange={(v) => setBreakdownGroupBy(v as GroupByMode)}
         >
-          <Select
-            value={breakdownGroupBy}
-            onValueChange={(v) => setBreakdownGroupBy(v as GroupByMode)}
-          >
-            <SelectTrigger className="h-6 w-20 text-[10px] px-2 py-0 bg-background/50 hover:bg-background border-border/60">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="user" className="text-[10px] py-1">
-                User
-              </SelectItem>
-              <SelectItem value="project" className="text-[10px] py-1">
-                Project
-              </SelectItem>
-              <SelectItem value="category" className="text-[10px] py-1">
-                Category
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+          <SelectTrigger className="h-6 w-20 text-[10px] px-2 py-0 bg-background/50 hover:bg-background border-border/60">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="user" className="text-[10px] py-1">
+              User
+            </SelectItem>
+            <SelectItem value="project" className="text-[10px] py-1">
+              Project
+            </SelectItem>
+            <SelectItem value="category" className="text-[10px] py-1">
+              Category
+            </SelectItem>
+          </SelectContent>
+        </Select>
       );
     }
 
     if (id === "distribution_donut") {
-      return (
-        <div
-          className="flex items-center gap-1.5 mr-1 select-none"
-          onClick={(e) => e.stopPropagation()}
+      return wrapWidgetHeaderControls(
+        id,
+        <Select
+          value={distributionGroupBy}
+          onValueChange={(v) => setDistributionGroupBy(v as GroupByMode)}
         >
-          <Select
-            value={distributionGroupBy}
-            onValueChange={(v) => setDistributionGroupBy(v as GroupByMode)}
-          >
-            <SelectTrigger className="h-6 w-20 text-[10px] px-2 py-0 bg-background/50 hover:bg-background border-border/60">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="user" className="text-[10px] py-1">
-                User
-              </SelectItem>
-              <SelectItem value="project" className="text-[10px] py-1">
-                Project
-              </SelectItem>
-              <SelectItem value="category" className="text-[10px] py-1">
-                Category
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+          <SelectTrigger className="h-6 w-20 text-[10px] px-2 py-0 bg-background/50 hover:bg-background border-border/60">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="user" className="text-[10px] py-1">
+              User
+            </SelectItem>
+            <SelectItem value="project" className="text-[10px] py-1">
+              Project
+            </SelectItem>
+            <SelectItem value="category" className="text-[10px] py-1">
+              Category
+            </SelectItem>
+          </SelectContent>
+        </Select>
       );
     }
 
     // Default returns any async-reported badge actions (like budget status or team target)
-    return widgetHeaderActions[id] || null;
+    return wrapWidgetHeaderControls(id, widgetHeaderActions[id] || null);
   }
 
   return (
@@ -713,6 +744,15 @@ export function DashboardPage() {
         actions={
           <>
             <LivePresenceBadge />
+            <AppBarActionButton asChild>
+              <Link
+                href={`/exports?from=${encodeURIComponent(startDate)}&to=${encodeURIComponent(endDate)}&scenario=payroll`}
+                aria-label="Export this period"
+              >
+                <Download className="size-3.5 shrink-0" aria-hidden />
+                <span className="hidden @min-[1080px]/shell:inline">Export period</span>
+              </Link>
+            </AppBarActionButton>
             <AppBarActionButton
               active={isCatalogOpen}
               aria-label={isCatalogOpen ? "Closing catalog" : "Add widgets"}

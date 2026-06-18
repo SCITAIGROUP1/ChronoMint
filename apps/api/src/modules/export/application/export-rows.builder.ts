@@ -1,5 +1,6 @@
 import {
   DEFAULT_EXPECTED_WEEKLY_HOURS,
+  formatTimesheetPeriodLabel,
   parseWorkspaceSettings,
   type ExportFiltersDto,
   type ExportReportType
@@ -12,6 +13,12 @@ import {
   type TimeLogWithRelations
 } from "../../../common/time/time-aggregation.service";
 import { daysInRange, formatWeekLabel, getWeekStartUtc } from "../../../common/time/week.util";
+import {
+  formatExportClockTime,
+  enumerateDateKeysInRange,
+  formatExportDateKey,
+  isWeekdayDateKey
+} from "./export-format.util";
 import { sortRowsForGroupBy } from "./export-sort.util";
 
 export type ExportRowContext = {
@@ -31,6 +38,11 @@ export type ExportRowContext = {
     date?: Date | string | null
   ) => number;
 };
+
+function approvalPeriodForLabel(period: string | null | undefined): "daily" | "weekly" | "monthly" {
+  if (period === "daily" || period === "monthly") return period;
+  return "weekly";
+}
 
 @Injectable()
 export class ExportRowsBuilder {
@@ -83,6 +95,24 @@ export class ExportRowsBuilder {
       case "utilization":
         rows = await this.buildUtilization(ctx);
         break;
+      case "member_daily_total":
+        rows = this.buildMemberDailyTotal(ctx);
+        break;
+      case "member_project_breakdown":
+        rows = this.buildMemberProjectBreakdown(ctx);
+        break;
+      case "missing_days":
+        rows = await this.buildMissingDays(ctx);
+        break;
+      case "overtime_summary":
+        rows = await this.buildOvertimeSummary(ctx);
+        break;
+      case "hours_by_source":
+        rows = this.buildHoursBySource(ctx);
+        break;
+      case "timesheet_approval_status":
+        rows = await this.buildTimesheetApprovalStatus(ctx);
+        break;
       default:
         rows = [];
     }
@@ -91,7 +121,10 @@ export class ExportRowsBuilder {
   }
 
   private buildTimeEntries(ctx: ExportRowContext): Record<string, string | number>[] {
-    return ctx.logs.map((l) => this.logToTimeEntryRow(l, ctx.workspaceName, ctx.resolveRate));
+    const timeZone = ctx.settings.timezone;
+    return ctx.logs.map((l) =>
+      this.logToTimeEntryRow(l, ctx.workspaceName, ctx.resolveRate, timeZone)
+    );
   }
 
   private buildInvoice(ctx: ExportRowContext): Record<string, string | number>[] {
@@ -112,7 +145,7 @@ export class ExportRowsBuilder {
         project: l.task.project.name,
         category: categoryName,
         task: l.task.taskName,
-        date: l.startTime.toISOString().slice(0, 10),
+        date: formatExportDateKey(l.startTime, ctx.settings.timezone),
         hours,
         rate,
         amount: roundExport(hours * rate),
@@ -137,7 +170,8 @@ export class ExportRowsBuilder {
   private logToTimeEntryRow(
     l: TimeLogWithRelations,
     workspaceName: string,
-    resolveRate: ExportRowContext["resolveRate"]
+    resolveRate: ExportRowContext["resolveRate"],
+    timeZone?: string
   ): Record<string, string | number> {
     const hours = roundExport(l.durationSec / 3600);
     const rate = roundExport(
@@ -158,9 +192,9 @@ export class ExportRowsBuilder {
       task: l.task.taskName,
       member: l.user.name,
       email: l.user.email,
-      date: l.startTime.toISOString().slice(0, 10),
-      start_time: l.startTime.toISOString(),
-      end_time: l.endTime.toISOString(),
+      date: formatExportDateKey(l.startTime, timeZone),
+      start_time: formatExportClockTime(l.startTime, timeZone),
+      end_time: formatExportClockTime(l.endTime, timeZone),
       hours,
       billable: l.isBillable ? "yes" : "no",
       rate,
@@ -441,13 +475,22 @@ export class ExportRowsBuilder {
 
     if (ctx.filters.projectId) {
       memberUserIds = await this.aggregation.teamMemberUserIds(ctx.filters.projectId);
+    } else if (ctx.filters.projectIds?.length) {
+      const sets = await Promise.all(
+        ctx.filters.projectIds.map((id) => this.aggregation.teamMemberUserIds(id))
+      );
+      memberUserIds = [...new Set(sets.flat())];
     }
 
     const members = await this.prisma.workspaceMember.findMany({
       where: {
         workspaceId: ctx.workspaceId,
         ...(memberUserIds?.length ? { userId: { in: memberUserIds } } : {}),
-        ...(ctx.filters.userId ? { userId: ctx.filters.userId } : {})
+        ...(ctx.filters.userIds?.length
+          ? { userId: { in: ctx.filters.userIds } }
+          : ctx.filters.userId
+            ? { userId: ctx.filters.userId }
+            : {})
       },
       include: { user: true }
     });
@@ -478,7 +521,7 @@ export class ExportRowsBuilder {
       return {
         member: m.user.name,
         email: m.user.email,
-        last_log_date: lastLog ? lastLog.toISOString().slice(0, 10) : "",
+        last_log_date: lastLog ? formatExportDateKey(lastLog, ctx.settings.timezone) : "",
         days_without_logs: rangeDays
       };
     });
@@ -493,7 +536,11 @@ export class ExportRowsBuilder {
       where: {
         workspaceId: ctx.workspaceId,
         isActive: true,
-        ...(ctx.filters.projectId ? { id: ctx.filters.projectId } : {})
+        ...(ctx.filters.projectIds?.length
+          ? { id: { in: ctx.filters.projectIds } }
+          : ctx.filters.projectId
+            ? { id: ctx.filters.projectId }
+            : {})
       }
     });
 
@@ -557,5 +604,254 @@ export class ExportRowsBuilder {
         };
       })
       .sort((a, b) => String(a.week_start).localeCompare(String(b.week_start)));
+  }
+
+  private buildMemberDailyTotal(ctx: ExportRowContext): Record<string, string | number>[] {
+    const byMemberDay = new Map<
+      string,
+      {
+        userName: string;
+        userEmail: string;
+        totalHours: number;
+        billableHours: number;
+        billableAmount: number;
+      }
+    >();
+
+    for (const [date, dayMap] of ctx.aggregates.daily) {
+      for (const [, v] of dayMap) {
+        const memberKey = `${date}:${v.userEmail}`;
+        const entry = byMemberDay.get(memberKey) ?? {
+          userName: v.userName,
+          userEmail: v.userEmail,
+          totalHours: 0,
+          billableHours: 0,
+          billableAmount: 0
+        };
+        entry.totalHours += v.totalHours;
+        entry.billableHours += v.billableHours;
+        entry.billableAmount += v.billableAmount;
+        byMemberDay.set(memberKey, entry);
+      }
+    }
+
+    return [...byMemberDay.entries()]
+      .map(([key, v]) => {
+        const date = key.split(":")[0]!;
+        return {
+          date,
+          member: v.userName,
+          email: v.userEmail,
+          total_hours: roundExport(v.totalHours),
+          billable_hours: roundExport(v.billableHours),
+          non_billable_hours: roundExport(v.totalHours - v.billableHours),
+          billable_amount: roundExport(v.billableAmount)
+        };
+      })
+      .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  }
+
+  private buildMemberProjectBreakdown(ctx: ExportRowContext): Record<string, string | number>[] {
+    const byKey = new Map<
+      string,
+      {
+        userName: string;
+        userEmail: string;
+        projectName: string;
+        clientName: string | null;
+        totalHours: number;
+        billableHours: number;
+        billableAmount: number;
+      }
+    >();
+
+    for (const log of ctx.logs) {
+      const key = `${log.userId}:${log.task.projectId}`;
+      const entry = byKey.get(key) ?? {
+        userName: log.user.name,
+        userEmail: log.user.email,
+        projectName: log.task.project.name,
+        clientName: log.task.project.clientName,
+        totalHours: 0,
+        billableHours: 0,
+        billableAmount: 0
+      };
+      const hours = log.durationSec / 3600;
+      entry.totalHours += hours;
+      if (log.isBillable) {
+        entry.billableHours += hours;
+        entry.billableAmount +=
+          hours *
+          ctx.resolveRate(
+            log.userId,
+            log.task.projectId,
+            log.user.defaultHourlyRate?.toNumber() ?? null,
+            log.startTime
+          );
+      }
+      byKey.set(key, entry);
+    }
+
+    return [...byKey.values()]
+      .map((v) => ({
+        member: v.userName,
+        email: v.userEmail,
+        project: v.projectName,
+        client: v.clientName ?? "",
+        total_hours: roundExport(v.totalHours),
+        billable_hours: roundExport(v.billableHours),
+        non_billable_hours: roundExport(v.totalHours - v.billableHours),
+        billable_amount: roundExport(v.billableAmount)
+      }))
+      .sort((a, b) => String(a.member).localeCompare(String(b.member)));
+  }
+
+  private async buildMissingDays(
+    ctx: ExportRowContext
+  ): Promise<Record<string, string | number>[]> {
+    let memberUserIds: string[] | undefined;
+    if (ctx.filters.projectIds?.length) {
+      const sets = await Promise.all(
+        ctx.filters.projectIds.map((id) => this.aggregation.teamMemberUserIds(id))
+      );
+      memberUserIds = [...new Set(sets.flat())];
+    } else if (ctx.filters.projectId) {
+      memberUserIds = await this.aggregation.teamMemberUserIds(ctx.filters.projectId);
+    }
+
+    const members = await this.prisma.workspaceMember.findMany({
+      where: {
+        workspaceId: ctx.workspaceId,
+        ...(memberUserIds?.length ? { userId: { in: memberUserIds } } : {}),
+        ...(ctx.filters.userIds?.length
+          ? { userId: { in: ctx.filters.userIds } }
+          : ctx.filters.userId
+            ? { userId: ctx.filters.userId }
+            : {})
+      },
+      include: { user: true }
+    });
+
+    const timeZone = ctx.settings.timezone;
+    const loggedByUserDay = new Set<string>();
+    for (const log of ctx.logs) {
+      loggedByUserDay.add(`${log.userId}:${formatExportDateKey(log.startTime, timeZone)}`);
+    }
+
+    const rows: Record<string, string | number>[] = [];
+    for (const dateStr of enumerateDateKeysInRange(ctx.from, ctx.to, timeZone)) {
+      if (!isWeekdayDateKey(dateStr)) continue;
+      for (const m of members) {
+        if (!loggedByUserDay.has(`${m.userId}:${dateStr}`)) {
+          rows.push({
+            member: m.user.name,
+            email: m.user.email,
+            date: dateStr,
+            weekday: new Date(`${dateStr}T12:00:00Z`).toLocaleDateString("en-US", {
+              weekday: "short",
+              timeZone: "UTC"
+            })
+          });
+        }
+      }
+    }
+
+    return rows.sort(
+      (a, b) =>
+        String(a.member).localeCompare(String(b.member)) ||
+        String(a.date).localeCompare(String(b.date))
+    );
+  }
+
+  private async buildOvertimeSummary(
+    ctx: ExportRowContext
+  ): Promise<Record<string, string | number>[]> {
+    const utilization = await this.buildUtilization(ctx);
+    return utilization.map((row) => {
+      const logged = Number(row.logged_hours);
+      const expected = Number(row.expected_hours);
+      const over = logged > expected ? roundExport(logged - expected) : 0;
+      const under = logged < expected ? roundExport(expected - logged) : 0;
+      const status = over > 0 ? "over" : under > 0 ? "under" : "on_track";
+      return {
+        ...row,
+        over_hours: over,
+        under_hours: under,
+        status
+      };
+    });
+  }
+
+  private buildHoursBySource(ctx: ExportRowContext): Record<string, string | number>[] {
+    const byMember = new Map<
+      string,
+      { userName: string; userEmail: string; timer: number; manual: number }
+    >();
+
+    for (const log of ctx.logs) {
+      const entry = byMember.get(log.userId) ?? {
+        userName: log.user.name,
+        userEmail: log.user.email,
+        timer: 0,
+        manual: 0
+      };
+      const hours = log.durationSec / 3600;
+      if (log.source === "timer") entry.timer += hours;
+      else entry.manual += hours;
+      byMember.set(log.userId, entry);
+    }
+
+    return [...byMember.values()]
+      .map((v) => ({
+        member: v.userName,
+        email: v.userEmail,
+        timer_hours: roundExport(v.timer),
+        manual_hours: roundExport(v.manual),
+        total_hours: roundExport(v.timer + v.manual)
+      }))
+      .sort((a, b) => String(a.member).localeCompare(String(b.member)));
+  }
+
+  private async buildTimesheetApprovalStatus(
+    ctx: ExportRowContext
+  ): Promise<Record<string, string | number>[]> {
+    const periods = await this.prisma.timesheetPeriod.findMany({
+      where: {
+        workspaceId: ctx.workspaceId,
+        periodStart: { lte: ctx.to },
+        periodEnd: { gte: ctx.from },
+        ...(ctx.filters.projectIds?.length
+          ? { projectId: { in: ctx.filters.projectIds } }
+          : ctx.filters.projectId
+            ? { projectId: ctx.filters.projectId }
+            : {}),
+        ...(ctx.filters.userIds?.length
+          ? { userId: { in: ctx.filters.userIds } }
+          : ctx.filters.userId
+            ? { userId: ctx.filters.userId }
+            : {})
+      },
+      include: {
+        user: { select: { name: true, email: true } },
+        project: {
+          select: { name: true, timesheetApprovalPeriod: true }
+        }
+      },
+      orderBy: [{ user: { name: "asc" } }, { periodStart: "asc" }]
+    });
+
+    return periods.map((p) => ({
+      member: p.user.name,
+      email: p.user.email,
+      project: p.project.name,
+      period_label: formatTimesheetPeriodLabel(
+        p.periodStart,
+        approvalPeriodForLabel(p.project.timesheetApprovalPeriod)
+      ),
+      status: p.status,
+      submitted_at: p.submittedAt ? formatExportDateKey(p.submittedAt, ctx.settings.timezone) : "",
+      reviewed_at: p.reviewedAt ? formatExportDateKey(p.reviewedAt, ctx.settings.timezone) : "",
+      review_note: p.reviewNote ?? ""
+    }));
   }
 }

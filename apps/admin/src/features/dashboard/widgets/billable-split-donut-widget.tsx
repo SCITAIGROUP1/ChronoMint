@@ -5,10 +5,12 @@ import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
+  DonutChartCenter,
+  DonutLegend,
   type ChartConfig
 } from "@kloqra/ui/chart";
 import React from "react";
-import { Cell, Legend, Pie, PieChart } from "recharts";
+import { Cell, Pie, PieChart } from "recharts";
 import { formatDurationClock } from "@/components/report-charts";
 
 export type BillableSplitDonutWidgetProps = {
@@ -31,10 +33,11 @@ export function BillableSplitDonutWidget({ report }: BillableSplitDonutWidgetPro
   ];
 
   return (
-    <div className="flex h-full flex-col justify-center relative min-h-[200px] min-w-0">
-      <div className="w-full flex-1 relative min-h-[140px]">
-        <ChartContainer config={chartConfig} className="mx-auto h-full w-full">
-          <PieChart>
+    <DonutChartCenter
+      className="h-full min-h-[200px] justify-center"
+      chart={
+        <ChartContainer config={chartConfig} className="aspect-square h-full w-full min-h-0">
+          <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
             <ChartTooltip content={<ChartTooltipContent hideLabel />} />
             <Pie
               data={data}
@@ -44,22 +47,34 @@ export function BillableSplitDonutWidget({ report }: BillableSplitDonutWidgetPro
               outerRadius="90%"
               strokeWidth={2}
               paddingAngle={1}
+              cx="50%"
+              cy="50%"
             >
               {data.map((entry, index) => (
                 <Cell key={index} fill={entry.fill} />
               ))}
             </Pie>
-            <Legend wrapperStyle={{ fontSize: 10 }} />
           </PieChart>
         </ChartContainer>
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center pb-6">
+      }
+      center={
+        <>
           <p className="text-xl font-bold tracking-tight">{formatDurationClock(total)}</p>
-          <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
             Total Hours
           </p>
-        </div>
-      </div>
-    </div>
+        </>
+      }
+      legend={
+        <DonutLegend
+          items={data.map((entry, index) => ({
+            key: String(index),
+            label: entry.name,
+            color: entry.fill
+          }))}
+        />
+      }
+    />
   );
 }
 

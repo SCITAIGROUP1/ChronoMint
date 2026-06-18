@@ -10,7 +10,10 @@ const SPLITTABLE_REPORTS: ExportReportType[] = [
   "time_entries",
   "daily_summary",
   "weekly_summary",
-  "invoice"
+  "invoice",
+  "member_daily_total",
+  "member_project_breakdown",
+  "missing_days"
 ];
 
 export function splitFieldForLayout(

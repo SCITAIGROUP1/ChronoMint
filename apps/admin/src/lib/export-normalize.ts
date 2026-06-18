@@ -3,11 +3,26 @@ import { normalizeGroupByFromBody } from "@/lib/export-group-by";
 
 const DEFAULT_REPORT_TYPES: ExportReportType[] = ["time_entries"];
 
+function dedupeIds(primary: string[] | undefined, legacy: string | undefined): string[] {
+  const fromArr = Array.isArray(primary)
+    ? primary.filter((id): id is string => typeof id === "string" && id.length > 0)
+    : [];
+  const legacyId = typeof legacy === "string" && legacy.length > 0 ? [legacy] : [];
+  return [...new Set([...fromArr, ...legacyId])];
+}
+
 /** Client-side guard for preset bodies and API JSON that omit newer fields. */
 export function normalizeExportBody(body: Partial<ExportBodyDto>): ExportBodyDto {
   const reportTypes = Array.isArray(body.reportTypes)
     ? body.reportTypes.filter(Boolean)
     : DEFAULT_REPORT_TYPES;
+
+  const projectIds = dedupeIds(body.projectIds, body.projectId);
+  const userIds = dedupeIds(body.userIds, body.userId);
+  const exportPurpose =
+    typeof body.exportPurpose === "string" && body.exportPurpose.trim()
+      ? body.exportPurpose.trim().slice(0, 48)
+      : undefined;
 
   return {
     from: body.from ?? new Date().toISOString(),
@@ -20,11 +35,14 @@ export function normalizeExportBody(body: Partial<ExportBodyDto>): ExportBodyDto
     ),
     sheetLayout: body.sheetLayout ?? "standard",
     columns: body.columns,
-    projectId: body.projectId,
-    userId: body.userId,
+    ...(projectIds.length ? { projectIds } : {}),
+    ...(userIds.length ? { userIds } : {}),
+    ...(projectIds[0] ? { projectId: projectIds[0] } : {}),
+    ...(userIds[0] ? { userId: userIds[0] } : {}),
     categoryId: body.categoryId,
     taskId: body.taskId,
-    teamOnly: body.teamOnly
+    teamOnly: body.teamOnly,
+    ...(exportPurpose ? { exportPurpose } : {})
   };
 }
 
@@ -39,6 +57,9 @@ export function normalizeExportPreview(
     isEmpty: data.isEmpty ?? true,
     sheets: Array.isArray(data.sheets) ? data.sheets : [],
     headline: data.headline ?? "Export preview",
-    detail: data.detail ?? ""
+    detail: data.detail ?? "",
+    sampleRows: Array.isArray(data.sampleRows) ? data.sampleRows : undefined,
+    estimatedRowCount: data.estimatedRowCount,
+    warnLargeExport: data.warnLargeExport
   };
 }

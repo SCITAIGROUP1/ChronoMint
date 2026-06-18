@@ -13,21 +13,25 @@ Domain note: [DOMAIN_MODEL.md](../architecture/DOMAIN_MODEL.md).
 
 ## API
 
-| Method | Route                   | Roles         | Contract                                                  |
-| ------ | ----------------------- | ------------- | --------------------------------------------------------- |
-| POST   | `/export`               | ADMIN         | `exportBodySchema`                                        |
-| POST   | `/export/preview`       | ADMIN         | `exportPreviewBodySchema` → `exportPreviewResponseSchema` |
-| GET    | `/export`               | ADMIN         | `exportQuerySchema` (legacy; default columns)             |
-| POST   | `/export/me`            | ADMIN, MEMBER | `memberExportBodySchema`                                  |
-| GET    | `/export/presets`       | ADMIN         | —                                                         |
-| POST   | `/export/presets`       | ADMIN         | `createExportPresetSchema`                                |
-| DELETE | `/export/presets/:id`   | ADMIN         | —                                                         |
-| GET    | `/export/schedules`     | ADMIN         | —                                                         |
-| POST   | `/export/schedules`     | ADMIN         | `createExportScheduleSchema`                              |
-| PATCH  | `/export/schedules/:id` | ADMIN         | `updateExportScheduleSchema`                              |
-| DELETE | `/export/schedules/:id` | ADMIN         | —                                                         |
-| POST   | `/export/shares`        | ADMIN         | `createReportShareSchema`                                 |
-| GET    | `/export/share/:token`  | Public        | `publicReportShareViewSchema`                             |
+| Method | Route                       | Roles         | Contract                                                  |
+| ------ | --------------------------- | ------------- | --------------------------------------------------------- |
+| POST   | `/export`                   | ADMIN         | `exportBodySchema`                                        |
+| POST   | `/export/preview`           | ADMIN         | `exportPreviewBodySchema` → `exportPreviewResponseSchema` |
+| GET    | `/export`                   | ADMIN         | `exportQuerySchema` (legacy; default columns)             |
+| POST   | `/export/me`                | ADMIN, MEMBER | `memberExportBodySchema`                                  |
+| GET    | `/export/presets`           | ADMIN         | —                                                         |
+| POST   | `/export/presets`           | ADMIN         | `createExportPresetSchema`                                |
+| DELETE | `/export/presets/:id`       | ADMIN         | —                                                         |
+| GET    | `/export/schedules`         | ADMIN         | —                                                         |
+| POST   | `/export/schedules`         | ADMIN         | `createExportScheduleSchema`                              |
+| PATCH  | `/export/schedules/:id`     | ADMIN         | `updateExportScheduleSchema`                              |
+| DELETE | `/export/schedules/:id`     | ADMIN         | —                                                         |
+| POST   | `/export/shares`            | ADMIN         | `createReportShareSchema`                                 |
+| GET    | `/export/share/:token`      | Public        | `publicReportShareViewSchema`                             |
+| POST   | `/export/jobs`              | ADMIN         | `createExportJobSchema` → `exportJobDtoSchema`            |
+| GET    | `/export/jobs`              | ADMIN         | — (recent jobs, default 20)                               |
+| GET    | `/export/jobs/:id`          | ADMIN         | `exportJobDtoSchema`                                      |
+| GET    | `/export/jobs/:id/download` | ADMIN         | Binary attachment when `status=ready`                     |
 
 Controller: [export.controller.ts](../../apps/api/src/modules/export/interface/http/export.controller.ts), [export-share.controller.ts](../../apps/api/src/modules/export/interface/http/export-share.controller.ts)
 
@@ -37,20 +41,26 @@ Filenames: [export-filename.ts](../../packages/contracts/src/export-filename.ts)
 
 ## Report catalog (admin)
 
-| Type                 | Description                                   |
-| -------------------- | --------------------------------------------- |
-| `time_entries`       | One row per logged interval                   |
-| `invoice`            | Billable entries only + TOTAL row             |
-| `daily_summary`      | date × member × project                       |
-| `weekly_summary`     | ISO week × member × project                   |
-| `by_project`         | One row per project                           |
-| `by_member`          | One row per user with logs                    |
-| `by_client`          | One row per client (from project metadata)    |
-| `by_task`            | One row per task                              |
-| `by_category`        | One row per category × project                |
-| `users_without_time` | Members with zero logs in range               |
-| `budget_vs_actual`   | Project budget vs logged hours                |
-| `utilization`        | Member × week vs expected hours (default 40h) |
+| Type                        | Description                                   |
+| --------------------------- | --------------------------------------------- |
+| `time_entries`              | One row per logged interval                   |
+| `invoice`                   | Billable entries only + TOTAL row             |
+| `daily_summary`             | date × member × project                       |
+| `weekly_summary`            | ISO week × member × project                   |
+| `by_project`                | One row per project                           |
+| `by_member`                 | One row per user with logs                    |
+| `by_client`                 | One row per client (from project metadata)    |
+| `by_task`                   | One row per task                              |
+| `by_category`               | One row per category × project                |
+| `users_without_time`        | Members with zero logs in range               |
+| `budget_vs_actual`          | Project budget vs logged hours                |
+| `utilization`               | Member × week vs expected hours (default 40h) |
+| `member_daily_total`        | date × member (all projects combined)         |
+| `member_project_breakdown`  | member × project hours                        |
+| `missing_days`              | Weekdays in range with no logs per member     |
+| `overtime_summary`          | Weekly logged vs expected with over/under     |
+| `hours_by_source`           | Timer vs manual hours per member              |
+| `timesheet_approval_status` | TimesheetPeriod rows in range                 |
 
 Column keys and labels: SSOT in `export.dto.ts`.
 
@@ -63,8 +73,8 @@ Subset: `time_entries`, `daily_summary`, `by_project`, `by_category` — columns
 | Filter    | Behavior                                  |
 | --------- | ----------------------------------------- |
 | Period    | `from` + `to` (ISO datetimes)             |
-| Project   | Optional `projectId`                      |
-| Member    | Optional `userId` (admin only)            |
+| Project   | Optional `projectId` or `projectIds[]`    |
+| Member    | Optional `userId` or `userIds[]` (admin)  |
 | Category  | Optional `categoryId`                     |
 | Team only | Optional `teamOnly` when project selected |
 | Billable  | `all` \| `billable` \| `non_billable`     |
@@ -83,7 +93,7 @@ Subset: `time_entries`, `daily_summary`, `by_project`, `by_category` — columns
 
 - **standard:** One tab per report type (current default).
 - **tabs_per_member / project / client:** Splits `time_entries`, `daily_summary`, `weekly_summary`, and `invoice` into one tab per distinct member, project, or client. Summary report types (`by_member`, etc.) stay as single tabs.
-- **Preview:** `POST /export/preview` returns `headline`, `detail`, and `sheets[]` (`name`, `rowCount`, `kind`) for a plain-language admin preview.
+- **Preview:** `POST /export/preview` returns `headline`, `detail`, `sheets[]`, optional `sampleRows[]` (up to 5 rows for primary report), `estimatedRowCount`, and `warnLargeExport` when row count exceeds `EXPORT_LARGE_ROW_THRESHOLD` (10,000).
 
 ## Workspace settings (export)
 

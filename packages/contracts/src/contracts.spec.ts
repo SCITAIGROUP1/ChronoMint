@@ -5,6 +5,7 @@ import {
   changePasswordSchema,
   createCategorySchema,
   createTaskSchema,
+  createWidgetShareSchema,
   taskListItemSchema,
   projectSummarySchema,
   createTimeLogSchema,
@@ -27,10 +28,13 @@ import {
   resolveEffectiveTimezone,
   resolveExportColumns,
   resolveMemberExportColumns,
+  exportBodySchema,
+  normalizeExportFiltersInput,
   resolveNotificationChannels,
   ROUTES,
   startTimerSchema,
   dashboardReportSchema,
+  isShareableWidgetId,
   memberEmailDeliverySchema,
   teamMembersOverviewSchema,
   teamActivitiesSchema,
@@ -200,10 +204,35 @@ describe("contracts", () => {
       "date",
       "hours"
     ]);
+    expect(resolveExportColumns("member_daily_total")).toContain("total_hours");
     expect(resolveMemberExportColumns("time_entries")).toContain("date");
     expect(
       resolveMemberExportColumns("time_entries", { time_entries: ["date", "project"] })
     ).toEqual(["date", "project"]);
+  });
+
+  it("normalizes export scope filter arrays from legacy ids", () => {
+    const normalized = normalizeExportFiltersInput({
+      from: "2025-06-01T00:00:00.000Z",
+      to: "2025-06-30T23:59:59.000Z",
+      projectId: "11111111-1111-4111-8111-111111111111"
+    }) as Record<string, unknown>;
+    expect(normalized.projectIds).toEqual(["11111111-1111-4111-8111-111111111111"]);
+
+    const body = exportBodySchema.parse({
+      from: "2025-06-01T00:00:00.000Z",
+      to: "2025-06-30T23:59:59.000Z",
+      reportTypes: ["time_entries"],
+      format: "xlsx",
+      exportPurpose: "payroll-timesheets"
+    });
+    expect(body.exportPurpose).toBe("payroll-timesheets");
+  });
+
+  it("exposes export job routes", () => {
+    expect(ROUTES.EXPORT.JOBS).toBe("/export/jobs");
+    expect(ROUTES.EXPORT.JOB("abc")).toBe("/export/jobs/abc");
+    expect(ROUTES.EXPORT.JOB_DOWNLOAD("abc")).toBe("/export/jobs/abc/download");
   });
 
   it("validates timelog occupancy and update ranges", () => {
@@ -421,6 +450,33 @@ describe("contracts", () => {
   it("exposes project summary and user project color routes", () => {
     expect(ROUTES.REPORTING.PROJECT_SUMMARY(UUID)).toBe(`/reporting/projects/${UUID}/summary`);
     expect(ROUTES.USERS.PROJECT_COLOR(UUID)).toBe(`/users/me/projects/${UUID}/color`);
+  });
+
+  it("exposes widget share routes", () => {
+    expect(ROUTES.REPORTING.WIDGET_SHARES).toBe("/reporting/widget-shares");
+    expect(ROUTES.REPORTING.WIDGET_SHARE("abc123")).toBe("/reporting/widget-share/abc123");
+  });
+
+  it("validates create widget share body", () => {
+    const r = createWidgetShareSchema.safeParse({
+      body: {
+        widgetId: "distribution_donut",
+        from: "2025-01-01T00:00:00.000Z",
+        to: "2025-01-31T23:59:59.000Z",
+        options: { groupBy: "project" }
+      },
+      expiresInDays: 30
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("rejects blocked widget ids for share", () => {
+    expect(isShareableWidgetId("distribution_donut")).toBe(true);
+    expect(isShareableWidgetId("team_utilization")).toBe(true);
+    expect(isShareableWidgetId("stat_total_hours")).toBe(false);
+    expect(isShareableWidgetId("stat_billable")).toBe(false);
+    expect(isShareableWidgetId("pending_timesheets")).toBe(false);
+    expect(isShareableWidgetId("live_presence")).toBe(false);
   });
 
   it("validates project summary shape", () => {

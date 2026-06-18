@@ -44,6 +44,7 @@ model User {
   taskAssignees         TaskAssignee[]
   projectColors         UserProjectColor[]
   notifications         Notification[]
+  exportJobs            ExportJob[]
 
   @@map("users")
 }
@@ -61,7 +62,9 @@ model Workspace {
   hourlyRates     HourlyRate[]
   exportPresets   ExportPreset[]
   exportSchedules ExportSchedule[]
+  exportJobs      ExportJob[]
   reportShares    ReportShare[]
+  widgetShares    WidgetShare[]
   notifications   Notification[]
 
   @@map("workspaces")
@@ -304,6 +307,28 @@ model ExportSchedule {
   @@map("export_schedules")
 }
 
+model ExportJob {
+  id                String    @id @default(uuid())
+  workspaceId       String    @map("workspace_id")
+  requestedByUserId String    @map("requested_by_user_id")
+  body              Json
+  status            String
+  filename          String?
+  contentType       String?   @map("content_type")
+  byteSize          Int?      @map("byte_size")
+  storageKey        String?   @map("storage_key")
+  errorMessage      String?   @map("error_message")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  completedAt       DateTime? @map("completed_at")
+  expiresAt         DateTime? @map("expires_at")
+  workspace         Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  requestedBy       User      @relation(fields: [requestedByUserId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt(sort: Desc)])
+  @@index([status, createdAt])
+  @@map("export_jobs")
+}
+
 model ReportShare {
   id          String    @id @default(uuid())
   workspaceId String    @map("workspace_id")
@@ -315,6 +340,19 @@ model ReportShare {
 
   @@index([workspaceId])
   @@map("report_shares")
+}
+
+model WidgetShare {
+  id          String    @id @default(uuid())
+  workspaceId String    @map("workspace_id")
+  token       String    @unique
+  body        Json
+  expiresAt   DateTime  @map("expires_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@map("widget_shares")
 }
 
 /// Persisted refresh tokens — enables server-side revocation and rotation.

@@ -23,7 +23,11 @@ import { PrismaService } from "../../../common/prisma/prisma.service";
 import { parseWorkspaceSettingsFromRaw } from "../../../common/time/approval-period.util";
 import { roundExport } from "../../../common/time/round.util";
 import { TimeAggregationService } from "../../../common/time/time-aggregation.service";
-import { getWeekStartDate, getWeekStartUtc } from "../../../common/time/week.util";
+import {
+  getWeekStartDate,
+  getWeekStartUtc,
+  expectedHoursForRange
+} from "../../../common/time/week.util";
 
 type HoursAgg = {
   totalHours: number;
@@ -73,11 +77,20 @@ export class ReportingService implements OnModuleInit, OnModuleDestroy {
   }
 
   async cleanupExpiredShares() {
-    const result = await this.prisma.reportShare.deleteMany({
-      where: { expiresAt: { lt: new Date() } }
-    });
-    if (result.count > 0) {
-      this.logger.log(`Cleaned up ${result.count} expired ReportShare records.`);
+    const now = new Date();
+    const [reportResult, widgetResult] = await Promise.all([
+      this.prisma.reportShare.deleteMany({
+        where: { expiresAt: { lt: now } }
+      }),
+      this.prisma.widgetShare.deleteMany({
+        where: { expiresAt: { lt: now } }
+      })
+    ]);
+    if (reportResult.count > 0) {
+      this.logger.log(`Cleaned up ${reportResult.count} expired ReportShare records.`);
+    }
+    if (widgetResult.count > 0) {
+      this.logger.log(`Cleaned up ${widgetResult.count} expired WidgetShare records.`);
     }
   }
 
@@ -642,15 +655,18 @@ export class ReportingService implements OnModuleInit, OnModuleDestroy {
       where: { id: workspaceId }
     });
 
-    const settings = (workspace.settings as Record<string, unknown>) ?? {};
-    const expectedWeeklyHours = (settings.expectedWeeklyHours as number | undefined) ?? 40;
+    const settings = parseWorkspaceSettingsFromRaw(workspace.settings);
+    const expectedWeeklyHours = settings.expectedWeeklyHours ?? 40;
+    const targetHours = roundExport(expectedHoursForRange(from, to, expectedWeeklyHours));
 
-    const logs = await this.aggregation.fetchLogs(workspaceId, { from, to });
-
-    // Days in range for target calculation
-    const dayMs = 86_400_000;
-    const calendarDays = Math.ceil((to.getTime() - from.getTime()) / dayMs) || 1;
-    const targetHours = roundExport((expectedWeeklyHours / 5) * calendarDays);
+    const logs = await this.aggregation.fetchLogs(workspaceId, {
+      from,
+      to,
+      userId: query.userId,
+      projectId: query.projectId,
+      categoryId: query.categoryId,
+      taskId: query.taskId
+    });
 
     const byUser = new Map<string, { name: string; hours: number; billableHours: number }>();
     for (const log of logs) {
@@ -664,15 +680,28 @@ export class ReportingService implements OnModuleInit, OnModuleDestroy {
       byUser.set(log.userId, e);
     }
 
-    // Also include members who logged nothing (target still applies)
-    const members = await this.prisma.workspaceMember.findMany({
-      where: { workspaceId },
-      include: { user: { select: { id: true, name: true } } }
-    });
-
-    for (const m of members) {
-      if (!byUser.has(m.userId)) {
-        byUser.set(m.userId, { name: m.user.name, hours: 0, billableHours: 0 });
+    if (query.projectId) {
+      const teamMembers = await this.prisma.teamMember.findMany({
+        where: {
+          isActive: true,
+          team: { projectId: query.projectId, project: { workspaceId } }
+        },
+        include: { user: { select: { id: true, name: true } } }
+      });
+      for (const m of teamMembers) {
+        if (!byUser.has(m.userId)) {
+          byUser.set(m.userId, { name: m.user.name, hours: 0, billableHours: 0 });
+        }
+      }
+    } else {
+      const members = await this.prisma.workspaceMember.findMany({
+        where: { workspaceId },
+        include: { user: { select: { id: true, name: true } } }
+      });
+      for (const m of members) {
+        if (!byUser.has(m.userId)) {
+          byUser.set(m.userId, { name: m.user.name, hours: 0, billableHours: 0 });
+        }
       }
     }
 

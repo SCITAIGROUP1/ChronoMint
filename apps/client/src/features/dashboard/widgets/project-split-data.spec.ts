@@ -75,6 +75,7 @@ describe("buildProjectDistributionData", () => {
     });
     expect(result.chartRows[0]?.value).toBe(2);
     expect(result.chartRows[0]?.configKey).toBe("project_0");
+    expect(result.chartRows[0]?.fill).toMatch(/^#/);
   });
 
   it("sorts projects by hours descending", () => {

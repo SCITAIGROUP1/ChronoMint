@@ -210,3 +210,101 @@ describe("ReportingService dashboard", () => {
     });
   });
 });
+
+describe("ReportingService utilization", () => {
+  let service: ReportingService;
+  let mockPrisma: {
+    workspace: { findUniqueOrThrow: ReturnType<typeof vi.fn> };
+    workspaceMember: { findMany: ReturnType<typeof vi.fn> };
+    teamMember: { findMany: ReturnType<typeof vi.fn> };
+  };
+  let mockAggregation: { fetchLogs: ReturnType<typeof vi.fn> };
+
+  const workspaceId = "ws-1";
+  const projectId = "p1";
+
+  beforeEach(() => {
+    mockPrisma = {
+      workspace: {
+        findUniqueOrThrow: vi.fn().mockResolvedValue({
+          settings: { expectedWeeklyHours: 40 }
+        })
+      },
+      workspaceMember: {
+        findMany: vi.fn().mockResolvedValue([
+          { userId: "u1", user: { id: "u1", name: "Alex" } },
+          { userId: "u2", user: { id: "u2", name: "Sam" } }
+        ])
+      },
+      teamMember: {
+        findMany: vi.fn().mockResolvedValue([{ userId: "u1", user: { id: "u1", name: "Alex" } }])
+      }
+    };
+    mockAggregation = {
+      fetchLogs: vi.fn().mockResolvedValue([
+        {
+          userId: "u1",
+          durationSec: 14_400,
+          isBillable: true,
+          user: { name: "Alex" }
+        }
+      ])
+    };
+    service = new ReportingService(
+      mockPrisma as never,
+      mockAggregation as never,
+      {} as never,
+      {} as never
+    );
+  });
+
+  it("passes dashboard scope filters to fetchLogs", async () => {
+    await service.utilization(workspaceId, {
+      from: "2025-06-02T00:00:00.000Z",
+      to: "2025-06-06T23:59:59.999Z",
+      projectId,
+      categoryId: "c1",
+      taskId: "t1",
+      page: 1,
+      limit: 5
+    });
+
+    expect(mockAggregation.fetchLogs).toHaveBeenCalledWith(
+      workspaceId,
+      expect.objectContaining({
+        projectId,
+        categoryId: "c1",
+        taskId: "t1"
+      })
+    );
+  });
+
+  it("uses weekday-based target hours for a Mon–Fri range", async () => {
+    const result = await service.utilization(workspaceId, {
+      from: "2025-06-02T00:00:00.000Z",
+      to: "2025-06-06T23:59:59.999Z",
+      page: 1,
+      limit: 5
+    });
+
+    expect(result.targetHours).toBe(40);
+    expect(result.members[0]).toMatchObject({
+      userId: "u1",
+      loggedHours: 4,
+      utilizationPct: 10
+    });
+  });
+
+  it("loads project team members when projectId is set", async () => {
+    await service.utilization(workspaceId, {
+      from: "2025-06-02T00:00:00.000Z",
+      to: "2025-06-06T23:59:59.999Z",
+      projectId,
+      page: 1,
+      limit: 5
+    });
+
+    expect(mockPrisma.teamMember.findMany).toHaveBeenCalled();
+    expect(mockPrisma.workspaceMember.findMany).not.toHaveBeenCalled();
+  });
+});

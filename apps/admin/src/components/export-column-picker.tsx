@@ -13,14 +13,20 @@ const REPORT_LABELS: Record<ExportReportType, string> = {
   invoice: "Invoice",
   daily_summary: "Daily summary",
   weekly_summary: "Weekly summary",
+  member_daily_total: "Daily hours per person",
   by_project: "By project",
   by_member: "By member",
   by_client: "By client",
   by_task: "By task",
   by_category: "By category",
-  users_without_time: "Users without time",
+  member_project_breakdown: "Hours by person & project",
+  users_without_time: "People with no time logged",
+  missing_days: "Days with no time logged",
   budget_vs_actual: "Budget vs actual",
-  utilization: "Utilization"
+  utilization: "Utilization",
+  overtime_summary: "Over / under hours",
+  hours_by_source: "Timer vs manual entries",
+  timesheet_approval_status: "Timesheet approval status"
 };
 
 type Props = {

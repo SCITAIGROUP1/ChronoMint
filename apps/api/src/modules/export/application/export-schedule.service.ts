@@ -1,7 +1,9 @@
 import {
   createExportScheduleSchema,
+  deriveExportPurpose,
   ErrorCodes,
   exportBodySchema,
+  formatExportDateRange,
   type CreateExportScheduleDto,
   type ExportScheduleDto,
   type ExportScheduleFrequency,
@@ -158,9 +160,11 @@ export class ExportScheduleService implements OnModuleInit, OnModuleDestroy {
             ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             : "text/csv";
 
+      const purposeSlug = deriveExportPurpose(body);
+      const dateRange = formatExportDateRange(body.from, body.to);
       await this.mailer.send({
         to: recipients,
-        subject: `[Kloqra] Scheduled export: ${schedule.name}`,
+        subject: `[Kloqra] Scheduled export: ${schedule.name} — ${purposeSlug} (${dateRange})`,
         html: `
           <p>Hi,</p>
           <p>Your scheduled export <strong>${schedule.name}</strong> is ready. Please find the file attached.</p>
