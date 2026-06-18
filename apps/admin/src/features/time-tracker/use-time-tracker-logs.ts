@@ -99,14 +99,19 @@ export function useTimeTrackerLogs(
     [workspaceId, fetchPage]
   );
 
+  const loadPageRef = useRef(loadPage);
+  useEffect(() => {
+    loadPageRef.current = loadPage;
+  }, [loadPage]);
+
   useEffect(() => {
     requestIdRef.current += 1;
     setLogs([]);
     setNextCursor(undefined);
     setPage(1);
     setCursorsHistory([]);
-    void loadPage(1, undefined);
-  }, [workspaceId, filterKey, loadPage]);
+    void loadPageRef.current(1, undefined);
+  }, [workspaceId, filterKey]);
 
   const nextPage = useCallback(() => {
     if (!nextCursor || loading) return;
