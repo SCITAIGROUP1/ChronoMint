@@ -750,7 +750,7 @@ export function DashboardPage() {
                 aria-label="Export this period"
               >
                 <Download className="size-3.5 shrink-0" aria-hidden />
-                <span className="hidden @min-[1080px]/shell:inline">Export period</span>
+                <span className="hidden @min-[960px]/shell:inline">Export period</span>
               </Link>
             </AppBarActionButton>
             <AppBarActionButton
@@ -764,7 +764,7 @@ export function DashboardPage() {
               }}
             >
               <LayoutGrid className="size-3.5 shrink-0" aria-hidden />
-              <span className="hidden @min-[1080px]/shell:inline">
+              <span className="hidden @min-[960px]/shell:inline">
                 {isCatalogOpen ? "Closing Catalog" : "Add Widgets"}
               </span>
             </AppBarActionButton>
@@ -791,7 +791,7 @@ export function DashboardPage() {
               }}
             >
               <Move className="size-3.5 shrink-0" aria-hidden />
-              <span className="hidden @min-[1080px]/shell:inline">
+              <span className="hidden @min-[960px]/shell:inline">
                 {isArranging ? "Done Arranging" : "Arrange Grid"}
               </span>
             </AppBarActionButton>

@@ -263,7 +263,7 @@ export function ExportDownloadPanel({
     layoutWarning ?? (warnLarge ? "Large export — prepared in the background." : null);
 
   return (
-    <Card className="shadow-md border-primary/10 overflow-hidden">
+    <Card className="min-w-0 overflow-hidden border-primary/10 shadow-md">
       <CardHeader className="pb-2 bg-muted/20 border-b border-border/60">
         <CardTitle className="text-base">Review & download</CardTitle>
         <CardDescription>{periodLabel}</CardDescription>

@@ -462,8 +462,8 @@ export function ReportVisualsSection({ report, projectColors }: ReportVisualsSec
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-5">
-        <Card className="lg:col-span-3 border-primary/10 shadow-sm">
+      <div className="grid gap-6 xl:grid-cols-5">
+        <Card className="border-primary/10 shadow-sm xl:col-span-3">
           <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-4 space-y-0 pb-2">
             <div>
               <CardTitle className="text-base">Breakdown</CardTitle>
@@ -488,7 +488,7 @@ export function ReportVisualsSection({ report, projectColors }: ReportVisualsSec
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-2 border-primary/10 shadow-sm">
+        <Card className="border-primary/10 shadow-sm xl:col-span-2">
           <CardHeader>
             <CardTitle className="text-base">Distribution</CardTitle>
             <CardDescription>Share of time in this period</CardDescription>

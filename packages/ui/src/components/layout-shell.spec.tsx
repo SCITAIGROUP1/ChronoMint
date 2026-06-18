@@ -103,6 +103,50 @@ describe("ResponsiveLayoutShell", () => {
     localStorage.removeItem("kloqra-sidebar-collapsed");
   });
 
+  it("auto-collapses the sidebar on compact laptop viewports when no preference is saved", async () => {
+    localStorage.removeItem("kloqra-sidebar-collapsed");
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1366 });
+
+    const { container } = render(
+      <ResponsiveLayoutShell
+        navItems={[{ href: "/dashboard", label: "Dashboard", Icon: Home }]}
+        logoIcon={<span>K</span>}
+        logoTitle="Kloqra"
+        logoSubtitle="Admin"
+        logoLinkHref="/dashboard"
+        workspaceSwitcher={() => <div>Workspace</div>}
+        footerContent={() => <div>Footer</div>}
+      >
+        <div>Page content</div>
+      </ResponsiveLayoutShell>
+    );
+
+    await waitFor(() => {
+      const aside = container.querySelector("aside.hidden.md\\:flex");
+      expect(aside?.className).toContain("w-[5rem]");
+    });
+  });
+
+  it("uses a single scroll container in the shell root", () => {
+    const { container } = render(
+      <ResponsiveLayoutShell
+        navItems={[{ href: "/dashboard", label: "Dashboard", Icon: Home }]}
+        logoIcon={<span>K</span>}
+        logoTitle="Kloqra"
+        logoSubtitle="Admin"
+        logoLinkHref="/dashboard"
+        workspaceSwitcher={() => <div>Workspace</div>}
+        footerContent={() => <div>Footer</div>}
+      >
+        <div>Page content</div>
+      </ResponsiveLayoutShell>
+    );
+
+    const root = container.firstElementChild;
+    expect(root?.className).toContain("h-dvh");
+    expect(root?.className).toContain("overflow-hidden");
+  });
+
   it("renders a compact count badge on nav icons when the sidebar is collapsed", async () => {
     localStorage.setItem("kloqra-sidebar-collapsed", "true");
 

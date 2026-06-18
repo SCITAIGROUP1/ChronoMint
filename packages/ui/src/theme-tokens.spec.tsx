@@ -64,4 +64,10 @@ describe("theme tokens", () => {
     expect(accent).toBeTruthy();
     expect(new Set([muted, secondary, accent]).size).toBe(3);
   });
+
+  it("hides scrollbar chrome globally while keeping scroll", () => {
+    expect(css).toContain("scrollbar-width: none");
+    expect(css).toContain("html::-webkit-scrollbar");
+    expect(css).toContain("display: none");
+  });
 });
