@@ -32,7 +32,9 @@ describe("WorkspaceService", () => {
       $transaction: vi.fn().mockImplementation((cb) => cb(mockPrisma)),
       $queryRaw: vi.fn().mockResolvedValue([1]),
       workspace: {
-        findUnique: vi.fn()
+        findUnique: vi.fn(),
+        findFirst: vi.fn(),
+        create: vi.fn()
       },
       workspaceMember: {
         findMany: vi.fn(),
@@ -328,6 +330,63 @@ describe("WorkspaceService", () => {
         err instanceof DomainException &&
         err.code === ErrorCodes.FORBIDDEN &&
         err.getStatus() === HttpStatus.FORBIDDEN
+    );
+  });
+
+  it("create rejects duplicate workspace names", async () => {
+    mockPrisma.workspace.findUnique.mockResolvedValue(null);
+    mockPrisma.workspace.findFirst.mockResolvedValue({
+      id: "ws-existing",
+      name: "Acme Corporation"
+    });
+
+    await expect(service.create("u1", { name: "Acme Corporation" })).rejects.toSatisfy(
+      (err: unknown) =>
+        err instanceof DomainException &&
+        err.code === ErrorCodes.VALIDATION_ERROR &&
+        err.message === "A workspace with this name already exists." &&
+        err.getStatus() === HttpStatus.CONFLICT
+    );
+    expect(mockPrisma.workspace.create).not.toHaveBeenCalled();
+  });
+
+  it("create succeeds when name is available", async () => {
+    mockPrisma.workspace.findUnique.mockResolvedValue(null);
+    mockPrisma.workspace.findFirst.mockResolvedValue(null);
+    mockPrisma.workspace.create.mockResolvedValue({
+      id: "ws-new",
+      name: "Design Agency",
+      slug: "design-agency",
+      settings: {},
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+    mockPrisma.workspaceMember.create.mockResolvedValue({
+      id: "m-new",
+      workspaceId: "ws-new",
+      userId: "u1",
+      role: "ADMIN"
+    });
+
+    const result = await service.create("u1", { name: "Design Agency" });
+
+    expect(result.name).toBe("Design Agency");
+    expect(result.role).toBe("ADMIN");
+    expect(mockPrisma.workspace.create).toHaveBeenCalled();
+  });
+
+  it("update rejects renaming to an existing workspace name", async () => {
+    mockPrisma.workspace.findFirst.mockResolvedValue({
+      id: "ws-other",
+      name: "Meridian Product Co"
+    });
+
+    await expect(service.update("ws-1", { name: "Meridian Product Co" })).rejects.toSatisfy(
+      (err: unknown) =>
+        err instanceof DomainException &&
+        err.code === ErrorCodes.VALIDATION_ERROR &&
+        err.message === "A workspace with this name already exists." &&
+        err.getStatus() === HttpStatus.CONFLICT
     );
   });
 });

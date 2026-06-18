@@ -17,6 +17,7 @@ import { SettingsCard, fetchListItems, fetchProjectTeam } from "@kloqra/web-shar
 import { ListTodo, Pencil, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { getDeleteTaskConfirmationMessage } from "./delete-task-confirmation";
 import { api } from "@/lib/api";
 
 type Props = {
@@ -187,7 +188,7 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
   }
 
   async function removeTask(task: TaskDto) {
-    if (!window.confirm(`Delete task "${task.taskName}"? Existing time logs will be removed.`)) {
+    if (!window.confirm(getDeleteTaskConfirmationMessage(task.taskName))) {
       return;
     }
     setBusyId(task.id);

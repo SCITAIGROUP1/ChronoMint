@@ -442,6 +442,7 @@ export class WorkspaceService {
   async update(id: string, dto: { name?: string; settings?: any }) {
     const data: any = {};
     if (dto.name !== undefined) {
+      await this.assertNameAvailable(dto.name, id);
       data.name = dto.name;
     }
     if (dto.settings !== undefined) {
@@ -488,6 +489,8 @@ export class WorkspaceService {
       slug = `${slug}-${Date.now()}`;
     }
 
+    await this.assertNameAvailable(dto.name);
+
     return this.prisma.$transaction(async (tx) => {
       const workspace = await tx.workspace.create({
         data: {
@@ -507,6 +510,22 @@ export class WorkspaceService {
 
       return this.toWorkspaceWithRole(workspace, "ADMIN");
     });
+  }
+
+  private async assertNameAvailable(name: string, excludeWorkspaceId?: string) {
+    const existing = await this.prisma.workspace.findFirst({
+      where: {
+        name: { equals: name, mode: "insensitive" },
+        ...(excludeWorkspaceId ? { id: { not: excludeWorkspaceId } } : {})
+      }
+    });
+    if (existing) {
+      throw new DomainException(
+        ErrorCodes.VALIDATION_ERROR,
+        "A workspace with this name already exists.",
+        HttpStatus.CONFLICT
+      );
+    }
   }
 
   private toListItem(
