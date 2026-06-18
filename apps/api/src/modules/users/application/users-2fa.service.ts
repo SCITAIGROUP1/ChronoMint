@@ -6,7 +6,7 @@ import {
 } from "@kloqra/contracts";
 import { Injectable, HttpStatus } from "@nestjs/common";
 import * as bcrypt from "bcrypt";
-import { generateSecret, generateURI, verify } from "otplib";
+import { generateSecret, generateURI, verify } from "../../../common/auth/otplib.util";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 
@@ -24,8 +24,8 @@ export class Users2faService {
       );
     }
 
-    const secret = generateSecret();
-    const otpauthUrl = generateURI({ issuer: "Kloqra", label: email, secret });
+    const secret = await generateSecret();
+    const otpauthUrl = await generateURI({ issuer: "Kloqra", label: email, secret });
 
     await this.prisma.user.update({
       where: { id: userId },

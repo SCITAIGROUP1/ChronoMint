@@ -7,6 +7,7 @@ import { TimesheetsService } from "./timesheets.service";
 describe("TimesheetsService", () => {
   let service: TimesheetsService;
   let mockPrisma: any;
+  let mockNotificationsDispatch: { notifyWorkspaceAdmins: ReturnType<typeof vi.fn> };
 
   const workspaceId = "ws-1";
   const userId = "user-1";
@@ -25,6 +26,9 @@ describe("TimesheetsService", () => {
   };
 
   beforeEach(() => {
+    mockNotificationsDispatch = {
+      notifyWorkspaceAdmins: vi.fn().mockResolvedValue(undefined)
+    };
     mockPrisma = {
       project: {
         findFirst: vi.fn().mockResolvedValue(projectRow),
@@ -60,7 +64,7 @@ describe("TimesheetsService", () => {
     };
     service = new TimesheetsService(mockPrisma, {
       notify: vi.fn().mockResolvedValue(undefined),
-      notifyWorkspaceAdmins: vi.fn().mockResolvedValue(undefined)
+      notifyWorkspaceAdmins: mockNotificationsDispatch.notifyWorkspaceAdmins
     } as never);
   });
 
@@ -93,6 +97,34 @@ describe("TimesheetsService", () => {
     expect(result.period.status).toBe("SUBMITTED");
     expect(result.period.projectName).toBe("Website");
     expect(mockPrisma.timesheetPeriod.create).toHaveBeenCalled();
+  });
+
+  it("submit omits totalHours from admin notification when no time was logged", async () => {
+    mockPrisma.timeLog.aggregate.mockResolvedValue({ _sum: { durationSec: 0 } });
+    mockPrisma.timesheetPeriod.findUnique.mockResolvedValue(null);
+    mockPrisma.timesheetPeriod.create.mockResolvedValue({
+      id: "period-1",
+      userId,
+      workspaceId,
+      projectId,
+      periodStart,
+      periodEnd,
+      status: "SUBMITTED",
+      note: null,
+      reviewNote: null,
+      reviewedBy: null,
+      submittedAt: new Date("2025-06-09T10:00:00.000Z"),
+      reviewedAt: null
+    });
+
+    await service.submit(workspaceId, userId, projectId, "2025-06-05", undefined, true);
+
+    expect(mockNotificationsDispatch.notifyWorkspaceAdmins).toHaveBeenCalledWith(
+      workspaceId,
+      expect.objectContaining({
+        context: expect.not.objectContaining({ totalHours: expect.anything() })
+      })
+    );
   });
 
   it("submit rejects when project approval is disabled", async () => {

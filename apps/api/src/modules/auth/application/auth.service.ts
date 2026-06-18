@@ -12,7 +12,7 @@ import type {
 import { Injectable, HttpStatus } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import * as bcrypt from "bcrypt";
-import { verify as verifyTotp } from "otplib";
+import { verify as verifyTotp } from "../../../common/auth/otplib.util";
 import { hashPassword } from "../../../common/auth/password.util";
 import { DomainException } from "../../../common/errors/domain.exception";
 import {
