@@ -17,6 +17,7 @@ import { HealthModule } from "./modules/health/health.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
 import { PresenceModule } from "./modules/presence/presence.module";
 import { ProjectsModule } from "./modules/projects/projects.module";
+import { PublicReportingModule } from "./modules/public-reporting/public-reporting.module";
 import { ReportingModule } from "./modules/reporting/reporting.module";
 import { TasksModule } from "./modules/tasks/tasks.module";
 import { TimelogsModule } from "./modules/timelogs/timelogs.module";
@@ -55,6 +56,7 @@ import { WorkspaceModule } from "./modules/workspace/workspace.module";
     TimerModule,
     BillingModule,
     ReportingModule,
+    PublicReportingModule,
     PresenceModule,
     ExportModule,
     NotificationsModule

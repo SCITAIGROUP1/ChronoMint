@@ -32,6 +32,7 @@ Default workspace after seed: **Acme Corporation** (switch workspaces from the s
 3. [Dashboard and team live](admin/dashboard-and-team-live.md)
 4. [Billing](admin/billing.md)
 5. [Exports](admin/exports.md)
+6. [Public reporting API](admin/public-reporting-api.md) — API keys for third-party clients
 
 Profile and settings use the same `/profile` and `/settings` pages as the member app — see [member/profile-and-settings.md](member/profile-and-settings.md).
 

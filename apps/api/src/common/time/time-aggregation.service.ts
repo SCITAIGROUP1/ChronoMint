@@ -51,21 +51,23 @@ export class TimeAggregationService {
         ? { userId: filters.userId }
         : {};
 
-    const projectWhere = filters.projectIds?.length
-      ? { id: { in: filters.projectIds } }
-      : filters.projectId
-        ? { id: filters.projectId }
-        : {};
+    const projectWhere: { workspaceId: string; id?: string | { in: string[] } } = { workspaceId };
+    if (filters.projectId && filters.projectIds !== undefined) {
+      projectWhere.id = filters.projectIds.includes(filters.projectId)
+        ? filters.projectId
+        : { in: [] };
+    } else if (filters.projectId) {
+      projectWhere.id = filters.projectId;
+    } else if (filters.projectIds !== undefined) {
+      projectWhere.id = filters.projectIds.length ? { in: filters.projectIds } : { in: [] };
+    }
 
     return this.prisma.timeLog.findMany({
       where: {
         ...(filters.taskId ? { taskId: filters.taskId } : {}),
         task: {
           ...(filters.categoryId ? { categoryId: filters.categoryId } : {}),
-          project: {
-            workspaceId,
-            ...projectWhere
-          }
+          project: projectWhere
         },
         startTime: { gte: filters.from, lte: filters.to },
         ...billableWhere,

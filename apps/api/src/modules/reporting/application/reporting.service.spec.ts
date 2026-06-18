@@ -188,7 +188,8 @@ describe("ReportingService dashboard", () => {
       undefined,
       undefined,
       undefined,
-      taskId
+      taskId,
+      undefined
     );
     expect(mockAggregation.fetchLogs).toHaveBeenCalledWith(
       workspaceId,

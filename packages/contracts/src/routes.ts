@@ -110,6 +110,19 @@ export const ROUTES = {
     WIDGET_SHARE: (token: string) => `/reporting/widget-share/${token}`,
     WIDGET_SHARES: "/reporting/widget-shares"
   },
+  PUBLIC_REPORTING: {
+    DASHBOARD: "/public/reporting/dashboard",
+    UTILIZATION: "/public/reporting/utilization",
+    BUDGET: (id: string) => `/public/reporting/projects/${id}/budget`,
+    HEATMAP: "/public/reporting/heatmap",
+    CATEGORIES_HEATMAP: "/public/reporting/categories-heatmap",
+    TASKS: "/public/reporting/tasks"
+  },
+  REPORTING_API_KEYS: {
+    LIST: "/reporting-api-keys",
+    CREATE: "/reporting-api-keys",
+    BY_ID: (id: string) => `/reporting-api-keys/${id}`
+  },
   PRESENCE: {
     STREAM: "/presence/stream",
     SNAPSHOT: "/presence/snapshot"

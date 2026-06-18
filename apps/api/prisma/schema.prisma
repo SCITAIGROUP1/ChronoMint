@@ -64,6 +64,7 @@ model Workspace {
   exportSchedules ExportSchedule[]
   exportJobs      ExportJob[]
   reportShares    ReportShare[]
+  reportingApiCredentials ReportingApiCredential[]
   widgetShares    WidgetShare[]
   notifications   Notification[]
 
@@ -460,4 +461,22 @@ model TimeLogAuditEvent {
   @@index([workspaceId, createdAt])
   @@index([workspaceId, entryUserId, createdAt(sort: Desc)])
   @@map("time_log_audit_events")
+}
+
+/// API key + secret pairs for third-party read-only reporting access (Postman / integrations).
+model ReportingApiCredential {
+  id          String    @id @default(uuid())
+  workspaceId String    @map("workspace_id")
+  name        String
+  apiKey      String    @unique @map("api_key")
+  secretHash  String    @map("secret_hash")
+  projectIds  String[]  @map("project_ids")
+  isActive    Boolean   @default(true) @map("is_active")
+  lastUsedAt  DateTime? @map("last_used_at")
+  expiresAt   DateTime? @map("expires_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@map("reporting_api_credentials")
 }
