@@ -34,6 +34,7 @@ export type TimeTrackerWeekListProps = {
   hasMore?: boolean;
   fullyLoaded?: boolean;
   onLoadMore?: () => void;
+  readOnly?: boolean;
 };
 
 function WeekTotals({ totalSec, billableSec }: { totalSec: number; billableSec: number }) {
@@ -67,7 +68,8 @@ export function TimeTrackerWeekList({
   loadingMore = false,
   hasMore = false,
   fullyLoaded = true,
-  onLoadMore
+  onLoadMore,
+  readOnly = false
 }: TimeTrackerWeekListProps) {
   const taskById = new Map(tasks.map((t) => [t.id, t]));
   const projectById = new Map(projects.map((p) => [p.id, p]));
@@ -156,6 +158,7 @@ export function TimeTrackerWeekList({
                       onEdit={onEdit}
                       onDelete={onDelete}
                       timezone={timezone}
+                      readOnly={readOnly}
                     />
                   );
                 })}

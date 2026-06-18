@@ -38,6 +38,7 @@ import { TimeTrackerStatCards } from "./time-tracker-stat-cards";
 import { computeTimeTrackerStats } from "./time-tracker-stats";
 import { TimeTrackerToolbar } from "./time-tracker-toolbar";
 import { useTimeTrackerLogs } from "./use-time-tracker-logs";
+import { useIsImpersonating } from "@/hooks/use-is-impersonating";
 import { api } from "@/lib/api";
 import { colorForTask } from "@/lib/project-color-styles";
 import { formatTaskLabel } from "@/lib/project-labels";
@@ -46,6 +47,7 @@ import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
 export function TimeTrackerPage() {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
+  const isImpersonating = useIsImpersonating();
   const [displayFormat, setDisplayFormat] = useState<TimesheetDisplayFormat | null>(null);
   const [weekStartPref, setWeekStartPref] = useState<"monday" | "sunday">("monday");
 
@@ -248,6 +250,7 @@ export function TimeTrackerPage() {
   }
 
   function openAddEntry() {
+    if (isImpersonating) return;
     const today = todayInZone(timezone);
     openDraft(draftFromSlot(today, 9, 0, timezone));
   }
@@ -264,6 +267,7 @@ export function TimeTrackerPage() {
   }
 
   async function saveEntry() {
+    if (isImpersonating) return;
     if (editingLog && isEntryLocked(editingLog)) return;
     if (!draft || !canSaveTaskDraft(draft)) {
       setError("Select a project and a task.");
@@ -317,6 +321,7 @@ export function TimeTrackerPage() {
   }
 
   function deleteEntry(log: TimeLogDto) {
+    if (isImpersonating) return;
     if (isEntryLocked(log)) {
       toast.error(LOCKED_ENTRY_MESSAGE);
       return;
@@ -325,6 +330,7 @@ export function TimeTrackerPage() {
   }
 
   async function confirmDelete() {
+    if (isImpersonating) return;
     const target = confirmDeleteLog;
     setConfirmDeleteLog(null);
     if (!target) return;
@@ -377,6 +383,7 @@ export function TimeTrackerPage() {
         onBillabilityChange={setBillability}
         onClearFilters={clearFilters}
         onAddEntry={openAddEntry}
+        readOnly={isImpersonating}
       />
 
       <TimeTrackerStatCards stats={stats} loading={logsLoading || loadingMore || filtersPending} />
@@ -399,6 +406,7 @@ export function TimeTrackerPage() {
         hasMore={hasMore}
         fullyLoaded={fullyLoaded}
         onLoadMore={() => void loadMore()}
+        readOnly={isImpersonating}
       />
 
       <TimeEntryDialog
@@ -414,12 +422,14 @@ export function TimeTrackerPage() {
         saving={saving}
         error={error}
         editingLog={editingLog}
-        readOnly={editingLog ? isEntryLocked(editingLog) : false}
+        readOnly={isImpersonating || (editingLog ? isEntryLocked(editingLog) : false)}
         onDraftChange={setDraft}
         onClose={closeDialog}
         onSave={() => void saveEntry()}
         onDelete={
-          editingLog && !isEntryLocked(editingLog) ? () => deleteEntry(editingLog) : undefined
+          !isImpersonating && editingLog && !isEntryLocked(editingLog)
+            ? () => deleteEntry(editingLog)
+            : undefined
         }
       />
 
