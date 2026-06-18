@@ -10,14 +10,16 @@ import { api } from "@/lib/api";
 
 export type TimeTrackerLogsState = {
   logs: TimeLogDto[];
+  paginatedLogs: TimeLogDto[];
   loading: boolean;
   page: number;
+  setPage: (page: number) => void;
   limit: number;
   setLimit: (limit: number) => void;
   hasNext: boolean;
   hasPrev: boolean;
-  nextPage: () => void;
-  prevPage: () => void;
+  totalPages: number;
+  totalCount: number;
   error: string | null;
   refresh: () => Promise<void>;
 };
@@ -32,8 +34,6 @@ export function useTimeTrackerLogs(
 
   const [limit, setLimit] = useState(50);
   const [page, setPage] = useState(1);
-  const [cursorsHistory, setCursorsHistory] = useState<(string | undefined)[]>([]);
-  const [nextCursor, setNextCursor] = useState<string | undefined>();
 
   const requestIdRef = useRef(0);
 
@@ -45,102 +45,95 @@ export function useTimeTrackerLogs(
       categoryId: filters.categoryId ?? "",
       taskId: filters.taskId ?? "",
       search: filters.search ?? "",
-      billableOnly: filters.billableOnly ?? false,
-      limit
+      billableOnly: filters.billableOnly ?? false
     });
-  }, [filters, limit]);
+  }, [filters]);
 
-  const fetchPage = useCallback(
-    async (cursor: string | undefined) => {
-      if (!workspaceId) return { items: [] as TimeLogDto[], nextCursor: undefined };
+  const loadLogs = useCallback(async () => {
+    if (!workspaceId) return;
+    const requestId = ++requestIdRef.current;
+    setLoading(true);
+    setError(null);
 
-      const path = buildTimeTrackerLogsQuery({ ...filters, limit, cursor });
-      const res = await api<ListTimeLogsResponseDto>(path, { workspaceId });
-      return res;
-    },
-    [workspaceId, filters, limit]
-  );
+    try {
+      let allItems: TimeLogDto[] = [];
+      let cursor: string | undefined = undefined;
+      let hasMore = true;
 
-  const loadPage = useCallback(
-    async (targetPage: number, cursor: string | undefined) => {
-      if (!workspaceId) return;
-      const requestId = ++requestIdRef.current;
-      setLoading(true);
-      setError(null);
-
-      try {
-        const res = await fetchPage(cursor);
+      while (hasMore && requestId === requestIdRef.current) {
+        const path = buildTimeTrackerLogsQuery({ ...filters, limit: 250, cursor });
+        const res = await api<ListTimeLogsResponseDto>(path, { workspaceId });
         if (requestId !== requestIdRef.current) return;
 
-        // de-duplicate just in case
-        const seen = new Set<string>();
-        const uniqueItems = res.items.filter((item) => {
-          if (seen.has(item.id)) return false;
-          seen.add(item.id);
-          return true;
-        });
-
-        setLogs(uniqueItems);
-        setNextCursor(res.nextCursor);
-        setPage(targetPage);
-      } catch (e) {
-        if (requestId === requestIdRef.current) {
-          setError(e instanceof Error ? e.message : "Could not load time entries");
-          setLogs([]);
-          setNextCursor(undefined);
-        }
-      } finally {
-        if (requestId === requestIdRef.current) {
-          setLoading(false);
-        }
+        allItems = [...allItems, ...res.items];
+        cursor = res.nextCursor;
+        hasMore = Boolean(res.nextCursor);
       }
-    },
-    [workspaceId, fetchPage]
-  );
 
-  const loadPageRef = useRef(loadPage);
+      const seen = new Set<string>();
+      const uniqueItems = allItems.filter((item) => {
+        if (seen.has(item.id)) return false;
+        seen.add(item.id);
+        return true;
+      });
+
+      setLogs(uniqueItems);
+    } catch (e) {
+      if (requestId === requestIdRef.current) {
+        setError(e instanceof Error ? e.message : "Could not load time entries");
+        setLogs([]);
+      }
+    } finally {
+      if (requestId === requestIdRef.current) {
+        setLoading(false);
+      }
+    }
+  }, [workspaceId, filters]);
+
+  const loadLogsRef = useRef(loadLogs);
   useEffect(() => {
-    loadPageRef.current = loadPage;
-  }, [loadPage]);
+    loadLogsRef.current = loadLogs;
+  }, [loadLogs]);
 
   useEffect(() => {
     requestIdRef.current += 1;
     setLogs([]);
-    setNextCursor(undefined);
     setPage(1);
-    setCursorsHistory([]);
-    void loadPageRef.current(1, undefined);
+    void loadLogsRef.current();
   }, [workspaceId, filterKey]);
 
-  const nextPage = useCallback(() => {
-    if (!nextCursor || loading) return;
-    setCursorsHistory((prev) => [...prev, nextCursor]);
-    void loadPage(page + 1, nextCursor);
-  }, [nextCursor, page, loading, loadPage]);
+  const totalCount = logs.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / limit));
 
-  const prevPage = useCallback(() => {
-    if (page <= 1 || loading) return;
-    const prevCursor = page === 2 ? undefined : cursorsHistory[page - 3];
-    setCursorsHistory((prev) => prev.slice(0, -1));
-    void loadPage(page - 1, prevCursor);
-  }, [page, cursorsHistory, loading, loadPage]);
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
-  const refresh = useCallback(async () => {
-    const currentCursor = page === 1 ? undefined : cursorsHistory[page - 2];
-    await loadPage(page, currentCursor);
-  }, [page, cursorsHistory, loadPage]);
+  const paginatedLogs = useMemo(() => {
+    const start = (page - 1) * limit;
+    return logs.slice(start, start + limit);
+  }, [logs, page, limit]);
+
+  const setLimitAndResetPage = useCallback((newLimit: number) => {
+    setLimit(newLimit);
+    setPage(1);
+  }, []);
 
   return {
     logs,
+    paginatedLogs,
     loading,
     page,
+    setPage,
     limit,
-    setLimit,
-    hasNext: Boolean(nextCursor),
+    setLimit: setLimitAndResetPage,
+    hasNext: page < totalPages,
     hasPrev: page > 1,
-    nextPage,
-    prevPage,
+    totalPages,
+    totalCount,
     error,
-    refresh
+    refresh: loadLogs
   };
 }

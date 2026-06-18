@@ -20,6 +20,7 @@ import { formatProjectLabel } from "@/lib/project-labels";
 
 export type AdminTimeTrackerWeekListProps = {
   groups: WeekLogGroup[];
+  weekTotals: Map<string, { totalSec: number; billableSec: number }>;
   tasks: TaskDto[];
   projects: ProjectDto[];
   workspaceNamesById: Record<string, string>;
@@ -34,6 +35,8 @@ export type AdminTimeTrackerWeekListProps = {
   hasPrev: boolean;
   onPageChange: (page: number) => void;
   logsLength: number;
+  totalPages: number;
+  totalCount: number;
 };
 
 function WeekTotals({ totalSec, billableSec }: { totalSec: number; billableSec: number }) {
@@ -54,6 +57,7 @@ function WeekTotals({ totalSec, billableSec }: { totalSec: number; billableSec: 
 
 export function AdminTimeTrackerWeekList({
   groups,
+  weekTotals,
   tasks,
   projects,
   workspaceNamesById,
@@ -64,9 +68,9 @@ export function AdminTimeTrackerWeekList({
   page,
   limit,
   onLimitChange,
-  hasNext,
   onPageChange,
-  logsLength
+  totalPages,
+  totalCount
 }: AdminTimeTrackerWeekListProps) {
   const taskById = new Map(tasks.map((t) => [t.id, t]));
   const projectById = new Map(projects.map((p) => [p.id, p]));
@@ -108,7 +112,10 @@ export function AdminTimeTrackerWeekList({
                 {formatWeekSectionLabel(group.weekStart, timezone)}
               </h2>
             </div>
-            <WeekTotals totalSec={group.totalSec} billableSec={group.billableSec} />
+            {(() => {
+              const totals = weekTotals.get(group.weekKey) ?? { totalSec: 0, billableSec: 0 };
+              return <WeekTotals totalSec={totals.totalSec} billableSec={totals.billableSec} />;
+            })()}
           </div>
 
           <div className="overflow-x-auto">
@@ -165,8 +172,8 @@ export function AdminTimeTrackerWeekList({
       {groups.length > 0 && (
         <TablePagination
           page={page}
-          totalPages={hasNext ? page + 1 : page}
-          total={hasNext ? page * limit + 1 : (page - 1) * limit + logsLength}
+          totalPages={totalPages}
+          total={totalCount}
           limit={limit}
           onPageChange={onPageChange}
           onLimitChange={onLimitChange}

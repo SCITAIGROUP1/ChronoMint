@@ -20,6 +20,7 @@ import { formatProjectLabel } from "@/lib/project-labels";
 
 export type TimeTrackerWeekListProps = {
   groups: WeekLogGroup[];
+  weekTotals: Map<string, { totalSec: number; billableSec: number }>;
   tasks: TaskDto[];
   projects: ProjectDto[];
   workspaceNamesById: Record<string, string>;
@@ -37,6 +38,8 @@ export type TimeTrackerWeekListProps = {
   hasPrev: boolean;
   onPageChange: (page: number) => void;
   logsLength: number;
+  totalPages: number;
+  totalCount: number;
   readOnly?: boolean;
 };
 
@@ -58,6 +61,7 @@ function WeekTotals({ totalSec, billableSec }: { totalSec: number; billableSec: 
 
 export function TimeTrackerWeekList({
   groups,
+  weekTotals,
   tasks,
   projects,
   workspaceNamesById,
@@ -71,9 +75,9 @@ export function TimeTrackerWeekList({
   page,
   limit,
   onLimitChange,
-  hasNext,
   onPageChange,
-  logsLength,
+  totalPages,
+  totalCount,
   readOnly = false
 }: TimeTrackerWeekListProps) {
   const taskById = new Map(tasks.map((t) => [t.id, t]));
@@ -116,7 +120,10 @@ export function TimeTrackerWeekList({
                 {formatWeekSectionLabel(group.weekStart, timezone)}
               </h2>
             </div>
-            <WeekTotals totalSec={group.totalSec} billableSec={group.billableSec} />
+            {(() => {
+              const totals = weekTotals.get(group.weekKey) ?? { totalSec: 0, billableSec: 0 };
+              return <WeekTotals totalSec={totals.totalSec} billableSec={totals.billableSec} />;
+            })()}
           </div>
 
           <div className="overflow-x-auto">
@@ -176,8 +183,8 @@ export function TimeTrackerWeekList({
       {groups.length > 0 && (
         <TablePagination
           page={page}
-          totalPages={hasNext ? page + 1 : page}
-          total={hasNext ? page * limit + 1 : (page - 1) * limit + logsLength}
+          totalPages={totalPages}
+          total={totalCount}
           limit={limit}
           onPageChange={onPageChange}
           onLimitChange={onLimitChange}

@@ -132,14 +132,16 @@ export function AdminTimeTrackerPage() {
 
   const {
     logs,
+    paginatedLogs,
     loading: logsLoading,
     page,
+    setPage,
     limit,
     setLimit,
     hasNext,
     hasPrev,
-    nextPage,
-    prevPage,
+    totalPages,
+    totalCount,
     error: logsError
   } = useTimeTrackerLogs(ws, serverFilters);
 
@@ -216,9 +218,18 @@ export function AdminTimeTrackerPage() {
   );
 
   const weekGroups = useMemo(
-    () => groupLogsByWeek(logs, timezone, weekStartPref),
-    [logs, timezone, weekStartPref]
+    () => groupLogsByWeek(paginatedLogs, timezone, weekStartPref),
+    [paginatedLogs, timezone, weekStartPref]
   );
+
+  const weekTotals = useMemo(() => {
+    const fullGroups = groupLogsByWeek(logs, timezone, weekStartPref);
+    const map = new Map<string, { totalSec: number; billableSec: number }>();
+    for (const group of fullGroups) {
+      map.set(group.weekKey, { totalSec: group.totalSec, billableSec: group.billableSec });
+    }
+    return map;
+  }, [logs, timezone, weekStartPref]);
 
   const stats = useMemo(
     () => computeTimeTrackerStats(logs, periodLabel, projects, tasks, new Map()),
@@ -272,6 +283,7 @@ export function AdminTimeTrackerPage() {
 
       <AdminTimeTrackerWeekList
         groups={weekGroups}
+        weekTotals={weekTotals}
         tasks={tasks}
         projects={projects}
         workspaceNamesById={{}}
@@ -284,11 +296,10 @@ export function AdminTimeTrackerPage() {
         onLimitChange={setLimit}
         hasNext={hasNext}
         hasPrev={hasPrev}
-        onPageChange={(target) => {
-          if (target > page) nextPage();
-          else if (target < page) prevPage();
-        }}
-        logsLength={logs.length}
+        onPageChange={setPage}
+        logsLength={paginatedLogs.length}
+        totalCount={totalCount}
+        totalPages={totalPages}
       />
     </div>
   );
