@@ -65,11 +65,11 @@ export function AdminTimeTrackerPage() {
   const [rangeTo, setRangeTo] = useState(() => inclusiveDateKeysFromPeriod("this_week", "UTC").to);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [projectFilter, setProjectFilter] = useState("all");
+  const [projectFilter, setProjectFilter] = useState<string[]>([]);
   const [categoryFilter, setCategoryFilter] = useState("");
   const [taskFilter, setTaskFilter] = useState("");
   const [billability, setBillability] = useState<BillabilityFilter>("all");
-  const [memberFilter, setMemberFilter] = useState("all");
+  const [memberFilter, setMemberFilter] = useState<string[]>([]);
 
   useEffect(() => {
     if (period === "custom") return;
@@ -111,12 +111,12 @@ export function AdminTimeTrackerPage() {
     () => ({
       from: visibleRange.from,
       to: visibleRange.to,
-      projectId: projectFilter !== "all" ? projectFilter : undefined,
+      projectId: projectFilter.length > 0 ? projectFilter : undefined,
       categoryId: categoryFilter || undefined,
       taskId: taskFilter || undefined,
       search: debouncedSearch || undefined,
       billableOnly: billability === "billable" || undefined,
-      userId: memberFilter !== "all" ? memberFilter : undefined
+      userId: memberFilter.length > 0 ? memberFilter : undefined
     }),
     [
       visibleRange,

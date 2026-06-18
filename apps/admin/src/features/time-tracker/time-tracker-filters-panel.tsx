@@ -25,7 +25,7 @@ type TimeTrackerFiltersPanelProps = {
   values: TimeTrackerFilterValues;
   categories: CategoryDto[];
   tasks: TaskDto[];
-  projectId: string;
+  projectId: string[];
   onCategoryChange: (categoryId: string) => void;
   onTaskChange: (taskId: string) => void;
   onBillabilityChange: (value: BillabilityFilter) => void;
@@ -44,7 +44,7 @@ export function TimeTrackerFiltersPanel({
 }: TimeTrackerFiltersPanelProps) {
   const filteredTasks = useMemo(() => {
     return tasks.filter((task) => {
-      if (projectId !== "all" && task.projectId !== projectId) return false;
+      if (projectId.length > 0 && !projectId.includes(task.projectId)) return false;
       if (values.categoryId && task.categoryId !== values.categoryId) return false;
       return true;
     });

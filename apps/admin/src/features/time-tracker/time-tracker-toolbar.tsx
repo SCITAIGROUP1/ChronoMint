@@ -7,7 +7,7 @@ import {
   DateRangePicker,
   Input,
   ProjectColorDot,
-  SearchableSelect,
+  SearchableMultiSelect,
   Select,
   SelectContent,
   SelectItem,
@@ -30,8 +30,8 @@ import { formatProjectLabel } from "@/lib/project-labels";
 type TimeTrackerToolbarProps = {
   search: string;
   onSearchChange: (value: string) => void;
-  projectId: string;
-  onProjectChange: (value: string) => void;
+  projectId: string[];
+  onProjectChange: (value: string[]) => void;
   period: TimeTrackerPeriodSelection;
   onPeriodChange: (value: TimeTrackerPeriodSelection) => void;
   rangeFrom: string;
@@ -47,8 +47,8 @@ type TimeTrackerToolbarProps = {
   onTaskChange: (value: string) => void;
   onBillabilityChange: (value: TimeTrackerFilterValues["billability"]) => void;
   onClearFilters: () => void;
-  memberFilter: string;
-  onMemberChange: (v: string) => void;
+  memberFilter: string[];
+  onMemberChange: (v: string[]) => void;
   members: { value: string; label: string }[];
 };
 
@@ -100,62 +100,40 @@ export function TimeTrackerToolbar({
               aria-label="Search entries"
             />
           </div>
-          <SearchableSelect
+          <SearchableMultiSelect
             value={memberFilter}
-            onValueChange={onMemberChange}
-            options={[{ value: "all", label: "All Members" }, ...members]}
+            onChange={onMemberChange}
+            options={members}
             placeholder="All Members"
             searchPlaceholder="Search members…"
-            className="w-[180px]"
+            selectAllLabel="All Members"
+            triggerClassName="bg-background h-10 w-[220px] font-normal"
             aria-label="Filter by member"
           />
-          <SearchableSelect
+          <SearchableMultiSelect
             value={projectId}
-            onValueChange={(v) => {
+            onChange={(v) => {
               onProjectChange(v);
               onTaskChange("");
             }}
-            options={[
-              { value: "all", label: "All Projects" },
-              ...projects.map((project) => ({
-                value: project.id,
-                label: formatProjectLabel(project, workspaceNamesById)
-              }))
-            ]}
+            options={projects.map((project) => ({
+              value: project.id,
+              label: formatProjectLabel(project, workspaceNamesById),
+              color: project.color
+            }))}
             placeholder="All Projects"
             searchPlaceholder="Search projects…"
-            className="w-[180px]"
+            selectAllLabel="All Projects"
+            triggerClassName="bg-background h-10 w-[220px] font-normal"
             aria-label="Filter by project"
-            renderOption={(option) =>
-              option.value === "all" ? (
-                option.label
-              ) : (
-                <span className="flex items-center gap-2">
-                  <ProjectColorDot
-                    color={
-                      projects.find((project) => project.id === option.value)?.color ?? "#236bfe"
-                    }
-                    size="sm"
-                  />
-                  {option.label}
-                </span>
-              )
-            }
-            renderValue={(option) =>
-              option && option.value !== "all" ? (
-                <span className="flex items-center gap-2">
-                  <ProjectColorDot
-                    color={
-                      projects.find((project) => project.id === option.value)?.color ?? "#236bfe"
-                    }
-                    size="sm"
-                  />
-                  {option.label}
-                </span>
-              ) : (
-                (option?.label ?? "All Projects")
-              )
-            }
+            renderOption={(option) => (
+              <span className="flex items-center gap-2">
+                {"color" in option && option.color ? (
+                  <ProjectColorDot color={option.color as string} size="sm" />
+                ) : null}
+                {option.label}
+              </span>
+            )}
           />
           <Select
             value={period}
