@@ -400,8 +400,8 @@ export function ExportCustomFlow({
 
   return (
     <>
-      <div className="grid gap-8 lg:grid-cols-12">
-        <div className="space-y-6 lg:col-span-8">
+      <div className="grid gap-8 @min-[1100px]/shell:grid-cols-12">
+        <div className="space-y-6 @min-[1100px]/shell:col-span-8">
           <Card>
             <CardHeader className="pb-4">
               <CardTitle className="text-base">Period & filters</CardTitle>
@@ -587,7 +587,7 @@ export function ExportCustomFlow({
           </Card>
         </div>
 
-        <div className="lg:col-span-4">
+        <div className="@min-[1100px]/shell:col-span-4">
           <div className="sticky top-6 space-y-4">
             <ExportDownloadPanel
               workspaceId={workspaceId}

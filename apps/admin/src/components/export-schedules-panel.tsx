@@ -200,8 +200,8 @@ export function ExportSchedulesPanel({ workspaceId, currentBody, memberEmails = 
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex flex-wrap gap-4">
-          <div className="space-y-2 min-w-[160px]">
+        <div className="flex flex-wrap items-end gap-4">
+          <div className="min-w-0 flex-1 basis-[140px] space-y-2">
             <Label>Name</Label>
             <Input
               value={name}
@@ -210,7 +210,7 @@ export function ExportSchedulesPanel({ workspaceId, currentBody, memberEmails = 
               disabled={saving}
             />
           </div>
-          <div className="space-y-2 min-w-[120px]">
+          <div className="min-w-0 flex-1 basis-[120px] space-y-2">
             <Label>Frequency</Label>
             <Select
               value={frequency}
@@ -227,7 +227,7 @@ export function ExportSchedulesPanel({ workspaceId, currentBody, memberEmails = 
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-2 flex-1 min-w-[200px]">
+          <div className="min-w-0 flex-[2] basis-[200px] space-y-2">
             <Label>Recipient emails (comma-separated)</Label>
             <Input
               value={emails}

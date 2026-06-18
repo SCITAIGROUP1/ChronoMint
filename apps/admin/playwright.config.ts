@@ -30,7 +30,8 @@ export default defineConfig({
   use: {
     baseURL: "http://localhost:3002",
     trace: "on-first-retry",
-    screenshot: "only-on-failure"
+    screenshot: "only-on-failure",
+    viewport: { width: 1366, height: 768 }
   },
   webServer: [
     {

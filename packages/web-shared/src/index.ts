@@ -10,6 +10,15 @@ export {
 } from "./auth/workspace-context";
 export { api, getApiBase, publicFetch } from "./api/client";
 export {
+  COMPACT_LAPTOP_SHELL_MAX,
+  COMPACT_LAPTOP_SHELL_MIN,
+  COMPACT_LAPTOP_VIEWPORT,
+  COMPACT_LAPTOP_VIEWPORT_MAX,
+  COMFORTABLE_DESKTOP_SHELL_MIN,
+  SIDEBAR_COLLAPSED_STORAGE_KEY,
+  TEAM_ACTIVITIES_TABLE_MIN
+} from "./responsive-tiers";
+export {
   buildWidgetMinSizeMap,
   DASHBOARD_GRID_BREAKPOINTS,
   DASHBOARD_GRID_COLS,

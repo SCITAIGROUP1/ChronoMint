@@ -481,7 +481,7 @@ export function TimesheetCalendar({
       </p>
       <div
         ref={scrollContainerRef}
-        className="max-h-[calc(100vh-14rem)] overflow-x-auto overflow-y-auto select-none md:max-h-[calc(100vh-15rem)]"
+        className="max-h-[calc(100dvh-12rem)] overflow-x-auto overflow-y-auto select-none md:max-h-[calc(100dvh-13rem)]"
       >
         <div style={gridMinWidth ? { minWidth: gridMinWidth } : undefined}>
           <div

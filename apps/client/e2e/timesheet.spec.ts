@@ -30,6 +30,18 @@ test.describe("Timesheet calendar", () => {
     expect(overflow).toBe(false);
   });
 
+  test("week view does not overflow the page on a 1366×768 laptop viewport", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 768 });
+    await page.getByRole("button", { name: "week", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Jump to week" })).toBeVisible();
+
+    const overflow = await page.evaluate(() => {
+      const doc = document.documentElement;
+      return doc.scrollWidth > doc.clientWidth + 1;
+    });
+    expect(overflow).toBe(false);
+  });
+
   test("shows a week date picker beside navigation controls", async ({ page }) => {
     await page.getByRole("button", { name: "week", exact: true }).click();
     await expect(page.getByRole("button", { name: "Jump to week" })).toBeVisible();

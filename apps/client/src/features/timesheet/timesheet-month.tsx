@@ -36,7 +36,7 @@ export function TimesheetMonth({
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-card">
       <div className="overflow-x-auto">
-        <div className="min-w-[36rem]">
+        <div className="min-w-[28rem] sm:min-w-[36rem]">
           <div className="grid grid-cols-7 border-b border-border bg-muted/40">
             {WEEKDAYS.map((d) => (
               <div key={d} className="p-2 text-center text-xs font-medium text-muted-foreground">

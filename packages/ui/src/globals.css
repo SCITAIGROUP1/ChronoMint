@@ -52,6 +52,10 @@
   --motion-slow: 240ms;
   --motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --motion-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  /* Responsive tiers — see packages/web-shared/src/responsive-tiers.ts */
+  --shell-compact-min: 960px;
+  --shell-compact-max: 1100px;
+  --shell-comfortable-min: 1100px;
 }
 
 .dark {
@@ -159,7 +163,28 @@
 @layer base {
   * {
     @apply border-border;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklch, var(--muted-foreground) 30%, transparent) transparent;
   }
+
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background-color: color-mix(in oklch, var(--muted-foreground) 30%, transparent);
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(in oklch, var(--muted-foreground) 45%, transparent);
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
   body {
     @apply bg-background text-foreground;
   }

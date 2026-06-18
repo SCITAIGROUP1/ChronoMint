@@ -11,12 +11,13 @@ export const shellMainContentClass = `${shellInsetXClass} pb-6 lg:pb-8`;
 
 /** Shared layout shell surfaces */
 export const shellSidebarClass =
-  "sticky top-0 hidden h-screen shrink-0 flex-col border-r border-border/80 bg-card shadow-sm transition-all duration-300 ease-in-out md:flex";
+  "sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-border/80 bg-card shadow-sm transition-all duration-300 ease-in-out md:flex";
 
 /** Narrow rail — wide enough for 36px controls with minimal inset */
 export const shellSidebarCollapsedWidthClass = "w-[5rem]";
 
-export const shellSidebarExpandedWidthClass = "w-[17rem]";
+/** Slightly narrower on compact laptops; full width from xl viewport up. */
+export const shellSidebarExpandedWidthClass = "w-[14rem] xl:w-[17rem]";
 
 export const shellSidebarCollapsedInsetClass = "px-2";
 
@@ -28,7 +29,8 @@ export const shellSidebarFooterClass = `shrink-0 border-t border-border/70 bg-ca
 
 export const shellSidebarFooterCollapsedClass = `flex shrink-0 flex-col items-center border-t border-border/70 bg-card ${shellSidebarCollapsedInsetClass} py-3 transition-all duration-300`;
 
-export const shellMainClass = "min-h-screen min-w-0 flex-1 overflow-y-auto bg-muted/20";
+export const shellMainClass =
+  "min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-muted/20 overscroll-y-contain";
 
 export const shellMobileHeaderClass =
   "sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between border-b border-border/80 bg-card/90 px-4 backdrop-blur-md md:hidden";
@@ -48,7 +50,7 @@ export const shellAppBarUtilityRowClass =
 export const shellAppBarSecondaryRowClass = "w-full min-w-0";
 
 export const shellAppBarTitleClass =
-  "text-xl font-semibold tracking-tight @min-[720px]/shell:text-2xl";
+  "truncate text-xl font-semibold tracking-tight @min-[720px]/shell:text-2xl";
 
 export const shellAppBarDescriptionClass = "max-w-2xl text-sm text-muted-foreground";
 

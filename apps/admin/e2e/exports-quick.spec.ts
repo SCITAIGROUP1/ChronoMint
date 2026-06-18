@@ -8,7 +8,7 @@ test.describe("exports quick flow", () => {
 
   test("shows scenario picker and quick reports mode", async ({ page }) => {
     await page.goto("/exports");
-    await expect(page.getByRole("heading", { name: "Exports" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Exports", exact: true })).toBeVisible();
     await expect(page.getByText("Quick reports")).toBeVisible();
     await expect(page.getByText("Payroll & timesheets")).toBeVisible();
     await expect(page.getByText("Team summary")).toBeVisible();
@@ -16,8 +16,23 @@ test.describe("exports quick flow", () => {
 
   test("dashboard export period link opens exports with dates", async ({ page }) => {
     await page.goto("/dashboard");
-    await page.getByRole("link", { name: "Export period" }).click();
+    await expect(page.getByRole("heading", { name: "Dashboard", exact: true })).toBeVisible();
+    await page.getByRole("link", { name: "Export this period" }).click();
     await expect(page).toHaveURL(/\/exports\?from=/);
     await expect(page.getByText("Payroll & timesheets")).toBeVisible();
+  });
+
+  test("exports page does not horizontally overflow on a 1366×768 laptop viewport", async ({
+    page
+  }) => {
+    await page.setViewportSize({ width: 1366, height: 768 });
+    await page.goto("/exports");
+    await expect(page.getByRole("heading", { name: "Exports", exact: true })).toBeVisible();
+
+    const overflow = await page.evaluate(() => {
+      const doc = document.documentElement;
+      return doc.scrollWidth > doc.clientWidth + 1;
+    });
+    expect(overflow).toBe(false);
   });
 });

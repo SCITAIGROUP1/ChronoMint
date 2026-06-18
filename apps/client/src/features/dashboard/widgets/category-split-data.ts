@@ -80,7 +80,7 @@ export function buildCategorySplitData(logs: TimeLogDto[], tasks: TaskDto[]): Ca
     name: row.categoryName,
     value: row.hours,
     fill: row.color,
-    configKey: `cat_${idx}`
+    configKey: `category_${idx}`
   }));
 
   return { rows, chartRows, totalHours };

@@ -46,6 +46,17 @@ test.describe("Client dashboard", () => {
     expect(overflow).toBe(false);
   });
 
+  test("renders without horizontal overflow on a 1366×768 laptop viewport", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 768 });
+    await expect(page.getByRole("heading", { name: "Dashboard", exact: true })).toBeVisible();
+
+    const overflow = await page.evaluate(() => {
+      const doc = document.documentElement;
+      return doc.scrollWidth > doc.clientWidth + 1;
+    });
+    expect(overflow).toBe(false);
+  });
+
   test("shows arrange grid control in the app bar", async ({ page }) => {
     await expect(page.getByRole("button", { name: /arrange grid/i })).toBeVisible();
   });

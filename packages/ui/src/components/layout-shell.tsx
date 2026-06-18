@@ -20,6 +20,10 @@ import {
 } from "./shell/shell-styles.js";
 import { ShellToolbarProvider, type ShellToolbarValue } from "./shell-toolbar-context.js";
 
+const SIDEBAR_COLLAPSED_STORAGE_KEY = "kloqra-sidebar-collapsed";
+/** Viewport width below which the sidebar defaults to collapsed when no preference is saved. */
+const COMPACT_LAPTOP_VIEWPORT_MAX = 1400;
+
 export type SidebarNavItem = {
   href: string;
   label: string;
@@ -88,14 +92,16 @@ export function ResponsiveLayoutShell({
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  // Load sidebar preference from localStorage after mounting
+  // Load sidebar preference from localStorage after mounting; auto-collapse on compact laptops.
   useEffect(() => {
     setMounted(true);
-    const saved =
-      localStorage.getItem("kloqra-sidebar-collapsed") ??
-      localStorage.getItem("kloqra-sidebar-collapsed");
+    const saved = localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY);
     if (saved !== null) {
       setIsCollapsed(saved === "true");
+      return;
+    }
+    if (window.innerWidth < COMPACT_LAPTOP_VIEWPORT_MAX) {
+      setIsCollapsed(true);
     }
   }, []);
 
@@ -114,11 +120,11 @@ export function ResponsiveLayoutShell({
   const toggleCollapse = () => {
     const next = !isCollapsed;
     setIsCollapsed(next);
-    localStorage.setItem("kloqra-sidebar-collapsed", String(next));
+    localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, String(next));
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-background md:flex-row">
+    <div className="flex h-dvh overflow-hidden flex-col bg-background md:flex-row">
       {/* --- DESKTOP SIDEBAR --- */}
       <aside
         className={cn(
