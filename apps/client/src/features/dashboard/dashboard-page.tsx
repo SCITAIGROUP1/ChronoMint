@@ -43,13 +43,13 @@ import {
   fetchListItems,
   useUserProfile,
   localMidnightUtcInZone,
-  todayInZone,
-  toDateKeyInZone
+  todayInZone
 } from "@kloqra/web-shared";
 import { Play, Pause, Square, LayoutGrid, Move } from "lucide-react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { WidthProvider, Responsive } from "react-grid-layout";
 import { toast } from "sonner";
+import { computeTodayStats } from "./dashboard-stats";
 import { useWidgetLayout, type WidgetLayoutItem } from "./use-widget-layout";
 import { WidgetControlPanel } from "./widget-control-panel";
 import { WIDGET_REGISTRY } from "./widget-registry";
@@ -320,9 +320,19 @@ export function DashboardPage() {
       const to = new Date(
         localMidnightUtcInZone(ty, tm, td, timezone).getTime() + 24 * 60 * 60 * 1000 - 1
       );
+      const today = todayInZone(timezone);
+      const todayFrom = localMidnightUtcInZone(
+        today.getFullYear(),
+        today.getMonth() + 1,
+        today.getDate(),
+        timezone
+      );
+      const todayTo = new Date(todayFrom.getTime() + 24 * 60 * 60 * 1000 - 1);
+      const effectiveFrom = new Date(Math.min(from.getTime(), todayFrom.getTime()));
+      const effectiveTo = new Date(Math.max(to.getTime(), todayTo.getTime()));
       const params = new URLSearchParams({
-        from: from.toISOString(),
-        to: to.toISOString()
+        from: effectiveFrom.toISOString(),
+        to: effectiveTo.toISOString()
       });
       if (isAdmin && filterUserId) params.set("userId", filterUserId);
       if (filterTaskId) params.set("taskId", filterTaskId);
@@ -679,17 +689,43 @@ export function DashboardPage() {
     billableForActive
   ]);
 
-  const todayLoggedSec = useMemo(() => {
-    const today = todayInZone(timezone);
-    const pad = (n: number) => String(n).padStart(2, "0");
-    const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
-    const todayLogs = filteredLogs.filter(
-      (log) => toDateKeyInZone(new Date(log.startTime), timezone) === todayStr
-    );
-    return todayLogs.reduce((sum, log) => sum + log.durationSec, 0);
-  }, [filteredLogs, timezone]);
+  const todayStats = useMemo(() => {
+    let activeTimerSec = 0;
+    let isBillableActive = false;
 
-  const totalTodaySec = todayLoggedSec + (tracking ? elapsedSec : 0);
+    if (tracking && activeTask) {
+      const currentUserId = session?.user.id;
+      const userMatches = !filterUserId || filterUserId === currentUserId;
+      const projectMatches = !filterProjectId || activeTask.projectId === filterProjectId;
+      const categoryMatches = !filterCategoryId || activeTask.categoryId === filterCategoryId;
+      const taskMatches = !filterTaskId || activeTask.id === filterTaskId;
+      if (userMatches && projectMatches && categoryMatches && taskMatches) {
+        activeTimerSec = elapsedSec;
+        isBillableActive = billableForActive;
+      }
+    }
+
+    return computeTodayStats({
+      logs: filteredLogs,
+      timezone,
+      activeTimerSec,
+      isBillableActive
+    });
+  }, [
+    filteredLogs,
+    timezone,
+    tracking,
+    activeTask,
+    filterProjectId,
+    filterCategoryId,
+    filterTaskId,
+    filterUserId,
+    session?.user.id,
+    elapsedSec,
+    billableForActive
+  ]);
+
+  const totalTodaySec = todayStats.totalSec;
 
   // Layout configurations
   const activeLayout = layoutsByWorkspace[ws] || [];
@@ -866,6 +902,17 @@ export function DashboardPage() {
                   <WidgetShell id={item.i} label={label} isEditing={isArranging}>
                     {(() => {
                       switch (item.i) {
+                        case "stat_total_hours_today":
+                          return (
+                            <div className="flex flex-col justify-center h-full">
+                              <span className="text-2xl font-bold tracking-tight text-foreground">
+                                {todayStats.totalHours}h
+                              </span>
+                              <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mt-1.5">
+                                {todayStats.billableHours}h billable
+                              </span>
+                            </div>
+                          );
                         case "stat_total_hours":
                           return (
                             <div className="flex flex-col justify-center h-full">
