@@ -232,7 +232,8 @@ describe("TasksService", () => {
         projectId: "p1",
         categoryId: "c1",
         taskName: "Frontend",
-        billableDefault: true
+        billableDefault: true,
+        isCommon: true
       });
       prisma.task.findUniqueOrThrow.mockResolvedValue({
         id: "t-new",
@@ -240,6 +241,7 @@ describe("TasksService", () => {
         categoryId: "c1",
         taskName: "Frontend",
         billableDefault: true,
+        isCommon: true,
         category: { name: "Software Development" },
         assignees: [{ userId: "u1", user: { name: "Sam" } }]
       });
@@ -253,6 +255,104 @@ describe("TasksService", () => {
       expect(prisma.taskAssignee.createMany).toHaveBeenCalled();
       expect(result.categoryName).toBe("Software Development");
       expect(result.assignees).toEqual([{ userId: "u1", userName: "Sam" }]);
+    });
+
+    it("creates a common task when isCommon is true", async () => {
+      prisma.project.findFirst.mockResolvedValue({ id: "p1" });
+      prisma.project.findUnique.mockResolvedValue({
+        id: "p1",
+        name: "Website",
+        workspaceId: "w1"
+      });
+      prisma.category.findFirst.mockResolvedValue({ id: "c1" });
+      prisma.teamMember.findMany.mockResolvedValue([{ userId: "u1" }]);
+      prisma.$transaction.mockImplementation(async (fn: (tx: typeof prisma) => Promise<unknown>) =>
+        fn(prisma as any)
+      );
+      prisma.task.create.mockResolvedValue({
+        id: "t-new",
+        projectId: "p1",
+        categoryId: "c1",
+        taskName: "Frontend",
+        billableDefault: true,
+        isCommon: true
+      });
+      prisma.task.findUniqueOrThrow.mockResolvedValue({
+        id: "t-new",
+        projectId: "p1",
+        categoryId: "c1",
+        taskName: "Frontend",
+        billableDefault: true,
+        isCommon: true,
+        category: { name: "Software Development" },
+        assignees: []
+      });
+      const result = await service.create("w1", {
+        projectId: "p1",
+        categoryId: "c1",
+        taskName: "Frontend",
+        billableDefault: true,
+        isCommon: true,
+        assigneeUserIds: []
+      });
+      expect(prisma.task.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            isCommon: true
+          })
+        })
+      );
+      expect(prisma.taskAssignee.createMany).not.toHaveBeenCalled();
+      expect(result.isCommon).toBe(true);
+    });
+
+    it("creates an assigned task when isCommon is false", async () => {
+      prisma.project.findFirst.mockResolvedValue({ id: "p1" });
+      prisma.project.findUnique.mockResolvedValue({
+        id: "p1",
+        name: "Website",
+        workspaceId: "w1"
+      });
+      prisma.category.findFirst.mockResolvedValue({ id: "c1" });
+      prisma.teamMember.findMany.mockResolvedValue([{ userId: "u1" }]);
+      prisma.$transaction.mockImplementation(async (fn: (tx: typeof prisma) => Promise<unknown>) =>
+        fn(prisma as any)
+      );
+      prisma.task.create.mockResolvedValue({
+        id: "t-new",
+        projectId: "p1",
+        categoryId: "c1",
+        taskName: "Frontend",
+        billableDefault: true,
+        isCommon: false
+      });
+      prisma.task.findUniqueOrThrow.mockResolvedValue({
+        id: "t-new",
+        projectId: "p1",
+        categoryId: "c1",
+        taskName: "Frontend",
+        billableDefault: true,
+        isCommon: false,
+        category: { name: "Software Development" },
+        assignees: [{ userId: "u1", user: { name: "Sam" } }]
+      });
+      const result = await service.create("w1", {
+        projectId: "p1",
+        categoryId: "c1",
+        taskName: "Frontend",
+        billableDefault: true,
+        isCommon: false,
+        assigneeUserIds: ["u1"]
+      });
+      expect(prisma.task.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            isCommon: false
+          })
+        })
+      );
+      expect(prisma.taskAssignee.createMany).toHaveBeenCalled();
+      expect(result.isCommon).toBe(false);
     });
   });
 
@@ -369,6 +469,40 @@ describe("TasksService", () => {
           templateId: "task.unassigned"
         })
       );
+    });
+
+    it("updates task assignment type to common", async () => {
+      prisma.task.findFirst.mockResolvedValue({
+        id: "t1",
+        projectId: "p1",
+        categoryId: "c1"
+      });
+      prisma.taskAssignee.findMany.mockResolvedValue([{ userId: "u1" }]);
+      prisma.$transaction.mockImplementation(async (fn: (tx: typeof prisma) => Promise<unknown>) =>
+        fn(prisma as any)
+      );
+      prisma.task.update.mockResolvedValue({
+        id: "t1",
+        projectId: "p1",
+        categoryId: "c1",
+        taskName: "Frontend",
+        billableDefault: true,
+        isCommon: true,
+        category: { name: "Software Development" },
+        assignees: []
+      });
+
+      await service.update("w1", "t1", { isCommon: true, assigneeUserIds: [] });
+
+      expect(prisma.task.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "t1" },
+          data: expect.objectContaining({
+            isCommon: true
+          })
+        })
+      );
+      expect(prisma.taskAssignee.deleteMany).toHaveBeenCalledWith({ where: { taskId: "t1" } });
     });
   });
 

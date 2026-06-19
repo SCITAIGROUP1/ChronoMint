@@ -83,6 +83,7 @@ export const ROUTES = {
     LIST: "/timelogs",
     OCCUPANCY: "/timelogs/occupancy",
     CREATE: "/timelogs",
+    CREATE_BATCH: "/timelogs/batch",
     BY_ID: (id: string) => `/timelogs/${id}`,
     AUDIT_EVENTS: (id: string) => `/timelogs/${id}/audit-events`,
     AUDIT_EVENTS_WORKSPACE: "/timelogs/audit",

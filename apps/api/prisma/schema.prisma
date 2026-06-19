@@ -196,6 +196,7 @@ model Task {
   categoryId      String    @map("category_id")
   taskName        String    @map("task_name")
   billableDefault Boolean   @default(true) @map("billable_default")
+  isCommon        Boolean   @default(true) @map("is_common")
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
   project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)

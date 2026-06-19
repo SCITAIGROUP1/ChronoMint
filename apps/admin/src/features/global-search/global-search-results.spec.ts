@@ -41,7 +41,8 @@ describe("global-search-results", () => {
           categoryId: "c1",
           categoryName: "Development",
           taskName: "Code review",
-          billableDefault: true
+          billableDefault: true,
+          isCommon: true
         }
       ],
       1,
@@ -59,7 +60,8 @@ describe("global-search-results", () => {
           projectId: "",
           categoryId: "c1",
           taskName: "Orphan",
-          billableDefault: true
+          billableDefault: true,
+          isCommon: true
         }
       ],
       1,

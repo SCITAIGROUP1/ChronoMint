@@ -74,7 +74,7 @@ export class ProjectAccessService {
   ) {
     const task = await this.prisma.task.findFirst({
       where: { id: taskId, project: { workspaceId } },
-      select: { id: true, projectId: true }
+      select: { id: true, projectId: true, isCommon: true }
     });
     if (!task) {
       throw new DomainException(ErrorCodes.NOT_FOUND, "Task not found", HttpStatus.NOT_FOUND);
@@ -83,6 +83,7 @@ export class ProjectAccessService {
     await this.assertCanAccessProject(workspaceId, userId, role, task.projectId);
 
     if (role === "ADMIN") return;
+    if (task.isCommon) return;
 
     const assignee = await this.prisma.taskAssignee.findFirst({
       where: { taskId, userId }

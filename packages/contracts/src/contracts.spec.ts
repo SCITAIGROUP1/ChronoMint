@@ -462,6 +462,7 @@ describe("contracts", () => {
       categoryId: UUID,
       taskName: "Implement feature",
       billableDefault: true,
+      isCommon: true,
       assignees: [{ userId: UUID, userName: "Sam" }]
     });
     expect(r.success).toBe(true);

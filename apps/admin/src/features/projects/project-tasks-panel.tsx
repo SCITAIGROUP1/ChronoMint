@@ -34,6 +34,7 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
   const [newName, setNewName] = useState("");
   const [newCategoryId, setNewCategoryId] = useState<string>("");
   const [newBillable, setNewBillable] = useState(true);
+  const [newIsCommon, setNewIsCommon] = useState(true);
   const [newAssigneeIds, setNewAssigneeIds] = useState<string[]>([]);
   const [teamMembers, setTeamMembers] = useState<
     { userId: string; userName: string; email?: string; isActive: boolean }[]
@@ -44,6 +45,7 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
   const [editName, setEditName] = useState("");
   const [editCategoryId, setEditCategoryId] = useState("");
   const [editBillable, setEditBillable] = useState(true);
+  const [editIsCommon, setEditIsCommon] = useState(true);
   const [editAssigneeIds, setEditAssigneeIds] = useState<string[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -74,7 +76,7 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
   );
 
   const unassignedCount = useMemo(
-    () => tasks.filter((t) => t.assignees.length === 0).length,
+    () => tasks.filter((t) => !t.isCommon && t.assignees.length === 0).length,
     [tasks]
   );
 
@@ -115,7 +117,7 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
 
   async function createTask(e: React.FormEvent) {
     e.preventDefault();
-    if (!newName.trim() || !newCategoryId || newAssigneeIds.length === 0) return;
+    if (!newName.trim() || !newCategoryId || (!newIsCommon && newAssigneeIds.length === 0)) return;
     setSaving(true);
     setError(null);
     try {
@@ -127,11 +129,13 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
           categoryId: newCategoryId,
           taskName: newName.trim(),
           billableDefault: newBillable,
-          assigneeUserIds: newAssigneeIds
+          isCommon: newIsCommon,
+          assigneeUserIds: newIsCommon ? [] : newAssigneeIds
         })
       });
       setNewName("");
       setNewBillable(true);
+      setNewIsCommon(true);
       setNewAssigneeIds([]);
       toast.success("Task created.");
       await refresh();
@@ -149,6 +153,7 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
     setEditName(task.taskName);
     setEditCategoryId(task.categoryId);
     setEditBillable(task.billableDefault);
+    setEditIsCommon(task.isCommon);
     setEditAssigneeIds(task.assignees.map((a) => a.userId));
     setError(null);
   }
@@ -158,6 +163,7 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
     setEditName("");
     setEditCategoryId("");
     setEditBillable(true);
+    setEditIsCommon(true);
     setEditAssigneeIds([]);
   }
 
@@ -173,7 +179,8 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
           taskName: editName.trim(),
           categoryId: editCategoryId,
           billableDefault: editBillable,
-          assigneeUserIds: editAssigneeIds
+          isCommon: editIsCommon,
+          assigneeUserIds: editIsCommon ? [] : editAssigneeIds
         })
       });
       cancelEdit();
@@ -264,14 +271,41 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Assignees</Label>
-              <TaskAssigneePicker
-                members={activeTeamOptions}
-                value={newAssigneeIds}
-                onChange={setNewAssigneeIds}
-                disabled={saving}
-              />
+              <Label>Task Assignment Type</Label>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-6">
+                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                  <input
+                    type="radio"
+                    name="new-task-type"
+                    className="size-4 border border-input accent-primary"
+                    checked={newIsCommon}
+                    onChange={() => setNewIsCommon(true)}
+                  />
+                  <span>Common task (all members)</span>
+                </label>
+                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                  <input
+                    type="radio"
+                    name="new-task-type"
+                    className="size-4 border border-input accent-primary"
+                    checked={!newIsCommon}
+                    onChange={() => setNewIsCommon(false)}
+                  />
+                  <span>Assigned task (restrict members)</span>
+                </label>
+              </div>
             </div>
+            {!newIsCommon && (
+              <div className="space-y-2">
+                <Label>Assignees</Label>
+                <TaskAssigneePicker
+                  members={activeTeamOptions}
+                  value={newAssigneeIds}
+                  onChange={setNewAssigneeIds}
+                  disabled={saving}
+                />
+              </div>
+            )}
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <label className="flex cursor-pointer items-center gap-2 text-sm">
                 <input
@@ -285,7 +319,10 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
               <Button
                 type="submit"
                 disabled={
-                  saving || !newName.trim() || !newCategoryId || newAssigneeIds.length === 0
+                  saving ||
+                  !newName.trim() ||
+                  !newCategoryId ||
+                  (!newIsCommon && newAssigneeIds.length === 0)
                 }
                 className="gap-2 sm:w-auto"
               >
@@ -368,14 +405,41 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
                               <span>Billable by default</span>
                             </label>
                             <div className="space-y-2">
-                              <Label>Assignees</Label>
-                              <TaskAssigneePicker
-                                members={activeTeamOptions}
-                                value={editAssigneeIds}
-                                onChange={setEditAssigneeIds}
-                                disabled={busyId === task.id}
-                              />
+                              <Label>Task Assignment Type</Label>
+                              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-6">
+                                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                                  <input
+                                    type="radio"
+                                    name={`edit-task-type-${task.id}`}
+                                    className="size-4 border border-input accent-primary"
+                                    checked={editIsCommon}
+                                    onChange={() => setEditIsCommon(true)}
+                                  />
+                                  <span>Common task (all members)</span>
+                                </label>
+                                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                                  <input
+                                    type="radio"
+                                    name={`edit-task-type-${task.id}`}
+                                    className="size-4 border border-input accent-primary"
+                                    checked={!editIsCommon}
+                                    onChange={() => setEditIsCommon(false)}
+                                  />
+                                  <span>Assigned task (restrict members)</span>
+                                </label>
+                              </div>
                             </div>
+                            {!editIsCommon && (
+                              <div className="space-y-2">
+                                <Label>Assignees</Label>
+                                <TaskAssigneePicker
+                                  members={activeTeamOptions}
+                                  value={editAssigneeIds}
+                                  onChange={setEditAssigneeIds}
+                                  disabled={busyId === task.id}
+                                />
+                              </div>
+                            )}
                             <div className="flex justify-end gap-2">
                               <Button
                                 type="button"
@@ -394,7 +458,7 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
                                   busyId === task.id ||
                                   !editName.trim() ||
                                   !editCategoryId ||
-                                  editAssigneeIds.length === 0
+                                  (!editIsCommon && editAssigneeIds.length === 0)
                                 }
                               >
                                 Save
@@ -410,7 +474,11 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
                                   categoryById.get(task.categoryId)?.name ??
                                   "Uncategorized"}
                               </p>
-                              {task.assignees.length > 0 ? (
+                              {task.isCommon ? (
+                                <p className="mt-1 text-[10px] text-muted-foreground">
+                                  Common task (all members)
+                                </p>
+                              ) : task.assignees.length > 0 ? (
                                 <div className="mt-2">
                                   <AssigneeAvatarStack
                                     members={task.assignees.map((a) => ({

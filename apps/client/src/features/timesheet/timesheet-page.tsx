@@ -11,7 +11,8 @@ import type {
   TaskDto,
   ProjectDto,
   TimesheetPeriodDto,
-  UserProfileDto
+  UserProfileDto,
+  BatchTimeLogsResponseDto
 } from "@kloqra/contracts";
 import {
   AppBar,
@@ -495,12 +496,15 @@ export function TimesheetPage() {
       setError("End time must be after start time.");
       return;
     }
-    const conflict = findOccupancyConflict(occupancy, start, end, editingLog?.id);
-    if (conflict) {
-      const msg = overlapConflictMessage(conflict);
-      setError(msg);
-      toast.error(msg);
-      return;
+    const isRecurring = !editingLog && draft.recurrence && draft.recurrence !== "none";
+    if (!isRecurring) {
+      const conflict = findOccupancyConflict(occupancy, start, end, editingLog?.id);
+      if (conflict) {
+        const msg = overlapConflictMessage(conflict);
+        setError(msg);
+        toast.error(msg);
+        return;
+      }
     }
     setSaving(true);
     setError(null);
@@ -510,29 +514,62 @@ export function TimesheetPage() {
         setError("Select a task to log time.");
         return;
       }
-      const body = {
-        taskId,
-        startTime,
-        endTime,
-        description: draft.description || undefined,
-        isBillable: draft.isBillable
-      };
-      if (editingLog) {
-        await api(`/timelogs/${editingLog.id}`, {
-          method: "PATCH",
-          workspaceId: ws,
-          body: JSON.stringify(body)
-        });
-      } else {
-        await api(ROUTES.TIMELOGS.CREATE, {
+      if (isRecurring) {
+        if (!draft.repeatUntil) {
+          setError("Please select an end date for the recurrence.");
+          setSaving(false);
+          return;
+        }
+        const body = {
+          taskId,
+          localStartTime: draft.startTime,
+          localEndTime: draft.endTime,
+          startDate: draft.date,
+          endDate: draft.repeatUntil,
+          recurrence: draft.recurrence,
+          timezone,
+          description: draft.description || undefined,
+          isBillable: draft.isBillable
+        };
+        const res = await api<BatchTimeLogsResponseDto>(ROUTES.TIMELOGS.CREATE_BATCH, {
           method: "POST",
           workspaceId: ws,
           body: JSON.stringify(body)
         });
+        await Promise.all([refreshLogs(), refreshOccupancy()]);
+        closeDialog();
+        if (res.skippedCount > 0) {
+          toast.success(
+            `Logged ${res.createdCount} entries. Skipped ${res.skippedCount} conflicts.`
+          );
+        } else {
+          toast.success(`Logged ${res.createdCount} recurring entries!`);
+        }
+      } else {
+        const body = {
+          taskId,
+          startTime,
+          endTime,
+          description: draft.description || undefined,
+          isBillable: draft.isBillable
+        };
+        if (editingLog) {
+          await api(`/timelogs/${editingLog.id}`, {
+            method: "PATCH",
+            workspaceId: ws,
+            body: JSON.stringify(body)
+          });
+        } else {
+          await api(ROUTES.TIMELOGS.CREATE, {
+            method: "POST",
+            workspaceId: ws,
+            body: JSON.stringify(body)
+          });
+        }
+        await Promise.all([refreshLogs(), refreshOccupancy()]);
+        closeDialog();
+        toast.success(editingLog ? "Time entry updated!" : "Time entry created!");
       }
-      await Promise.all([refreshLogs(), refreshOccupancy()]);
-      closeDialog();
-      toast.success(editingLog ? "Time entry updated!" : "Time entry created!");
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Could not save entry";
       setError(msg);
