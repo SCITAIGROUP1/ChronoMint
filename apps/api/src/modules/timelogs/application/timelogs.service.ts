@@ -110,6 +110,20 @@ export class TimelogsService {
           ]
         }
       : undefined;
+    let cursorObj: { id_startTime: { id: string; startTime: Date } } | undefined = undefined;
+    if (query.cursor) {
+      const colonIdx = query.cursor.indexOf(":");
+      if (colonIdx !== -1) {
+        const id = query.cursor.slice(0, colonIdx);
+        const startTimeStr = query.cursor.slice(colonIdx + 1);
+        cursorObj = {
+          id_startTime: {
+            id,
+            startTime: new Date(startTimeStr)
+          }
+        };
+      }
+    }
 
     const logs = await this.prisma.timeLog.findMany({
       where: {
@@ -133,7 +147,7 @@ export class TimelogsService {
       },
       orderBy: { startTime: "desc" },
       take: limit + 1,
-      ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {})
+      ...(cursorObj ? { cursor: cursorObj, skip: 1 } : {})
     });
 
     const hasMore = logs.length > limit;
@@ -141,7 +155,9 @@ export class TimelogsService {
 
     return {
       items: page.map((l) => this.toDto(l)),
-      nextCursor: hasMore ? page[page.length - 1]!.id : undefined
+      nextCursor: hasMore
+        ? `${page[page.length - 1]!.id}:${page[page.length - 1]!.startTime.toISOString()}`
+        : undefined
     };
   }
 
@@ -394,7 +410,7 @@ export class TimelogsService {
 
     const updated = await this.prisma.$transaction(async (tx) => {
       const row = await tx.timeLog.update({
-        where: { id },
+        where: { id_startTime: { id, startTime: log.startTime } },
         data: {
           ...(dto.taskId !== undefined ? { taskId: dto.taskId } : {}),
           startTime: start,
@@ -475,7 +491,7 @@ export class TimelogsService {
         before: this.audit.snapshotFromLog(log),
         after: null
       });
-      await tx.timeLog.delete({ where: { id } });
+      await tx.timeLog.delete({ where: { id_startTime: { id, startTime: log.startTime } } });
     });
 
     await this.reportCache.invalidateWorkspace(workspaceId);

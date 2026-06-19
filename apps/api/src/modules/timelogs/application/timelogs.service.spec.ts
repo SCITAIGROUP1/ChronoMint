@@ -215,7 +215,7 @@ describe("TimelogsService list", () => {
     });
 
     expect(res.items).toHaveLength(1);
-    expect(res.nextCursor).toBe("log-2");
+    expect(res.nextCursor).toBe("log-2:2026-06-02T09:00:00.000Z");
   });
 });
 
