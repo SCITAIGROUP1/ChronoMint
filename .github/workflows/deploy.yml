@@ -125,10 +125,28 @@ jobs:
     if: always() && needs.gate.result == 'success' && (needs.quality.result == 'success' || needs.quality.result == 'skipped')
     runs-on: ubuntu-latest
     environment: ${{ needs.gate.outputs.environment }}
+    outputs:
+      has_railway_token: ${{ steps.check.outputs.has_railway_token }}
+      has_vercel_token: ${{ steps.check.outputs.has_vercel_token }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ needs.gate.outputs.sha }}
+      - id: check
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          if [[ -n "$RAILWAY_TOKEN" ]]; then
+            echo "has_railway_token=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_railway_token=false" >> "$GITHUB_OUTPUT"
+          fi
+          if [[ -n "$VERCEL_TOKEN" ]]; then
+            echo "has_vercel_token=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_vercel_token=false" >> "$GITHUB_OUTPUT"
+          fi
       - uses: pnpm/action-setup@v4
         with:
           version: 9.15.0
@@ -153,7 +171,7 @@ jobs:
     if: >-
       needs.migrate.result == 'success' &&
       vars.RAILWAY_SERVICE != '' &&
-      secrets.RAILWAY_TOKEN != ''
+      needs.migrate.outputs.has_railway_token == 'true'
     env:
       RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
     steps:
@@ -188,7 +206,7 @@ jobs:
     if: >-
       needs.wait-api.result == 'success' &&
       vars.VERCEL_CLIENT_PROJECT != '' &&
-      secrets.VERCEL_TOKEN != ''
+      needs.migrate.outputs.has_vercel_token == 'true'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -220,7 +238,7 @@ jobs:
     if: >-
       needs.wait-api.result == 'success' &&
       vars.VERCEL_ADMIN_PROJECT != '' &&
-      secrets.VERCEL_TOKEN != ''
+      needs.migrate.outputs.has_vercel_token == 'true'
     steps:
       - uses: actions/checkout@v4
         with:
