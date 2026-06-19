@@ -64,6 +64,16 @@ export const inviteMemberResponseSchema = z.object({
   emailSkipReason: emailSkipReasonSchema.optional()
 });
 
+export const bulkInviteMemberSchema = z.object({
+  members: z.array(inviteMemberSchema).min(1).max(500)
+});
+
+export const bulkInviteResponseSchema = z.object({
+  jobId: z.string(),
+  status: z.string(),
+  enqueuedCount: z.number()
+});
+
 export const memberEmailDeliverySchema = z.object({
   emailSent: z.boolean(),
   emailSkipReason: emailSkipReasonSchema.optional(),

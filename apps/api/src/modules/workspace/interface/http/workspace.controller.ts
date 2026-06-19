@@ -3,9 +3,11 @@ import {
   updateWorkspaceSchema,
   updateWorkspaceMemberSchema,
   createWorkspaceSchema,
+  bulkInviteMemberSchema,
   teamMembersOverviewQuerySchema,
   teamActivitiesQuerySchema,
   type TeamActivitiesQuery,
+  type InviteMemberDto,
   type TeamMembersOverviewQuery,
   ROUTES
 } from "@kloqra/contracts";
@@ -18,8 +20,13 @@ import {
   Delete,
   Body,
   Query,
-  UseGuards
+  UseGuards,
+  Res,
+  UseInterceptors,
+  UploadedFile
 } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
+import type { Response } from "express";
 import {
   CurrentUser,
   type RequestUser
@@ -122,6 +129,43 @@ export class WorkspaceController {
       body as Parameters<WorkspaceService["invite"]>[1],
       user.userId
     );
+  }
+
+  @Roles("ADMIN")
+  @Get(ROUTES.WORKSPACES.BULK_MEMBERS_TEMPLATE(":id"))
+  async getBulkInviteTemplate(
+    @Param("id") id: string,
+    @CurrentUser() user: RequestUser,
+    @Res() res: Response
+  ) {
+    if (id !== user.workspaceId) throw new Error("Forbidden");
+    await this.workspace.generateBulkInviteTemplate(res);
+  }
+
+  @Roles("ADMIN")
+  @Post(ROUTES.WORKSPACES.BULK_MEMBERS_UPLOAD(":id"))
+  @UseInterceptors(FileInterceptor("file", { limits: { fileSize: 2 * 1024 * 1024 } }))
+  async bulkInviteUpload(
+    @Param("id") id: string,
+    @UploadedFile() file: any,
+    @CurrentUser() user: RequestUser
+  ) {
+    if (id !== user.workspaceId) throw new Error("Forbidden");
+    if (!file) throw new Error("No file uploaded");
+
+    const members = await this.workspace.parseBulkInviteExcel(file.buffer);
+    return this.workspace.bulkInvite(id, members, user.userId);
+  }
+
+  @Roles("ADMIN")
+  @Post(ROUTES.WORKSPACES.BULK_MEMBERS(":id"))
+  async bulkInvite(
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(bulkInviteMemberSchema)) body: { members: InviteMemberDto[] },
+    @CurrentUser() user: RequestUser
+  ) {
+    if (id !== user.workspaceId) throw new Error("Forbidden");
+    return this.workspace.bulkInvite(id, body.members, user.userId);
   }
 
   @Roles("ADMIN")

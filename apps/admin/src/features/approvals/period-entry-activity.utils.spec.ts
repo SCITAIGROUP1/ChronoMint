@@ -40,6 +40,7 @@ describe("period-entry-activity.utils", () => {
         categoryId: "category-a",
         taskName: "Design",
         billableDefault: true,
+        isCommon: false,
         assignees: [{ userId: "user-1", userName: "Sam Rivera" }]
       },
       {
@@ -48,6 +49,7 @@ describe("period-entry-activity.utils", () => {
         categoryId: "category-b",
         taskName: "Support",
         billableDefault: true,
+        isCommon: false,
         assignees: [{ userId: "user-1", userName: "Sam Rivera" }]
       }
     ];

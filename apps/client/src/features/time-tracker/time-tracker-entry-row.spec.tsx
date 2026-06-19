@@ -22,6 +22,7 @@ const task: TaskDto = {
   categoryId: "cat-1",
   taskName: "Code review",
   billableDefault: true,
+  isCommon: true,
   assignees: []
 };
 

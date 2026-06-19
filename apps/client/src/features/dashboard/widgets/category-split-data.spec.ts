@@ -24,6 +24,7 @@ function task(partial: Partial<TaskDto> & Pick<TaskDto, "id" | "projectId">): Ta
     taskName: partial.taskName ?? "Task",
     categoryName: partial.categoryName ?? "Development",
     billableDefault: true,
+    isCommon: false,
     assignees: [],
     ...partial
   };

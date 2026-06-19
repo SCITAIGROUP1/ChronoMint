@@ -324,7 +324,74 @@ export class ProjectsService {
   }
 
   async remove(workspaceId: string, id: string) {
-    await this.getAdmin(workspaceId, id);
+    const project = await this.getAdmin(workspaceId, id);
+    if (project.name === "Uncategorized") {
+      throw new DomainException(
+        ErrorCodes.VALIDATION_ERROR,
+        "Cannot delete the default Uncategorized project.",
+        HttpStatus.BAD_REQUEST
+      );
+    }
+
+    // Find or create default Uncategorized project
+    let uncategorized = await this.prisma.project.findFirst({
+      where: { workspaceId, name: "Uncategorized" }
+    });
+    if (!uncategorized) {
+      uncategorized = await this.prisma.project.create({
+        data: {
+          workspaceId,
+          name: "Uncategorized",
+          color: "#9ca3af"
+        }
+      });
+      await this.ensureTeam(uncategorized.id);
+    }
+
+    // Find or create default Uncategorized category
+    let uncategorizedCategory = await this.prisma.category.findFirst({
+      where: { workspaceId, name: "Uncategorized" }
+    });
+    if (!uncategorizedCategory) {
+      uncategorizedCategory = await this.prisma.category.create({
+        data: {
+          workspaceId,
+          name: "Uncategorized",
+          description: "System default category for uncategorized tasks."
+        }
+      });
+    }
+
+    // Find or create Uncategorized Task in Uncategorized project
+    let uncategorizedTask = await this.prisma.task.findFirst({
+      where: { projectId: uncategorized.id, taskName: "Uncategorized Task" }
+    });
+    if (!uncategorizedTask) {
+      uncategorizedTask = await this.prisma.task.create({
+        data: {
+          projectId: uncategorized.id,
+          categoryId: uncategorizedCategory.id,
+          taskName: "Uncategorized Task",
+          billableDefault: true
+        }
+      });
+    }
+
+    // Get all task IDs belonging to the project being deleted
+    const tasksOfProject = await this.prisma.task.findMany({
+      where: { projectId: id },
+      select: { id: true }
+    });
+    const taskIds = tasksOfProject.map((t) => t.id);
+
+    // Update all TimeLogs to point to the Uncategorized Task under Uncategorized project
+    if (taskIds.length > 0) {
+      await this.prisma.timeLog.updateMany({
+        where: { taskId: { in: taskIds } },
+        data: { taskId: uncategorizedTask.id }
+      });
+    }
+
     await this.prisma.project.delete({ where: { id } });
     return { ok: true };
   }

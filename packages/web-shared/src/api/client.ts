@@ -165,10 +165,15 @@ async function executeApiRequest<T>(
   ws: string | null | undefined
 ): Promise<T> {
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
     "X-Auth-Scope": AUTH_SCOPE,
     ...(options.headers as Record<string, string>)
   };
+
+  if (typeof FormData === "undefined" || !(options.body instanceof FormData)) {
+    if (!headers["Content-Type"]) {
+      headers["Content-Type"] = "application/json";
+    }
+  }
 
   if (ws) headers["X-Workspace-Id"] = ws;
 
