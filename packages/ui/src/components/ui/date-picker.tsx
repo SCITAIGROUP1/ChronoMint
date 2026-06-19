@@ -110,25 +110,11 @@ export function DatePicker({
   popoverAlign = "start"
 }: DatePickerProps) {
   const [open, setOpen] = React.useState(false);
-  const [showSecondMonth, setShowSecondMonth] = React.useState(true);
   const [visibleMonth, setVisibleMonth] = React.useState(() => {
     const anchor = value || dateKeyFromDate(new Date());
     const [year, month] = anchor.split("-").map(Number);
     return { year, month };
   });
-
-  React.useEffect(() => {
-    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
-      setShowSecondMonth(true);
-      return;
-    }
-
-    const media = window.matchMedia("(min-width: 640px)");
-    const syncMonths = () => setShowSecondMonth(media.matches);
-    syncMonths();
-    media.addEventListener("change", syncMonths);
-    return () => media.removeEventListener("change", syncMonths);
-  }, []);
 
   React.useEffect(() => {
     if (!open) return;
@@ -143,8 +129,6 @@ export function DatePicker({
     onChange(key);
     setOpen(false);
   }
-
-  const secondMonth = addMonths(visibleMonth.year, visibleMonth.month, 1);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -164,7 +148,7 @@ export function DatePicker({
       <PopoverContent
         align={popoverAlign}
         collisionPadding={24}
-        className="w-auto max-w-[min(100vw-2rem,42rem)] p-0"
+        className="w-auto max-w-[min(100vw-2rem,22rem)] p-0"
       >
         <div className="flex items-center justify-between gap-2 border-b border-border/70 px-3 py-2">
           <Button
@@ -189,7 +173,7 @@ export function DatePicker({
           </Button>
         </div>
 
-        <div className={cn("grid gap-6 p-4", showSecondMonth ? "sm:grid-cols-2" : "grid-cols-1")}>
+        <div className="grid gap-6 p-4 grid-cols-1">
           <MonthPanel
             year={visibleMonth.year}
             month={visibleMonth.month}
@@ -198,16 +182,6 @@ export function DatePicker({
             onDayClick={handleDayClick}
             maxDate={maxDate}
           />
-          {showSecondMonth ? (
-            <MonthPanel
-              year={secondMonth.year}
-              month={secondMonth.month}
-              weekStartsOn={weekStartsOn}
-              value={value}
-              onDayClick={handleDayClick}
-              maxDate={maxDate}
-            />
-          ) : null}
         </div>
       </PopoverContent>
     </Popover>
