@@ -136,6 +136,7 @@ jobs:
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           if [[ -n "$RAILWAY_TOKEN" ]]; then
             echo "has_railway_token=true" >> "$GITHUB_OUTPUT"
@@ -147,6 +148,11 @@ jobs:
           else
             echo "has_vercel_token=false" >> "$GITHUB_OUTPUT"
           fi
+          if [[ -n "$DATABASE_URL" ]]; then
+            echo "has_database_url=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_database_url=false" >> "$GITHUB_OUTPUT"
+          fi
       - uses: pnpm/action-setup@v4
         with:
           version: 9.15.0
@@ -156,6 +162,7 @@ jobs:
           cache: "pnpm"
       - run: pnpm install --frozen-lockfile --filter @kloqra/api...
       - name: prisma migrate deploy
+        if: steps.check.outputs.has_database_url == 'true'
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
