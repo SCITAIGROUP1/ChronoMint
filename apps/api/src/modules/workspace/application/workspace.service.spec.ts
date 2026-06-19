@@ -19,6 +19,7 @@ describe("WorkspaceService", () => {
     notify: ReturnType<typeof vi.fn>;
     notifyWorkspaceAdmins: ReturnType<typeof vi.fn>;
   };
+  let mockQueue: any;
 
   const workspaceId = "ws-1";
   const inviterId = "admin-1";
@@ -59,11 +60,15 @@ describe("WorkspaceService", () => {
       sendWorkspaceAdded: vi.fn().mockResolvedValue({ sent: true }),
       isConfigured: true
     } as unknown as MemberProvisioningMailer;
+    mockQueue = {
+      add: vi.fn().mockResolvedValue({ id: "job-1" })
+    };
     service = new WorkspaceService(
       mockPrisma,
       mockMailer,
       mockNotificationsDispatch as never,
-      { sendEmailVerification: vi.fn().mockResolvedValue(undefined) } as never
+      { sendEmailVerification: vi.fn().mockResolvedValue(undefined) } as never,
+      mockQueue as any
     );
   });
 
@@ -407,5 +412,34 @@ describe("WorkspaceService", () => {
         err.message === "A workspace with this name already exists." &&
         err.getStatus() === HttpStatus.CONFLICT
     );
+  });
+
+  describe("bulkInvite", () => {
+    it("adds invite job to queue when workspace exists", async () => {
+      mockPrisma.workspace.findUnique.mockResolvedValue({ id: workspaceId, name: "Kloqra" });
+      const members = [{ email: "test@example.com", name: "Test User", role: "MEMBER" as const }];
+
+      const result = await service.bulkInvite(workspaceId, members, inviterId);
+
+      expect(result).toEqual({
+        jobId: "job-1",
+        status: "queued",
+        enqueuedCount: 1
+      });
+      expect(mockQueue.add).toHaveBeenCalledWith(
+        "bulkInviteJob",
+        {
+          workspaceId,
+          members,
+          invitedByUserId: inviterId
+        },
+        { removeOnComplete: true, removeOnFail: false }
+      );
+    });
+
+    it("throws if workspace not found", async () => {
+      mockPrisma.workspace.findUnique.mockResolvedValue(null);
+      await expect(service.bulkInvite(workspaceId, [], inviterId)).rejects.toThrow(DomainException);
+    });
   });
 });

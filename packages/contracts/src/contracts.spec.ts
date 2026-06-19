@@ -43,6 +43,8 @@ import {
   dashboardReportSchema,
   isShareableWidgetId,
   memberEmailDeliverySchema,
+  bulkInviteMemberSchema,
+  bulkInviteResponseSchema,
   teamMembersOverviewSchema,
   teamActivitiesSchema,
   timesheetSubmissionsQuerySchema,
@@ -524,6 +526,37 @@ describe("contracts", () => {
     expect(ROUTES.WORKSPACES.RESEND_CREDENTIALS("ws-1", "m-1")).toBe(
       "/workspaces/ws-1/members/m-1/resend-credentials"
     );
+    expect(ROUTES.WORKSPACES.BULK_MEMBERS("ws-1")).toBe("/workspaces/ws-1/members/bulk");
+    expect(ROUTES.WORKSPACES.BULK_MEMBERS_TEMPLATE("ws-1")).toBe(
+      "/workspaces/ws-1/members/bulk/template"
+    );
+    expect(ROUTES.WORKSPACES.BULK_MEMBERS_UPLOAD("ws-1")).toBe(
+      "/workspaces/ws-1/members/bulk/upload"
+    );
+  });
+
+  it("validates bulk invite schema", () => {
+    const valid = bulkInviteMemberSchema.safeParse({
+      members: [
+        { email: "john@example.com", name: "John Doe", role: "MEMBER" },
+        { email: "admin@example.com", name: "Jane Admin", role: "ADMIN" }
+      ]
+    });
+    expect(valid.success).toBe(true);
+
+    const invalid = bulkInviteMemberSchema.safeParse({
+      members: []
+    });
+    expect(invalid.success).toBe(false);
+  });
+
+  it("validates bulk invite response schema", () => {
+    const valid = bulkInviteResponseSchema.safeParse({
+      jobId: "job-123",
+      status: "queued",
+      enqueuedCount: 2
+    });
+    expect(valid.success).toBe(true);
   });
 
   it("validates team members overview shape", () => {

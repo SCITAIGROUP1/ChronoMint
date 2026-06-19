@@ -9,12 +9,17 @@ import type {
   WorkspaceMemberPickerDto,
   WorkspaceWithRoleDto
 } from "@kloqra/contracts";
+import { InjectQueue } from "@nestjs/bullmq";
 import { Injectable, HttpStatus } from "@nestjs/common";
+import { Queue } from "bullmq";
+import * as ExcelJS from "exceljs";
+import type { Response } from "express";
 import { generateTempPassword, hashPassword } from "../../../common/auth/password.util";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { deliverMemberEmail } from "../../../common/mailer/member-email-delivery.util";
 import { MemberProvisioningMailer } from "../../../common/mailer/member-provisioning.mailer";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { QUEUES } from "../../../common/queues";
 import {
   activeWorkspaceMemberWhere,
   toWorkspaceMemberWithUser,
@@ -31,7 +36,8 @@ export class WorkspaceService {
     private prisma: PrismaService,
     private memberMailer: MemberProvisioningMailer,
     private notificationsDispatch: NotificationsDispatchService,
-    private auth: AuthService
+    private auth: AuthService,
+    @InjectQueue(QUEUES.BULK_INVITE) private readonly bulkInviteQueue: Queue
   ) {}
 
   async listForUser(userId: string): Promise<WorkspaceListItemDto[]> {
@@ -437,6 +443,110 @@ export class WorkspaceService {
         temporaryPassword
       })
     );
+  }
+
+  async generateBulkInviteTemplate(res: Response) {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Members");
+
+    sheet.columns = [
+      { header: "Email", key: "email", width: 30 },
+      { header: "Name", key: "name", width: 30 },
+      { header: "Role", key: "role", width: 15 }
+    ];
+
+    sheet.addRow({ email: "john@example.com", name: "John Doe", role: "MEMBER" });
+    sheet.addRow({ email: "admin@example.com", name: "Jane Admin", role: "ADMIN" });
+
+    for (let i = 2; i <= 500; i++) {
+      const cell = sheet.getCell(`C${i}`);
+      cell.dataValidation = {
+        type: "list",
+        allowBlank: true,
+        formulae: ['"ADMIN,MEMBER"']
+      };
+    }
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader("Content-Disposition", "attachment; filename=members_template.xlsx");
+
+    await workbook.xlsx.write(res);
+    res.end();
+  }
+
+  async parseBulkInviteExcel(buffer: Buffer): Promise<InviteMemberDto[]> {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer as any);
+
+    const sheet = workbook.worksheets[0];
+    if (!sheet) {
+      throw new DomainException(
+        ErrorCodes.VALIDATION_ERROR,
+        "Excel file is empty",
+        HttpStatus.BAD_REQUEST
+      );
+    }
+
+    const members: InviteMemberDto[] = [];
+
+    sheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return; // Skip header
+
+      const email = row.getCell(1).text?.trim();
+      const name = row.getCell(2).text?.trim();
+      const roleText = row.getCell(3).text?.trim().toUpperCase() || "MEMBER";
+
+      if (!email) return; // Skip empty rows
+
+      members.push({
+        email,
+        name: name || email.split("@")[0], // Fallback name
+        role: roleText === "ADMIN" ? "ADMIN" : "MEMBER"
+      });
+    });
+
+    if (members.length === 0) {
+      throw new DomainException(
+        ErrorCodes.VALIDATION_ERROR,
+        "No valid members found in the file",
+        HttpStatus.BAD_REQUEST
+      );
+    }
+    if (members.length > 500) {
+      throw new DomainException(
+        ErrorCodes.VALIDATION_ERROR,
+        "Maximum 500 members allowed per batch",
+        HttpStatus.BAD_REQUEST
+      );
+    }
+
+    return members;
+  }
+
+  async bulkInvite(workspaceId: string, members: InviteMemberDto[], invitedByUserId: string) {
+    const workspace = await this.prisma.workspace.findUnique({ where: { id: workspaceId } });
+    if (!workspace) {
+      throw new DomainException(ErrorCodes.NOT_FOUND, "Workspace not found", HttpStatus.NOT_FOUND);
+    }
+
+    const job = await this.bulkInviteQueue.add(
+      "bulkInviteJob",
+      {
+        workspaceId,
+        members,
+        invitedByUserId
+      },
+      { removeOnComplete: true, removeOnFail: false }
+    );
+
+    return {
+      jobId: String(job.id!),
+      status: "queued",
+      enqueuedCount: members.length
+    };
   }
 
   async getById(id: string) {

@@ -35,8 +35,22 @@ import {
   TableRow,
   TableLoadingState
 } from "@kloqra/ui";
-import { extractFieldErrorsFromMessage } from "@kloqra/web-shared";
-import { Clock, Plus, Shield, UserCheck, UserPlus, Users } from "lucide-react";
+import {
+  extractFieldErrorsFromMessage,
+  apiDownloadGet,
+  saveDownloadResponse
+} from "@kloqra/web-shared";
+import {
+  Clock,
+  Plus,
+  Shield,
+  UserCheck,
+  UserPlus,
+  Users,
+  Upload,
+  Download,
+  FileSpreadsheet
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { formatLastActive, formatWeekHours } from "./format-last-active";
@@ -95,6 +109,10 @@ export function TeamManagementPage() {
   const [inviteFieldErrors, setInviteFieldErrors] = useState<{ email?: string; name?: string }>({});
   const [inviting, setInviting] = useState(false);
   const [memberBusyId, setMemberBusyId] = useState<string | null>(null);
+
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<TeamMemberOverviewDto | null>(null);
   const [profileTarget, setProfileTarget] = useState<TeamMemberOverviewDto | null>(null);
   const [editTarget, setEditTarget] = useState<TeamMemberOverviewDto | null>(null);
@@ -157,6 +175,49 @@ export function TeamManagementPage() {
       );
     } finally {
       setInviting(false);
+    }
+  }
+
+  async function handleDownloadTemplate() {
+    try {
+      const res = await apiDownloadGet(ROUTES.WORKSPACES.BULK_MEMBERS_TEMPLATE(ws), ws);
+      await saveDownloadResponse(res, "bulk_members_template.xlsx");
+      toast.success("Template downloaded successfully.");
+    } catch {
+      toast.error("Failed to download template.");
+    }
+  }
+
+  async function handleBulkUpload(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedFile) {
+      toast.error("Please select a file to upload.");
+      return;
+    }
+    setUploading(true);
+    const formData = new FormData();
+    formData.append("file", selectedFile);
+
+    try {
+      const res = await api<{ jobId: string; status: string; enqueuedCount: number }>(
+        ROUTES.WORKSPACES.BULK_MEMBERS_UPLOAD(ws),
+        {
+          method: "POST",
+          workspaceId: ws,
+          body: formData
+        }
+      );
+      toast.success(
+        `Successfully enqueued invitation for ${res.enqueuedCount} members. They will be registered and notified shortly.`
+      );
+      setBulkOpen(false);
+      setSelectedFile(null);
+      await reload();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to import members.";
+      toast.error(message);
+    } finally {
+      setUploading(false);
     }
   }
 
@@ -332,14 +393,25 @@ export function TeamManagementPage() {
               </>
             }
             action={
-              <Button
-                type="button"
-                className="h-10 w-full gap-2 md:w-auto"
-                onClick={() => setInviteOpen(true)}
-              >
-                <Plus className="h-4 w-4" aria-hidden />
-                Add Team Member
-              </Button>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-10 w-full gap-2 sm:w-auto"
+                  onClick={() => setBulkOpen(true)}
+                >
+                  <Upload className="h-4 w-4" aria-hidden />
+                  Bulk Import
+                </Button>
+                <Button
+                  type="button"
+                  className="h-10 w-full gap-2 sm:w-auto"
+                  onClick={() => setInviteOpen(true)}
+                >
+                  <Plus className="h-4 w-4" aria-hidden />
+                  Add Team Member
+                </Button>
+              </div>
             }
           />
         }
@@ -615,6 +687,82 @@ export function TeamManagementPage() {
           </div>
           {inviteError ? <p className="text-sm text-destructive">{inviteError}</p> : null}
         </form>
+      </AppModal>
+
+      <AppModal
+        open={bulkOpen}
+        onOpenChange={(open) => {
+          setBulkOpen(open);
+          if (!open) {
+            setSelectedFile(null);
+          }
+        }}
+        title="Bulk import members"
+        description="Invite multiple team members at once using an Excel spreadsheet template."
+        icon={<Upload className="size-5" />}
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setBulkOpen(false);
+                setSelectedFile(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" form="bulk-import-form" disabled={uploading || !selectedFile}>
+              {uploading ? "Importing…" : "Import members"}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border">
+            <div className="space-y-1">
+              <h4 className="text-sm font-medium">1. Get the template</h4>
+              <p className="text-xs text-muted-foreground">
+                Download the Excel sheet with required columns.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-2 shrink-0"
+              onClick={() => void handleDownloadTemplate()}
+            >
+              <Download className="size-3.5" />
+              Template
+            </Button>
+          </div>
+
+          <form id="bulk-import-form" onSubmit={handleBulkUpload} className="space-y-4">
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium">2. Upload completed file</h4>
+              <div className="flex flex-col items-center justify-center border-2 border-dashed border-muted-foreground/20 rounded-lg p-6 hover:bg-accent/5 transition-colors cursor-pointer relative">
+                <input
+                  type="file"
+                  accept=".xlsx"
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      setSelectedFile(e.target.files[0]);
+                    }
+                  }}
+                />
+                <FileSpreadsheet className="size-10 text-muted-foreground mb-2" />
+                <p className="text-sm font-medium text-center">
+                  {selectedFile ? selectedFile.name : "Click or drag Excel template here to upload"}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Only .xlsx files up to 2MB are supported
+                </p>
+              </div>
+            </div>
+          </form>
+        </div>
       </AppModal>
     </div>
   );
