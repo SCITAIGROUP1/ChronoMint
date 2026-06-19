@@ -632,12 +632,6 @@ export class AuthService {
       );
     }
 
-    // Revoke the consumed token
-    await this.prisma.refreshToken.update({
-      where: { tokenHash: hash },
-      data: { revokedAt: new Date(), lastUsedAt: new Date() }
-    });
-
     // Build session
     const session = await this.refreshSession(stored.userId, stored.workspaceId, impersonatorId);
     if (!session) return { session: null, newRefreshToken: null };
@@ -654,6 +648,12 @@ export class AuthService {
       },
       scope
     );
+
+    // Revoke the consumed token LAST to avoid race conditions
+    await this.prisma.refreshToken.update({
+      where: { tokenHash: hash },
+      data: { revokedAt: new Date(), lastUsedAt: new Date() }
+    });
 
     return { session, newRefreshToken: newToken.raw, family: family ?? stored.family };
   }

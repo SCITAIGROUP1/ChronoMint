@@ -86,7 +86,7 @@ export function getCookieOpts(): CookieOptions {
 
 export function getClearCookieOpts(): Pick<
   CookieOptions,
-  "domain" | "sameSite" | "secure" | "path"
+  "domain" | "sameSite" | "secure" | "path" | "partitioned"
 > {
   const sameSite = resolveAuthCookieSameSite();
   const secure = resolveAuthCookieSecure(sameSite);
@@ -95,6 +95,7 @@ export function getClearCookieOpts(): Pick<
     sameSite,
     secure,
     path: "/",
+    ...(sameSite === "none" ? { partitioned: true } : {}),
     ...(domain ? { domain } : {})
   };
 }
