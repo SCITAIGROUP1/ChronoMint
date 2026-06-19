@@ -96,14 +96,32 @@ export class CategoriesService {
 
   async remove(workspaceId: string, id: string) {
     const existing = await this.assertOwned(workspaceId, id);
-    const taskCount = await this.prisma.task.count({ where: { categoryId: existing.id } });
-    if (taskCount > 0) {
+    if (existing.name === "Uncategorized") {
       throw new DomainException(
         ErrorCodes.VALIDATION_ERROR,
-        "Cannot delete a category that still has tasks. Move or delete the tasks first.",
-        HttpStatus.CONFLICT
+        "Cannot delete the default Uncategorized category.",
+        HttpStatus.BAD_REQUEST
       );
     }
+
+    let uncategorized = await this.prisma.category.findFirst({
+      where: { workspaceId, name: "Uncategorized" }
+    });
+    if (!uncategorized) {
+      uncategorized = await this.prisma.category.create({
+        data: {
+          workspaceId,
+          name: "Uncategorized",
+          description: "System default category for uncategorized tasks."
+        }
+      });
+    }
+
+    await this.prisma.task.updateMany({
+      where: { categoryId: existing.id },
+      data: { categoryId: uncategorized.id }
+    });
+
     await this.prisma.category.delete({ where: { id } });
     return { ok: true };
   }

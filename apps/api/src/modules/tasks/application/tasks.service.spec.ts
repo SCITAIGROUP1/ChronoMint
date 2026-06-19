@@ -27,7 +27,11 @@ function makePrisma() {
       findUnique: vi.fn() as AnyMock
     },
     category: {
-      findFirst: vi.fn() as AnyMock
+      findFirst: vi.fn() as AnyMock,
+      create: vi.fn() as AnyMock
+    },
+    timeLog: {
+      updateMany: vi.fn() as AnyMock
     },
     $transaction: vi.fn() as AnyMock
   };
@@ -373,6 +377,44 @@ describe("TasksService", () => {
       prisma.task.findFirst.mockResolvedValue(null);
       await expect(service.remove("w1", "t-missing")).rejects.toThrow(/task not found/i);
       expect(prisma.task.delete).not.toHaveBeenCalled();
+    });
+
+    it("blocks deletion of Uncategorized Task", async () => {
+      prisma.task.findFirst.mockResolvedValue({
+        id: "t1",
+        projectId: "p1",
+        taskName: "Uncategorized Task"
+      });
+      await expect(service.remove("w1", "t1")).rejects.toThrow(
+        /Cannot delete the default Uncategorized task/i
+      );
+      expect(prisma.task.delete).not.toHaveBeenCalled();
+    });
+
+    it("moves time logs to Uncategorized Task in same project and deletes original", async () => {
+      prisma.task.findFirst
+        .mockResolvedValueOnce({
+          id: "t-deleted",
+          projectId: "p1",
+          taskName: "Original Task"
+        })
+        .mockResolvedValueOnce({
+          id: "uncat-task-id",
+          projectId: "p1",
+          taskName: "Uncategorized Task"
+        });
+      prisma.category.findFirst.mockResolvedValue({ id: "uncat-cat-id", name: "Uncategorized" });
+      prisma.timeLog.updateMany.mockResolvedValue({ count: 3 });
+      prisma.task.delete.mockResolvedValue({ id: "t-deleted" });
+
+      const result = await service.remove("w1", "t-deleted");
+
+      expect(prisma.timeLog.updateMany).toHaveBeenCalledWith({
+        where: { taskId: "t-deleted" },
+        data: { taskId: "uncat-task-id" }
+      });
+      expect(prisma.task.delete).toHaveBeenCalledWith({ where: { id: "t-deleted" } });
+      expect(result).toEqual({ ok: true });
     });
   });
 });

@@ -256,6 +256,49 @@ export class TasksService {
 
   async remove(workspaceId: string, id: string) {
     const task = await this.assertWorkspaceTask(workspaceId, id);
+    if (task.taskName === "Uncategorized Task") {
+      throw new DomainException(
+        ErrorCodes.VALIDATION_ERROR,
+        "Cannot delete the default Uncategorized task.",
+        HttpStatus.BAD_REQUEST
+      );
+    }
+
+    // Find or create default Uncategorized category
+    let uncategorizedCategory = await this.prisma.category.findFirst({
+      where: { workspaceId, name: "Uncategorized" }
+    });
+    if (!uncategorizedCategory) {
+      uncategorizedCategory = await this.prisma.category.create({
+        data: {
+          workspaceId,
+          name: "Uncategorized",
+          description: "System default category for uncategorized tasks."
+        }
+      });
+    }
+
+    // Find or create Uncategorized Task in the same project
+    let uncategorizedTask = await this.prisma.task.findFirst({
+      where: { projectId: task.projectId, taskName: "Uncategorized Task" }
+    });
+    if (!uncategorizedTask) {
+      uncategorizedTask = await this.prisma.task.create({
+        data: {
+          projectId: task.projectId,
+          categoryId: uncategorizedCategory.id,
+          taskName: "Uncategorized Task",
+          billableDefault: true
+        }
+      });
+    }
+
+    // Update all TimeLogs to point to the Uncategorized Task
+    await this.prisma.timeLog.updateMany({
+      where: { taskId: task.id },
+      data: { taskId: uncategorizedTask.id }
+    });
+
     await this.prisma.task.delete({ where: { id: task.id } });
     return { ok: true };
   }
