@@ -309,8 +309,8 @@ export function ExportQuickFlow({
         ))}
       </div>
 
-      <div className="grid gap-8 @min-[1280px]/shell:grid-cols-12">
-        <div className="space-y-6 @min-[1280px]/shell:col-span-8">
+      <div className="grid gap-8 @min-[1024px]/shell:grid-cols-12">
+        <div className="space-y-6 @min-[1024px]/shell:col-span-8">
           {step === 0 ? (
             <Card>
               <CardHeader className="pb-4">
@@ -503,8 +503,8 @@ export function ExportQuickFlow({
           </div>
         </div>
 
-        <div className="@min-[1280px]/shell:col-span-4">
-          <div className="@min-[1280px]/shell:sticky @min-[1280px]/shell:top-6">
+        <div className="@min-[1024px]/shell:col-span-4">
+          <div className="@min-[1024px]/shell:sticky @min-[1024px]/shell:top-6">
             <ExportDownloadPanel
               workspaceId={workspaceId}
               workspaceSlug={workspaceSlug}

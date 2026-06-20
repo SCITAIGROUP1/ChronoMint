@@ -297,7 +297,7 @@ export function ExportScopeFilters({
             </label>
           ) : null}
 
-          <div className="flex items-center justify-between border-t border-border/40 pt-3 mt-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-t border-border/40 pt-3 mt-4">
             <div className="flex flex-wrap gap-2">
               {chips.map((chip) => (
                 <Badge key={chip.key} variant="secondary" className="gap-1 pr-1 font-normal">
