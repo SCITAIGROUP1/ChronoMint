@@ -24,7 +24,7 @@ import {
   type TimeEntryDraft
 } from "../timesheet/time-entry-draft";
 import { isTimeEntryLocked, LOCKED_ENTRY_MESSAGE } from "./entry-approval-status";
-import { groupLogsByWeek } from "./group-logs-by-week";
+import { buildWeekGroupsForRange } from "./group-logs-by-week";
 import type { BillabilityFilter } from "./time-tracker-filters-panel";
 import { TimeEntryDialog, TimeTrackerWeekList } from "./time-tracker-lazy";
 import {
@@ -174,8 +174,8 @@ export function TimeTrackerPage() {
   }, [filterResetKey]);
 
   const allWeekGroups = useMemo(
-    () => groupLogsByWeek(logs, timezone, weekStartPref),
-    [logs, timezone, weekStartPref]
+    () => buildWeekGroupsForRange(rangeFrom, rangeTo, logs, timezone, weekStartPref),
+    [rangeFrom, rangeTo, logs, timezone, weekStartPref]
   );
 
   const totalWeekCount = allWeekGroups.length;

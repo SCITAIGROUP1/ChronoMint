@@ -2,7 +2,16 @@
 
 import { ROUTES } from "@kloqra/contracts";
 import type { TimesheetPeriodDto } from "@kloqra/contracts";
-import { Card, CardContent, CardHeader, CardTitle, Button, Input, Label } from "@kloqra/ui";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Button,
+  Input,
+  Label,
+  formatTimesheetSubmittedMessage
+} from "@kloqra/ui";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
@@ -67,7 +76,9 @@ export function TimesheetStatusCard({
           note: note.trim() || undefined
         })
       });
-      toast.success("Timesheet submitted for approval.");
+      toast.success(
+        formatTimesheetSubmittedMessage(statusInfo.periodStart, statusInfo.approvalPeriod)
+      );
       onSubmitted();
     } catch (e) {
       const message = e instanceof Error ? e.message : "Failed to submit timesheet";
