@@ -350,7 +350,9 @@ async function seedProjects(
         budgetHours: projectSpec.budgetHours,
         isActive: true,
         timesheetApprovalEnabled: projectSpec.timesheetApproval ?? false,
-        timesheetApprovalPeriod: projectSpec.timesheetApproval ? "weekly" : null
+        timesheetApprovalPeriod: projectSpec.timesheetApproval ? "weekly" : null,
+        timesheetApprovalEnabledAt: projectSpec.timesheetApproval ? new Date() : null,
+        timesheetApprovalPeriodEffectiveAt: projectSpec.timesheetApproval ? new Date() : null
       }
     });
 
@@ -1017,6 +1019,7 @@ async function seedTimesheetPeriods(
             projectId: ctx.project.id,
             periodStart,
             periodEnd,
+            approvalPeriod: "weekly",
             status,
             submittedAt: status !== "DRAFT" ? periodEnd : null,
             reviewedAt: status === "APPROVED" || status === "REJECTED" ? periodEnd : null,

@@ -118,6 +118,14 @@ describe("contracts", () => {
     }
   });
 
+  it("validates timesheet submissions query lookbackWeeks default", () => {
+    const r = timesheetSubmissionsQuerySchema.safeParse({});
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.lookbackWeeks).toBe(26);
+    }
+  });
+
   it("requires a review note when rejecting a timesheet", () => {
     expect(approveTimesheetSchema.safeParse({}).success).toBe(true);
     expect(rejectTimesheetSchema.safeParse({}).success).toBe(false);
