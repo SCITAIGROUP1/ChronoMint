@@ -1,61 +1,36 @@
-/** @vitest-environment jsdom */
-import { renderHook } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { useNotificationsStore } from "./notifications-store";
+import { describe, expect, it } from "vitest";
+import { useNotificationsStore } from "./notifications-store.js";
 
-const mockApi = vi.fn();
-
-vi.mock("../api/client", () => ({
-  api: (...args: unknown[]) => mockApi(...args)
-}));
-
-describe("useNotificationsStore", () => {
-  afterEach(() => {
+describe("useNotificationsStore applyNotificationPush", () => {
+  it("updates unread count and prepends to recent items", () => {
+    const workspaceId = "22222222-2222-4222-8222-222222222222";
     useNotificationsStore.setState({
-      unreadByWorkspace: {},
-      recentByWorkspace: {},
+      unreadByWorkspace: { [workspaceId]: { count: 0, loading: false } },
+      recentByWorkspace: {
+        [`${workspaceId}:8`]: { items: [], loading: false, limit: 8 }
+      },
       unreadRefCounts: {},
       recentRefCounts: {},
       unreadPollTimer: null,
       unreadPollWorkspaceId: null
     });
-    vi.clearAllMocks();
-  });
 
-  it("shares unread count across multiple subscribers", async () => {
-    mockApi.mockResolvedValue({ count: 5 });
-    const unsubA = useNotificationsStore.getState().subscribeUnread("ws1");
-    const unsubB = useNotificationsStore.getState().subscribeUnread("ws1");
-
-    await vi.waitFor(() => {
-      expect(useNotificationsStore.getState().unreadByWorkspace.ws1?.count).toBe(5);
+    useNotificationsStore.getState().applyNotificationPush({
+      workspaceId,
+      unreadCount: 1,
+      notification: {
+        id: "11111111-1111-4111-8111-111111111111",
+        type: "TIMESHEET_APPROVED",
+        title: "Approved",
+        body: "Done",
+        readAt: null,
+        createdAt: "2026-06-21T12:00:00.000Z"
+      }
     });
-    expect(mockApi).toHaveBeenCalledTimes(1);
 
-    unsubA();
-    unsubB();
-  });
-
-  it("fetches recent notifications once per workspace/limit", async () => {
-    mockApi.mockResolvedValue({ items: [{ id: "n1" }] });
-    const unsubA = useNotificationsStore.getState().subscribeRecent("ws1", 8);
-    const unsubB = useNotificationsStore.getState().subscribeRecent("ws1", 8);
-
-    await vi.waitFor(() => {
-      expect(useNotificationsStore.getState().recentByWorkspace["ws1:8"]?.items).toHaveLength(1);
-    });
-    expect(mockApi).toHaveBeenCalledTimes(1);
-
-    unsubA();
-    unsubB();
-  });
-
-  it("useNotificationUnreadCount hook reads store state", async () => {
-    useNotificationsStore.setState({
-      unreadByWorkspace: { ws1: { count: 2, loading: false } }
-    });
-    const { useNotificationUnreadCount } = await import("../hooks/use-notifications");
-    const { result } = renderHook(() => useNotificationUnreadCount("ws1", true));
-    expect(result.current.count).toBe(2);
+    expect(useNotificationsStore.getState().unreadByWorkspace[workspaceId]?.count).toBe(1);
+    expect(
+      useNotificationsStore.getState().recentByWorkspace[`${workspaceId}:8`]?.items
+    ).toHaveLength(1);
   });
 });

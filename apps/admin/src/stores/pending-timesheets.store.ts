@@ -28,6 +28,7 @@ type PendingTimesheetsStoreState = {
   fetchPending: (workspaceId: string, filterKey: string) => Promise<void>;
   subscribe: (workspaceId: string, filterKey: string) => () => void;
   removeItem: (workspaceId: string, filterKey: string, id: string) => void;
+  refreshWorkspace: (workspaceId: string) => void;
 };
 
 function cacheKey(workspaceId: string, filterKey: string) {
@@ -122,6 +123,16 @@ export const usePendingTimesheetsStore = create<PendingTimesheetsStoreState>((se
         }
       };
     });
+  },
+
+  refreshWorkspace: (workspaceId) => {
+    const state = get();
+    for (const key of Object.keys(state.refCounts)) {
+      if (!key.startsWith(`${workspaceId}:`)) continue;
+      if ((state.refCounts[key] ?? 0) <= 0) continue;
+      const filterKey = key.slice(workspaceId.length + 1);
+      void get().fetchPending(workspaceId, filterKey);
+    }
   }
 }));
 

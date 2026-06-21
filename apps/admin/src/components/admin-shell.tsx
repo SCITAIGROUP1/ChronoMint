@@ -7,6 +7,7 @@ import {
   BrandMark,
   logoutSession,
   ShellHeaderActions,
+  useNotificationSocket,
   useNotificationUnreadCount,
   WorkspaceSwitcher
 } from "@kloqra/web-shared";
@@ -15,6 +16,7 @@ import { useEffect, useMemo } from "react";
 import { ADMIN_NAV_ITEMS } from "@/config/admin-nav";
 import { usePendingTimesheetsBadgeCount } from "@/features/approvals/use-pending-timesheets";
 import { GlobalSearchShell } from "@/features/global-search/global-search-shell";
+import { useAdminWorkspaceDataSync } from "@/lib/workspace-data-sync";
 import { useSessionStore } from "@/stores/session.store";
 import { useWorkspacesStore } from "@/stores/workspaces.store";
 
@@ -23,6 +25,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const session = useSessionStore((s) => s.session);
   const setWorkspaces = useWorkspacesStore((s) => s.setWorkspaces);
   const wsId = session?.workspaceId ?? "";
+  useNotificationSocket(wsId, Boolean(wsId && session?.workspaceRole === "ADMIN"));
+  useAdminWorkspaceDataSync(wsId);
   const { count: notificationUnreadCount } = useNotificationUnreadCount(
     wsId,
     Boolean(wsId && session?.workspaceRole === "ADMIN")

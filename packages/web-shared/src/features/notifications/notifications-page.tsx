@@ -11,7 +11,8 @@ import {
   TablePagination,
   cn
 } from "@kloqra/ui";
-import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useMemo, useState, type KeyboardEvent } from "react";
 import {
   formatNotificationTimeAgo,
   markAllNotificationsRead,
@@ -19,6 +20,7 @@ import {
   useNotificationUnreadCount,
   usePaginatedNotifications
 } from "../../hooks/use-notifications";
+import { activateNotification } from "./notification-actions";
 import {
   NotificationDetails,
   iconForNotificationType,
@@ -38,11 +40,18 @@ function NotificationRow({
   workspaceId: string;
   onUpdated: () => void;
 }) {
+  const router = useRouter();
   const Icon = iconForType(item.type, item.title);
   const isUnread = !item.readAt;
+  const href = item.metadata?.href;
 
   async function setRead(read: boolean) {
     await markNotificationRead(workspaceId, item.id, read);
+    onUpdated();
+  }
+
+  async function handleActivate() {
+    await activateNotification(workspaceId, item, href ? router.push.bind(router) : undefined);
     onUpdated();
   }
 
@@ -53,8 +62,22 @@ function NotificationRow({
         "transition-[background-color,border-color,opacity] duration-[var(--motion-base)] ease-[var(--motion-ease-out)]",
         isUnread && "border-primary/30",
         !isUnread && "opacity-90",
+        href && "cursor-pointer hover:border-primary/40 hover:bg-muted/30",
         notificationVariantClass(item.metadata)
       )}
+      {...(href
+        ? {
+            role: "button" as const,
+            tabIndex: 0,
+            onClick: () => void handleActivate(),
+            onKeyDown: (event: KeyboardEvent) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                void handleActivate();
+              }
+            }
+          }
+        : {})}
     >
       <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
         <Icon className="size-4" aria-hidden />
@@ -74,6 +97,11 @@ function NotificationRow({
           ) : null}
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
+          {href ? (
+            <Button type="button" size="sm" onClick={() => void handleActivate()}>
+              {item.metadata?.ctaLabel ?? "Open"}
+            </Button>
+          ) : null}
           {isUnread ? (
             <Button type="button" size="sm" variant="outline" onClick={() => void setRead(true)}>
               Mark read

@@ -1,4 +1,5 @@
 import { NestFactory } from "@nestjs/core";
+import { IoAdapter } from "@nestjs/platform-socket.io";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
@@ -26,6 +27,7 @@ function isAllowedCorsOrigin(origin: string | undefined): boolean {
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.useWebSocketAdapter(new IoAdapter(app));
   app.useGlobalFilters(new SentryFilter());
 
   // ── Security ─────────────────────────────────────────────────────────────

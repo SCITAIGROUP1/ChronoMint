@@ -281,4 +281,15 @@ describe("notification templates", () => {
     expect(rendered.body).toBe("Synced 5 issues");
     expect(rendered.metadata.details?.[0]?.value).toBe("Website Redesign");
   });
+
+  it("renders approval settings changed template", () => {
+    const rendered = buildNotificationTemplate("project.approvalSettingsChanged", {
+      projectName: "Website Redesign",
+      projectId: UUID_2,
+      changeSummary: "Timesheet approval enabled (weekly)"
+    });
+    expect(rendered.type).toBe("TIMESHEET_STATUS");
+    expect(rendered.metadata.href).toContain("/submissions?projectId=");
+    expect(rendered.body).toContain("Timesheet approval enabled (weekly)");
+  });
 });

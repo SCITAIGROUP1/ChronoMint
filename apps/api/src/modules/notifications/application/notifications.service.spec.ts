@@ -1,7 +1,7 @@
 import { ErrorCodes } from "@kloqra/contracts";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DomainException } from "../../../common/errors/domain.exception";
-import { NotificationsService } from "./notifications.service";
+import { NotificationsService } from "./notifications.service.js";
 
 describe("NotificationsService", () => {
   const prisma = {
@@ -16,10 +16,17 @@ describe("NotificationsService", () => {
   };
 
   let service: NotificationsService;
+  let publish: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    service = new NotificationsService(prisma as never);
+    publish = vi.fn().mockResolvedValue(undefined);
+    service = new NotificationsService(
+      prisma as never,
+      {
+        publishNotificationCreated: publish
+      } as never
+    );
   });
 
   it("lists notifications with pagination", async () => {
@@ -43,6 +50,17 @@ describe("NotificationsService", () => {
     expect(result.items[0]?.readAt).toBeNull();
     expect(result.total).toBe(1);
     expect(result.items[0]).not.toHaveProperty("workspaceId");
+  });
+
+  it("lists unread-only when unreadOnly is true", async () => {
+    prisma.notification.count.mockResolvedValue(0);
+    prisma.notification.findMany.mockResolvedValue([]);
+
+    await service.list("u1", "ws1", { page: 1, limit: 20, unreadOnly: true });
+
+    expect(prisma.notification.count).toHaveBeenCalledWith({
+      where: { userId: "u1", workspaceId: "ws1", readAt: null }
+    });
   });
 
   it("returns unread count", async () => {
@@ -101,5 +119,37 @@ describe("NotificationsService", () => {
   it("marks all notifications read", async () => {
     prisma.notification.updateMany.mockResolvedValue({ count: 4 });
     await expect(service.markAllRead("u1", "ws1", {})).resolves.toEqual({ updated: 4 });
+  });
+
+  it("publishes realtime event after createInApp", async () => {
+    const createdAt = new Date("2026-06-13T12:00:00.000Z");
+    prisma.notification.create.mockResolvedValue({
+      id: "n-new",
+      workspaceId: "ws1",
+      type: "TIMESHEET_APPROVED",
+      title: "Approved",
+      body: "Done",
+      metadata: { href: "/submissions" },
+      readAt: null,
+      createdAt
+    });
+    prisma.notification.count.mockResolvedValue(2);
+
+    await service.createInApp({
+      userId: "u1",
+      workspaceId: "ws1",
+      type: "TIMESHEET_APPROVED",
+      title: "Approved",
+      body: "Done",
+      metadata: { href: "/submissions" }
+    });
+
+    await vi.waitFor(() => {
+      expect(publish).toHaveBeenCalledWith("u1", {
+        notification: expect.objectContaining({ id: "n-new" }),
+        workspaceId: "ws1",
+        unreadCount: 2
+      });
+    });
   });
 });

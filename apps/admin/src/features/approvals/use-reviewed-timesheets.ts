@@ -9,6 +9,7 @@ import type {
 import { buildApprovalsFilterQueryString } from "@kloqra/web-shared";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { useRegisterApprovalsRefresh } from "./use-approvals-refresh-registration";
 import { api } from "@/lib/api";
 
 export function useReviewedTimesheets(
@@ -44,6 +45,8 @@ export function useReviewedTimesheets(
       void refresh();
     }
   }, [enabled, workspaceId, refresh]);
+
+  useRegisterApprovalsRefresh(refresh);
 
   return { items, loading, refresh, count: items.length };
 }

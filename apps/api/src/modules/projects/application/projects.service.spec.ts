@@ -8,6 +8,10 @@ describe("ProjectsService", () => {
   let service: ProjectsService;
   let mockPrisma: any;
   let mockAccess: any;
+  let mockDispatch: {
+    notify: ReturnType<typeof vi.fn>;
+    notifyWorkspaceAdmins: ReturnType<typeof vi.fn>;
+  };
 
   const workspaceId = "ws-1";
   const userId = "user-1";
@@ -42,6 +46,9 @@ describe("ProjectsService", () => {
         findUnique: vi.fn(),
         create: vi.fn()
       },
+      teamMember: {
+        findMany: vi.fn().mockResolvedValue([])
+      },
       userProjectColor: {
         findMany: vi.fn().mockResolvedValue([])
       }
@@ -50,10 +57,11 @@ describe("ProjectsService", () => {
       accessibleProjectIds: vi.fn(),
       assertCanAccessProject: vi.fn()
     };
-    service = new ProjectsService(mockPrisma, mockAccess, {
+    mockDispatch = {
       notify: vi.fn().mockResolvedValue(undefined),
       notifyWorkspaceAdmins: vi.fn().mockResolvedValue(undefined)
-    } as never);
+    };
+    service = new ProjectsService(mockPrisma, mockAccess, mockDispatch as never);
   });
 
   it("list returns empty paginated result when user has no accessible projects", async () => {
@@ -280,5 +288,51 @@ describe("ProjectsService", () => {
       },
       data: { status: "WAIVED" }
     });
+  });
+
+  it("notifies project members when approval is disabled", async () => {
+    mockPrisma.project.findFirst.mockResolvedValue({
+      id: "p1",
+      workspaceId,
+      name: "Alpha",
+      color: "#236bfe",
+      clientName: null,
+      budgetHours: null,
+      isActive: true,
+      timesheetApprovalEnabled: true,
+      timesheetApprovalPeriod: "weekly",
+      timesheetApprovalEnabledAt: new Date("2025-01-01T00:00:00.000Z"),
+      createdAt: new Date("2025-01-01T00:00:00.000Z")
+    });
+    mockPrisma.project.update.mockResolvedValue({
+      id: "p1",
+      workspaceId,
+      name: "Alpha",
+      color: "#236bfe",
+      clientName: null,
+      budgetHours: null,
+      isActive: true,
+      timesheetApprovalEnabled: false,
+      timesheetApprovalPeriod: null,
+      timesheetApprovalEnabledAt: null,
+      createdAt: new Date("2025-01-01T00:00:00.000Z"),
+      workspace: { name: "Kloqra" }
+    });
+    mockPrisma.teamMember.findMany.mockResolvedValue([{ userId: "member-1" }]);
+
+    await service.update(workspaceId, "p1", { timesheetApprovalEnabled: false });
+
+    expect(mockDispatch.notify).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "member-1",
+        workspaceId,
+        templateId: "project.approvalSettingsChanged",
+        context: expect.objectContaining({
+          projectName: "Alpha",
+          projectId: "p1",
+          changeSummary: "Timesheet approval disabled"
+        })
+      })
+    );
   });
 });

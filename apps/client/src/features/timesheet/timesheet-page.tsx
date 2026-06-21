@@ -28,7 +28,9 @@ import {
   api as sharedApi,
   buildMemberSubmissionsHref,
   fetchListItems,
-  parseMemberTimesheetSearch
+  parseMemberTimesheetSearch,
+  WORKSPACE_DATA_STALE_EVENT,
+  type WorkspaceDataStaleDetail
 } from "@kloqra/web-shared";
 import { Clock, Eye, EyeOff, Lock, X } from "lucide-react";
 import Link from "next/link";
@@ -267,6 +269,19 @@ export function TimesheetPage() {
   useEffect(() => {
     void refreshSubmissions();
   }, [refreshSubmissions]);
+
+  useEffect(() => {
+    if (!ws) return;
+    const onStale = (event: Event) => {
+      const detail = (event as CustomEvent<WorkspaceDataStaleDetail>).detail;
+      if (!detail || detail.workspaceId !== ws) return;
+      if (detail.scopes.includes("submissions") || detail.scopes.includes("timesheet")) {
+        void refreshSubmissions();
+      }
+    };
+    window.addEventListener(WORKSPACE_DATA_STALE_EVENT, onStale);
+    return () => window.removeEventListener(WORKSPACE_DATA_STALE_EVENT, onStale);
+  }, [ws, refreshSubmissions]);
 
   const projectForTask = useCallback(
     (taskId: string) => {

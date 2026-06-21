@@ -15,6 +15,7 @@ export const notificationTemplateIdSchema = z.enum([
   "project.assigned",
   "project.unassigned",
   "project.deactivated",
+  "project.approvalSettingsChanged",
   "task.assigned",
   "task.unassigned",
   "timesheet.submitted",
@@ -61,6 +62,12 @@ export const projectUnassignedContextSchema = z.object({
 export const projectDeactivatedContextSchema = z.object({
   projectName: z.string().min(1).max(120),
   projectId: uuidSchema
+});
+
+export const projectApprovalSettingsChangedContextSchema = z.object({
+  projectName: z.string().min(1).max(120),
+  projectId: uuidSchema,
+  changeSummary: z.string().min(1).max(200)
 });
 
 export const taskAssignedContextSchema = z.object({
@@ -193,6 +200,7 @@ const TEMPLATE_CONTEXT_SCHEMAS = {
   "project.assigned": projectAssignedContextSchema,
   "project.unassigned": projectUnassignedContextSchema,
   "project.deactivated": projectDeactivatedContextSchema,
+  "project.approvalSettingsChanged": projectApprovalSettingsChangedContextSchema,
   "task.assigned": taskAssignedContextSchema,
   "task.unassigned": taskAssignedContextSchema,
   "timesheet.submitted": timesheetSubmittedContextSchema,
@@ -249,6 +257,10 @@ const TEMPLATE_META: Record<
   "project.deactivated": {
     type: NotificationType.PROJECT_DEACTIVATED,
     preferenceKey: "projectAssignment"
+  },
+  "project.approvalSettingsChanged": {
+    type: NotificationType.TIMESHEET_STATUS,
+    preferenceKey: "timesheetStatus"
   },
   "task.assigned": { type: NotificationType.TASK_ASSIGNMENT, preferenceKey: "taskAssignment" },
   "task.unassigned": { type: NotificationType.TASK_UNASSIGNED, preferenceKey: "taskAssignment" },
@@ -481,6 +493,27 @@ function renderTemplate(
           variant: "warning",
           ctaLabel: "View projects",
           details: [{ label: "Project", value: c.projectName }]
+        }
+      };
+    }
+    case "project.approvalSettingsChanged": {
+      const c = context as NotificationTemplateContextMap["project.approvalSettingsChanged"];
+      return {
+        type,
+        preferenceKey,
+        title: "Approval settings updated",
+        body: `${c.changeSummary} on ${c.projectName}.`,
+        emailSubject: subjectPrefix(`Approval settings — ${c.projectName}`),
+        preheader: c.changeSummary,
+        metadata: {
+          href: `/submissions?projectId=${encodeURIComponent(c.projectId)}`,
+          projectId: c.projectId,
+          variant: "info",
+          ctaLabel: "View submissions",
+          details: [
+            { label: "Project", value: c.projectName },
+            { label: "Change", value: c.changeSummary }
+          ]
         }
       };
     }

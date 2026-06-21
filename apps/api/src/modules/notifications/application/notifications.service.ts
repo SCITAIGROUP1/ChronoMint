@@ -12,6 +12,7 @@ import type { Prisma } from "@prisma/client";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { paginationSkipTake, toPaginatedResponse } from "../../../common/http/pagination.util";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { NotificationsRealtimeService } from "./notifications-realtime.service.js";
 
 type NotificationRow = {
   id: string;
@@ -28,7 +29,10 @@ type NotificationRow = {
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationsRealtime: NotificationsRealtimeService
+  ) {}
 
   toDto(row: NotificationRow): NotificationDto {
     const metadata =
@@ -49,18 +53,30 @@ export class NotificationsService {
 
   private trimMetadata(metadata: NotificationDto["metadata"]): NotificationDto["metadata"] {
     if (!metadata) return undefined;
-    const { variant, details } = metadata;
+    const { variant, details, href, projectId, periodId, taskId, ctaLabel } = metadata;
     return {
       ...(variant ? { variant } : {}),
-      ...(details ? { details } : {})
+      ...(details ? { details } : {}),
+      ...(href ? { href } : {}),
+      ...(projectId ? { projectId } : {}),
+      ...(periodId ? { periodId } : {}),
+      ...(taskId ? { taskId } : {}),
+      ...(ctaLabel ? { ctaLabel } : {})
     };
   }
 
-  async list(userId: string, workspaceId: string, query: ListNotificationsQuery) {
+  async list(
+    userId: string,
+    workspaceId: string,
+    query:
+      | ListNotificationsQuery
+      | ({ page: number; limit: number } & Partial<ListNotificationsQuery>)
+  ) {
+    const unreadOnly = query.unreadOnly === true;
     const where = {
       userId,
       workspaceId,
-      ...(query.unreadOnly ? { readAt: null } : {})
+      ...(unreadOnly ? { readAt: null } : {})
     };
 
     const [total, rows] = await Promise.all([
@@ -142,7 +158,18 @@ export class NotificationsService {
         metadata: (input.metadata ?? {}) as Prisma.InputJsonValue
       }
     });
-    return this.toDto(row);
+    const dto = this.toDto(row);
+    const unreadCount = await this.prisma.notification.count({
+      where: { userId: input.userId, workspaceId: input.workspaceId, readAt: null }
+    });
+    void this.notificationsRealtime
+      .publishNotificationCreated(input.userId, {
+        notification: dto,
+        workspaceId: input.workspaceId,
+        unreadCount
+      })
+      .catch(() => undefined);
+    return dto;
   }
 
   @Cron("0 3 * * *") // 3 AM daily

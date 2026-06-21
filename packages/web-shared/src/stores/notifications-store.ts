@@ -1,6 +1,6 @@
 "use client";
 
-import { ROUTES, type NotificationDto } from "@kloqra/contracts";
+import { ROUTES, type NotificationCreatedEvent, type NotificationDto } from "@kloqra/contracts";
 import { create } from "zustand";
 import { api } from "../api/client";
 
@@ -18,6 +18,7 @@ type NotificationsStoreState = {
   recentRefCounts: Record<string, number>;
   unreadPollTimer: ReturnType<typeof setInterval> | null;
   unreadPollWorkspaceId: string | null;
+  socketConnected: boolean;
 
   refreshUnread: (workspaceId: string) => Promise<void>;
   refreshRecent: (workspaceId: string, limit: number) => Promise<void>;
@@ -28,7 +29,29 @@ type NotificationsStoreState = {
   ) => void;
   subscribeUnread: (workspaceId: string) => () => void;
   subscribeRecent: (workspaceId: string, limit: number) => () => void;
+  applyNotificationPush: (payload: NotificationCreatedEvent) => void;
+  setSocketConnected: (connected: boolean) => void;
 };
+
+function syncUnreadPoll(
+  get: () => NotificationsStoreState,
+  set: (partial: Partial<NotificationsStoreState>) => void
+): void {
+  const { unreadPollTimer, unreadPollWorkspaceId, socketConnected, unreadRefCounts } = get();
+  const workspaceId = unreadPollWorkspaceId ?? Object.keys(unreadRefCounts)[0];
+  const hasSubscribers = Object.keys(unreadRefCounts).length > 0;
+
+  if (unreadPollTimer) {
+    clearInterval(unreadPollTimer);
+    set({ unreadPollTimer: null });
+  }
+
+  // Live socket carries pushes — poll only while disconnected (safety net).
+  if (!hasSubscribers || !workspaceId || socketConnected) return;
+
+  const timer = setInterval(() => void get().refreshUnread(workspaceId), UNREAD_POLL_MS);
+  set({ unreadPollTimer: timer, unreadPollWorkspaceId: workspaceId });
+}
 
 function recentKey(workspaceId: string, limit: number) {
   return `${workspaceId}:${limit}`;
@@ -72,6 +95,12 @@ export const useNotificationsStore = create<NotificationsStoreState>((set, get) 
   recentRefCounts: {},
   unreadPollTimer: null,
   unreadPollWorkspaceId: null,
+  socketConnected: false,
+
+  setSocketConnected: (connected) => {
+    set({ socketConnected: connected });
+    syncUnreadPoll(get, set);
+  },
 
   refreshUnread: async (workspaceId) => {
     if (!workspaceId) return;
@@ -170,9 +199,8 @@ export const useNotificationsStore = create<NotificationsStoreState>((set, get) 
       void get().refreshUnread(workspaceId);
     }
 
-    if (!get().unreadPollTimer) {
-      const timer = setInterval(() => void get().refreshUnread(workspaceId), UNREAD_POLL_MS);
-      set({ unreadPollTimer: timer, unreadPollWorkspaceId: workspaceId });
+    if (!get().unreadPollTimer && !get().socketConnected) {
+      syncUnreadPoll(get, set);
       attachGlobalListeners(
         (ws) => void get().refreshUnread(ws),
         () => get().unreadPollWorkspaceId
@@ -220,5 +248,32 @@ export const useNotificationsStore = create<NotificationsStoreState>((set, get) 
       }
       set({ recentRefCounts: nextRefCounts });
     };
+  },
+
+  applyNotificationPush: (payload) => {
+    const { workspaceId, unreadCount, notification } = payload;
+    set((state) => {
+      const nextUnread = {
+        ...state.unreadByWorkspace,
+        [workspaceId]: { count: unreadCount, loading: false }
+      };
+
+      const nextRecent = { ...state.recentByWorkspace };
+      for (const key of Object.keys(nextRecent)) {
+        if (!key.startsWith(`${workspaceId}:`)) continue;
+        const entry = nextRecent[key];
+        if (!entry) continue;
+        const exists = entry.items.some((item) => item.id === notification.id);
+        nextRecent[key] = {
+          ...entry,
+          items: exists ? entry.items : [notification, ...entry.items].slice(0, entry.limit)
+        };
+      }
+
+      return {
+        unreadByWorkspace: nextUnread,
+        recentByWorkspace: nextRecent
+      };
+    });
   }
 }));

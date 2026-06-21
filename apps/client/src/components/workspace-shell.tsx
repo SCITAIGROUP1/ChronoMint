@@ -7,6 +7,7 @@ import {
   BrandMark,
   logoutSession,
   ShellHeaderActions,
+  useNotificationSocket,
   useNotificationUnreadCount,
   WorkspaceSwitcher
 } from "@kloqra/web-shared";
@@ -26,6 +27,7 @@ import { AssistantWidget } from "@/features/assistant/assistant-widget";
 import { OnboardingProvider, useOnboarding } from "@/features/onboarding/onboarding-provider";
 import { useMySubmissionsBadgeCount } from "@/features/submissions/use-my-submissions";
 import { api } from "@/lib/api";
+import { useClientWorkspaceDataSync } from "@/lib/workspace-data-sync";
 import { useProjectsStore } from "@/stores/projects.store";
 import { useSessionStore } from "@/stores/session.store";
 import { useWorkspacesStore } from "@/stores/workspaces.store";
@@ -49,6 +51,8 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
   const session = useSessionStore((s) => s.session);
   const [anchorDate] = useState(() => new Date());
   const wsId = session?.workspaceId ?? "";
+  useNotificationSocket(wsId, Boolean(wsId));
+  useClientWorkspaceDataSync(wsId);
   const actionableCount = useMySubmissionsBadgeCount(wsId, anchorDate, "assigned", Boolean(wsId));
   const { count: notificationUnreadCount } = useNotificationUnreadCount(wsId, Boolean(wsId));
   const setWorkspaceNames = useProjectsStore((s) => s.setWorkspaces);
