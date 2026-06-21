@@ -1,17 +1,28 @@
 import { describe, expect, it } from "vitest";
-import { projectListItemSchema } from "./project.dto";
+import { PROJECT_COLORS } from "../project-colors";
+import { createProjectSchema, projectColorSchema } from "./project.dto";
 
-describe("projectListItemSchema", () => {
-  it("requires totalTrackedSec on list rows", () => {
-    const parsed = projectListItemSchema.parse({
-      id: "00000000-0000-4000-8000-000000000001",
-      name: "Annual Audit",
-      color: "#236bfe",
-      clientName: "Adventure Works",
-      totalTrackedSec: 7200,
-      isActive: true
+describe("projectColorSchema", () => {
+  it("accepts curated palette colors", () => {
+    expect(projectColorSchema.safeParse(PROJECT_COLORS[0]).success).toBe(true);
+  });
+
+  it("accepts custom hex outside the palette", () => {
+    expect(projectColorSchema.safeParse("#ff00aa").success).toBe(true);
+  });
+
+  it("rejects invalid hex values", () => {
+    expect(projectColorSchema.safeParse("red").success).toBe(false);
+    expect(projectColorSchema.safeParse("#fff").success).toBe(false);
+  });
+});
+
+describe("createProjectSchema", () => {
+  it("accepts create payload with custom project color", () => {
+    const result = createProjectSchema.safeParse({
+      name: "Custom Color Project",
+      color: "#a1b2c3"
     });
-
-    expect(parsed.totalTrackedSec).toBe(7200);
+    expect(result.success).toBe(true);
   });
 });

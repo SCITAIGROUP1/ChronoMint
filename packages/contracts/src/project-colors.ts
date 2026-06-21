@@ -16,3 +16,13 @@ export function normalizeProjectColor(color: string): string {
 export function projectColorsMatch(a: string, b: string): boolean {
   return normalizeProjectColor(a) === normalizeProjectColor(b);
 }
+
+/** Parse user input into a normalized #rrggbb value, or null when invalid. */
+export function parseHexColor(raw: string): string | null {
+  const trimmed = raw.trim();
+  const withHash = trimmed.startsWith("#") ? trimmed : `#${trimmed}`;
+  if (/^#[0-9A-Fa-f]{6}$/.test(withHash)) {
+    return withHash.toLowerCase();
+  }
+  return null;
+}

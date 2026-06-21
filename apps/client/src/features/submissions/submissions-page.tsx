@@ -14,7 +14,9 @@ import {
   fetchListItems,
   parseMemberSubmissionsSearch,
   resolveMemberSubmissionsTab,
-  type MemberSubmissionsTab
+  WORKSPACE_DATA_STALE_EVENT,
+  type MemberSubmissionsTab,
+  type WorkspaceDataStaleDetail
 } from "@kloqra/web-shared";
 import { Check } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -172,6 +174,19 @@ export function SubmissionsPage() {
     if (!ws) return;
     setAllLoading(true);
     void refreshAll().finally(() => setAllLoading(false));
+  }, [ws, refreshAll]);
+
+  useEffect(() => {
+    if (!ws) return;
+    const onStale = (event: Event) => {
+      const detail = (event as CustomEvent<WorkspaceDataStaleDetail>).detail;
+      if (!detail || detail.workspaceId !== ws) return;
+      if (detail.scopes.includes("submissions") || detail.scopes.includes("timesheet")) {
+        void refreshAll();
+      }
+    };
+    window.addEventListener(WORKSPACE_DATA_STALE_EVENT, onStale);
+    return () => window.removeEventListener(WORKSPACE_DATA_STALE_EVENT, onStale);
   }, [ws, refreshAll]);
 
   const handleSubmitted = useCallback(async () => {

@@ -25,6 +25,7 @@ export * from "./dto/notification.dto";
 export * from "./dto/assistant.dto";
 export * from "./dto/jira.dto";
 export * from "./notification-templates";
+export * from "./notification-realtime";
 export * from "./brand";
 export * from "./project-colors";
 export * from "./export-filename";

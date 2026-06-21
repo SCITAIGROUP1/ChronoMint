@@ -4,7 +4,9 @@ import type { NotificationDto, NotificationType } from "@kloqra/contracts";
 import { AppBarIconButton, cn } from "@kloqra/ui";
 import { Bell } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { activateNotification } from "../features/notifications/notification-actions";
 import {
   NotificationDetails,
   iconForNotificationType,
@@ -13,10 +15,10 @@ import {
 import {
   formatNotificationTimeAgo,
   markAllNotificationsRead,
-  markNotificationRead,
   useNotificationUnreadCount,
   useRecentNotifications
 } from "../hooks/use-notifications";
+import { useNotificationsStore } from "../stores/notifications-store";
 
 function NotificationIcon({ type, title }: { type: NotificationType; title?: string | null }) {
   const Icon = iconForNotificationType(type, title);
@@ -34,12 +36,14 @@ export function NotificationDropdown({
   viewAllHref = "/notifications",
   className
 }: NotificationDropdownProps) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const { count: unreadCount, refresh: refreshUnread } = useNotificationUnreadCount(
     workspaceId,
     Boolean(workspaceId)
   );
+  const socketConnected = useNotificationsStore((s) => s.socketConnected);
   const { items: notifications, refresh, setItems } = useRecentNotifications(workspaceId);
   const prevUnreadRef = useRef(unreadCount);
   const [unreadPop, setUnreadPop] = useState(false);
@@ -74,10 +78,14 @@ export function NotificationDropdown({
   }
 
   async function handleItemClick(item: NotificationDto) {
-    if (item.readAt) return;
-    await markNotificationRead(workspaceId, item.id, true);
+    await activateNotification(workspaceId, item, (href) => {
+      setOpen(false);
+      router.push(href);
+    });
     setItems((items) =>
-      items.map((row) => (row.id === item.id ? { ...row, readAt: new Date().toISOString() } : row))
+      items.map((row) =>
+        row.id === item.id && !row.readAt ? { ...row, readAt: new Date().toISOString() } : row
+      )
     );
     void refreshUnread();
   }
@@ -89,10 +97,18 @@ export function NotificationDropdown({
         aria-label="Notifications"
         aria-haspopup="menu"
         aria-expanded={open}
-        title="Notifications"
+        title={
+          socketConnected ? "Notifications (live updates on)" : "Notifications (reconnecting…)"
+        }
         className="relative"
       >
         <Bell strokeWidth={1.5} aria-hidden />
+        {socketConnected ? (
+          <span
+            className="absolute bottom-0 right-0 size-2 rounded-full bg-emerald-500 ring-2 ring-background"
+            aria-hidden
+          />
+        ) : null}
         {unreadCount > 0 ? (
           <span
             className={cn(

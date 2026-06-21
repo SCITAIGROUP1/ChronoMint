@@ -170,7 +170,9 @@ export const ROUTES = {
     LIST: "/notifications",
     UNREAD_COUNT: "/notifications/unread-count",
     BY_ID: (id: string) => `/notifications/${id}`,
-    MARK_ALL_READ: "/notifications/mark-all-read"
+    MARK_ALL_READ: "/notifications/mark-all-read",
+    /** Socket.IO namespace — append to API base URL. */
+    SOCKET_NAMESPACE: "/notifications"
   },
   ASSISTANT: {
     CHAT: "/assistant/chat"

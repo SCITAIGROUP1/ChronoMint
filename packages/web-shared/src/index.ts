@@ -74,6 +74,7 @@ export { resolveStartupPath } from "./utils/startup-page";
 export { useDisplayPreferences } from "./hooks/use-display-preferences";
 export { usePaginatedList } from "./hooks/use-paginated-list";
 export { useRefetchOnWindowFocus } from "./hooks/use-refetch-on-window-focus";
+export { useWorkspaceStaleRefetch } from "./hooks/use-workspace-stale-refetch";
 export {
   formatNotificationTimeAgo,
   markAllNotificationsRead,
@@ -82,6 +83,25 @@ export {
   usePaginatedNotifications,
   useRecentNotifications
 } from "./hooks/use-notifications";
+export { useNotificationSocket } from "./hooks/use-notification-socket";
+export {
+  connectNotificationSocket,
+  disconnectNotificationSocket,
+  forceDisconnectNotificationSocket,
+  getNotificationSocketConnectionState,
+  subscribeNotificationConnection,
+  subscribeNotificationPush,
+  type NotificationSocketConnectionState
+} from "./realtime/notification-socket-manager";
+export { activateNotification } from "./features/notifications/notification-actions";
+export {
+  WORKSPACE_DATA_STALE_EVENT,
+  dispatchWorkspaceDataStale,
+  invalidateWorkspaceData,
+  registerWorkspaceDataInvalidation,
+  scopesForNotificationType,
+  type WorkspaceDataStaleDetail
+} from "./realtime/workspace-data-sync";
 export { useClientTablePagination } from "./hooks/use-client-table-pagination";
 export { fetchUserProfile } from "./stores/user-profile.store";
 export {

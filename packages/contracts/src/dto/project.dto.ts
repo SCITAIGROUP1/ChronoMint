@@ -1,15 +1,9 @@
 import { z } from "zod";
 import { createPaginatedListResponseSchema, listPaginationQuerySchema } from "../pagination";
-import { PROJECT_COLORS } from "../project-colors";
 import { timesheetApprovalPeriodSchema } from "../workspace-settings";
-import { uuidSchema, isoDatetimeSchema } from "./common.dto";
+import { hexColorSchema, uuidSchema, isoDatetimeSchema } from "./common.dto";
 
-export const projectColorSchema = z
-  .string()
-  .regex(/^#[0-9A-Fa-f]{6}$/, "Color must be a hex value like #236bfe")
-  .refine((c) => PROJECT_COLORS.includes(c as (typeof PROJECT_COLORS)[number]), {
-    message: "Color must be from the project palette"
-  });
+export const projectColorSchema = hexColorSchema;
 
 export const projectSchema = z.object({
   id: uuidSchema,

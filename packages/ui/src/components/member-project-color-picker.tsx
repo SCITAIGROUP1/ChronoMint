@@ -28,7 +28,8 @@ export function MemberProjectColorPicker({
         value={value}
         onChange={onChange}
         colors={colors}
-        className={disabled ? "pointer-events-none opacity-60" : undefined}
+        allowCustom
+        disabled={disabled}
       />
       {onClear ? (
         <button

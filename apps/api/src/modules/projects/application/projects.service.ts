@@ -296,6 +296,28 @@ export class ProjectsService {
       await waiveOpenTimesheetPeriods(this.prisma, id);
     }
 
+    if (approvalEnabling) {
+      void this.notifyApprovalSettingsChanged(
+        workspaceId,
+        id,
+        p.name,
+        "enabled",
+        p.timesheetApprovalPeriod
+      ).catch(() => undefined);
+    } else if (approvalDisabling) {
+      void this.notifyApprovalSettingsChanged(workspaceId, id, p.name, "disabled").catch(
+        () => undefined
+      );
+    } else if (periodChanging) {
+      void this.notifyApprovalSettingsChanged(
+        workspaceId,
+        id,
+        p.name,
+        "period",
+        p.timesheetApprovalPeriod
+      ).catch(() => undefined);
+    }
+
     if (dto.isActive === false && before.isActive) {
       void this.notifyProjectDeactivated(workspaceId, id, p.name).catch(() => undefined);
     }
@@ -318,6 +340,45 @@ export class ProjectsService {
         workspaceId,
         templateId: "project.deactivated",
         context: { projectName, projectId }
+      });
+    }
+  }
+
+  private approvalPeriodLabel(period: string | null): string {
+    if (period === "daily") return "daily";
+    if (period === "weekly") return "weekly";
+    if (period === "monthly") return "monthly";
+    if (period === "custom") return "custom";
+    return "default";
+  }
+
+  private async notifyApprovalSettingsChanged(
+    workspaceId: string,
+    projectId: string,
+    projectName: string,
+    kind: "enabled" | "disabled" | "period",
+    period: string | null = null
+  ) {
+    const members = await this.prisma.teamMember.findMany({
+      where: { isActive: true, team: { projectId } },
+      select: { userId: true }
+    });
+
+    let changeSummary: string;
+    if (kind === "enabled") {
+      changeSummary = `Timesheet approval enabled (${this.approvalPeriodLabel(period)})`;
+    } else if (kind === "disabled") {
+      changeSummary = "Timesheet approval disabled";
+    } else {
+      changeSummary = `Approval period changed to ${this.approvalPeriodLabel(period)}`;
+    }
+
+    for (const member of members) {
+      await this.notificationsDispatch.notify({
+        userId: member.userId,
+        workspaceId,
+        templateId: "project.approvalSettingsChanged",
+        context: { projectName, projectId, changeSummary }
       });
     }
   }
