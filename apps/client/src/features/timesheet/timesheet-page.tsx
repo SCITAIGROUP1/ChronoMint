@@ -63,6 +63,7 @@ import {
   type TimeEntryDraft
 } from "./time-entry-draft";
 import { TimeEntryDialog, TimesheetCalendar, TimesheetMonth } from "./timesheet-lazy";
+import { validateTimeEntryOverlap } from "./validate-time-entry-overlap";
 import {
   countActionableSubmissions,
   useMySubmissions
@@ -497,14 +498,11 @@ export function TimesheetPage() {
       return;
     }
     const isRecurring = !editingLog && draft.recurrence && draft.recurrence !== "none";
-    if (!isRecurring) {
-      const conflict = findOccupancyConflict(occupancy, start, end, editingLog?.id);
-      if (conflict) {
-        const msg = overlapConflictMessage(conflict);
-        setError(msg);
-        toast.error(msg);
-        return;
-      }
+    const overlapMsg = await validateTimeEntryOverlap(ws, start, end, timezone, editingLog?.id);
+    if (overlapMsg) {
+      setError(overlapMsg);
+      toast.error(overlapMsg);
+      return;
     }
     setSaving(true);
     setError(null);
