@@ -45,6 +45,8 @@ import {
   memberEmailDeliverySchema,
   bulkInviteMemberSchema,
   bulkInviteResponseSchema,
+  bulkCategoryImportSchema,
+  bulkCategoryImportResponseSchema,
   teamMembersOverviewSchema,
   teamActivitiesSchema,
   timesheetSubmissionsQuerySchema,
@@ -366,6 +368,28 @@ describe("contracts", () => {
   it("exposes categories routes", () => {
     expect(ROUTES.CATEGORIES.LIST).toBe("/categories");
     expect(ROUTES.CATEGORIES.BY_ID("abc")).toBe("/categories/abc");
+    expect(ROUTES.CATEGORIES.BULK).toBe("/categories/bulk");
+    expect(ROUTES.CATEGORIES.BULK_TEMPLATE).toBe("/categories/bulk/template");
+    expect(ROUTES.CATEGORIES.BULK_UPLOAD).toBe("/categories/bulk/upload");
+  });
+
+  it("validates bulk category import schema", () => {
+    const valid = bulkCategoryImportSchema.safeParse({
+      categories: [{ name: "Development", description: "Engineering work" }]
+    });
+    expect(valid.success).toBe(true);
+
+    const invalid = bulkCategoryImportSchema.safeParse({ categories: [] });
+    expect(invalid.success).toBe(false);
+  });
+
+  it("validates bulk category import response schema", () => {
+    const valid = bulkCategoryImportResponseSchema.safeParse({
+      jobId: "job-123",
+      status: "queued",
+      enqueuedCount: 3
+    });
+    expect(valid.success).toBe(true);
   });
 
   it("exposes categories heatmap route", () => {
