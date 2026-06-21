@@ -44,6 +44,11 @@ For testers and QA engineers — setup from scratch, manual checklists, automate
 
 - **[QA testing guide](qa/testing-guide.md)** — start here if you are non-technical QA
 
+## Presentations
+
+- **[40-minute technical demo script](demo-40min-script.md)** — live demo + architecture + agentic development (presenters)
+- **[Slide deck PDF](../presentations/kloqra-demo-and-roadmap.pdf)** — 26-slide PDF (demo + roadmap); [source & PPTX export](../presentations/README.md)
+
 ## More for developers
 
 See the [documentation hub](../README.md).

@@ -19,6 +19,8 @@ Start here for architecture, development, API reference, feature specs, user gui
 | Issue API keys (admin)       | [user-guides/admin/public-reporting-api.md](user-guides/admin/public-reporting-api.md)             |
 | Use the member app           | [user-guides/member/getting-started.md](user-guides/member/getting-started.md)                     |
 | Use the admin app            | [user-guides/admin/getting-started.md](user-guides/admin/getting-started.md)                       |
+| **40-min technical demo**    | [user-guides/demo-40min-script.md](user-guides/demo-40min-script.md)                               |
+| **Demo slide deck (PDF)**    | [presentations/kloqra-demo-and-roadmap.pdf](presentations/kloqra-demo-and-roadmap.pdf)             |
 | Deploy to staging            | [runbooks/deploy.md](runbooks/deploy.md)                                                           |
 | Deploy API (Railway)         | [runbooks/railway.md](runbooks/railway.md)                                                         |
 | Deploy frontends (Vercel)    | [runbooks/vercel.md](runbooks/vercel.md)                                                           |
