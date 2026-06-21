@@ -59,12 +59,52 @@ describe("Categories E2E", () => {
     expect(deleteRes.status).toBe(200);
   });
 
-  it("DELETE /categories returns 409 when tasks reference the category", async () => {
+  it("DELETE /categories returns 400 when attempting to delete the default Uncategorized category", async () => {
     const listRes = await authedAgent(app, adminSession).get("/categories");
-    const withTasks = listItems<CategoryDto>(listRes.body).find((c) => (c.taskCount ?? 0) > 0);
-    expect(withTasks).toBeTruthy();
+    const uncategorized = listItems<CategoryDto>(listRes.body).find(
+      (c) => c.name === "Uncategorized"
+    );
+    expect(uncategorized).toBeTruthy();
 
-    const deleteRes = await authedAgent(app, adminSession).del(`/categories/${withTasks!.id}`);
-    expect(deleteRes.status).toBe(409);
+    const deleteRes = await authedAgent(app, adminSession).del(`/categories/${uncategorized!.id}`);
+    expect(deleteRes.status).toBe(400);
+  });
+
+  it("DELETE /categories successfully re-associates tasks to Uncategorized and deletes the category", async () => {
+    // 1. Create a category
+    const catName = `E2E Cat ${Date.now()}`;
+    const createCatRes = await authedAgent(app, adminSession)
+      .post("/categories")
+      .send({ name: catName, color: "#9333ea" });
+    expect(createCatRes.status).toBe(201);
+    const catId = createCatRes.body.id;
+
+    // 2. Find a project to associate a task
+    const projectsRes = await authedAgent(app, adminSession).get("/projects");
+    const project = listItems<any>(projectsRes.body)[0];
+    expect(project).toBeTruthy();
+
+    // 3. Create a task under that category
+    const createTaskRes = await authedAgent(app, adminSession)
+      .post("/tasks")
+      .send({
+        projectId: project.id,
+        categoryId: catId,
+        taskName: `E2E Task under deleted cat ${Date.now()}`,
+        billableDefault: true,
+        isCommon: true
+      });
+    expect(createTaskRes.status).toBe(201);
+    const taskId = createTaskRes.body.id;
+
+    // 4. Delete the category (should return 200 and re-associate the task to Uncategorized)
+    const deleteRes = await authedAgent(app, adminSession).del(`/categories/${catId}`);
+    expect(deleteRes.status).toBe(200);
+
+    // 5. Verify the task's category is now "Uncategorized"
+    const listTasksRes = await authedAgent(app, adminSession).get(`/tasks?projectId=${project.id}`);
+    const taskItem = listItems<any>(listTasksRes.body).find((t) => t.id === taskId);
+    expect(taskItem).toBeTruthy();
+    expect(taskItem.categoryName).toBe("Uncategorized");
   });
 });

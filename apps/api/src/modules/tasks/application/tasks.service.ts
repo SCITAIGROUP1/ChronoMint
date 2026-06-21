@@ -17,6 +17,7 @@ type TaskWithRelations = {
   categoryId: string;
   taskName: string;
   billableDefault: boolean;
+  isCommon: boolean;
   category?: { name: string } | null;
   assignees?: { userId: string; user: { name: string } }[];
 };
@@ -35,7 +36,9 @@ export class TasksService {
       projectId: t.projectId,
       categoryId: t.categoryId,
       ...(t.category?.name ? { categoryName: t.category.name } : {}),
-      taskName: t.taskName
+      taskName: t.taskName,
+      billableDefault: t.billableDefault,
+      isCommon: t.isCommon
     };
   }
 
@@ -47,6 +50,7 @@ export class TasksService {
       ...(t.category?.name ? { categoryName: t.category.name } : {}),
       taskName: t.taskName,
       billableDefault: t.billableDefault,
+      isCommon: t.isCommon,
       assignees: (t.assignees ?? []).map((a) => ({
         userId: a.userId,
         userName: a.user.name
@@ -68,10 +72,7 @@ export class TasksService {
     if (role === "ADMIN" || query.projectId) {
       return this.toDto(t);
     }
-    return {
-      ...this.toListItem(t),
-      billableDefault: t.billableDefault
-    };
+    return this.toListItem(t);
   }
 
   async list(workspaceId: string, userId: string, role: "ADMIN" | "MEMBER", query: ListTasksQuery) {
@@ -87,7 +88,11 @@ export class TasksService {
     const where = {
       projectId: { in: projectIds },
       ...(query.categoryId ? { categoryId: query.categoryId } : {}),
-      ...(role === "MEMBER" ? { assignees: { some: { userId } } } : {}),
+      ...(role === "MEMBER"
+        ? {
+            OR: [{ isCommon: true }, { assignees: { some: { userId } } }]
+          }
+        : {}),
       ...(query.search
         ? {
             OR: [
@@ -119,7 +124,9 @@ export class TasksService {
   async create(workspaceId: string, dto: CreateTaskDto) {
     await this.assertProjectInWorkspace(workspaceId, dto.projectId);
     await this.assertCategoryInWorkspace(workspaceId, dto.categoryId);
-    await this.assertAssigneesOnProject(dto.projectId, dto.assigneeUserIds);
+    if (!dto.isCommon) {
+      await this.assertAssigneesOnProject(dto.projectId, dto.assigneeUserIds);
+    }
 
     const t = await this.prisma.$transaction(async (tx) => {
       const task = await tx.task.create({
@@ -127,15 +134,18 @@ export class TasksService {
           projectId: dto.projectId,
           categoryId: dto.categoryId,
           taskName: dto.taskName,
-          billableDefault: dto.billableDefault ?? true
+          billableDefault: dto.billableDefault ?? true,
+          isCommon: dto.isCommon ?? true
         }
       });
-      await tx.taskAssignee.createMany({
-        data: dto.assigneeUserIds.map((assigneeUserId) => ({
-          taskId: task.id,
-          userId: assigneeUserId
-        }))
-      });
+      if (!dto.isCommon && dto.assigneeUserIds && dto.assigneeUserIds.length > 0) {
+        await tx.taskAssignee.createMany({
+          data: dto.assigneeUserIds.map((assigneeUserId) => ({
+            taskId: task.id,
+            userId: assigneeUserId
+          }))
+        });
+      }
       return tx.task.findUniqueOrThrow({
         where: { id: task.id },
         include: this.taskInclude()
@@ -169,6 +179,7 @@ export class TasksService {
 
   async update(workspaceId: string, id: string, dto: UpdateTaskDto) {
     const task = await this.assertWorkspaceTask(workspaceId, id);
+    const willBeCommon = dto.isCommon !== undefined ? dto.isCommon : task.isCommon;
     const existingAssigneeIds = dto.assigneeUserIds
       ? (
           await this.prisma.taskAssignee.findMany({
@@ -180,12 +191,14 @@ export class TasksService {
     if (dto.categoryId && dto.categoryId !== task.categoryId) {
       await this.assertCategoryInWorkspace(workspaceId, dto.categoryId);
     }
-    if (dto.assigneeUserIds) {
+    if (!willBeCommon && dto.assigneeUserIds) {
       await this.assertAssigneesOnProject(task.projectId, dto.assigneeUserIds);
     }
 
     const t = await this.prisma.$transaction(async (tx) => {
-      if (dto.assigneeUserIds) {
+      if (willBeCommon) {
+        await tx.taskAssignee.deleteMany({ where: { taskId: task.id } });
+      } else if (dto.assigneeUserIds) {
         await tx.taskAssignee.deleteMany({ where: { taskId: task.id } });
         await tx.taskAssignee.createMany({
           data: dto.assigneeUserIds.map((assigneeUserId) => ({
@@ -200,13 +213,14 @@ export class TasksService {
         data: {
           ...(dto.taskName !== undefined ? { taskName: dto.taskName } : {}),
           ...(dto.billableDefault !== undefined ? { billableDefault: dto.billableDefault } : {}),
-          ...(dto.categoryId !== undefined ? { categoryId: dto.categoryId } : {})
+          ...(dto.categoryId !== undefined ? { categoryId: dto.categoryId } : {}),
+          ...(dto.isCommon !== undefined ? { isCommon: dto.isCommon } : {})
         },
         include: this.taskInclude()
       });
     });
 
-    if (dto.assigneeUserIds) {
+    if (!willBeCommon && dto.assigneeUserIds) {
       const addedAssigneeIds = dto.assigneeUserIds.filter(
         (assigneeUserId) => !existingAssigneeIds.includes(assigneeUserId)
       );
@@ -256,6 +270,49 @@ export class TasksService {
 
   async remove(workspaceId: string, id: string) {
     const task = await this.assertWorkspaceTask(workspaceId, id);
+    if (task.taskName === "Uncategorized Task") {
+      throw new DomainException(
+        ErrorCodes.VALIDATION_ERROR,
+        "Cannot delete the default Uncategorized task.",
+        HttpStatus.BAD_REQUEST
+      );
+    }
+
+    // Find or create default Uncategorized category
+    let uncategorizedCategory = await this.prisma.category.findFirst({
+      where: { workspaceId, name: "Uncategorized" }
+    });
+    if (!uncategorizedCategory) {
+      uncategorizedCategory = await this.prisma.category.create({
+        data: {
+          workspaceId,
+          name: "Uncategorized",
+          description: "System default category for uncategorized tasks."
+        }
+      });
+    }
+
+    // Find or create Uncategorized Task in the same project
+    let uncategorizedTask = await this.prisma.task.findFirst({
+      where: { projectId: task.projectId, taskName: "Uncategorized Task" }
+    });
+    if (!uncategorizedTask) {
+      uncategorizedTask = await this.prisma.task.create({
+        data: {
+          projectId: task.projectId,
+          categoryId: uncategorizedCategory.id,
+          taskName: "Uncategorized Task",
+          billableDefault: true
+        }
+      });
+    }
+
+    // Update all TimeLogs to point to the Uncategorized Task
+    await this.prisma.timeLog.updateMany({
+      where: { taskId: task.id },
+      data: { taskId: uncategorizedTask.id }
+    });
+
     await this.prisma.task.delete({ where: { id: task.id } });
     return { ok: true };
   }

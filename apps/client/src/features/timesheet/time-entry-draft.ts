@@ -15,6 +15,8 @@ export type TimeEntryDraft = {
   endTime: string;
   description: string;
   isBillable: boolean;
+  recurrence?: "none" | "daily" | "weekdays" | "weekly";
+  repeatUntil?: string;
 };
 
 export function suggestBillableFromTask(tasks: TaskDto[], taskSelection: string): boolean {
@@ -74,7 +76,9 @@ export function draftFromSlot(
     startTime: `${pad(hour)}:${pad(minute)}`,
     endTime: `${pad(endH)}:${pad(endM)}`,
     description: "",
-    isBillable: true
+    isBillable: true,
+    recurrence: "none",
+    repeatUntil: toDateKey(day)
   };
 }
 
@@ -114,6 +118,8 @@ export function draftFromLog(
     startTime: toTimeValueInZone(start, timezone),
     endTime: toTimeValueInZone(end, timezone),
     description: log.description ?? "",
-    isBillable: log.isBillable
+    isBillable: log.isBillable,
+    recurrence: "none",
+    repeatUntil: toDateKeyInZone(start, timezone)
   };
 }

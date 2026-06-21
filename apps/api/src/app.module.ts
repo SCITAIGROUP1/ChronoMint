@@ -1,3 +1,4 @@
+import { BullModule } from "@nestjs/bullmq";
 import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
 import { APP_GUARD } from "@nestjs/core";
 import { ScheduleModule } from "@nestjs/schedule";
@@ -19,6 +20,7 @@ import { NotificationsModule } from "./modules/notifications/notifications.modul
 import { PresenceModule } from "./modules/presence/presence.module";
 import { ProjectsModule } from "./modules/projects/projects.module";
 import { PublicReportingModule } from "./modules/public-reporting/public-reporting.module";
+import { QueuesModule } from "./modules/queues/queues.module";
 import { ReportingModule } from "./modules/reporting/reporting.module";
 import { TasksModule } from "./modules/tasks/tasks.module";
 import { TimelogsModule } from "./modules/timelogs/timelogs.module";
@@ -61,7 +63,13 @@ import { WorkspaceModule } from "./modules/workspace/workspace.module";
     PresenceModule,
     ExportModule,
     NotificationsModule,
-    JiraModule
+    JiraModule,
+    QueuesModule,
+    BullModule.forRoot({
+      connection: {
+        url: process.env.REDIS_URL ?? "redis://localhost:6379"
+      }
+    })
   ],
   providers: [
     {

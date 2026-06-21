@@ -4,7 +4,9 @@ import type {
   ListTimeLogsQueryDto,
   ListTimeLogsResponseDto,
   ListTimeLogOccupancyQueryDto,
-  ListTimeLogOccupancyResponseDto
+  ListTimeLogOccupancyResponseDto,
+  CreateBatchTimeLogsDto,
+  BatchTimeLogsResponseDto
 } from "@kloqra/contracts";
 import { ErrorCodes } from "@kloqra/contracts";
 import { Injectable, HttpStatus } from "@nestjs/common";
@@ -12,6 +14,11 @@ import { ProjectAccessService } from "../../../common/access/project-access.serv
 import { ReportCacheService } from "../../../common/cache/report-cache.service";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import {
+  getPeriodRange,
+  parseWorkspaceSettingsFromRaw,
+  resolveApprovalPeriod
+} from "../../../common/time/approval-period.util";
 import { TimelogAuditService } from "./timelog-audit.service";
 import { TimesheetLockService } from "./timesheet-lock.service";
 
@@ -103,6 +110,20 @@ export class TimelogsService {
           ]
         }
       : undefined;
+    let cursorObj: { id_startTime: { id: string; startTime: Date } } | undefined = undefined;
+    if (query.cursor) {
+      const colonIdx = query.cursor.indexOf(":");
+      if (colonIdx !== -1) {
+        const id = query.cursor.slice(0, colonIdx);
+        const startTimeStr = query.cursor.slice(colonIdx + 1);
+        cursorObj = {
+          id_startTime: {
+            id,
+            startTime: new Date(startTimeStr)
+          }
+        };
+      }
+    }
 
     const logs = await this.prisma.timeLog.findMany({
       where: {
@@ -126,7 +147,7 @@ export class TimelogsService {
       },
       orderBy: { startTime: "desc" },
       take: limit + 1,
-      ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {})
+      ...(cursorObj ? { cursor: cursorObj, skip: 1 } : {})
     });
 
     const hasMore = logs.length > limit;
@@ -134,7 +155,9 @@ export class TimelogsService {
 
     return {
       items: page.map((l) => this.toDto(l)),
-      nextCursor: hasMore ? page[page.length - 1]!.id : undefined
+      nextCursor: hasMore
+        ? `${page[page.length - 1]!.id}:${page[page.length - 1]!.startTime.toISOString()}`
+        : undefined
     };
   }
 
@@ -177,30 +200,105 @@ export class TimelogsService {
       orderBy: { startTime: "asc" }
     });
 
-    const lockCache = new Map<string, boolean>();
-    const items = await Promise.all(
-      logs.map(async (log) => {
-        const projectId = log.task.projectId;
-        const cacheKey = `${projectId}:${log.startTime.toISOString()}`;
-        let isLocked = lockCache.get(cacheKey);
-        if (isLocked === undefined) {
-          const status = await this.timesheetLock.getPeriodStatus(userId, projectId, log.startTime);
-          isLocked = status === "SUBMITTED" || status === "APPROVED";
-          lockCache.set(cacheKey, isLocked);
-        }
+    const projectIds = [...new Set(logs.map((log) => log.task.projectId))];
+    const projects =
+      projectIds.length > 0
+        ? await this.prisma.project.findMany({
+            where: { id: { in: projectIds } },
+            select: {
+              id: true,
+              timesheetApprovalEnabled: true,
+              timesheetApprovalPeriod: true,
+              workspace: { select: { settings: true } }
+            }
+          })
+        : [];
 
-        return {
-          id: log.id,
-          startTime: log.startTime.toISOString(),
-          endTime: log.endTime.toISOString(),
-          workspaceId: log.task.project.workspace.id,
-          workspaceName: log.task.project.workspace.name,
-          label: `${log.task.project.name} — ${log.task.taskName}`,
-          source: log.source as "manual" | "timer",
-          isLocked
-        };
-      })
-    );
+    const projectConfigMap = new Map<
+      string,
+      {
+        enabled: boolean;
+        workspaceSettings: any;
+        approvalPeriod: any;
+      }
+    >();
+
+    for (const proj of projects) {
+      const workspaceSettings = parseWorkspaceSettingsFromRaw(proj.workspace.settings);
+      const approvalPeriod = resolveApprovalPeriod(proj.timesheetApprovalPeriod, workspaceSettings);
+      projectConfigMap.set(proj.id, {
+        enabled: proj.timesheetApprovalEnabled,
+        workspaceSettings,
+        approvalPeriod
+      });
+    }
+
+    const uniquePeriodStarts = new Map<string, { projectId: string; periodStart: Date }>();
+    for (const log of logs) {
+      const projectId = log.task.projectId;
+      const config = projectConfigMap.get(projectId);
+      if (config?.enabled) {
+        const { periodStart } = getPeriodRange(
+          log.startTime,
+          config.approvalPeriod,
+          config.workspaceSettings
+        );
+        const key = `${projectId}:${periodStart.toISOString()}`;
+        uniquePeriodStarts.set(key, { projectId, periodStart });
+      }
+    }
+
+    const periodsList = Array.from(uniquePeriodStarts.values());
+    const periodStatuses = new Map<string, string>();
+
+    if (periodsList.length > 0) {
+      const periods = await this.prisma.timesheetPeriod.findMany({
+        where: {
+          userId,
+          OR: periodsList.map(({ projectId, periodStart }) => ({
+            projectId,
+            periodStart
+          }))
+        },
+        select: {
+          projectId: true,
+          periodStart: true,
+          status: true
+        }
+      });
+      for (const p of periods) {
+        const key = `${p.projectId}:${p.periodStart.toISOString()}`;
+        periodStatuses.set(key, p.status);
+      }
+    }
+
+    const items = logs.map((log) => {
+      const projectId = log.task.projectId;
+      const config = projectConfigMap.get(projectId);
+      let isLocked = false;
+
+      if (config?.enabled) {
+        const { periodStart } = getPeriodRange(
+          log.startTime,
+          config.approvalPeriod,
+          config.workspaceSettings
+        );
+        const key = `${projectId}:${periodStart.toISOString()}`;
+        const status = periodStatuses.get(key) ?? "DRAFT";
+        isLocked = status === "SUBMITTED" || status === "APPROVED";
+      }
+
+      return {
+        id: log.id,
+        startTime: log.startTime.toISOString(),
+        endTime: log.endTime.toISOString(),
+        workspaceId: log.task.project.workspace.id,
+        workspaceName: log.task.project.workspace.name,
+        label: `${log.task.project.name} — ${log.task.taskName}`,
+        source: log.source as "manual" | "timer",
+        isLocked
+      };
+    });
 
     return { items };
   }
@@ -312,7 +410,7 @@ export class TimelogsService {
 
     const updated = await this.prisma.$transaction(async (tx) => {
       const row = await tx.timeLog.update({
-        where: { id },
+        where: { id_startTime: { id, startTime: log.startTime } },
         data: {
           ...(dto.taskId !== undefined ? { taskId: dto.taskId } : {}),
           startTime: start,
@@ -393,7 +491,7 @@ export class TimelogsService {
         before: this.audit.snapshotFromLog(log),
         after: null
       });
-      await tx.timeLog.delete({ where: { id } });
+      await tx.timeLog.delete({ where: { id_startTime: { id, startTime: log.startTime } } });
     });
 
     await this.reportCache.invalidateWorkspace(workspaceId);
@@ -452,5 +550,158 @@ export class TimelogsService {
         HttpStatus.CONFLICT
       );
     }
+  }
+
+  localTimeToUtc(localDate: string, localTime: string, timeZone: string): Date {
+    const [y, m, d] = localDate.split("-").map(Number);
+    const [h, min] = localTime.split(":").map(Number);
+    const guess = new Date(Date.UTC(y!, m! - 1, d!, h!, min!, 0, 0));
+    let utcMs = guess.getTime();
+    for (let i = 0; i < 2; i++) {
+      const formatted = new Intl.DateTimeFormat("en-US", {
+        timeZone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false
+      }).format(new Date(utcMs));
+      const match = formatted.match(/(\d{2})\/(\d{2})\/(\d{4}),\s+(\d{2}):(\d{2}):(\d{2})/);
+      if (!match) break;
+      const [, lMonth, lDay, lYear, lHour, lMin, lSec] = match;
+      const localGenerated = Date.UTC(
+        Number(lYear),
+        Number(lMonth) - 1,
+        Number(lDay),
+        Number(lHour),
+        Number(lMin),
+        Number(lSec)
+      );
+      const diff = guess.getTime() - localGenerated;
+      if (diff === 0) break;
+      utcMs += diff;
+    }
+    return new Date(utcMs);
+  }
+
+  async createBatch(
+    workspaceId: string,
+    userId: string,
+    role: string,
+    dto: CreateBatchTimeLogsDto,
+    actorId?: string
+  ): Promise<BatchTimeLogsResponseDto> {
+    await this.access.assertCanLogTask(workspaceId, userId, role as "ADMIN" | "MEMBER", dto.taskId);
+    const start = new Date(dto.startDate);
+    const end = new Date(dto.endDate);
+
+    const todayStr = new Intl.DateTimeFormat("en-CA", {
+      timeZone: dto.timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    }).format(new Date());
+
+    if (dto.endDate > todayStr) {
+      throw new DomainException(
+        ErrorCodes.VALIDATION_ERROR,
+        "EndDate cannot be in the future",
+        HttpStatus.BAD_REQUEST
+      );
+    }
+
+    if (dto.startDate > dto.endDate) {
+      throw new DomainException(
+        ErrorCodes.VALIDATION_ERROR,
+        "startDate must be <= endDate",
+        HttpStatus.BAD_REQUEST
+      );
+    }
+
+    const task = await this.prisma.task.findUniqueOrThrow({ where: { id: dto.taskId } });
+    const createdItems: any[] = [];
+    const skippedItems: { date: string; reason: string }[] = [];
+
+    for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
+      const dateStr = d.toISOString().slice(0, 10);
+
+      if (dto.recurrence === "weekdays") {
+        const dayOfWeek = d.getUTCDay();
+        if (dayOfWeek === 0 || dayOfWeek === 6) continue;
+      } else if (dto.recurrence === "weekly") {
+        const startDayOfWeek = start.getUTCDay();
+        const currentDayOfWeek = d.getUTCDay();
+        if (currentDayOfWeek !== startDayOfWeek) continue;
+      }
+
+      const startUtc = this.localTimeToUtc(dateStr, dto.localStartTime, dto.timezone);
+      const endUtc = this.localTimeToUtc(dateStr, dto.localEndTime, dto.timezone);
+
+      try {
+        await this.timesheetLock.assertTaskPeriodEditable(userId, dto.taskId, startUtc);
+      } catch (err) {
+        skippedItems.push({
+          date: dateStr,
+          reason: err instanceof DomainException ? err.message : "Timesheet period is locked"
+        });
+        continue;
+      }
+
+      try {
+        await this.assertNoOverlap(userId, startUtc, endUtc);
+      } catch (err) {
+        skippedItems.push({
+          date: dateStr,
+          reason: err instanceof DomainException ? err.message : "Time log overlap"
+        });
+        continue;
+      }
+
+      try {
+        const log = await this.prisma.$transaction(async (tx) => {
+          const created = await tx.timeLog.create({
+            data: {
+              userId,
+              taskId: dto.taskId,
+              startTime: startUtc,
+              endTime: endUtc,
+              durationSec: Math.floor((endUtc.getTime() - startUtc.getTime()) / 1000),
+              description: dto.description ?? null,
+              isBillable: this.resolveBillable(role, task.billableDefault, dto.isBillable),
+              source: "manual"
+            }
+          });
+          await this.audit.recordEvent(tx, {
+            workspaceId,
+            timeLogId: created.id,
+            entryUserId: userId,
+            actorId: actorId ?? userId,
+            action: "CREATE",
+            before: null,
+            after: this.audit.snapshotFromLog(created)
+          });
+          return created;
+        });
+        createdItems.push(log);
+      } catch (err) {
+        skippedItems.push({
+          date: dateStr,
+          reason: err instanceof Error ? err.message : "Database write failed"
+        });
+      }
+    }
+
+    if (createdItems.length > 0) {
+      await this.reportCache.invalidateWorkspace(workspaceId);
+    }
+
+    return {
+      createdCount: createdItems.length,
+      skippedCount: skippedItems.length,
+      items: createdItems.map((item) => this.toDto(item)),
+      skipped: skippedItems
+    };
   }
 }

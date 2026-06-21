@@ -40,6 +40,9 @@ export const ROUTES = {
     MEMBER: (workspaceId: string, memberId: string) =>
       `/workspaces/${workspaceId}/members/${memberId}`,
     INVITE: (id: string) => `/workspaces/${id}/members/invite`,
+    BULK_MEMBERS: (id: string) => `/workspaces/${id}/members/bulk`,
+    BULK_MEMBERS_TEMPLATE: (id: string) => `/workspaces/${id}/members/bulk/template`,
+    BULK_MEMBERS_UPLOAD: (id: string) => `/workspaces/${id}/members/bulk/upload`,
     RESEND_CREDENTIALS: (workspaceId: string, memberId: string) =>
       `/workspaces/${workspaceId}/members/${memberId}/resend-credentials`
   },
@@ -80,6 +83,7 @@ export const ROUTES = {
     LIST: "/timelogs",
     OCCUPANCY: "/timelogs/occupancy",
     CREATE: "/timelogs",
+    CREATE_BATCH: "/timelogs/batch",
     BY_ID: (id: string) => `/timelogs/${id}`,
     AUDIT_EVENTS: (id: string) => `/timelogs/${id}/audit-events`,
     AUDIT_EVENTS_WORKSPACE: "/timelogs/audit",

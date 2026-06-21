@@ -3,6 +3,7 @@ import {
   listTimeLogsQuerySchema,
   listTimeLogOccupancyQuerySchema,
   updateTimeLogSchema,
+  createBatchTimeLogsSchema,
   ROUTES
 } from "@kloqra/contracts";
 import type { ListTimeLogsQueryDto, ListTimeLogOccupancyQueryDto } from "@kloqra/contracts";
@@ -102,6 +103,19 @@ export class TimelogsController {
       user.userId,
       user.role,
       body as Parameters<TimelogsService["create"]>[3]
+    );
+  }
+
+  @Post(ROUTES.TIMELOGS.CREATE_BATCH)
+  createBatch(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodValidationPipe(createBatchTimeLogsSchema)) body: unknown
+  ) {
+    return this.timelogs.createBatch(
+      user.workspaceId,
+      user.userId,
+      user.role,
+      body as Parameters<TimelogsService["createBatch"]>[3]
     );
   }
 

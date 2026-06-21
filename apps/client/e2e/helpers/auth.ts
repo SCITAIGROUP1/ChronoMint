@@ -9,7 +9,15 @@ async function submitLogin(page: Page, email: string) {
   await page.fill("input[type='email']", email);
   await page.fill("input[type='password']", PASSWORD);
   await page.click("button[type='submit']");
-  await page.waitForURL(/\/(dashboard|timer|timesheet|time-tracker)/, { timeout: 30_000 });
+
+  await page.waitForURL(/.*(select-workspace|dashboard|timer|timesheet|time-tracker)/, {
+    timeout: 30_000
+  });
+
+  if (page.url().includes("select-workspace")) {
+    await page.locator("button").filter({ hasText: "Acme Corporation" }).first().click();
+    await page.waitForURL(/\/(dashboard|timer|timesheet|time-tracker)/, { timeout: 30_000 });
+  }
 }
 
 export async function loginAsMember(page: Page) {

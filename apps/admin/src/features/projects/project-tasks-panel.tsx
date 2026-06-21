@@ -34,6 +34,7 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
   const [newName, setNewName] = useState("");
   const [newCategoryId, setNewCategoryId] = useState<string>("");
   const [newBillable, setNewBillable] = useState(true);
+  const [newIsCommon, setNewIsCommon] = useState(true);
   const [newAssigneeIds, setNewAssigneeIds] = useState<string[]>([]);
   const [teamMembers, setTeamMembers] = useState<
     { userId: string; userName: string; email?: string; isActive: boolean }[]
@@ -44,6 +45,7 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
   const [editName, setEditName] = useState("");
   const [editCategoryId, setEditCategoryId] = useState("");
   const [editBillable, setEditBillable] = useState(true);
+  const [editIsCommon, setEditIsCommon] = useState(true);
   const [editAssigneeIds, setEditAssigneeIds] = useState<string[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -74,7 +76,7 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
   );
 
   const unassignedCount = useMemo(
-    () => tasks.filter((t) => t.assignees.length === 0).length,
+    () => tasks.filter((t) => !t.isCommon && t.assignees.length === 0).length,
     [tasks]
   );
 
@@ -115,7 +117,7 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
 
   async function createTask(e: React.FormEvent) {
     e.preventDefault();
-    if (!newName.trim() || !newCategoryId || newAssigneeIds.length === 0) return;
+    if (!newName.trim() || !newCategoryId || (!newIsCommon && newAssigneeIds.length === 0)) return;
     setSaving(true);
     setError(null);
     try {
@@ -127,11 +129,13 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
           categoryId: newCategoryId,
           taskName: newName.trim(),
           billableDefault: newBillable,
-          assigneeUserIds: newAssigneeIds
+          isCommon: newIsCommon,
+          assigneeUserIds: newIsCommon ? [] : newAssigneeIds
         })
       });
       setNewName("");
       setNewBillable(true);
+      setNewIsCommon(true);
       setNewAssigneeIds([]);
       toast.success("Task created.");
       await refresh();
@@ -149,6 +153,7 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
     setEditName(task.taskName);
     setEditCategoryId(task.categoryId);
     setEditBillable(task.billableDefault);
+    setEditIsCommon(task.isCommon);
     setEditAssigneeIds(task.assignees.map((a) => a.userId));
     setError(null);
   }
@@ -158,6 +163,7 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
     setEditName("");
     setEditCategoryId("");
     setEditBillable(true);
+    setEditIsCommon(true);
     setEditAssigneeIds([]);
   }
 
@@ -173,7 +179,8 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
           taskName: editName.trim(),
           categoryId: editCategoryId,
           billableDefault: editBillable,
-          assigneeUserIds: editAssigneeIds
+          isCommon: editIsCommon,
+          assigneeUserIds: editIsCommon ? [] : editAssigneeIds
         })
       });
       cancelEdit();
@@ -237,7 +244,7 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
           title="Add task"
           description="Members pick from this list when logging time on the project."
         >
-          <form onSubmit={createTask} className="space-y-4">
+          <form onSubmit={createTask} className="space-y-5">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="new-task-name">Task name</Label>
@@ -263,16 +270,53 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
                 />
               </div>
             </div>
-            <div className="space-y-2">
-              <Label>Assignees</Label>
-              <TaskAssigneePicker
-                members={activeTeamOptions}
-                value={newAssigneeIds}
-                onChange={setNewAssigneeIds}
-                disabled={saving}
-              />
+            <div className="space-y-2.5">
+              <Label>Task Assignment Type</Label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => setNewIsCommon(true)}
+                  className={cn(
+                    "flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-all hover:bg-muted/50",
+                    newIsCommon
+                      ? "border-primary bg-primary/5 ring-1 ring-primary"
+                      : "border-border bg-transparent"
+                  )}
+                >
+                  <span className="text-sm font-semibold">Common task</span>
+                  <span className="text-xs text-muted-foreground">
+                    Available to all project team members by default
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNewIsCommon(false)}
+                  className={cn(
+                    "flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-all hover:bg-muted/50",
+                    !newIsCommon
+                      ? "border-primary bg-primary/5 ring-1 ring-primary"
+                      : "border-border bg-transparent"
+                  )}
+                >
+                  <span className="text-sm font-semibold">Assigned task</span>
+                  <span className="text-xs text-muted-foreground">
+                    Restrict visibility to specific team members
+                  </span>
+                </button>
+              </div>
             </div>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            {!newIsCommon && (
+              <div className="space-y-2">
+                <Label>Assignees</Label>
+                <TaskAssigneePicker
+                  members={activeTeamOptions}
+                  value={newAssigneeIds}
+                  onChange={setNewAssigneeIds}
+                  disabled={saving}
+                />
+              </div>
+            )}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pt-2">
               <label className="flex cursor-pointer items-center gap-2 text-sm">
                 <input
                   type="checkbox"
@@ -285,7 +329,10 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
               <Button
                 type="submit"
                 disabled={
-                  saving || !newName.trim() || !newCategoryId || newAssigneeIds.length === 0
+                  saving ||
+                  !newName.trim() ||
+                  !newCategoryId ||
+                  (!newIsCommon && newAssigneeIds.length === 0)
                 }
                 className="gap-2 sm:w-auto"
               >
@@ -334,7 +381,7 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
                         )}
                       >
                         {isEditing ? (
-                          <div className="space-y-3">
+                          <div className="space-y-4">
                             <div className="grid gap-3 sm:grid-cols-2">
                               <div className="space-y-2">
                                 <Label htmlFor={`edit-name-${task.id}`}>Task name</Label>
@@ -358,7 +405,7 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
                                 />
                               </div>
                             </div>
-                            <label className="flex cursor-pointer items-center gap-2 text-sm">
+                            <label className="flex cursor-pointer items-center gap-2 text-sm py-1">
                               <input
                                 type="checkbox"
                                 className="size-4 rounded border border-input accent-primary"
@@ -368,14 +415,51 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
                               <span>Billable by default</span>
                             </label>
                             <div className="space-y-2">
-                              <Label>Assignees</Label>
-                              <TaskAssigneePicker
-                                members={activeTeamOptions}
-                                value={editAssigneeIds}
-                                onChange={setEditAssigneeIds}
-                                disabled={busyId === task.id}
-                              />
+                              <Label>Task Assignment Type</Label>
+                              <div className="grid gap-2.5 sm:grid-cols-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setEditIsCommon(true)}
+                                  className={cn(
+                                    "flex flex-col items-start gap-0.5 rounded-lg border p-2.5 text-left transition-all hover:bg-muted/50",
+                                    editIsCommon
+                                      ? "border-primary bg-primary/5 ring-1 ring-primary"
+                                      : "border-border bg-background"
+                                  )}
+                                >
+                                  <span className="text-xs font-semibold">Common task</span>
+                                  <span className="text-[10px] text-muted-foreground">
+                                    All project members can access
+                                  </span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setEditIsCommon(false)}
+                                  className={cn(
+                                    "flex flex-col items-start gap-0.5 rounded-lg border p-2.5 text-left transition-all hover:bg-muted/50",
+                                    !editIsCommon
+                                      ? "border-primary bg-primary/5 ring-1 ring-primary"
+                                      : "border-border bg-background"
+                                  )}
+                                >
+                                  <span className="text-xs font-semibold">Assigned task</span>
+                                  <span className="text-[10px] text-muted-foreground">
+                                    Restrict to specific assignees
+                                  </span>
+                                </button>
+                              </div>
                             </div>
+                            {!editIsCommon && (
+                              <div className="space-y-2">
+                                <Label>Assignees</Label>
+                                <TaskAssigneePicker
+                                  members={activeTeamOptions}
+                                  value={editAssigneeIds}
+                                  onChange={setEditAssigneeIds}
+                                  disabled={busyId === task.id}
+                                />
+                              </div>
+                            )}
                             <div className="flex justify-end gap-2">
                               <Button
                                 type="button"
@@ -394,7 +478,7 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
                                   busyId === task.id ||
                                   !editName.trim() ||
                                   !editCategoryId ||
-                                  editAssigneeIds.length === 0
+                                  (!editIsCommon && editAssigneeIds.length === 0)
                                 }
                               >
                                 Save
@@ -410,7 +494,11 @@ export function ProjectTasksPanel({ workspaceId, projectId }: Props) {
                                   categoryById.get(task.categoryId)?.name ??
                                   "Uncategorized"}
                               </p>
-                              {task.assignees.length > 0 ? (
+                              {task.isCommon ? (
+                                <p className="mt-1 text-[10px] text-muted-foreground">
+                                  Common task (all members)
+                                </p>
+                              ) : task.assignees.length > 0 ? (
                                 <div className="mt-2">
                                   <AssigneeAvatarStack
                                     members={task.assignees.map((a) => ({

@@ -14,7 +14,8 @@ function makePrisma() {
       count: vi.fn() as AnyMock
     },
     task: {
-      count: vi.fn() as AnyMock
+      count: vi.fn() as AnyMock,
+      updateMany: vi.fn() as AnyMock
     }
   };
 }
@@ -116,28 +117,77 @@ describe("CategoriesService", () => {
   });
 
   describe("remove", () => {
-    it("rejects deletion when the category still has tasks", async () => {
+    it("blocks deletion of Uncategorized category", async () => {
       prisma.category.findFirst.mockResolvedValue({
         id: "c1",
         workspaceId: "w1",
-        name: "Design",
+        name: "Uncategorized",
         description: null
       });
-      prisma.task.count.mockResolvedValue(2);
-      await expect(service.remove("w1", "c1")).rejects.toThrow(/still has tasks/i);
+      await expect(service.remove("w1", "c1")).rejects.toThrow(
+        /Cannot delete the default Uncategorized category/i
+      );
       expect(prisma.category.delete).not.toHaveBeenCalled();
     });
 
-    it("deletes when no tasks reference the category", async () => {
-      prisma.category.findFirst.mockResolvedValue({
-        id: "c1",
+    it("updates tasks to point to Uncategorized category and deletes original", async () => {
+      prisma.category.findFirst
+        .mockResolvedValueOnce({
+          id: "c1",
+          workspaceId: "w1",
+          name: "Design",
+          description: null
+        })
+        .mockResolvedValueOnce({
+          id: "uncat-id",
+          workspaceId: "w1",
+          name: "Uncategorized",
+          description: null
+        });
+      prisma.task.updateMany.mockResolvedValue({ count: 2 });
+      prisma.category.delete.mockResolvedValue({ id: "c1" });
+
+      const result = await service.remove("w1", "c1");
+
+      expect(prisma.task.updateMany).toHaveBeenCalledWith({
+        where: { categoryId: "c1" },
+        data: { categoryId: "uncat-id" }
+      });
+      expect(prisma.category.delete).toHaveBeenCalledWith({ where: { id: "c1" } });
+      expect(result).toEqual({ ok: true });
+    });
+
+    it("creates Uncategorized category if not exists and deletes original", async () => {
+      prisma.category.findFirst
+        .mockResolvedValueOnce({
+          id: "c1",
+          workspaceId: "w1",
+          name: "Design",
+          description: null
+        })
+        .mockResolvedValueOnce(null); // Uncategorized not found
+      prisma.category.create.mockResolvedValue({
+        id: "uncat-created",
         workspaceId: "w1",
-        name: "Design",
+        name: "Uncategorized",
         description: null
       });
-      prisma.task.count.mockResolvedValue(0);
+      prisma.task.updateMany.mockResolvedValue({ count: 2 });
       prisma.category.delete.mockResolvedValue({ id: "c1" });
+
       const result = await service.remove("w1", "c1");
+
+      expect(prisma.category.create).toHaveBeenCalledWith({
+        data: {
+          workspaceId: "w1",
+          name: "Uncategorized",
+          description: "System default category for uncategorized tasks."
+        }
+      });
+      expect(prisma.task.updateMany).toHaveBeenCalledWith({
+        where: { categoryId: "c1" },
+        data: { categoryId: "uncat-created" }
+      });
       expect(prisma.category.delete).toHaveBeenCalledWith({ where: { id: "c1" } });
       expect(result).toEqual({ ok: true });
     });
@@ -145,7 +195,7 @@ describe("CategoriesService", () => {
     it("404s when the category is not in this workspace (isolation)", async () => {
       prisma.category.findFirst.mockResolvedValue(null);
       await expect(service.remove("w1", "c1")).rejects.toThrow(/not found/i);
-      expect(prisma.task.count).not.toHaveBeenCalled();
+      expect(prisma.category.delete).not.toHaveBeenCalled();
     });
   });
 

@@ -18,13 +18,25 @@ describe("ProjectsService", () => {
         count: vi.fn().mockResolvedValue(0),
         create: vi.fn(),
         findMany: vi.fn(),
-        findFirst: vi.fn()
+        findFirst: vi.fn(),
+        delete: vi.fn()
       },
       task: {
-        findMany: vi.fn().mockResolvedValue([])
+        findMany: vi.fn().mockResolvedValue([]),
+        findFirst: vi.fn(),
+        create: vi.fn()
       },
       timeLog: {
-        groupBy: vi.fn().mockResolvedValue([])
+        groupBy: vi.fn().mockResolvedValue([]),
+        updateMany: vi.fn()
+      },
+      category: {
+        findFirst: vi.fn(),
+        create: vi.fn()
+      },
+      team: {
+        findUnique: vi.fn(),
+        create: vi.fn()
       },
       userProjectColor: {
         findMany: vi.fn().mockResolvedValue([])
@@ -175,5 +187,54 @@ describe("ProjectsService", () => {
         err.code === ErrorCodes.NOT_FOUND &&
         err.getStatus() === HttpStatus.NOT_FOUND
     );
+  });
+
+  describe("remove", () => {
+    it("blocks deletion of Uncategorized project", async () => {
+      mockPrisma.project.findFirst.mockResolvedValue({
+        id: "p1",
+        workspaceId,
+        name: "Uncategorized"
+      });
+      await expect(service.remove(workspaceId, "p1")).rejects.toThrow(
+        /Cannot delete the default Uncategorized project/i
+      );
+      expect(mockPrisma.project.delete).not.toHaveBeenCalled();
+    });
+
+    it("re-associates logs of deleted project tasks and deletes the project", async () => {
+      mockPrisma.project.findFirst
+        .mockResolvedValueOnce({
+          id: "p-deleted",
+          workspaceId,
+          name: "Project to delete"
+        })
+        .mockResolvedValueOnce({
+          id: "uncat-project-id",
+          workspaceId,
+          name: "Uncategorized"
+        });
+      mockPrisma.team.findUnique.mockResolvedValue({ id: "uncat-team-id" });
+      mockPrisma.category.findFirst.mockResolvedValue({
+        id: "uncat-cat-id",
+        name: "Uncategorized"
+      });
+      mockPrisma.task.findFirst.mockResolvedValue({
+        id: "uncat-task-id",
+        taskName: "Uncategorized Task"
+      });
+      mockPrisma.task.findMany.mockResolvedValue([{ id: "task-1" }, { id: "task-2" }]);
+      mockPrisma.timeLog.updateMany.mockResolvedValue({ count: 5 });
+      mockPrisma.project.delete.mockResolvedValue({ id: "p-deleted" });
+
+      const result = await service.remove(workspaceId, "p-deleted");
+
+      expect(mockPrisma.timeLog.updateMany).toHaveBeenCalledWith({
+        where: { taskId: { in: ["task-1", "task-2"] } },
+        data: { taskId: "uncat-task-id" }
+      });
+      expect(mockPrisma.project.delete).toHaveBeenCalledWith({ where: { id: "p-deleted" } });
+      expect(result).toEqual({ ok: true });
+    });
   });
 });
