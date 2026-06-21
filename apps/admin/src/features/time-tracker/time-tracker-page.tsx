@@ -12,7 +12,7 @@ import { AppBar } from "@kloqra/ui";
 import { api as sharedApi, fetchListItems, fetchProjectTeam } from "@kloqra/web-shared";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { TimesheetDisplayFormat } from "./display-format";
-import { groupLogsByWeek } from "./group-logs-by-week";
+import { buildWeekGroupsForRange } from "./group-logs-by-week";
 import type { BillabilityFilter } from "./time-tracker-filters-panel";
 import {
   inclusiveDateKeysFromPeriod,
@@ -155,8 +155,8 @@ export function AdminTimeTrackerPage() {
   }, [filterResetKey]);
 
   const allWeekGroups = useMemo(
-    () => groupLogsByWeek(logs, timezone, weekStartPref),
-    [logs, timezone, weekStartPref]
+    () => buildWeekGroupsForRange(rangeFrom, rangeTo, logs, timezone, weekStartPref),
+    [rangeFrom, rangeTo, logs, timezone, weekStartPref]
   );
 
   const totalWeekCount = allWeekGroups.length;

@@ -66,7 +66,10 @@ export {
   AmendmentRequestDialog,
   type AmendmentRequestDialogProps
 } from "./components/amendment-request-dialog.js";
-export { formatSubmissionPeriodLabel } from "./components/submission-period-label.js";
+export {
+  formatSubmissionPeriodLabel,
+  formatTimesheetSubmittedMessage
+} from "./components/submission-period-label.js";
 
 export {
   DashboardStatCard,

@@ -1,12 +1,8 @@
 "use client";
 
 import { ROUTES } from "@kloqra/contracts";
-import type {
-  SubmitTimesheetResponseDto,
-  TimesheetPeriodDto,
-  TimesheetSubmitPreviewDto
-} from "@kloqra/contracts";
-import { formatSubmissionPeriodLabel } from "@kloqra/ui";
+import type { TimesheetPeriodDto, TimesheetSubmitPreviewDto } from "@kloqra/contracts";
+import { formatSubmissionPeriodLabel, formatTimesheetSubmittedMessage } from "@kloqra/ui";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useIsImpersonating } from "@/hooks/use-is-impersonating";
@@ -63,7 +59,7 @@ export function useSubmissionStatusActions(
     if (!ws) return;
     setSubmitting(true);
     try {
-      const res = await api<SubmitTimesheetResponseDto>(ROUTES.TIMESHEETS.SUBMIT, {
+      await api(ROUTES.TIMESHEETS.SUBMIT, {
         method: "POST",
         workspaceId: ws,
         body: JSON.stringify({
@@ -73,8 +69,9 @@ export function useSubmissionStatusActions(
           confirmCascade: true
         })
       });
-      const count = res.cascadedCount + 1;
-      toast.success(`Submitted ${count} period${count === 1 ? "" : "s"} for review.`);
+      toast.success(
+        formatTimesheetSubmittedMessage(statusInfo.periodStart, statusInfo.approvalPeriod)
+      );
       setPreviewOpen(false);
       onSubmitted();
     } catch (e) {

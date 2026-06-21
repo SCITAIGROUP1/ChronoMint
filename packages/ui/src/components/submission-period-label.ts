@@ -17,3 +17,11 @@ export function formatSubmissionPeriodLabel(
   }
   return `Week of ${start.toISOString().slice(0, 10)}`;
 }
+
+export function formatTimesheetSubmittedMessage(
+  periodStartIso: string,
+  approvalPeriod: TimesheetApprovalPeriod
+): string {
+  const period = formatSubmissionPeriodLabel(periodStartIso, approvalPeriod);
+  return `Your timesheet for ${period} has been submitted for approval.`;
+}

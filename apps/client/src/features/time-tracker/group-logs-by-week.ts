@@ -142,6 +142,50 @@ export function groupLogsByWeek(
     .sort((a, b) => b.weekStart.getTime() - a.weekStart.getTime());
 }
 
+export function buildWeekGroupsForRange(
+  rangeFrom: string,
+  rangeTo: string,
+  logs: TimeLogDto[],
+  timezone: string,
+  weekStartPref: "monday" | "sunday" = "monday"
+): WeekLogGroup[] {
+  if (!rangeFrom || !rangeTo || rangeFrom > rangeTo) {
+    return [];
+  }
+
+  const logGroups = groupLogsByWeek(logs, timezone, weekStartPref);
+  const logsByWeek = new Map(logGroups.map((group) => [group.weekKey, group]));
+  const weeks: WeekLogGroup[] = [];
+  let weekStart = startOfWeekWithPreference(fromDateKey(rangeFrom), weekStartPref);
+
+  for (let guard = 0; guard < 520; guard += 1) {
+    const weekKey = toDateKey(weekStart);
+    const weekEndKey = toDateKey(addDays(weekStart, 6));
+
+    if (weekEndKey < rangeFrom) {
+      weekStart = addDays(weekStart, 7);
+      continue;
+    }
+    if (weekKey > rangeTo) {
+      break;
+    }
+
+    const existing = logsByWeek.get(weekKey);
+    weeks.push(
+      existing ?? {
+        weekStart,
+        weekKey,
+        logs: [],
+        totalSec: 0,
+        billableSec: 0
+      }
+    );
+    weekStart = addDays(weekStart, 7);
+  }
+
+  return weeks.sort((a, b) => b.weekStart.getTime() - a.weekStart.getTime());
+}
+
 export function formatWeekTotals(totalSec: number, billableSec: number): string {
   return `Total: ${formatHoursDecimalWithSuffix(totalSec)} · Billable: ${formatHoursDecimalWithSuffix(billableSec)}`;
 }
