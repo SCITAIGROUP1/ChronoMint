@@ -16,6 +16,11 @@ execFileSync("bash", [pnpmWrap, "--filter", "@kloqra/web-shared", "build"], {
   cwd: root
 });
 
+execFileSync("bash", [pnpmWrap, "--filter", "@kloqra/ui", "build"], {
+  stdio: "inherit",
+  cwd: root
+});
+
 if (process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true") {
   process.exit(0);
 }

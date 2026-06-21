@@ -33,11 +33,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useProjectDetail } from "./project-detail-context";
+import { memberCanActivate, memberIsActive } from "./project-team-member-state";
 import { api } from "@/lib/api";
-
-function memberIsActive(m: TeamMemberDto): boolean {
-  return m.isActive !== false;
-}
 
 export function ProjectTeamTab() {
   const { workspaceId, projectId } = useProjectDetail();
@@ -61,6 +58,7 @@ export function ProjectTeamTab() {
   const [loadingWorkspaceMembers, setLoadingWorkspaceMembers] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState("");
   const [addingMember, setAddingMember] = useState(false);
+  const [workspaceMemberUserIds, setWorkspaceMemberUserIds] = useState<Set<string>>(new Set());
   const [removeTarget, setRemoveTarget] = useState<TeamMemberDto | null>(null);
   const [invite, setInvite] = useState<TeamInviteDto | null>(null);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -116,6 +114,24 @@ export function ProjectTeamTab() {
   useEffect(() => {
     void loadTeam();
   }, [loadTeam]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void api<WorkspaceMemberDto[]>(ROUTES.WORKSPACES.MEMBERS(workspaceId), { workspaceId })
+      .then((list) => {
+        if (!cancelled) {
+          setWorkspaceMemberUserIds(new Set(list.map((member) => member.userId)));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setWorkspaceMemberUserIds(new Set());
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaceId]);
 
   const availableWorkspaceMembers = useMemo(() => {
     const onTeam = new Set(members.map((m) => m.userId));
@@ -339,39 +355,61 @@ export function ProjectTeamTab() {
                 </DataTableHeaderRow>
               </TableHeader>
               <TableBody>
-                {members.map((m) => (
-                  <TableRow key={m.id}>
-                    <DataTableCell className="font-medium">{m.userName}</DataTableCell>
-                    <DataTableCell className="text-muted-foreground">{m.userEmail}</DataTableCell>
-                    <DataTableCell>
-                      <Badge variant={memberIsActive(m) ? "default" : "secondary"}>
-                        {memberIsActive(m) ? "Active" : "Inactive"}
-                      </Badge>
-                    </DataTableCell>
-                    <DataTableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          disabled={memberBusyId === m.id}
-                          onClick={() => setMemberActive(m, !memberIsActive(m))}
-                        >
-                          {memberIsActive(m) ? "Deactivate" : "Activate"}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="sm"
-                          disabled={memberBusyId === m.id}
-                          onClick={() => setRemoveTarget(m)}
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    </DataTableCell>
-                  </TableRow>
-                ))}
+                {members.map((m) => {
+                  const inWorkspace = workspaceMemberUserIds.has(m.userId);
+                  const canActivate = memberCanActivate(m, workspaceMemberUserIds);
+                  const statusLabel = memberIsActive(m)
+                    ? "Active"
+                    : inWorkspace
+                      ? "Inactive"
+                      : "Not in workspace";
+
+                  return (
+                    <TableRow key={m.id}>
+                      <DataTableCell className="font-medium">{m.userName}</DataTableCell>
+                      <DataTableCell className="text-muted-foreground">{m.userEmail}</DataTableCell>
+                      <DataTableCell>
+                        <Badge variant={memberIsActive(m) ? "default" : "secondary"}>
+                          {statusLabel}
+                        </Badge>
+                      </DataTableCell>
+                      <DataTableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          {canActivate ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={memberBusyId === m.id}
+                              onClick={() => setMemberActive(m, true)}
+                            >
+                              Activate
+                            </Button>
+                          ) : memberIsActive(m) ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={memberBusyId === m.id}
+                              onClick={() => setMemberActive(m, false)}
+                            >
+                              Deactivate
+                            </Button>
+                          ) : null}
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            disabled={memberBusyId === m.id}
+                            onClick={() => setRemoveTarget(m)}
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      </DataTableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
             <TablePagination
