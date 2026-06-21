@@ -510,6 +510,20 @@ export class ProjectsService {
         HttpStatus.NOT_FOUND
       );
     }
+
+    if (isActive) {
+      const workspaceMember = await this.prisma.workspaceMember.findUnique({
+        where: { workspaceId_userId: { workspaceId, userId: member.userId } }
+      });
+      if (!workspaceMember || !workspaceMember.isActive) {
+        throw new DomainException(
+          ErrorCodes.FORBIDDEN,
+          "User must be an active workspace member before they can be activated on a project",
+          HttpStatus.FORBIDDEN
+        );
+      }
+    }
+
     const updated = await this.prisma.teamMember.update({
       where: { id: memberId },
       data: { isActive },

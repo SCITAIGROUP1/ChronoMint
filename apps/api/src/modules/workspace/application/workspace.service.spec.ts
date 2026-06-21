@@ -52,7 +52,8 @@ describe("WorkspaceService", () => {
         update: vi.fn()
       },
       teamMember: {
-        updateMany: vi.fn()
+        updateMany: vi.fn(),
+        deleteMany: vi.fn()
       }
     };
     mockMailer = {
@@ -281,6 +282,7 @@ describe("WorkspaceService", () => {
     const result = await service.removeMember(workspaceId, "m2", "u1");
 
     expect(result).toEqual({ ok: true });
+    expect(mockPrisma.teamMember.deleteMany).toHaveBeenCalled();
     expect(mockPrisma.workspaceMember.delete).toHaveBeenCalledWith({ where: { id: "m2" } });
     expect(mockNotificationsDispatch.notifyWorkspaceAdmins).toHaveBeenCalledWith(
       workspaceId,

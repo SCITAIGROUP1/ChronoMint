@@ -38,6 +38,13 @@ describe("ProjectsService", () => {
         findUnique: vi.fn(),
         create: vi.fn()
       },
+      teamMember: {
+        findFirst: vi.fn(),
+        update: vi.fn()
+      },
+      workspaceMember: {
+        findUnique: vi.fn()
+      },
       userProjectColor: {
         findMany: vi.fn().mockResolvedValue([])
       }
@@ -235,6 +242,82 @@ describe("ProjectsService", () => {
       });
       expect(mockPrisma.project.delete).toHaveBeenCalledWith({ where: { id: "p-deleted" } });
       expect(result).toEqual({ ok: true });
+    });
+  });
+
+  describe("updateTeamMember", () => {
+    const projectId = "p1";
+    const memberId = "tm-1";
+
+    beforeEach(() => {
+      mockPrisma.project.findFirst.mockResolvedValue({
+        id: projectId,
+        workspaceId,
+        name: "Alpha"
+      });
+      mockPrisma.team.findUnique.mockResolvedValue({ id: "team-1", projectId });
+      mockPrisma.teamMember.findFirst.mockResolvedValue({
+        id: memberId,
+        teamId: "team-1",
+        userId: "u2",
+        isActive: false
+      });
+    });
+
+    it("blocks activation when user is not a workspace member", async () => {
+      mockPrisma.workspaceMember.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.updateTeamMember(workspaceId, projectId, memberId, true)
+      ).rejects.toSatisfy(
+        (err: unknown) =>
+          err instanceof DomainException &&
+          err.code === ErrorCodes.FORBIDDEN &&
+          err.getStatus() === HttpStatus.FORBIDDEN
+      );
+      expect(mockPrisma.teamMember.update).not.toHaveBeenCalled();
+    });
+
+    it("blocks activation when workspace membership is inactive", async () => {
+      mockPrisma.workspaceMember.findUnique.mockResolvedValue({
+        workspaceId,
+        userId: "u2",
+        isActive: false
+      });
+
+      await expect(
+        service.updateTeamMember(workspaceId, projectId, memberId, true)
+      ).rejects.toSatisfy(
+        (err: unknown) =>
+          err instanceof DomainException &&
+          err.code === ErrorCodes.FORBIDDEN &&
+          err.getStatus() === HttpStatus.FORBIDDEN
+      );
+      expect(mockPrisma.teamMember.update).not.toHaveBeenCalled();
+    });
+
+    it("activates team member when workspace membership is active", async () => {
+      mockPrisma.workspaceMember.findUnique.mockResolvedValue({
+        workspaceId,
+        userId: "u2",
+        isActive: true
+      });
+      mockPrisma.teamMember.update.mockResolvedValue({
+        id: memberId,
+        teamId: "team-1",
+        userId: "u2",
+        isActive: true,
+        user: { name: "Member User", email: "member@kloqra.dev" }
+      });
+
+      const result = await service.updateTeamMember(workspaceId, projectId, memberId, true);
+
+      expect(mockPrisma.teamMember.update).toHaveBeenCalledWith({
+        where: { id: memberId },
+        data: { isActive: true },
+        include: { user: true }
+      });
+      expect(result.isActive).toBe(true);
     });
   });
 });
