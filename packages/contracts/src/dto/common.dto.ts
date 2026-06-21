@@ -27,6 +27,12 @@ export const currencyCodeSchema = z
   .regex(/^[A-Z]{3}$/, "Currency must be a 3-letter ISO 4217 code");
 
 export const DEFAULT_CURRENCY = "USD" as const;
+
+/** Six-digit hex color (#RRGGBB). Palette membership is a UI hint, not a schema rule. */
+export const hexColorSchema = z
+  .string()
+  .regex(/^#[0-9A-Fa-f]{6}$/, "Color must be a hex value like #236bfe");
+
 export const timelogSourceSchema = z.enum(["manual", "timer"]);
 
 /** Maximum inclusive span for report/export/billing date ranges */

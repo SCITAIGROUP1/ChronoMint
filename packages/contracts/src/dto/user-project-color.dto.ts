@@ -1,8 +1,7 @@
 import { z } from "zod";
+import { hexColorSchema } from "./common.dto";
 
-export const userProjectColorHexSchema = z
-  .string()
-  .regex(/^#[0-9A-Fa-f]{6}$/, "Color must be a hex value like #236bfe");
+export const userProjectColorHexSchema = hexColorSchema;
 
 export const setUserProjectColorSchema = z.object({
   color: userProjectColorHexSchema

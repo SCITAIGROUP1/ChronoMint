@@ -30,4 +30,18 @@ describe("MemberProjectColorPicker", () => {
     await userEvent.click(screen.getByRole("button", { name: "Reset to project default" }));
     expect(onClear).toHaveBeenCalled();
   });
+
+  it("commits custom hex from the text field", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+
+    render(<MemberProjectColorPicker value="#236bfe" onChange={onChange} colors={COLORS} />);
+
+    const hexInput = screen.getByRole("textbox", { name: "Custom color hex" });
+    await user.clear(hexInput);
+    await user.type(hexInput, "#a1b2c3");
+    await user.tab();
+
+    expect(onChange).toHaveBeenCalledWith("#a1b2c3");
+  });
 });
