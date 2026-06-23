@@ -34,6 +34,15 @@ export * from "./user-preferences";
 export * from "./dashboard-layout";
 export * from "./errors";
 export * from "./routes";
+export * from "./tenant-rbac";
+export * from "./plan-catalog";
+export * from "./dto/tenant.dto";
+export * from "./dto/tenant-analytics.dto";
+export * from "./dto/subscription.dto";
+export * from "./dto/platform.dto";
+export * from "./dto/platform-audit.dto";
+export * from "./dto/compliance.dto";
+export * from "./legal-urls";
 
 export const TimerSource = {
   manual: "manual",

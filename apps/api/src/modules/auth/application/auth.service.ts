@@ -7,22 +7,33 @@ import type {
   LoginRequiresPasswordChangeResponseDto,
   LoginRequiresEmailVerificationResponseDto,
   SetInitialPasswordDto,
-  OkResponseDto
+  OkResponseDto,
+  PlatformSessionDto,
+  SignupDto
 } from "@kloqra/contracts";
 import { Injectable, HttpStatus } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import * as bcrypt from "bcrypt";
+import { ProjectAccessService } from "../../../common/access/project-access.service";
 import { verify as verifyTotp } from "../../../common/auth/otplib.util";
 import { hashPassword } from "../../../common/auth/password.util";
 import { DomainException } from "../../../common/errors/domain.exception";
 import {
   AuthMailer,
+  buildAdminVerifyEmailUrl,
   buildPasswordResetUrl,
   buildVerifyEmailUrl
 } from "../../../common/mailer/auth.mailer";
+import { generatedPrisma } from "../../../common/prisma/generated-prisma.util";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { assertTenantAllowsOperations } from "../../../common/tenant/assert-tenant-operations.util";
+import { isSelfServeSignupEnabled } from "../../../common/tenant/self-serve-signup.util";
 import {
-  activeMembershipsInclude,
+  assertWorkspaceInUserTenant,
+  resolveTenantRoleForUser
+} from "../../../common/tenant/tenant-context";
+import { TenantProvisioningService } from "../../../common/tenant/tenant-provisioning.service";
+import {
   asUserWithMemberships,
   isWorkspaceMembershipActive
 } from "../../../common/workspace/workspace-member.types";
@@ -30,6 +41,13 @@ import { splitDisplayName } from "../../users/application/user-name.util";
 
 const IMPERSONATION_HANDOFF_EXPIRES = "90s";
 const INVALID_LOGIN_MESSAGE = "Invalid email or password. Please try again.";
+
+const loginMembershipsInclude = {
+  where: { isActive: true },
+  include: { workspace: true },
+  orderBy: { createdAt: "asc" as const },
+  take: 1
+} as const;
 
 function hashToken(raw: string): string {
   return createHash("sha256").update(raw).digest("hex");
@@ -59,11 +77,18 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
-    private authMailer: AuthMailer
+    private authMailer: AuthMailer,
+    private projectAccess: ProjectAccessService,
+    private provisioning: TenantProvisioningService
   ) {}
 
+  /** Tenant-aware Prisma delegate (workspace.tenantId lives on generated client). */
+  private db() {
+    return generatedPrisma(this.prisma);
+  }
+
   async switchWorkspace(userId: string, workspaceId: string): Promise<AuthSessionDto> {
-    const membership = await this.prisma.workspaceMember.findUnique({
+    const membership = await this.db().workspaceMember.findUnique({
       where: { workspaceId_userId: { workspaceId, userId } },
       include: { user: true, workspace: true }
     });
@@ -81,12 +106,8 @@ export class AuthService {
         HttpStatus.FORBIDDEN
       );
     }
-    return this.buildSession(
-      membership.user,
-      membership.workspaceId,
-      membership.role as "ADMIN" | "MEMBER",
-      membership.workspace.name
-    );
+    await assertWorkspaceInUserTenant(this.prisma, userId, membership.workspace.tenantId);
+    return this.buildSessionFromMembership(membership);
   }
 
   async login(
@@ -105,16 +126,16 @@ export class AuthService {
 
     const user = asUserWithMemberships(
       userId
-        ? await this.prisma.user.findUnique({
+        ? await this.db().user.findUnique({
             where: { id: userId },
             include: {
-              memberships: activeMembershipsInclude()
+              memberships: loginMembershipsInclude
             }
           })
-        : await this.prisma.user.findUnique({
+        : await this.db().user.findUnique({
             where: { email: dto.email },
             include: {
-              memberships: activeMembershipsInclude()
+              memberships: loginMembershipsInclude
             }
           })
     );
@@ -173,12 +194,12 @@ export class AuthService {
         HttpStatus.NOT_FOUND
       );
     }
-    return this.buildSession(
-      user,
-      membership.workspaceId,
-      membership.role as "ADMIN" | "MEMBER",
-      membership.workspace.name
-    );
+    return this.buildSessionFromMembership({
+      workspaceId: membership.workspaceId,
+      role: membership.role,
+      workspace: membership.workspace,
+      user
+    });
   }
 
   async setInitialPassword(
@@ -188,10 +209,10 @@ export class AuthService {
   > {
     const userId = this.verifyPendingPasswordChangeToken(dto.pendingToken);
     const user = asUserWithMemberships(
-      await this.prisma.user.findUnique({
+      await this.db().user.findUnique({
         where: { id: userId },
         include: {
-          memberships: activeMembershipsInclude()
+          memberships: loginMembershipsInclude
         }
       })
     );
@@ -231,12 +252,12 @@ export class AuthService {
       };
     }
 
-    return this.buildSession(
-      user,
-      membership.workspaceId,
-      membership.role as "ADMIN" | "MEMBER",
-      membership.workspace.name
-    );
+    return this.buildSessionFromMembership({
+      workspaceId: membership.workspaceId,
+      role: membership.role,
+      workspace: membership.workspace,
+      user
+    });
   }
 
   async forgotPassword(email: string): Promise<OkResponseDto> {
@@ -311,6 +332,25 @@ export class AuthService {
       .catch(() => undefined);
   }
 
+  async sendAdminEmailVerification(userId: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || user.emailVerifiedAt) return;
+
+    const raw = randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        emailVerificationTokenHash: hashToken(raw),
+        emailVerificationExpiresAt: expiresAt
+      }
+    });
+
+    void this.authMailer
+      .sendEmailVerification({ to: user.email, verifyUrl: buildAdminVerifyEmailUrl(raw) })
+      .catch(() => undefined);
+  }
+
   async resendVerification(email: string): Promise<OkResponseDto> {
     const normalized = email.trim().toLowerCase();
     const user = await this.prisma.user.findUnique({ where: { email: normalized } });
@@ -321,19 +361,71 @@ export class AuthService {
     return { ok: true };
   }
 
+  async signup(dto: SignupDto): Promise<OkResponseDto> {
+    if (!isSelfServeSignupEnabled()) {
+      throw new DomainException(
+        ErrorCodes.SIGNUP_DISABLED,
+        "Self-serve signup is not enabled",
+        HttpStatus.FORBIDDEN
+      );
+    }
+
+    const email = dto.email.trim().toLowerCase();
+    const existingUser = await this.prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      const existingMember = await this.db().tenantMember.findUnique({
+        where: { userId: existingUser.id }
+      });
+      if (existingMember) {
+        throw new DomainException(
+          ErrorCodes.ALREADY_IN_ORGANIZATION,
+          "This email already belongs to an organization",
+          HttpStatus.CONFLICT
+        );
+      }
+      throw new DomainException(
+        ErrorCodes.EMAIL_ALREADY_REGISTERED,
+        "An account with this email already exists",
+        HttpStatus.CONFLICT
+      );
+    }
+
+    const plan = await this.db().plan.findUnique({ where: { slug: dto.planSlug } });
+    if (!plan?.isPublic) {
+      throw new DomainException(
+        ErrorCodes.VALIDATION_ERROR,
+        `Plan is not available for signup: ${dto.planSlug}`,
+        HttpStatus.BAD_REQUEST
+      );
+    }
+
+    const passwordHash = await hashPassword(dto.password);
+    const result = await this.provisioning.provisionTenant({
+      mode: "self_serve",
+      organizationName: dto.organizationName.trim(),
+      ownerEmail: email,
+      ownerName: dto.name.trim(),
+      planId: plan.id,
+      passwordHash
+    });
+
+    await this.sendAdminEmailVerification(result.ownerUserId);
+    return { ok: true };
+  }
+
   async verifyEmail(
     token: string
   ): Promise<
     AuthSessionDto | LoginRequires2faResponseDto | LoginRequiresPasswordChangeResponseDto
   > {
     const user = asUserWithMemberships(
-      await this.prisma.user.findFirst({
+      await this.db().user.findFirst({
         where: {
           emailVerificationTokenHash: hashToken(token),
           emailVerificationExpiresAt: { gt: new Date() }
         },
         include: {
-          memberships: activeMembershipsInclude()
+          memberships: loginMembershipsInclude
         }
       })
     );
@@ -381,12 +473,12 @@ export class AuthService {
       };
     }
 
-    return this.buildSession(
-      verifiedUser,
-      membership.workspaceId,
-      membership.role as "ADMIN" | "MEMBER",
-      membership.workspace.name
-    );
+    return this.buildSessionFromMembership({
+      workspaceId: membership.workspaceId,
+      role: membership.role,
+      workspace: membership.workspace,
+      user: verifiedUser
+    });
   }
 
   private signPending2faToken(userId: string): string {
@@ -438,6 +530,7 @@ export class AuthService {
     userId: string,
     workspaceId: string,
     role: "ADMIN" | "MEMBER",
+    tenantId: string,
     impersonatorId?: string,
     scope?: "client" | "admin",
     family?: string
@@ -451,6 +544,7 @@ export class AuthService {
         sub: userId,
         userId,
         workspaceId,
+        tenantId,
         role,
         typ: "access",
         ...(family ? { family } : {}),
@@ -685,11 +779,11 @@ export class AuthService {
     impersonatorId?: string
   ): Promise<AuthSessionDto | null> {
     const membership = workspaceId
-      ? await this.prisma.workspaceMember.findUnique({
+      ? await this.db().workspaceMember.findUnique({
           where: { workspaceId_userId: { workspaceId, userId } },
           include: { user: true, workspace: true }
         })
-      : await this.prisma.workspaceMember.findFirst({
+      : await this.db().workspaceMember.findFirst({
           where: { userId },
           include: { user: true, workspace: true },
           orderBy: { createdAt: "asc" }
@@ -703,14 +797,7 @@ export class AuthService {
       impersonatorName = impUser?.name;
     }
 
-    return this.buildSession(
-      membership.user,
-      membership.workspaceId,
-      membership.role as "ADMIN" | "MEMBER",
-      membership.workspace.name,
-      impersonatorId,
-      impersonatorName
-    );
+    return this.buildSessionFromMembership(membership, impersonatorId, impersonatorName);
   }
 
   async getMe(
@@ -718,8 +805,8 @@ export class AuthService {
     workspaceId: string,
     impersonatorId?: string
   ): Promise<AuthSessionDto> {
-    const dbUser = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
-    const workspace = await this.prisma.workspace.findUniqueOrThrow({
+    const dbUser = await this.db().user.findUniqueOrThrow({ where: { id: userId } });
+    const workspace = await this.db().workspace.findUniqueOrThrow({
       where: { id: workspaceId }
     });
 
@@ -729,7 +816,7 @@ export class AuthService {
       impersonatorName = impUser?.name;
     }
 
-    const membership = await this.prisma.workspaceMember.findUniqueOrThrow({
+    const membership = await this.db().workspaceMember.findUniqueOrThrow({
       where: { workspaceId_userId: { workspaceId, userId } }
     });
     if (!isWorkspaceMembershipActive(membership)) {
@@ -740,13 +827,52 @@ export class AuthService {
       );
     }
 
-    return this.buildSession(
-      dbUser,
-      workspaceId,
-      membership.role as "ADMIN" | "MEMBER",
-      workspace.name,
+    return this.buildSessionFromMembership(
+      { ...membership, user: dbUser, workspace },
       impersonatorId,
       impersonatorName
+    );
+  }
+
+  private async buildSessionFromMembership(
+    membership: {
+      workspaceId: string;
+      role: string;
+      workspace: { name: string; tenantId: string };
+      user: {
+        id: string;
+        email: string;
+        name: string;
+        firstName?: string | null;
+        lastName?: string | null;
+        defaultHourlyRate: { toNumber(): number } | null;
+        preferences?: unknown;
+      };
+    },
+    impersonatorId?: string,
+    impersonatorName?: string
+  ): Promise<AuthSessionDto> {
+    const tenantId = await assertWorkspaceInUserTenant(
+      this.prisma,
+      membership.user.id,
+      membership.workspace.tenantId
+    );
+    await assertTenantAllowsOperations(this.prisma, tenantId);
+    const tenantRole = await resolveTenantRoleForUser(this.prisma, membership.user.id, tenantId);
+    const ledProjectIds =
+      membership.role === "MEMBER"
+        ? await this.projectAccess.ledProjectIds(membership.workspaceId, membership.user.id)
+        : undefined;
+    return this.buildSession(
+      membership.user,
+      membership.workspaceId,
+      membership.role as "ADMIN" | "MEMBER",
+      membership.workspace.name,
+      tenantId,
+      tenantRole,
+      impersonatorId,
+      impersonatorName,
+      ledProjectIds
     );
   }
 
@@ -763,8 +889,11 @@ export class AuthService {
     workspaceId: string,
     role: "ADMIN" | "MEMBER",
     workspaceName: string,
+    tenantId: string,
+    tenantRole?: "OWNER" | "ADMIN",
     impersonatorId?: string,
-    impersonatorName?: string
+    impersonatorName?: string,
+    ledProjectIds?: string[]
   ): AuthSessionDto {
     const names = user.firstName
       ? { firstName: user.firstName, lastName: user.lastName ?? "" }
@@ -781,12 +910,15 @@ export class AuthService {
     }
     return {
       user: sessionUser,
+      tenantId,
+      ...(tenantRole ? { tenantRole } : {}),
       workspaceId,
       workspaceName,
       workspaceRole: role,
       ...(preferences.defaultWorkspaceId
         ? { defaultWorkspaceId: preferences.defaultWorkspaceId }
         : {}),
+      ...(ledProjectIds && ledProjectIds.length > 0 ? { ledProjectIds } : {}),
       impersonatorId,
       impersonatorName
     };
@@ -798,7 +930,7 @@ export class AuthService {
     targetUserId: string
   ): Promise<{ session: AuthSessionDto; accessToken: string; refreshToken: string }> {
     const adminUser = await this.prisma.user.findUniqueOrThrow({ where: { id: adminUserId } });
-    const targetMembership = await this.prisma.workspaceMember.findUnique({
+    const targetMembership = await this.db().workspaceMember.findUnique({
       where: { workspaceId_userId: { workspaceId, userId: targetUserId } },
       include: { user: true, workspace: true }
     });
@@ -818,11 +950,8 @@ export class AuthService {
       );
     }
 
-    const session = this.buildSession(
-      targetMembership.user,
-      targetMembership.workspaceId,
-      targetMembership.role as "ADMIN" | "MEMBER",
-      targetMembership.workspace.name,
+    const session = await this.buildSessionFromMembership(
+      targetMembership,
       adminUser.id,
       adminUser.name
     );
@@ -840,6 +969,7 @@ export class AuthService {
       targetMembership.userId,
       targetMembership.workspaceId,
       targetMembership.role as "ADMIN" | "MEMBER",
+      session.tenantId,
       adminUser.id,
       "client",
       issued.family
@@ -929,5 +1059,244 @@ export class AuthService {
       );
     }
     return { id: membership.userId, name: membership.user.name };
+  }
+
+  async loginPlatform(dto: LoginDto): Promise<PlatformSessionDto> {
+    const user = await this.db().platformUser.findUnique({
+      where: { email: dto.email }
+    });
+
+    if (!user || !user.isActive) {
+      throw new DomainException(
+        ErrorCodes.UNAUTHORIZED,
+        INVALID_LOGIN_MESSAGE,
+        HttpStatus.UNAUTHORIZED
+      );
+    }
+
+    if (!(await bcrypt.compare(dto.password, user.passwordHash))) {
+      throw new DomainException(
+        ErrorCodes.UNAUTHORIZED,
+        INVALID_LOGIN_MESSAGE,
+        HttpStatus.UNAUTHORIZED
+      );
+    }
+
+    if (user.role !== "SUPERADMIN") {
+      throw new DomainException(
+        ErrorCodes.FORBIDDEN,
+        "Platform access required",
+        HttpStatus.FORBIDDEN
+      );
+    }
+
+    return this.buildPlatformSession(user);
+  }
+
+  buildPlatformSession(user: {
+    id: string;
+    email: string;
+    name: string;
+    role: string;
+  }): PlatformSessionDto {
+    const platformRole = user.role === "SUPERADMIN" ? "SUPERADMIN" : "SUPERADMIN";
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        platformRole
+      },
+      platformRole
+    };
+  }
+
+  signPlatformAccessToken(platformUserId: string, family?: string): string {
+    const secret = process.env.JWT_ACCESS_SECRET?.trim();
+    if (!secret) {
+      throw new Error("JWT_ACCESS_SECRET is not set on the API service");
+    }
+    return this.jwt.sign(
+      {
+        sub: platformUserId,
+        platformRole: "SUPERADMIN",
+        typ: "platform",
+        scope: "platform",
+        ...(family ? { family } : {})
+      },
+      { secret, expiresIn: process.env.JWT_ACCESS_EXPIRES ?? "15m" }
+    );
+  }
+
+  async signAndStorePlatformRefreshToken(
+    platformUserId: string,
+    family?: string,
+    sessionMeta?: { userAgent?: string; ipAddress?: string }
+  ): Promise<{ raw: string; family: string }> {
+    const secret = process.env.JWT_REFRESH_SECRET?.trim();
+    if (!secret) throw new Error("JWT_REFRESH_SECRET is not set on the API service");
+
+    const db = this.db();
+    const tokenFamily = family ?? randomUUID();
+    const raw = this.jwt.sign(
+      {
+        sub: platformUserId,
+        family: tokenFamily,
+        jti: randomUUID(),
+        typ: "platform_refresh",
+        scope: "platform"
+      },
+      { secret, expiresIn: process.env.JWT_REFRESH_EXPIRES ?? "7d" }
+    );
+
+    const expiresInMs = parseDuration(process.env.JWT_REFRESH_EXPIRES ?? "7d");
+    const expiresAt = new Date(Date.now() + expiresInMs);
+    const now = new Date();
+
+    await db.platformRefreshToken.create({
+      data: {
+        platformUserId,
+        tokenHash: hashToken(raw),
+        family: tokenFamily,
+        expiresAt,
+        userAgent: sessionMeta?.userAgent ?? null,
+        ipAddress: sessionMeta?.ipAddress ?? null,
+        lastUsedAt: now
+      }
+    });
+
+    await db.platformRefreshToken
+      .deleteMany({ where: { platformUserId, expiresAt: { lt: new Date() } } })
+      .catch(() => undefined);
+
+    return { raw, family: tokenFamily };
+  }
+
+  verifyPlatformRefresh(token: string): { platformUserId: string; family?: string } {
+    const payload = this.jwt.verify(token, { secret: process.env.JWT_REFRESH_SECRET }) as {
+      sub: string;
+      family?: string;
+      typ?: string;
+      scope?: string;
+    };
+    if (payload.typ !== "platform_refresh" || payload.scope !== "platform") {
+      throw new DomainException(
+        ErrorCodes.UNAUTHORIZED,
+        "Wrong token type",
+        HttpStatus.UNAUTHORIZED
+      );
+    }
+    return { platformUserId: payload.sub, family: payload.family };
+  }
+
+  async rotatePlatformRefreshToken(
+    rawToken: string,
+    requestMeta?: { userAgent?: string }
+  ): Promise<{
+    session: PlatformSessionDto | null;
+    newRefreshToken: string | null;
+    family?: string;
+  }> {
+    const { platformUserId, family } = this.verifyPlatformRefresh(rawToken);
+    const hash = hashToken(rawToken);
+    const db = this.db();
+
+    const stored = await db.platformRefreshToken.findUnique({ where: { tokenHash: hash } });
+    if (!stored) {
+      const session = await this.refreshPlatformSession(platformUserId);
+      return { session, newRefreshToken: null };
+    }
+
+    if (stored.revokedAt !== null) {
+      const graceMs = Number(process.env.REFRESH_ROTATION_GRACE_MS ?? 10_000);
+      const withinGrace = Date.now() - stored.revokedAt.getTime() <= graceMs;
+      if (withinGrace && family) {
+        const active = await db.platformRefreshToken.findFirst({
+          where: {
+            platformUserId: stored.platformUserId,
+            family,
+            revokedAt: null,
+            expiresAt: { gt: new Date() }
+          },
+          orderBy: { createdAt: "desc" }
+        });
+        const uaMatch =
+          !requestMeta?.userAgent ||
+          !active?.userAgent ||
+          active.userAgent === requestMeta.userAgent;
+        if (active && uaMatch) {
+          const session = await this.refreshPlatformSession(stored.platformUserId);
+          return { session, newRefreshToken: null, family: family ?? stored.family };
+        }
+      }
+
+      if (family) {
+        await db.platformRefreshToken.updateMany({
+          where: { platformUserId: stored.platformUserId, family },
+          data: { revokedAt: new Date() }
+        });
+      }
+      throw new DomainException(
+        ErrorCodes.UNAUTHORIZED,
+        "Refresh token reuse detected — please log in again",
+        HttpStatus.UNAUTHORIZED
+      );
+    }
+
+    if (stored.expiresAt < new Date()) {
+      throw new DomainException(
+        ErrorCodes.UNAUTHORIZED,
+        "Refresh token expired",
+        HttpStatus.UNAUTHORIZED
+      );
+    }
+
+    const session = await this.refreshPlatformSession(stored.platformUserId);
+    if (!session) return { session: null, newRefreshToken: null };
+
+    const newToken = await this.signAndStorePlatformRefreshToken(stored.platformUserId, family, {
+      userAgent: requestMeta?.userAgent ?? stored.userAgent ?? undefined,
+      ipAddress: stored.ipAddress ?? undefined
+    });
+
+    await db.platformRefreshToken.update({
+      where: { tokenHash: hash },
+      data: { revokedAt: new Date(), lastUsedAt: new Date() }
+    });
+
+    return { session, newRefreshToken: newToken.raw, family: family ?? stored.family };
+  }
+
+  async refreshPlatformSession(platformUserId: string): Promise<PlatformSessionDto | null> {
+    const db = this.db();
+    const user = await db.platformUser.findUnique({ where: { id: platformUserId } });
+    if (!user || !user.isActive || user.role !== "SUPERADMIN") return null;
+    return this.buildPlatformSession(user);
+  }
+
+  async getPlatformMe(platformUserId: string): Promise<PlatformSessionDto> {
+    const db = this.db();
+    const user = await db.platformUser.findUniqueOrThrow({ where: { id: platformUserId } });
+    if (!user.isActive || user.role !== "SUPERADMIN") {
+      throw new DomainException(
+        ErrorCodes.FORBIDDEN,
+        "Platform access required",
+        HttpStatus.FORBIDDEN
+      );
+    }
+    return this.buildPlatformSession(user);
+  }
+
+  async revokePlatformRefreshToken(rawToken: string): Promise<void> {
+    try {
+      const hash = hashToken(rawToken);
+      const db = this.db();
+      await db.platformRefreshToken.update({
+        where: { tokenHash: hash },
+        data: { revokedAt: new Date() }
+      });
+    } catch {
+      // Ignore if not found
+    }
   }
 }

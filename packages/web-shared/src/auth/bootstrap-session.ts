@@ -55,6 +55,8 @@ export type BootstrapOptions = {
   handoffToken?: string;
   /** Require workspace role after bootstrap. */
   requiredRole?: "ADMIN" | "MEMBER";
+  /** Allow workspace MEMBER with led projects (admin app project-lead access). */
+  allowProjectLead?: boolean;
 };
 
 /**
@@ -79,8 +81,12 @@ export async function bootstrapSession(options: BootstrapOptions = {}): Promise<
 
   try {
     let session = await api<AuthSessionDto>(ROUTES.AUTH.ME);
+    const hasProjectLeadAccess = Boolean(session.ledProjectIds && session.ledProjectIds.length > 0);
+
     if (options.requiredRole && session.workspaceRole !== options.requiredRole) {
-      return { ok: false };
+      if (!(options.allowProjectLead && hasProjectLeadAccess)) {
+        return { ok: false };
+      }
     }
 
     const switched = await applyDefaultWorkspaceIfNeeded(session, token);
@@ -88,7 +94,11 @@ export async function bootstrapSession(options: BootstrapOptions = {}): Promise<
     token = switched.accessToken;
 
     if (options.requiredRole && session.workspaceRole !== options.requiredRole) {
-      return { ok: false };
+      if (
+        !(options.allowProjectLead && session.ledProjectIds && session.ledProjectIds.length > 0)
+      ) {
+        return { ok: false };
+      }
     }
 
     useSessionStore.getState().setSession(session, token);

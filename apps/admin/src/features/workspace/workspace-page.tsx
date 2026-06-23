@@ -214,10 +214,12 @@ export function WorkspacePage() {
           </>
         }
         actions={
-          <Button onClick={() => setIsCreateOpen(true)} className="h-10 gap-1.5 shadow-sm">
-            <Plus className="h-4 w-4" />
-            Create workspace
-          </Button>
+          session?.tenantRole === "OWNER" ? (
+            <Button onClick={() => setIsCreateOpen(true)} className="h-10 gap-1.5 shadow-sm">
+              <Plus className="h-4 w-4" />
+              Create workspace
+            </Button>
+          ) : undefined
         }
       />
 

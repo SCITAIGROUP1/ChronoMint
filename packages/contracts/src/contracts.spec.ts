@@ -562,6 +562,18 @@ describe("contracts", () => {
     expect(r.success).toBe(true);
   });
 
+  it("exposes tenant organization routes", () => {
+    expect(ROUTES.TENANTS.CURRENT).toBe("/tenants/current");
+    expect(ROUTES.TENANTS.OVERVIEW).toBe("/tenants/current/overview");
+    expect(ROUTES.TENANTS.MEMBERS).toBe("/tenants/current/members");
+    expect(ROUTES.TENANTS.MEMBER("m-1")).toBe("/tenants/current/members/m-1");
+    expect(ROUTES.TENANTS.WORKSPACES).toBe("/tenants/current/workspaces");
+    expect(ROUTES.TENANTS.SUBSCRIPTION).toBe("/tenants/current/subscription");
+    expect(ROUTES.TENANTS.DATA_EXPORT).toBe("/tenants/current/data-export");
+    expect(ROUTES.TENANTS.DATA_EXPORT_JOB("job-1")).toBe("/tenants/current/data-export/job-1");
+    expect(ROUTES.WORKSPACES.ASSIGN_ADMIN("ws-1")).toBe("/workspaces/ws-1/admins/assign");
+  });
+
   it("exposes workspace members overview route", () => {
     expect(ROUTES.WORKSPACES.MEMBERS_OVERVIEW("ws-1")).toBe("/workspaces/ws-1/members/overview");
     expect(ROUTES.WORKSPACES.TEAM_ACTIVITIES("ws-1")).toBe("/workspaces/ws-1/team-activities");
@@ -722,6 +734,9 @@ describe("contracts", () => {
   it("exposes impersonation handoff routes", () => {
     expect(ROUTES.AUTH.IMPERSONATE).toBe("/auth/impersonate");
     expect(ROUTES.AUTH.IMPERSONATE_COMPLETE).toBe("/auth/impersonate/complete");
+    expect(ROUTES.AUTH.SIGNUP).toBe("/auth/signup");
+    expect(ROUTES.PLANS.PUBLIC).toBe("/plans/public");
+    expect(ROUTES.PLATFORM.OPS_SUMMARY).toBe("/platform/ops/summary");
   });
 
   it("validates refresh session body", () => {

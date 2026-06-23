@@ -219,6 +219,9 @@ importers:
       socket.io:
         specifier: ^4.8.1
         version: 4.8.3
+      stripe:
+        specifier: ^17.7.0
+        version: 17.7.0
       swagger-ui-express:
         specifier: ^5.0.1
         version: 5.0.1(express@4.22.1)
@@ -377,6 +380,73 @@ importers:
       vitest:
         specifier: ^2.1.8
         version: 2.1.9(@edge-runtime/vm@3.2.0)(@types/node@22.19.19)(@vitest/ui@2.1.9)(jsdom@26.1.0)(lightningcss@1.32.0)(terser@5.48.0)
+
+  apps/platform-admin:
+    dependencies:
+      '@kloqra/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      '@kloqra/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      '@kloqra/web-shared':
+        specifier: workspace:*
+        version: link:../../packages/web-shared
+      lucide-react:
+        specifier: ^0.469.0
+        version: 0.469.0(react@19.2.7)
+      next:
+        specifier: ^15.1.2
+        version: 15.5.19(@playwright/test@1.60.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      next-themes:
+        specifier: ^0.4.4
+        version: 0.4.6(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      react:
+        specifier: ^19.0.0
+        version: 19.2.7
+      react-dom:
+        specifier: ^19.0.0
+        version: 19.2.7(react@19.2.7)
+      sonner:
+        specifier: ^2.0.7
+        version: 2.0.7(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
+      zustand:
+        specifier: ^5.0.2
+        version: 5.0.14(@types/react@19.2.16)(react@19.2.7)
+    devDependencies:
+      '@kloqra/config-typescript':
+        specifier: workspace:*
+        version: link:../../packages/config-typescript
+      '@playwright/test':
+        specifier: ^1.49.1
+        version: 1.60.0
+      '@tailwindcss/postcss':
+        specifier: ^4.0.0
+        version: 4.3.0
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.19.19
+      '@types/react':
+        specifier: ^19.0.2
+        version: 19.2.16
+      '@types/react-dom':
+        specifier: ^19.0.2
+        version: 19.2.3(@types/react@19.2.16)
+      tailwindcss:
+        specifier: ^4.0.0
+        version: 4.3.0
+      tw-animate-css:
+        specifier: ^1.2.5
+        version: 1.4.0
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.8(@edge-runtime/vm@3.2.0)(@types/node@22.19.19)(jsdom@29.1.1(@noble/hashes@2.2.0))(lightningcss@1.32.0)(terser@5.48.0)
 
   packages/config-eslint:
     dependencies:
@@ -6915,6 +6985,10 @@ packages:
     resolution: {integrity: sha512-6fPc+R4ihwqP6N/aIv2f1gMH8lOVtWQHoqC4yK6oSDVVocumAsfCqjkXnqiYMhmMwS/mEHLp7Vehlt3ql6lEig==}
     engines: {node: '>=8'}
 
+  stripe@17.7.0:
+    resolution: {integrity: sha512-aT2BU9KkizY9SATf14WhhYVv2uOapBWX0OFWF4xvcj1mPaNotlSc2CsxpS4DS46ZueSppmCF5BX1sNYBtwBvfw==}
+    engines: {node: '>=12.*'}
+
   strtok3@10.3.5:
     resolution: {integrity: sha512-ki4hZQfh5rX0QDLLkOCj+h+CVNkqmp/CMf8v8kZpkNVK6jGQooMytqzLZYUVYIZcFZ6yDB70EfD8POcFXiF5oA==}
     engines: {node: '>=18'}
@@ -10176,7 +10250,7 @@ snapshots:
       sirv: 3.0.2
       tinyglobby: 0.2.17
       tinyrainbow: 1.2.0
-      vitest: 2.1.9(@edge-runtime/vm@3.2.0)(@types/node@22.19.19)(@vitest/ui@2.1.9)(jsdom@29.1.1(@noble/hashes@2.2.0))(lightningcss@1.32.0)(terser@5.48.0)
+      vitest: 2.1.9(@edge-runtime/vm@3.2.0)(@types/node@22.19.19)(@vitest/ui@2.1.9)(jsdom@26.1.0)(lightningcss@1.32.0)(terser@5.48.0)
 
   '@vitest/utils@2.1.8':
     dependencies:
@@ -14334,6 +14408,11 @@ snapshots:
       min-indent: 1.0.1
 
   strip-json-comments@3.1.1: {}
+
+  stripe@17.7.0:
+    dependencies:
+      '@types/node': 22.19.19
+      qs: 6.15.2
 
   strtok3@10.3.5:
     dependencies:

@@ -1,3 +1,4 @@
+import * as bcrypt from "bcrypt";
 import {
   Prisma,
   PrismaClient,
@@ -5,8 +6,7 @@ import {
   type Task,
   type User,
   type Workspace
-} from "@prisma/client";
-import * as bcrypt from "bcrypt";
+} from "./generated/client";
 import {
   buildPreferencesWithDashboardLayouts,
   SEED_ADMIN_DASHBOARD_LAYOUT,
@@ -19,6 +19,10 @@ import {
   SEED_CATEGORIES,
   SEED_NOTIFICATIONS,
   SEED_PASSWORD,
+  SEED_PLANS,
+  SEED_PLATFORM_SUPERADMIN,
+  SEED_TENANT,
+  SEED_TENANT_SUBSCRIPTION,
   SEED_USERS,
   SEED_WORKSPACES,
   type SeedCategoryName,
@@ -165,11 +169,15 @@ async function main() {
 
   const passwordHash = await bcrypt.hash(SEED_PASSWORD, 10);
   const users = await seedUsers(passwordHash);
+  await seedPlans();
+  const tenant = await seedTenant(users);
+  await seedTenantSubscription(tenant.id);
+  await seedPlatformSuperadmin(passwordHash);
   const workspaces: Workspace[] = [];
   const allProjectCtx: ProjectCtx[] = [];
 
   for (const wsSpec of SEED_WORKSPACES) {
-    const workspace = await seedWorkspace(wsSpec, users);
+    const workspace = await seedWorkspace(wsSpec, users, tenant.id);
     workspaces.push(workspace);
     const projectCtx = await seedProjects(workspace, wsSpec, users);
     allProjectCtx.push(...projectCtx);
@@ -219,13 +227,25 @@ async function resetDatabase() {
   await prisma.hourlyRate.deleteMany();
   await prisma.exportSchedule.deleteMany();
   await prisma.exportPreset.deleteMany();
+  await prisma.exportJob.deleteMany();
   await prisma.reportShare.deleteMany();
+  await prisma.reportingApiCredential.deleteMany();
+  await prisma.widgetShare.deleteMany();
   await prisma.project.deleteMany();
   await categoryRepo().deleteMany();
   await prisma.refreshToken.deleteMany();
+  await prisma.platformAuditEvent.deleteMany();
+  await prisma.platformRefreshToken.deleteMany();
+  await prisma.platformUser.deleteMany();
+  await prisma.stripeWebhookEvent.deleteMany();
   await notificationRepo().deleteMany();
   await prisma.workspaceMember.deleteMany();
   await prisma.workspace.deleteMany();
+  await prisma.tenantMember.deleteMany();
+  await prisma.tenantDataExportJob.deleteMany();
+  await prisma.tenantSubscription.deleteMany();
+  await prisma.tenant.deleteMany();
+  await prisma.plan.deleteMany();
   await prisma.user.deleteMany();
 }
 
@@ -311,12 +331,102 @@ async function seedUsers(passwordHash: string): Promise<Map<string, User>> {
   return users;
 }
 
+async function seedTenant(users: Map<string, User>) {
+  const tenant = await prisma.tenant.create({
+    data: {
+      name: SEED_TENANT.name,
+      slug: SEED_TENANT.slug,
+      status: SEED_TENANT.status,
+      settings: SEED_TENANT.settings as Prisma.InputJsonValue
+    }
+  });
+
+  for (const member of SEED_TENANT.members) {
+    const user = users.get(member.email);
+    if (!user) continue;
+    await prisma.tenantMember.create({
+      data: {
+        tenantId: tenant.id,
+        userId: user.id,
+        role: member.role
+      }
+    });
+  }
+
+  console.log(`  tenant: ${tenant.slug} (${SEED_WORKSPACES.length} workspaces)`);
+  return tenant;
+}
+
+async function seedPlans() {
+  for (const plan of SEED_PLANS) {
+    await prisma.plan.upsert({
+      where: { id: plan.id },
+      create: {
+        id: plan.id,
+        name: plan.name,
+        slug: plan.slug,
+        limits: plan.limits as Prisma.InputJsonValue,
+        isPublic: plan.isPublic,
+        sortOrder: plan.sortOrder,
+        stripeProductId: plan.stripeProductId,
+        stripePriceId: plan.stripePriceId
+      },
+      update: {
+        name: plan.name,
+        slug: plan.slug,
+        limits: plan.limits as Prisma.InputJsonValue,
+        isPublic: plan.isPublic,
+        sortOrder: plan.sortOrder,
+        stripeProductId: plan.stripeProductId,
+        stripePriceId: plan.stripePriceId
+      }
+    });
+  }
+  console.log(`  plans: ${SEED_PLANS.map((p) => p.slug).join(", ")}`);
+}
+
+async function seedTenantSubscription(tenantId: string) {
+  const plan = SEED_PLANS.find((p) => p.slug === SEED_TENANT_SUBSCRIPTION.planSlug);
+  if (!plan) {
+    throw new Error(`Seed plan not found: ${SEED_TENANT_SUBSCRIPTION.planSlug}`);
+  }
+  await prisma.tenantSubscription.create({
+    data: {
+      tenantId,
+      planId: plan.id,
+      status: SEED_TENANT_SUBSCRIPTION.status
+    }
+  });
+  console.log(`  subscription: ${plan.slug} (${SEED_TENANT_SUBSCRIPTION.status})`);
+}
+
+async function seedPlatformSuperadmin(passwordHash: string) {
+  await prisma.platformUser.upsert({
+    where: { email: SEED_PLATFORM_SUPERADMIN.email },
+    create: {
+      email: SEED_PLATFORM_SUPERADMIN.email,
+      passwordHash,
+      name: SEED_PLATFORM_SUPERADMIN.name,
+      role: "SUPERADMIN"
+    },
+    update: {
+      passwordHash,
+      name: SEED_PLATFORM_SUPERADMIN.name,
+      role: "SUPERADMIN",
+      isActive: true
+    }
+  });
+  console.log(`  platform superadmin: ${SEED_PLATFORM_SUPERADMIN.email}`);
+}
+
 async function seedWorkspace(
   spec: SeedWorkspaceSpec,
-  users: Map<string, User>
+  users: Map<string, User>,
+  tenantId: string
 ): Promise<Workspace> {
   const workspace = await prisma.workspace.create({
     data: {
+      tenantId,
       name: spec.name,
       slug: spec.slug,
       settings: spec.settings as Prisma.InputJsonValue

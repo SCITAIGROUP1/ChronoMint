@@ -19,6 +19,7 @@ import {
   parseWorkspaceSettingsFromRaw,
   resolveApprovalPeriod
 } from "../../../common/time/approval-period.util";
+import { SubscriptionsService } from "../../subscriptions/application/subscriptions.service";
 import { TimelogAuditService } from "./timelog-audit.service";
 import { TimesheetLockService } from "./timesheet-lock.service";
 
@@ -32,7 +33,8 @@ export class TimelogsService {
     private reportCache: ReportCacheService,
     private audit: TimelogAuditService,
     private timesheetLock: TimesheetLockService,
-    private access: ProjectAccessService
+    private access: ProjectAccessService,
+    private subscriptions: SubscriptionsService
   ) {}
 
   resolveBillable(role: string, taskBillableDefault: boolean, requested?: boolean): boolean {
@@ -317,6 +319,12 @@ export class TimelogsService {
     dto: CreateTimeLogDto,
     actorId?: string
   ) {
+    const workspace = await this.prisma.workspace.findUniqueOrThrow({
+      where: { id: workspaceId },
+      select: { tenantId: true }
+    });
+    await this.subscriptions.assertSubscriptionAllowsWrites(workspace.tenantId);
+
     await this.access.assertCanLogTask(workspaceId, userId, role as "ADMIN" | "MEMBER", dto.taskId);
     const start = new Date(dto.startTime);
     const end = new Date(dto.endTime);
@@ -593,6 +601,12 @@ export class TimelogsService {
     dto: CreateBatchTimeLogsDto,
     actorId?: string
   ): Promise<BatchTimeLogsResponseDto> {
+    const workspace = await this.prisma.workspace.findUniqueOrThrow({
+      where: { id: workspaceId },
+      select: { tenantId: true }
+    });
+    await this.subscriptions.assertSubscriptionAllowsWrites(workspace.tenantId);
+
     await this.access.assertCanLogTask(workspaceId, userId, role as "ADMIN" | "MEMBER", dto.taskId);
     const start = new Date(dto.startDate);
     const end = new Date(dto.endDate);

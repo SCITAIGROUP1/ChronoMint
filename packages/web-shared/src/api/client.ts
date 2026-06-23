@@ -36,8 +36,23 @@ type ApiErrorBody = {
     reason?: string;
     fieldErrors?: Record<string, string[]>;
     formErrors?: string[];
+    status?: string;
   };
 };
+
+export class ApiRequestError extends Error {
+  readonly status: number;
+  readonly code?: string;
+  readonly details?: ApiErrorBody["details"];
+
+  constructor(message: string, status: number, code?: string, details?: ApiErrorBody["details"]) {
+    super(message);
+    this.name = "ApiRequestError";
+    this.status = status;
+    this.code = code;
+    this.details = details;
+  }
+}
 
 const FATAL_AUTH_REASONS = new Set([
   "token_invalid",
@@ -212,7 +227,7 @@ async function executeApiRequest<T>(
     if (res.status === 403 && isWorkspaceMismatchError(message)) {
       handleSessionFailure(message);
     }
-    throw new Error(message);
+    throw new ApiRequestError(message, res.status, body.code, body.details);
   }
 
   if (method !== "GET" && method !== "HEAD") {

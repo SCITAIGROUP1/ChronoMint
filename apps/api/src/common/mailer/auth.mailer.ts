@@ -1,4 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { adminClientOrigin } from "./admin-origin.util";
 import {
   renderBrandedEmailHtml,
   renderBrandedEmailText,
@@ -72,4 +73,8 @@ export function buildPasswordResetUrl(token: string): string {
 
 export function buildVerifyEmailUrl(token: string): string {
   return `${clientOrigin()}/verify-email?token=${encodeURIComponent(token)}`;
+}
+
+export function buildAdminVerifyEmailUrl(token: string): string {
+  return `${adminClientOrigin()}/verify-email?token=${encodeURIComponent(token)}`;
 }

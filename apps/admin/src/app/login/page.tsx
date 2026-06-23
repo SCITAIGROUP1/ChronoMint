@@ -12,7 +12,8 @@ import {
   applyDefaultWorkspaceIfNeeded,
   AuthShell,
   extractFieldErrorsFromMessage,
-  hasMultipleWorkspaces
+  hasMultipleWorkspaces,
+  resolveAdminLandingPath
 } from "@kloqra/web-shared";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -62,6 +63,11 @@ export default function LoginPage() {
       }
     } catch (err) {
       console.error("Failed to check workspaces:", err);
+    }
+
+    if (switched.session.tenantRole === "OWNER") {
+      router.push(await resolveAdminLandingPath(switched.session, switched.session.workspaceId));
+      return;
     }
 
     router.push("/dashboard");
@@ -203,6 +209,14 @@ export default function LoginPage() {
             <Link href="/forgot-password" className="text-primary hover:underline">
               Forgot password?
             </Link>
+            {process.env.NEXT_PUBLIC_SELF_SERVE_SIGNUP === "true" ? (
+              <>
+                {" · "}
+                <Link href="/signup" className="text-primary hover:underline">
+                  Create an account
+                </Link>
+              </>
+            ) : null}
           </p>
         ) : null}
       </form>

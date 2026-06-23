@@ -1,6 +1,12 @@
 export { applyDefaultWorkspaceIfNeeded } from "./auth/apply-default-workspace";
 export { hasMultipleWorkspaces } from "./auth/workspace-check";
 export { bootstrapSession, type BootstrapResult } from "./auth/bootstrap-session";
+export {
+  bootstrapPlatformSession,
+  logoutPlatformSession,
+  tryRefreshPlatformSession,
+  type BootstrapPlatformResult
+} from "./auth/bootstrap-platform-session";
 export { logoutSession } from "./auth/logout";
 export { tryRefreshSession } from "./auth/refresh-session";
 export { isAccessTokenExpired } from "./auth/jwt-payload";
@@ -9,7 +15,7 @@ export {
   isWorkspaceMismatchError,
   resolveApiWorkspaceId
 } from "./auth/workspace-context";
-export { api, getApiBase, publicFetch } from "./api/client";
+export { api, getApiBase, publicFetch, ApiRequestError } from "./api/client";
 export {
   COMPACT_LAPTOP_SHELL_MAX,
   COMPACT_LAPTOP_SHELL_MIN,
@@ -68,6 +74,7 @@ export {
   syncWorkspaceIdToStorage,
   useSessionStore
 } from "./stores/session.store";
+export { usePlatformSessionStore } from "./stores/platform-session.store";
 export { useWorkspacesStore } from "./stores/workspaces.store";
 export { toDateInputValue } from "./utils/date-input";
 export { resolveStartupPath } from "./utils/startup-page";
@@ -133,12 +140,32 @@ export { SetPasswordForm } from "./features/account/set-password-form";
 export { ForgotPasswordForm } from "./features/auth/forgot-password-form";
 export { ResetPasswordForm } from "./features/auth/reset-password-form";
 export { VerifyEmailPageContent } from "./features/auth/verify-email-page-content";
+export { usePublicPlans } from "./features/auth/use-public-plans";
 export { WorkspaceSelectForm } from "./features/auth/workspace-select-form";
 export { AccountSettingsPage } from "./features/account/account-settings-page";
 export { NotificationsPage } from "./features/notifications/notifications-page";
 export { ProfilePage } from "./features/account/profile-page";
 export { IntegrationsSection } from "./features/account/profile/integrations-section";
 export { useUserProfile } from "./features/account/use-user-profile";
+export { useTenantCurrent } from "./features/tenant/use-tenant-current";
+export { useUpdateTenantCurrent } from "./features/tenant/use-update-tenant-current";
+export { useTenantOverview } from "./features/tenant/use-tenant-overview";
+export { useTenantAnalyticsSummary } from "./features/tenant/use-tenant-analytics-summary";
+export { useTenantMembers } from "./features/tenant/use-tenant-members";
+export { useTenantSubscription } from "./features/tenant/use-tenant-subscription";
+export { useTenantDataExport } from "./features/tenant/use-tenant-data-export";
+export { LegalFooterLinks, getLegalUrls } from "./components/legal-footer";
+export {
+  useCreateCheckoutSession,
+  useCreatePortalSession
+} from "./features/tenant/use-subscription-billing";
+export { usePlatformPlans } from "./features/platform/use-platform-plans";
+export { usePlatformOpsSummary } from "./features/platform/use-platform-ops-summary";
+export {
+  usePlatformAuditEvents,
+  type PlatformAuditAction
+} from "./features/platform/use-platform-audit-events";
+export { resolveAdminLandingPath } from "./auth/resolve-admin-landing-path";
 export { SettingsCard } from "./features/account/settings/settings-card";
 export { SettingsSaveBar } from "./features/account/settings/settings-save-bar";
 export {

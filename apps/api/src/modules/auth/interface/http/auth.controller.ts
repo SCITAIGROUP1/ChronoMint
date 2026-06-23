@@ -1,5 +1,6 @@
 import {
   loginSchema,
+  signupSchema,
   setInitialPasswordSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
@@ -11,7 +12,8 @@ import {
   refreshSessionSchema,
   ROUTES,
   ErrorCodes,
-  type AuthSessionDto
+  type AuthSessionDto,
+  type PlatformSessionDto
 } from "@kloqra/contracts";
 import {
   Body,
@@ -34,21 +36,27 @@ import {
 } from "../../../../common/auth/auth-scope";
 import { getClearCookieOpts, getCookieOpts } from "../../../../common/auth/cookie-options";
 import {
+  CurrentPlatformUser,
+  type PlatformRequestUser
+} from "../../../../common/decorators/current-platform-user.decorator";
+import {
   CurrentUser,
   type RequestUser
 } from "../../../../common/decorators/current-user.decorator";
 import { DomainException } from "../../../../common/errors/domain.exception";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
+import { SessionAuthGuard } from "../../../../common/guards/session-auth.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
+import { PlatformAuditService } from "../../../platform/application/platform-audit.service";
 import { AuthService } from "../../application/auth.service";
 
 function requireProductionAuthScope(req: Request): string {
   const scope = getAuthScope(req);
-  if (scope === "client" || scope === "admin") return scope;
+  if (scope === "client" || scope === "admin" || scope === "platform") return scope;
   if (process.env.NODE_ENV === "production") {
     throw new DomainException(
       ErrorCodes.UNAUTHORIZED,
-      "X-Auth-Scope header required (client or admin)",
+      "X-Auth-Scope header required (client, admin, or platform)",
       HttpStatus.UNAUTHORIZED
     );
   }
@@ -62,7 +70,10 @@ function guardCookieAuthRequest(req: Request): void {
 
 @Controller()
 export class AuthController {
-  constructor(private auth: AuthService) {}
+  constructor(
+    private auth: AuthService,
+    private platformAudit: PlatformAuditService
+  ) {}
 
   @Throttle({ auth: { limit: 5, ttl: 60_000 } })
   @Post(ROUTES.AUTH.REGISTER)
@@ -75,6 +86,12 @@ export class AuthController {
   }
 
   @Throttle({ auth: { limit: 5, ttl: 60_000 } })
+  @Post(ROUTES.AUTH.SIGNUP)
+  async signup(@Body(new ZodValidationPipe(signupSchema)) body: unknown) {
+    return this.auth.signup(body as Parameters<AuthService["signup"]>[0]);
+  }
+
+  @Throttle({ auth: { limit: 5, ttl: 60_000 } })
   @Post(ROUTES.AUTH.LOGIN)
   async login(
     @Body(new ZodValidationPipe(loginSchema)) body: unknown,
@@ -82,6 +99,23 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response
   ) {
     guardCookieAuthRequest(req);
+    const scope = getAuthScope(req);
+    if (scope === "platform") {
+      const session = await this.auth.loginPlatform(
+        body as Parameters<AuthService["loginPlatform"]>[0]
+      );
+      await this.platformAudit.recordEvent({
+        context: {
+          actorPlatformUserId: session.user.id,
+          ipAddress: req.ip || req.socket.remoteAddress || undefined,
+          userAgent: req.get("user-agent") ?? undefined
+        },
+        action: "platform.login",
+        summary: { email: session.user.email }
+      });
+      const tokens = await this.setPlatformCookies(req, res, session);
+      return { ...session, ...tokens };
+    }
     const result = await this.auth.login(body as Parameters<AuthService["login"]>[0]);
     if ("requires2fa" in result && result.requires2fa) {
       return result;
@@ -181,6 +215,32 @@ export class AuthController {
         HttpStatus.UNAUTHORIZED
       );
     }
+
+    if (scope === "platform") {
+      const { session, newRefreshToken, family } = await this.auth.rotatePlatformRefreshToken(
+        refresh,
+        { userAgent: req.headers["user-agent"] }
+      );
+      if (!session) return { error: "No platform session" };
+      const access = this.auth.signPlatformAccessToken(session.user.id, family);
+      const cookieOpts = getCookieOpts();
+      res.cookie(accessCookieName(scope), access, {
+        ...cookieOpts,
+        maxAge: 15 * 60 * 1000
+      });
+      if (newRefreshToken) {
+        res.cookie(refreshCookieName(scope), newRefreshToken, {
+          ...cookieOpts,
+          maxAge: 7 * 24 * 60 * 60 * 1000
+        });
+      }
+      return {
+        ...session,
+        accessToken: access,
+        ...(newRefreshToken ? { refreshToken: newRefreshToken } : {})
+      };
+    }
+
     const { session, newRefreshToken, family } = await this.auth.rotateRefreshToken(refresh, {
       userAgent: req.headers["user-agent"]
     });
@@ -191,6 +251,7 @@ export class AuthController {
       session.user.id,
       session.workspaceId,
       session.workspaceRole,
+      session.tenantId,
       session.impersonatorId,
       tokenScope,
       family
@@ -241,9 +302,31 @@ export class AuthController {
   }
 
   @SkipThrottle()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(SessionAuthGuard)
   @Get(ROUTES.AUTH.ME)
-  me(@CurrentUser() user: RequestUser) {
+  me(
+    @Req() req: Request,
+    @CurrentUser() user?: RequestUser,
+    @CurrentPlatformUser() platformUser?: PlatformRequestUser
+  ) {
+    const scope = getAuthScope(req);
+    if (scope === "platform") {
+      if (!platformUser) {
+        throw new DomainException(
+          ErrorCodes.UNAUTHORIZED,
+          "Not authenticated",
+          HttpStatus.UNAUTHORIZED
+        );
+      }
+      return this.auth.getPlatformMe(platformUser.platformUserId);
+    }
+    if (!user) {
+      throw new DomainException(
+        ErrorCodes.UNAUTHORIZED,
+        "Not authenticated",
+        HttpStatus.UNAUTHORIZED
+      );
+    }
     return this.auth.getMe(user.userId, user.workspaceId, user.impersonatorId);
   }
 
@@ -340,7 +423,11 @@ export class AuthController {
     const scope = getAuthScope(req);
     const refresh = req.cookies?.[refreshCookieName(scope)] ?? req.cookies?.refresh_token;
     if (refresh) {
-      await this.auth.revokeRefreshToken(refresh);
+      if (scope === "platform") {
+        await this.auth.revokePlatformRefreshToken(refresh);
+      } else {
+        await this.auth.revokeRefreshToken(refresh);
+      }
     }
     const clearOpts = getClearCookieOpts();
     res.clearCookie(accessCookieName(scope), clearOpts);
@@ -360,7 +447,12 @@ export class AuthController {
   private async setCookies(
     req: Request,
     res: Response,
-    session: { user: { id: string }; workspaceId: string; workspaceRole: "ADMIN" | "MEMBER" },
+    session: {
+      user: { id: string };
+      tenantId: string;
+      workspaceId: string;
+      workspaceRole: "ADMIN" | "MEMBER";
+    },
     impersonatorId?: string
   ): Promise<{ accessToken: string; refreshToken: string }> {
     const scope = requireProductionAuthScope(req);
@@ -377,10 +469,35 @@ export class AuthController {
       session.user.id,
       session.workspaceId,
       session.workspaceRole,
+      session.tenantId,
       impersonatorId,
       tokenScope,
       issued.family
     );
+    const cookieOpts = getCookieOpts();
+    res.cookie(accessCookieName(scope), access, {
+      ...cookieOpts,
+      maxAge: 15 * 60 * 1000
+    });
+    res.cookie(refreshCookieName(scope), issued.raw, {
+      ...cookieOpts,
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
+    return { accessToken: access, refreshToken: issued.raw };
+  }
+
+  private async setPlatformCookies(
+    req: Request,
+    res: Response,
+    session: PlatformSessionDto
+  ): Promise<{ accessToken: string; refreshToken: string }> {
+    const scope = requireProductionAuthScope(req);
+    const issued = await this.auth.signAndStorePlatformRefreshToken(
+      session.user.id,
+      undefined,
+      this.sessionMetaFromRequest(req)
+    );
+    const access = this.auth.signPlatformAccessToken(session.user.id, issued.family);
     const cookieOpts = getCookieOpts();
     res.cookie(accessCookieName(scope), access, {
       ...cookieOpts,

@@ -1,6 +1,10 @@
 "use client";
 
-import { VerifyEmailPageContent, hasMultipleWorkspaces } from "@kloqra/web-shared";
+import {
+  VerifyEmailPageContent,
+  hasMultipleWorkspaces,
+  resolveAdminLandingPath
+} from "@kloqra/web-shared";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { useSessionStore } from "@/stores/session.store";
@@ -25,9 +29,13 @@ function VerifyEmailContent() {
         const multi = await hasMultipleWorkspaces(session.workspaceId, "ADMIN");
         if (multi) {
           router.push("/select-workspace");
-        } else {
-          router.push("/dashboard");
+          return;
         }
+        if (session.tenantRole === "OWNER") {
+          router.push(await resolveAdminLandingPath(session, session.workspaceId));
+          return;
+        }
+        router.push("/dashboard");
       }}
     />
   );

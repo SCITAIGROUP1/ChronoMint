@@ -23,6 +23,8 @@ import { useWorkspacesStore } from "../stores/workspaces.store";
 export type WorkspaceSwitcherProps = {
   /** Only list workspaces where user has this role (e.g. ADMIN for admin app). */
   filterRole?: "ADMIN";
+  /** List workspaces where user is ADMIN or leads at least one project. */
+  filterAdminAccess?: boolean;
   /** Path after successful switch (e.g. /timer or /dashboard). */
   defaultRedirect: string;
   /** Called after session update, before navigation (e.g. clear project store). */
@@ -77,11 +79,12 @@ function WorkspaceIcon({ className }: { className?: string }) {
 
 export function WorkspaceSwitcher({
   filterRole,
+  filterAdminAccess,
   defaultRedirect,
   onAfterSwitch,
   collapsed
 }: WorkspaceSwitcherProps) {
-  const adminOnly = filterRole === "ADMIN";
+  const adminOnly = filterRole === "ADMIN" && !filterAdminAccess;
   const router = useRouter();
   const listboxId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -95,10 +98,17 @@ export function WorkspaceSwitcher({
   const [query, setQuery] = useState("");
   const [menuStyle, setMenuStyle] = useState<CSSProperties | null>(null);
 
-  const visible = adminOnly ? workspaces.filter((w) => w.role === "ADMIN") : workspaces;
+  const visible = filterAdminAccess
+    ? workspaces.filter(
+        (w) => w.role === "ADMIN" || Boolean(w.ledProjectIds && w.ledProjectIds.length > 0)
+      )
+    : adminOnly
+      ? workspaces.filter((w) => w.role === "ADMIN")
+      : workspaces;
   const currentId = session?.workspaceId ?? getWorkspaceId() ?? "";
   const currentWorkspace = visible.find((w) => w.id === currentId);
   const isAdmin = session?.workspaceRole === "ADMIN";
+  const hasProjectLeadAccess = Boolean(session?.ledProjectIds && session.ledProjectIds.length > 0);
   const filtered = useMemo(() => filterWorkspacesByQuery(visible, query), [visible, query]);
   const canOpen = !switching && visible.length > 0;
 
@@ -164,6 +174,7 @@ export function WorkspaceSwitcher({
   async function switchWorkspace(nextId: string) {
     if (!session || nextId === currentId || switching) return;
     if (adminOnly && !visible.find((w) => w.id === nextId)) return;
+    if (filterAdminAccess && !visible.find((w) => w.id === nextId)) return;
 
     setSwitching(true);
     try {
@@ -174,6 +185,14 @@ export function WorkspaceSwitcher({
       });
       if (adminOnly && res.workspaceRole !== "ADMIN") {
         toast.error("Admin access required for this app.");
+        return;
+      }
+      if (
+        filterAdminAccess &&
+        res.workspaceRole !== "ADMIN" &&
+        !(res.ledProjectIds && res.ledProjectIds.length > 0)
+      ) {
+        toast.error("Admin or project lead access required for this app.");
         return;
       }
       setSession(res, res.accessToken, res.refreshToken);
@@ -253,7 +272,11 @@ export function WorkspaceSwitcher({
                           {workspace.name}
                         </span>
                         <span className="block text-[11px] text-muted-foreground">
-                          {formatWorkspaceRole(workspace.role)}
+                          {workspace.role === "ADMIN"
+                            ? formatWorkspaceRole(workspace.role)
+                            : workspace.ledProjectIds && workspace.ledProjectIds.length > 0
+                              ? "Project lead"
+                              : formatWorkspaceRole(workspace.role)}
                         </span>
                       </span>
                       {selected ? (
@@ -334,7 +357,13 @@ export function WorkspaceSwitcher({
             {currentWorkspace?.name ?? "Select workspace"}
           </span>
           <span className="block text-[11px] text-muted-foreground">
-            {currentWorkspace ? formatWorkspaceRole(currentWorkspace.role) : "—"}
+            {currentWorkspace
+              ? currentWorkspace.role === "ADMIN"
+                ? formatWorkspaceRole(currentWorkspace.role)
+                : hasProjectLeadAccess
+                  ? "Project lead"
+                  : formatWorkspaceRole(currentWorkspace.role)
+              : "—"}
           </span>
         </span>
         {canOpen ? (

@@ -1,7 +1,110 @@
-/** Rich analytics seed — 13 users, 3 workspaces, 4 projects each, category-aware logs (Kloqra demo). */
+/** Rich analytics seed — 13 users, 1 tenant, 3 workspaces, 4 projects each (Kloqra demo). */
 /** Dashboard widget layouts for demo users are applied in seed-dashboard-layouts.ts (stored in users.preferences.dashboardLayouts). */
 
+import { DEFAULT_PLAN_LIMITS, PLAN_IDS, PLAN_SLUGS, type PlanSlug } from "@kloqra/contracts";
+
 export const SEED_EMAIL_DOMAIN = "kloqra.dev";
+
+const SEED_STRIPE_DEFAULTS = {
+  starterProduct: "prod_test_starter",
+  proProduct: "prod_test_pro",
+  starterPrice: "price_test_starter",
+  proPrice: "price_test_pro"
+} as const;
+
+function distinctSeedStripeId(
+  envValue: string | undefined,
+  fallback: string,
+  otherEnvValue: string | undefined
+): string {
+  const trimmed = envValue?.trim();
+  const otherTrimmed = otherEnvValue?.trim();
+  if (!trimmed) return fallback;
+  if (otherTrimmed && trimmed === otherTrimmed) return fallback;
+  return trimmed;
+}
+
+/** SaaS plan catalog — stable IDs match migration backfill (F09). */
+export const SEED_STRIPE_PRICE_IDS = {
+  starter: distinctSeedStripeId(
+    process.env.STRIPE_PRICE_STARTER,
+    SEED_STRIPE_DEFAULTS.starterPrice,
+    process.env.STRIPE_PRICE_PRO
+  ),
+  pro: distinctSeedStripeId(
+    process.env.STRIPE_PRICE_PRO,
+    SEED_STRIPE_DEFAULTS.proPrice,
+    process.env.STRIPE_PRICE_STARTER
+  )
+} as const;
+
+export const SEED_STRIPE_PRODUCT_IDS = {
+  starter: distinctSeedStripeId(
+    process.env.STRIPE_PRODUCT_STARTER,
+    SEED_STRIPE_DEFAULTS.starterProduct,
+    process.env.STRIPE_PRODUCT_PRO
+  ),
+  pro: distinctSeedStripeId(
+    process.env.STRIPE_PRODUCT_PRO,
+    SEED_STRIPE_DEFAULTS.proProduct,
+    process.env.STRIPE_PRODUCT_STARTER
+  )
+} as const;
+
+export const SEED_PLANS = [
+  {
+    id: PLAN_IDS[PLAN_SLUGS.PILOT],
+    name: "Pilot",
+    slug: PLAN_SLUGS.PILOT as PlanSlug,
+    limits: DEFAULT_PLAN_LIMITS[PLAN_SLUGS.PILOT],
+    isPublic: false,
+    sortOrder: 0,
+    stripeProductId: null,
+    stripePriceId: null
+  },
+  {
+    id: PLAN_IDS[PLAN_SLUGS.STARTER],
+    name: "Starter",
+    slug: PLAN_SLUGS.STARTER as PlanSlug,
+    limits: DEFAULT_PLAN_LIMITS[PLAN_SLUGS.STARTER],
+    isPublic: true,
+    sortOrder: 1,
+    stripeProductId: SEED_STRIPE_PRODUCT_IDS.starter,
+    stripePriceId: SEED_STRIPE_PRICE_IDS.starter
+  },
+  {
+    id: PLAN_IDS[PLAN_SLUGS.PRO],
+    name: "Pro",
+    slug: PLAN_SLUGS.PRO as PlanSlug,
+    limits: DEFAULT_PLAN_LIMITS[PLAN_SLUGS.PRO],
+    isPublic: true,
+    sortOrder: 2,
+    stripeProductId: SEED_STRIPE_PRODUCT_IDS.pro,
+    stripePriceId: SEED_STRIPE_PRICE_IDS.pro
+  }
+] as const;
+
+/** Demo tenant subscription — pilot plan, active (not trial) for stable demos. */
+export const SEED_TENANT_SUBSCRIPTION = {
+  planSlug: PLAN_SLUGS.PILOT as PlanSlug,
+  status: "active" as const
+};
+
+/** Demo organization — all SEED_WORKSPACES belong to this tenant (SaaS-F02). */
+export const SEED_TENANT = {
+  name: "Kloqra Demo Organization",
+  slug: "kloqra-demo",
+  status: "active" as const,
+  settings: {
+    industry: "demo",
+    timezone: "America/New_York"
+  },
+  /** Tenant-level roles (workspace members use workspace_members). */
+  members: [
+    { email: "admin@kloqra.dev", role: "OWNER" as const },
+    { email: "ops@kloqra.dev", role: "ADMIN" as const }
+  ]
+};
 
 /** Canonical workspace categories (matches admin onboarding + migration backfill naming). */
 export const SEED_CATEGORIES = [
@@ -76,6 +179,13 @@ export type SeedWorkspaceSpec = {
 };
 
 export const SEED_PASSWORD = "password123";
+
+/** Kloqra platform superadmin — `apps/platform-admin` (SaaS-F14). */
+export const SEED_PLATFORM_SUPERADMIN = {
+  email: process.env.PLATFORM_SUPERADMIN_EMAIL ?? "platform@kloqra.dev",
+  password: process.env.PLATFORM_SUPERADMIN_PASSWORD ?? SEED_PASSWORD,
+  name: "Kloqra Platform Admin"
+} as const;
 
 /** 2 admins + 12 members = 14 accounts (includes pending@ for verify-email demo) */
 export const SEED_USERS: SeedUserSpec[] = [

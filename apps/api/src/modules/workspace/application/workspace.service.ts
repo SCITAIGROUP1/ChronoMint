@@ -7,19 +7,26 @@ import type {
   WorkspaceDto,
   WorkspaceListItemDto,
   WorkspaceMemberPickerDto,
-  WorkspaceWithRoleDto
+  WorkspaceWithRoleDto,
+  AssignWorkspaceAdminDto
 } from "@kloqra/contracts";
 import { InjectQueue } from "@nestjs/bullmq";
 import { Injectable, HttpStatus } from "@nestjs/common";
 import { Queue } from "bullmq";
 import * as ExcelJS from "exceljs";
 import type { Response } from "express";
+import { ProjectAccessService } from "../../../common/access/project-access.service";
 import { generateTempPassword, hashPassword } from "../../../common/auth/password.util";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { deliverMemberEmail } from "../../../common/mailer/member-email-delivery.util";
 import { MemberProvisioningMailer } from "../../../common/mailer/member-provisioning.mailer";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { QUEUES } from "../../../common/queues";
+import {
+  resolveUserTenantId,
+  requireTenantOwner,
+  requireTenantOwnerInTenant
+} from "../../../common/tenant/tenant-context";
 import {
   activeWorkspaceMemberWhere,
   toWorkspaceMemberWithUser,
@@ -28,6 +35,7 @@ import {
 // eslint-disable-next-line no-restricted-imports
 import { AuthService } from "../../auth/application/auth.service";
 import { NotificationsDispatchService } from "../../notifications/application/notifications-dispatch.service";
+import { PlanLimitService } from "../../subscriptions/application/plan-limit.service";
 import { splitDisplayName } from "../../users/application/user-name.util";
 
 @Injectable()
@@ -37,15 +45,29 @@ export class WorkspaceService {
     private memberMailer: MemberProvisioningMailer,
     private notificationsDispatch: NotificationsDispatchService,
     private auth: AuthService,
+    private planLimit: PlanLimitService,
+    private projectAccess: ProjectAccessService,
     @InjectQueue(QUEUES.BULK_INVITE) private readonly bulkInviteQueue: Queue
   ) {}
 
   async listForUser(userId: string): Promise<WorkspaceListItemDto[]> {
+    const tenantId = await resolveUserTenantId(this.prisma, userId);
+    if (!tenantId) return [];
+
     const memberships = await this.prisma.workspaceMember.findMany({
-      where: { userId },
+      where: { userId, workspace: { tenantId } },
       include: { workspace: true }
     });
-    return memberships.map((m) => this.toListItem(m.workspace, m.role as "ADMIN" | "MEMBER"));
+    return Promise.all(
+      memberships.map(async (m) => {
+        const role = m.role as "ADMIN" | "MEMBER";
+        const ledProjectIds =
+          role === "MEMBER"
+            ? await this.projectAccess.ledProjectIds(m.workspaceId, userId)
+            : undefined;
+        return this.toListItem(m.workspace, role, ledProjectIds);
+      })
+    );
   }
 
   async listMembers(workspaceId: string): Promise<WorkspaceMemberPickerDto[]> {
@@ -304,6 +326,8 @@ export class WorkspaceService {
       throw new DomainException(ErrorCodes.NOT_FOUND, "Workspace not found", HttpStatus.NOT_FOUND);
     }
 
+    await this.planLimit.assertSeatsForEmails(workspace.tenantId, [email]);
+
     const inviter = await this.prisma.user.findUnique({ where: { id: invitedByUserId } });
     const inviterName = inviter?.name;
 
@@ -532,6 +556,9 @@ export class WorkspaceService {
       throw new DomainException(ErrorCodes.NOT_FOUND, "Workspace not found", HttpStatus.NOT_FOUND);
     }
 
+    const emails = members.map((member) => member.email.trim().toLowerCase());
+    await this.planLimit.assertSeatsForEmails(workspace.tenantId, emails);
+
     const job = await this.bulkInviteQueue.add(
       "bulkInviteJob",
       {
@@ -557,7 +584,15 @@ export class WorkspaceService {
   async update(id: string, dto: { name?: string; settings?: any }) {
     const data: any = {};
     if (dto.name !== undefined) {
-      await this.assertNameAvailable(dto.name, id);
+      const ws = await this.prisma.workspace.findUnique({ where: { id } });
+      if (!ws) {
+        throw new DomainException(
+          ErrorCodes.NOT_FOUND,
+          "Workspace not found",
+          HttpStatus.NOT_FOUND
+        );
+      }
+      await this.assertNameAvailable(dto.name, ws.tenantId, id);
       data.name = dto.name;
     }
     if (dto.settings !== undefined) {
@@ -604,11 +639,15 @@ export class WorkspaceService {
       slug = `${slug}-${Date.now()}`;
     }
 
-    await this.assertNameAvailable(dto.name);
+    const { tenantId } = await requireTenantOwner(this.prisma, userId);
+
+    await this.planLimit.assertWorkspaceCreateAllowed(tenantId);
+    await this.assertNameAvailable(dto.name, tenantId);
 
     return this.prisma.$transaction(async (tx) => {
       const workspace = await tx.workspace.create({
         data: {
+          tenantId,
           name: dto.name,
           slug,
           settings: {}
@@ -627,9 +666,67 @@ export class WorkspaceService {
     });
   }
 
-  private async assertNameAvailable(name: string, excludeWorkspaceId?: string) {
+  async assignAdminAsTenantOwner(
+    actingUserId: string,
+    tenantId: string,
+    workspaceId: string,
+    dto: AssignWorkspaceAdminDto
+  ): Promise<InviteMemberResponseDto> {
+    await requireTenantOwnerInTenant(this.prisma, actingUserId, tenantId);
+
+    const workspace = await this.prisma.workspace.findUnique({ where: { id: workspaceId } });
+    if (!workspace) {
+      throw new DomainException(ErrorCodes.NOT_FOUND, "Workspace not found", HttpStatus.NOT_FOUND);
+    }
+    if (workspace.tenantId !== tenantId) {
+      throw new DomainException(
+        ErrorCodes.FORBIDDEN,
+        "Workspace does not belong to your organization",
+        HttpStatus.FORBIDDEN
+      );
+    }
+
+    let email: string;
+    let name: string;
+
+    if (dto.userId) {
+      const user = await this.prisma.user.findUnique({ where: { id: dto.userId } });
+      if (!user) {
+        throw new DomainException(ErrorCodes.NOT_FOUND, "User not found", HttpStatus.NOT_FOUND);
+      }
+      const userTenantId = await resolveUserTenantId(this.prisma, user.id);
+      if (userTenantId && userTenantId !== tenantId) {
+        throw new DomainException(
+          ErrorCodes.CONFLICT,
+          "User already belongs to another organization",
+          HttpStatus.CONFLICT
+        );
+      }
+      email = user.email;
+      name = user.name;
+    } else {
+      email = dto.email!.trim().toLowerCase();
+      name = dto.name!.trim();
+      const user = await this.prisma.user.findUnique({ where: { email } });
+      if (user) {
+        const userTenantId = await resolveUserTenantId(this.prisma, user.id);
+        if (userTenantId && userTenantId !== tenantId) {
+          throw new DomainException(
+            ErrorCodes.CONFLICT,
+            "User already belongs to another organization",
+            HttpStatus.CONFLICT
+          );
+        }
+      }
+    }
+
+    return this.invite(workspaceId, { email, name, role: "ADMIN" }, actingUserId);
+  }
+
+  private async assertNameAvailable(name: string, tenantId: string, excludeWorkspaceId?: string) {
     const existing = await this.prisma.workspace.findFirst({
       where: {
+        tenantId,
         name: { equals: name, mode: "insensitive" },
         ...(excludeWorkspaceId ? { id: { not: excludeWorkspaceId } } : {})
       }
@@ -645,9 +742,15 @@ export class WorkspaceService {
 
   private toListItem(
     workspace: { id: string; name: string },
-    role: "ADMIN" | "MEMBER"
+    role: "ADMIN" | "MEMBER",
+    ledProjectIds?: string[]
   ): WorkspaceListItemDto {
-    return { id: workspace.id, name: workspace.name, role };
+    return {
+      id: workspace.id,
+      name: workspace.name,
+      role,
+      ...(ledProjectIds && ledProjectIds.length > 0 ? { ledProjectIds } : {})
+    };
   }
 
   private toWorkspaceDto(workspace: {

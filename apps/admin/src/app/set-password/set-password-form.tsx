@@ -12,7 +12,8 @@ import {
   SetPasswordForm,
   applyDefaultWorkspaceIfNeeded,
   extractFieldErrorsFromMessage,
-  hasMultipleWorkspaces
+  hasMultipleWorkspaces,
+  resolveAdminLandingPath
 } from "@kloqra/web-shared";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
@@ -53,7 +54,7 @@ export function AdminSetPasswordForm() {
       console.error("Failed to check workspaces:", err);
     }
 
-    router.push("/dashboard");
+    router.push(await resolveAdminLandingPath(switched.session, switched.session.workspaceId));
   }
 
   async function complete2fa(e: React.FormEvent) {

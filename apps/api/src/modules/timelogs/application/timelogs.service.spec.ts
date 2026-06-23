@@ -5,6 +5,10 @@ import { DomainException } from "../../../common/errors/domain.exception";
 import { TimelogAuditService } from "./timelog-audit.service";
 import { TimelogsService } from "./timelogs.service";
 
+function mockSubscriptions() {
+  return { assertSubscriptionAllowsWrites: vi.fn().mockResolvedValue(undefined) };
+}
+
 describe("TimelogsService listOccupancy", () => {
   let service: TimelogsService;
   let mockPrisma: {
@@ -28,7 +32,8 @@ describe("TimelogsService listOccupancy", () => {
       {} as never,
       {} as never,
       mockTimesheetLock as never,
-      {} as never
+      {} as never,
+      mockSubscriptions() as never
     );
   });
 
@@ -122,7 +127,8 @@ describe("TimelogsService list", () => {
       {} as never,
       {} as never,
       {} as never,
-      {} as never
+      {} as never,
+      mockSubscriptions() as never
     );
   });
 
@@ -234,7 +240,8 @@ describe("TimelogsService assertNoOverlap", () => {
       {} as never,
       {} as never,
       {} as never,
-      {} as never
+      {} as never,
+      mockSubscriptions() as never
     );
   });
 
@@ -319,7 +326,14 @@ describe("TimelogsService resolveBillable", () => {
   let service: TimelogsService;
 
   beforeEach(() => {
-    service = new TimelogsService({} as never, {} as never, {} as never, {} as never, {} as never);
+    service = new TimelogsService(
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      mockSubscriptions() as never
+    );
   });
 
   it("MEMBER cannot override isBillable — task default is always used", () => {
@@ -347,6 +361,9 @@ describe("TimelogsService createBatch", () => {
     mockPrisma = {
       task: { findUniqueOrThrow: vi.fn() },
       timeLog: { create: vi.fn(), findFirst: vi.fn().mockResolvedValue(null) },
+      workspace: {
+        findUniqueOrThrow: vi.fn().mockResolvedValue({ tenantId: "tenant-1" })
+      },
       $transaction: vi.fn().mockImplementation(async (fn: any) => fn(mockPrisma))
     };
     mockTimesheetLock = {
@@ -368,7 +385,8 @@ describe("TimelogsService createBatch", () => {
       mockReportCache as any,
       mockAudit as any,
       mockTimesheetLock as any,
-      mockAccess as any
+      mockAccess as any,
+      mockSubscriptions() as any
     );
   });
 

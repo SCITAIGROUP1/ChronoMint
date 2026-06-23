@@ -2,6 +2,7 @@ export const ROUTES = {
   HEALTH: "/health",
   AUTH: {
     REGISTER: "/auth/register",
+    SIGNUP: "/auth/signup",
     LOGIN: "/auth/login",
     REFRESH: "/auth/refresh",
     LOGOUT: "/auth/logout",
@@ -44,7 +45,8 @@ export const ROUTES = {
     BULK_MEMBERS_TEMPLATE: (id: string) => `/workspaces/${id}/members/bulk/template`,
     BULK_MEMBERS_UPLOAD: (id: string) => `/workspaces/${id}/members/bulk/upload`,
     RESEND_CREDENTIALS: (workspaceId: string, memberId: string) =>
-      `/workspaces/${workspaceId}/members/${memberId}/resend-credentials`
+      `/workspaces/${workspaceId}/members/${memberId}/resend-credentials`,
+    ASSIGN_ADMIN: (workspaceId: string) => `/workspaces/${workspaceId}/admins/assign`
   },
   PROJECTS: {
     LIST: "/projects",
@@ -182,5 +184,37 @@ export const ROUTES = {
     CREDENTIALS: "/jira/credentials",
     VERIFY: "/jira/verify",
     VERIFY_USER: "/jira/verify-user"
+  },
+  /** Organization (tenant) account — SaaS-F06+. */
+  TENANTS: {
+    CURRENT: "/tenants/current",
+    OVERVIEW: "/tenants/current/overview",
+    MEMBERS: "/tenants/current/members",
+    MEMBER: (id: string) => `/tenants/current/members/${id}`,
+    WORKSPACES: "/tenants/current/workspaces",
+    SUBSCRIPTION: "/tenants/current/subscription",
+    CHECKOUT: "/tenants/current/subscription/checkout",
+    PORTAL: "/tenants/current/subscription/portal",
+    ANALYTICS_SUMMARY: "/tenants/current/analytics/summary",
+    DATA_EXPORT: "/tenants/current/data-export",
+    DATA_EXPORT_JOB: (id: string) => `/tenants/current/data-export/${id}`,
+    DATA_EXPORT_JOB_DOWNLOAD: (id: string) => `/tenants/current/data-export/${id}/download`
+  },
+  WEBHOOKS: {
+    STRIPE: "/webhooks/stripe"
+  },
+  /** Public plan catalog for self-serve signup (SaaS-F20). */
+  PLANS: {
+    PUBLIC: "/plans/public"
+  },
+  /** Kloqra staff — platform-admin app; mutations F15+. */
+  PLATFORM: {
+    TENANTS: "/platform/tenants",
+    TENANT: (id: string) => `/platform/tenants/${id}`,
+    TENANT_DELETE: (id: string) => `/platform/tenants/${id}`,
+    SUSPEND_TENANT: (id: string) => `/platform/tenants/${id}/suspend`,
+    PLANS: "/platform/plans",
+    OPS_SUMMARY: "/platform/ops/summary",
+    AUDIT_EVENTS: "/platform/audit-events"
   }
 } as const;

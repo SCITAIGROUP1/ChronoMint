@@ -9,10 +9,12 @@ import {
   type TeamActivitiesQuery,
   type InviteMemberDto,
   type TeamMembersOverviewQuery,
-  ROUTES
+  ROUTES,
+  ErrorCodes
 } from "@kloqra/contracts";
 import {
   Controller,
+  ForbiddenException,
   Get,
   Param,
   Post,
@@ -38,6 +40,15 @@ import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe"
 import { WorkspaceMembersOverviewService } from "../../application/workspace-members-overview.service";
 import { WorkspaceTeamActivitiesService } from "../../application/workspace-team-activities.service";
 import { WorkspaceService } from "../../application/workspace.service";
+
+function assertWorkspaceRoute(workspaceId: string, user: RequestUser): void {
+  if (workspaceId !== user.workspaceId) {
+    throw new ForbiddenException({
+      code: ErrorCodes.FORBIDDEN,
+      message: "Forbidden"
+    });
+  }
+}
 
 @Controller()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -68,13 +79,13 @@ export class WorkspaceController {
     @Query(new ZodValidationPipe(teamMembersOverviewQuerySchema)) query: TeamMembersOverviewQuery,
     @CurrentUser() user: RequestUser
   ) {
-    if (id !== user.workspaceId) throw new Error("Forbidden");
+    assertWorkspaceRoute(id, user);
     return this.overviewService.getOverview(id, query);
   }
 
   @Get(ROUTES.WORKSPACES.MEMBERS(":id"))
   members(@Param("id") id: string, @CurrentUser() user: RequestUser) {
-    if (id !== user.workspaceId) throw new Error("Forbidden");
+    assertWorkspaceRoute(id, user);
     return this.workspace.listMembers(id);
   }
 
@@ -84,7 +95,7 @@ export class WorkspaceController {
     @Query(new ZodValidationPipe(teamActivitiesQuerySchema)) query: TeamActivitiesQuery,
     @CurrentUser() user: RequestUser
   ) {
-    if (id !== user.workspaceId) throw new Error("Forbidden");
+    assertWorkspaceRoute(id, user);
     return this.teamActivitiesService.getTeamActivities(id, query);
   }
 
@@ -96,7 +107,7 @@ export class WorkspaceController {
     @Body(new ZodValidationPipe(updateWorkspaceMemberSchema)) body: unknown,
     @CurrentUser() user: RequestUser
   ) {
-    if (id !== user.workspaceId) throw new Error("Forbidden");
+    assertWorkspaceRoute(id, user);
     return this.workspace.updateMember(
       id,
       memberId,
@@ -112,7 +123,7 @@ export class WorkspaceController {
     @Param("memberId") memberId: string,
     @CurrentUser() user: RequestUser
   ) {
-    if (id !== user.workspaceId) throw new Error("Forbidden");
+    assertWorkspaceRoute(id, user);
     return this.workspace.removeMember(id, memberId, user.userId);
   }
 
@@ -123,7 +134,7 @@ export class WorkspaceController {
     @Body(new ZodValidationPipe(inviteMemberSchema)) body: unknown,
     @CurrentUser() user: RequestUser
   ) {
-    if (id !== user.workspaceId) throw new Error("Forbidden");
+    assertWorkspaceRoute(id, user);
     return this.workspace.invite(
       id,
       body as Parameters<WorkspaceService["invite"]>[1],
@@ -138,7 +149,7 @@ export class WorkspaceController {
     @CurrentUser() user: RequestUser,
     @Res() res: Response
   ) {
-    if (id !== user.workspaceId) throw new Error("Forbidden");
+    assertWorkspaceRoute(id, user);
     await this.workspace.generateBulkInviteTemplate(res);
   }
 
@@ -150,7 +161,7 @@ export class WorkspaceController {
     @UploadedFile() file: any,
     @CurrentUser() user: RequestUser
   ) {
-    if (id !== user.workspaceId) throw new Error("Forbidden");
+    assertWorkspaceRoute(id, user);
     if (!file) throw new Error("No file uploaded");
 
     const members = await this.workspace.parseBulkInviteExcel(file.buffer);
@@ -164,7 +175,7 @@ export class WorkspaceController {
     @Body(new ZodValidationPipe(bulkInviteMemberSchema)) body: { members: InviteMemberDto[] },
     @CurrentUser() user: RequestUser
   ) {
-    if (id !== user.workspaceId) throw new Error("Forbidden");
+    assertWorkspaceRoute(id, user);
     return this.workspace.bulkInvite(id, body.members, user.userId);
   }
 
@@ -175,14 +186,14 @@ export class WorkspaceController {
     @Param("memberId") memberId: string,
     @CurrentUser() user: RequestUser
   ) {
-    if (id !== user.workspaceId) throw new Error("Forbidden");
+    assertWorkspaceRoute(id, user);
     return this.workspace.resendMemberCredentials(id, memberId);
   }
 
   @Roles("ADMIN")
   @Get(ROUTES.WORKSPACES.BY_ID(":id"))
   getById(@Param("id") id: string, @CurrentUser() user: RequestUser) {
-    if (id !== user.workspaceId) throw new Error("Forbidden");
+    assertWorkspaceRoute(id, user);
     return this.workspace.getById(id);
   }
 
@@ -193,7 +204,7 @@ export class WorkspaceController {
     @Body(new ZodValidationPipe(updateWorkspaceSchema)) body: any,
     @CurrentUser() user: RequestUser
   ) {
-    if (id !== user.workspaceId) throw new Error("Forbidden");
+    assertWorkspaceRoute(id, user);
     return this.workspace.update(id, body);
   }
 }
