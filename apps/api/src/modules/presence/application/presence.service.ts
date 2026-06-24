@@ -60,11 +60,11 @@ export class PresenceService {
     workspaceId: string,
     userId?: string,
     role?: "ADMIN" | "MEMBER",
-    ledProjectIds?: string[]
+    managedProjectIds?: string[]
   ) {
     const scopedUserIds =
-      role === "MEMBER" && ledProjectIds && ledProjectIds.length > 0
-        ? await this.teamUserIdsForProjects(workspaceId, ledProjectIds)
+      role === "MEMBER" && managedProjectIds && managedProjectIds.length > 0
+        ? await this.teamUserIdsForProjects(workspaceId, managedProjectIds)
         : undefined;
 
     const members = await this.prisma.workspaceMember.findMany({
@@ -121,8 +121,8 @@ export class PresenceService {
         ? await this.prisma.task.findMany({
             where: {
               id: { in: [...taskIds] },
-              ...(ledProjectIds && ledProjectIds.length > 0 && role === "MEMBER"
-                ? { projectId: { in: ledProjectIds } }
+              ...(managedProjectIds && managedProjectIds.length > 0 && role === "MEMBER"
+                ? { projectId: { in: managedProjectIds } }
                 : {})
             },
             include: { project: true }
@@ -167,7 +167,7 @@ export class PresenceService {
     res: Response,
     userId?: string,
     role?: "ADMIN" | "MEMBER",
-    ledProjectIds?: string[]
+    managedProjectIds?: string[]
   ): Promise<void> {
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
@@ -179,7 +179,7 @@ export class PresenceService {
     let pending = false;
 
     const send = async () => {
-      const snapshot = await this.snapshot(workspaceId, userId, role, ledProjectIds);
+      const snapshot = await this.snapshot(workspaceId, userId, role, managedProjectIds);
       res.write(`data: ${JSON.stringify(snapshot)}\n\n`);
     };
 

@@ -12,13 +12,13 @@ Agent index: [.cursor/plans/saas_platform_master.plan.md](../../.cursor/plans/sa
 
 ## 1. Why plan before code
 
-| Risk without plan                             | Mitigation                                         |
-| --------------------------------------------- | -------------------------------------------------- |
-| “Client” means two different things           | Locked glossary (§2)                               |
-| Workspace isolation breaks when adding tenant | Tenant checks on every switch + CI isolation tests |
-| Stripe bolted on late                         | Plan limits schema before webhooks                 |
-| PM role overlaps workspace admin              | Project-scoped LEAD role, written matrix           |
-| Four apps when two suffice                    | App strategy locked (§5)                           |
+| Risk without plan                             | Mitigation                                          |
+| --------------------------------------------- | --------------------------------------------------- |
+| “Client” means two different things           | Locked glossary (§2)                                |
+| Workspace isolation breaks when adding tenant | Tenant checks on every switch + CI isolation tests  |
+| Stripe bolted on late                         | Plan limits schema before webhooks                  |
+| PM role overlaps workspace admin              | Project-scoped PROJECT_MANAGER role, written matrix |
+| Four apps when two suffice                    | App strategy locked (§5)                            |
 
 **Workflow per epic:**
 
@@ -45,7 +45,7 @@ Follow [feature delivery order](../agent/AGENTS.md): contracts → tests → API
 | **Workspace admin**     | Runs one workspace (today’s `ADMIN`)                                     | `workspace_members.role = ADMIN`          |
 | **Project client**      | End customer a project is for (e.g. Fabrikam)                            | `project.client_name` — **not** tenant    |
 | **Member**              | Staff logging time                                                       | `workspace_members.role = MEMBER`         |
-| **Project lead**        | PM scoped to assigned projects                                           | `team_members.role = LEAD`                |
+| **Project manager**     | PM scoped to assigned projects                                           | `team_members.role = PROJECT_MANAGER`     |
 | **Platform superadmin** | Kloqra staff                                                             | `platform_users` or `users.platform_role` |
 
 **Never use “client” for tenant in code or UI.**
@@ -75,7 +75,7 @@ erDiagram
 Platform superadmin     →  apps/platform-admin (new, internal)
 Tenant owner / admin    →  apps/admin → Account section
 Workspace admin         →  apps/admin → Workspace mode (today)
-Project lead            →  apps/admin → filtered by project
+Project manager            →  apps/admin → filtered by project
 Member                  →  apps/client
 ```
 
@@ -112,27 +112,27 @@ flowchart TB
   WA --> M
 ```
 
-| Role            | App               | Contract enum        |
-| --------------- | ----------------- | -------------------- |
-| Superadmin      | `platform-admin`  | `SUPERADMIN`         |
-| Tenant owner    | `admin` Account   | `OWNER`              |
-| Workspace admin | `admin` Workspace | `ADMIN` (workspace)  |
-| Project lead    | `admin` filtered  | `LEAD` (team)        |
-| Member          | `client`          | `MEMBER` (workspace) |
+| Role            | App               | Contract enum            |
+| --------------- | ----------------- | ------------------------ |
+| Superadmin      | `platform-admin`  | `SUPERADMIN`             |
+| Tenant owner    | `admin` Account   | `OWNER`                  |
+| Workspace admin | `admin` Workspace | `ADMIN` (workspace)      |
+| Project manager | `admin` filtered  | `PROJECT_MANAGER` (team) |
+| Member          | `client`          | `MEMBER` (workspace)     |
 
 ---
 
 ## 4. Current baseline (gap summary)
 
-| Area             | Shipped                           | Gap                               |
-| ---------------- | --------------------------------- | --------------------------------- |
-| Tenant entity    | No                                | Full greenfield                   |
-| Roles            | `ADMIN` \| `MEMBER` per workspace | Platform + tenant + project lead  |
-| Signup           | Self-register **disabled**        | Tenant provisioning flow          |
-| Payments         | None (no Stripe)                  | Full subscription stack           |
-| Workspace create | Any auth user `POST /workspaces`  | Tenant-scoped + plan limits       |
-| Isolation        | `workspaceId` in JWT/guards       | `tenantId` verification on switch |
-| Apps             | client, admin, api                | platform-admin + Account UI       |
+| Area             | Shipped                           | Gap                                 |
+| ---------------- | --------------------------------- | ----------------------------------- |
+| Tenant entity    | No                                | Full greenfield                     |
+| Roles            | `ADMIN` \| `MEMBER` per workspace | Platform + tenant + project manager |
+| Signup           | Self-register **disabled**        | Tenant provisioning flow            |
+| Payments         | None (no Stripe)                  | Full subscription stack             |
+| Workspace create | Any auth user `POST /workspaces`  | Tenant-scoped + plan limits         |
+| Isolation        | `workspaceId` in JWT/guards       | `tenantId` verification on switch   |
+| Apps             | client, admin, api                | platform-admin + Account UI         |
 
 ---
 
@@ -158,7 +158,7 @@ flowchart TB
 | **P2** | Account UI & limits  | F08–F10                   | Enforce caps without Stripe   |
 | **P3** | Payments             | F11–F13                   | Paid signup live              |
 | **P4** | Platform admin       | F14–F15, F16 (audit only) | Internal ops ready            |
-| **P5** | Project lead         | F17                       | PM workflow                   |
+| **P5** | Project manager      | F17                       | PM workflow                   |
 | **P6** | Scale & compliance   | F18–F24                   | Enterprise-ready              |
 
 **Rule:** One epic ≈ one PR series. Do not start P3 until P1 isolation tests are green.
@@ -176,7 +176,7 @@ Status: `OPEN` | `DECIDED` | `DEFERRED`
 | D03 | Self-serve signup               | **DECIDED**  | Enabled via `SELF_SERVE_SIGNUP_ENABLED` env flag (F20); superadmin provisioning remains for enterprise; off in prod until F23          |
 | D04 | Trial                           | **DECIDED**  | **1 month**; card requirement TBD at Stripe epic                                                                                       |
 | D05 | Tenant owner workspace ops      | **DECIDED**  | Owner **creates workspaces** and **assigns a workspace admin** per workspace                                                           |
-| D06 | PM model                        | **DECIDED**  | Project-scoped `LEAD` on team; **same PM may lead multiple projects**                                                                  |
+| D06 | PM model                        | **DECIDED**  | Project-scoped `PROJECT_MANAGER` on team; **same PM may lead multiple projects**                                                       |
 | D07 | Payment provider                | **DECIDED**  | **Stripe**; detailed pricing SKUs deferred                                                                                             |
 | D08 | One user, multiple tenants      | **DECIDED**  | **Block** — one user belongs to **one tenant only** (cross-tenant is out of scope)                                                     |
 | D09 | Pilot migration                 | **DECIDED**  | One tenant per customer org; **N workspaces per tenant**; F21 audit fails on cross-tenant user conflict                                |
@@ -195,7 +195,7 @@ These follow from the decisions above and must not be violated in code:
 1. **`users` ↔ `tenants`:** at most one `tenant_members` row per user (enforce `UNIQUE(user_id)` on `tenant_members`).
 2. **Workspace membership** is independent per workspace — inviting admin or member to Workspace B does not add them to Workspace A.
 3. **Tenant owner** uses Account UI to create workspace → assign workspace admin (invite or pick existing tenant user).
-4. **PM (`LEAD`):** permissions resolved per project via `team_members`; union of led projects drives admin nav filter.
+4. **PM (`PROJECT_MANAGER`):** permissions resolved per project via `team_members`; union of led projects drives admin nav filter.
 5. **Payment `past_due` / `suspended`:** reject `POST` timer start, manual timelog create, and bulk import mutations until subscription active (exact read-only rules in F12 research).
 6. **Platform superadmin:** tenant CRUD + suspend only — **no impersonation** (F16 scoped to audit of platform actions only).
 
@@ -214,7 +214,7 @@ These follow from the decisions above and must not be violated in code:
 | Workspace admin scoped per workspace    | Least privilege across client workspaces   |
 | Per-workspace provisioning              | No accidental cross-workspace access       |
 | One user, one tenant                    | Simpler security; fewer IDOR classes       |
-| PM = project-scoped `LEAD`              | Correct granularity; multi-project allowed |
+| PM = project-scoped `PROJECT_MANAGER`   | Correct granularity; multi-project allowed |
 | Tenant owner ≠ auto-admin everywhere    | Account vs operations separation           |
 | Separate `platform-admin` app           | Operator console isolation                 |
 | No superadmin impersonation             | Trust/compliance friendly                  |
@@ -263,7 +263,7 @@ Update this table when P1, P2, P3 complete.
 ### Must-have before PM role (P5 exit)
 
 - [x] Permission matrix enforced in services, not only `@Roles("ADMIN")` (F17)
-- [ ] E2E: LEAD approves assigned project only; denied on other projects
+- [ ] E2E: PROJECT_MANAGER approves assigned project only; denied on other projects
 
 ### Should-have for mature B2B (P4–P6)
 
@@ -300,7 +300,7 @@ flowchart LR
   P2 -->|limits enforced| P3[P3 Stripe]
   P3 -->|F23 legal| Paid[Paid SaaS launch]
   P1 --> P4[P4 Platform admin]
-  P1 --> P5[P5 Project lead]
+  P1 --> P5[P5 Project manager]
 ```
 
 ### Demo / stakeholder one-liner
@@ -586,13 +586,13 @@ Superadmin-created tenants start as `status = pending_setup`; owner completes pr
 ### Research gate
 
 - [ ] List all `@Roles("ADMIN")` controllers (grep audit)
-- [ ] Decide PM permissions per route (defer LEAD to F17 but reserve rows)
+- [ ] Decide PM permissions per route (defer PROJECT_MANAGER to F17 but reserve rows)
 - [ ] Tenant owner: which routes are account-level vs workspace-level
 - [ ] Platform superadmin: explicit allow-list only
 
 ### Deliverables
 
-- `docs/architecture/TENANT_RBAC.md` — matrix: Route × Platform × Tenant × Workspace × Project lead × Member
+- `docs/architecture/TENANT_RBAC.md` — matrix: Route × Platform × Tenant × Workspace × Project manager × Member
 - `packages/contracts` role enums — **shipped** in `tenant-rbac.ts`
 - Deny-by-default statement for unknown roles
 
@@ -1021,7 +1021,7 @@ trial (30d) → active → past_due → suspended → canceled
 
 ---
 
-## F17 — Project lead (PM) role
+## F17 — Project manager (PM) role
 
 **Phase:** P5  
 **Dependencies:** F03 matrix  
@@ -1029,23 +1029,23 @@ trial (30d) → active → past_due → suspended → canceled
 
 ### Research gate
 
-- [x] `team_members.role`: `LEAD` | `MEMBER` (D06)
-- [x] **Same user may be LEAD on multiple projects** within a workspace (D06)
-- [x] LEAD can: tasks, team invites, approve timesheets **for that project only**
-- [x] LEAD cannot: billing, workspace categories, all-projects export, create projects
+- [x] `team_members.role`: `PROJECT_MANAGER` | `MEMBER` (D06)
+- [x] **Same user may be PROJECT_MANAGER on multiple projects** within a workspace (D06)
+- [x] PROJECT_MANAGER can: tasks, team invites, approve timesheets **for that project only**
+- [x] PROJECT_MANAGER cannot: billing, workspace categories, all-projects export, create projects
 - [x] Admin app nav filtered by union of led `projectId`s
-- [x] Resolve LEAD permissions per request from `team_members` (no LEAD in JWT v1)
+- [x] Resolve PROJECT_MANAGER permissions per request from `team_members` (no PROJECT_MANAGER in JWT v1)
 
 ### Deliverables
 
 - Prisma migration `team_members.role`
 - Update `ProjectAccessService` + approval controllers
 - `docs/specs/project-lead.md`
-- E2E: LEAD approves own project; denied on other project
+- E2E: PROJECT_MANAGER approves own project; denied on other project
 
 ### Exit criteria
 
-- Permission matrix rows for LEAD all green in tests
+- Permission matrix rows for PROJECT_MANAGER all green in tests
 - No regression for workspace ADMIN
 
 ---
@@ -1220,7 +1220,7 @@ trial (30d) → active → past_due → suspended → canceled
 - [x] `past_due` blocks timer start + manual timelog create (D12)
 - [x] Subscription webhook updates status
 - [x] Tenant owner Account flow + superadmin temp tenant create (D16)
-- [x] PM multi-project LEAD scope (D06)
+- [x] PM multi-project PROJECT_MANAGER scope (D06)
 - [x] No platform impersonation endpoints (D13)
 
 ### Exit criteria

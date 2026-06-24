@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ACCOUNT_NAV_ITEMS } from "./account-nav";
 import { ADMIN_NAV_ITEMS } from "./admin-nav";
-import { projectLeadNavItems } from "./project-lead-nav";
+import { projectLeadNavItems } from "./project-manager-nav";
 
 describe("admin navigation scopes", () => {
   it("uses unique labels across account and workspace nav pools", () => {
@@ -14,7 +14,7 @@ describe("admin navigation scopes", () => {
     expect(new Set(hrefs).size).toBe(hrefs.length);
   });
 
-  it("keeps project lead nav as a strict workspace subset", () => {
+  it("keeps project manager nav as a strict workspace subset", () => {
     const leadHrefs = projectLeadNavItems().map((item) => item.href);
     const adminHrefs = ADMIN_NAV_ITEMS.map((item) => item.href);
     for (const href of leadHrefs) {

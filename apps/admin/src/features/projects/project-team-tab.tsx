@@ -49,7 +49,7 @@ function memberIsActive(m: TeamMemberDto): boolean {
 }
 
 function memberRoleLabel(role: TeamMemberDto["role"]): string {
-  return role === "LEAD" ? "Project lead" : "Member";
+  return role === "PROJECT_MANAGER" ? "Project manager" : "Member";
 }
 
 export function ProjectTeamTab() {
@@ -394,11 +394,11 @@ export function ProjectTeamTab() {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="MEMBER">Member</SelectItem>
-                            <SelectItem value="LEAD">Project lead</SelectItem>
+                            <SelectItem value="PROJECT_MANAGER">Project manager</SelectItem>
                           </SelectContent>
                         </Select>
                       ) : (
-                        <Badge variant={m.role === "LEAD" ? "default" : "secondary"}>
+                        <Badge variant={m.role === "PROJECT_MANAGER" ? "default" : "secondary"}>
                           {memberRoleLabel(m.role)}
                         </Badge>
                       )}

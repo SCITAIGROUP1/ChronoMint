@@ -2,10 +2,12 @@ import type {
   NotificationPreferenceKey,
   NotificationType,
   RenderedNotification,
+  PlatformNotificationType
+} from "@kloqra/contracts";
+import {
   parsePlatformPreferences,
   platformNotificationPreferenceKeyMap,
-  resolvePlatformNotificationChannels,
-  type PlatformNotificationType
+  resolvePlatformNotificationChannels
 } from "@kloqra/contracts";
 import { Injectable } from "@nestjs/common";
 import { NotificationMailer } from "../../../common/mailer/notification.mailer";

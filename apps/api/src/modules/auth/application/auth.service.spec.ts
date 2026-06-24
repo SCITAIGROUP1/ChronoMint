@@ -36,7 +36,7 @@ describe("AuthService unit tests", () => {
       verify: vi.fn()
     } as any;
     const mockProjectAccess = {
-      ledProjectIds: vi.fn().mockResolvedValue([]),
+      managedProjectIds: vi.fn().mockResolvedValue([]),
       manageableProjectIds: vi.fn().mockResolvedValue([])
     };
     const mockProvisioning = {
@@ -341,7 +341,7 @@ describe("AuthService unit tests", () => {
           sendPasswordReset: vi.fn(),
           sendEmailVerification: vi.fn()
         } as never,
-        { ledProjectIds: vi.fn(), manageableProjectIds: vi.fn() } as never,
+        { managedProjectIds: vi.fn(), manageableProjectIds: vi.fn() } as never,
         {
           provisionTenant: vi.fn()
         } as never

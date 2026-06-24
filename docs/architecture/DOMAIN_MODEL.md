@@ -30,7 +30,7 @@ Prisma details: [DATA_MODEL.md](./DATA_MODEL.md).
 | --------------- | ----------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | **Tenant**      | Organization owner (`OWNER`)                    | Billing, create workspaces, assign workspace admins — see [TENANT_RBAC.md](./TENANT_RBAC.md) |
 | **Workspace**   | `WorkspaceMember` with role `ADMIN` or `MEMBER` | Admins manage the org; members are staff who can be invited to project teams                 |
-| **Project**     | Team `LEAD` (PM) or `MEMBER`                    | PM scoped to assigned projects (F17)                                                         |
+| **Project**     | Team `PROJECT_MANAGER` (PM) or `MEMBER`         | PM scoped to assigned projects (F17)                                                         |
 | **Project**     | Created by workspace **admins** only            | Named work stream (e.g. "Acme Website")                                                      |
 | **Team**        | Auto-created with each project                  | Container for who works on that project                                                      |
 | **Team member** | Added via **invite link** (or seed)             | Can see project, tasks, timer, timesheet for that project only                               |

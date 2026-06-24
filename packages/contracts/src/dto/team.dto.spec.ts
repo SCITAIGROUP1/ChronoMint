@@ -6,8 +6,8 @@ const TEAM_ID = "00000000-0000-4000-8000-000000000002";
 const USER_ID = "00000000-0000-4000-8000-000000000003";
 
 describe("teamMemberSchema", () => {
-  it("accepts LEAD and MEMBER roles", () => {
-    for (const role of ["LEAD", "MEMBER"] as const) {
+  it("accepts PROJECT_MANAGER and MEMBER roles", () => {
+    for (const role of ["PROJECT_MANAGER", "MEMBER"] as const) {
       const result = teamMemberSchema.safeParse({
         id: MEMBER_ID,
         teamId: TEAM_ID,
@@ -24,7 +24,7 @@ describe("teamMemberSchema", () => {
 
 describe("updateTeamMemberSchema", () => {
   it("accepts role update", () => {
-    const result = updateTeamMemberSchema.safeParse({ role: "LEAD" });
+    const result = updateTeamMemberSchema.safeParse({ role: "PROJECT_MANAGER" });
     expect(result.success).toBe(true);
   });
 

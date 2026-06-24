@@ -112,12 +112,12 @@ export function AssignProjectManagerDialog({
       await api(ROUTES.PROJECTS.TEAM_MEMBER(selectedProjectId, teamMemberId), {
         method: "PATCH",
         workspaceId,
-        body: JSON.stringify({ role: "LEAD" })
+        body: JSON.stringify({ role: "PROJECT_MANAGER" })
       });
 
       const projectName =
         projects.find((project) => project.id === selectedProjectId)?.name ?? "project";
-      toast.success(`Assigned as project lead on ${projectName}.`);
+      toast.success(`Assigned as project manager on ${projectName}.`);
       onClose();
       await onAssigned();
     } catch (err) {
@@ -132,7 +132,7 @@ export function AssignProjectManagerDialog({
       open={open}
       onOpenChange={(nextOpen) => !nextOpen && onClose()}
       title="Assign project manager"
-      description="Promote a workspace member to project lead on a project."
+      description="Promote a workspace member to project manager on a project."
       icon={<UserPlus className="size-5" />}
       footer={
         <>

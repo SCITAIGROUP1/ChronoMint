@@ -67,7 +67,7 @@ export class JwtAuthGuard implements CanActivate {
       await assertJwtWorkspaceTenant(this.prisma, payload.tenantId, workspaceId);
       const requestUser = this.jwtTokens.toRequestUser(payload, workspaceId);
       if (requestUser.role === "MEMBER") {
-        requestUser.ledProjectIds = await this.projectAccess.ledProjectIds(
+        requestUser.managedProjectIds = await this.projectAccess.managedProjectIds(
           workspaceId,
           requestUser.userId
         );

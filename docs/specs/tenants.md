@@ -5,7 +5,7 @@
 - **Kloqra staff** provision an **Organization** (tenant) and temporary owner account.
 - **Organization owner** creates **workspaces**, assigns **workspace admins** per workspace, and manages subscription (when billing ships).
 - **Workspace admins** and **members** continue to work as today within each workspace.
-- **Project leads (PM)** manage assigned projects only (F17).
+- **Project managers (PM)** manage assigned projects only (F17).
 
 ## Architecture docs
 

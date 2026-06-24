@@ -266,7 +266,7 @@ export function WorkspaceSelectForm({
                               ? formatMemberPortalWorkspaceLabel()
                               : formatAdminWorkspaceAccessLabel(
                                   workspace.role,
-                                  workspace.ledProjectIds,
+                                  workspace.managedProjectIds,
                                   session?.tenantRole
                                 )}
                           </span>

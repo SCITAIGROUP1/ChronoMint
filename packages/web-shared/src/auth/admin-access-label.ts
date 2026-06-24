@@ -13,27 +13,27 @@ export function formatMemberPortalWorkspaceLabel(): string {
 /** Admin app chrome label for workspace list rows and switcher subtitle. */
 export function formatAdminWorkspaceAccessLabel(
   workspaceRole: WorkspaceWithRoleDto["role"],
-  ledProjectIds?: string[],
+  managedProjectIds?: string[],
   tenantRole?: "OWNER" | "ADMIN" | null
 ): string {
   if (
     tenantRole === "ADMIN" &&
     workspaceRole === "MEMBER" &&
-    ledProjectIds &&
-    ledProjectIds.length > 0
+    managedProjectIds &&
+    managedProjectIds.length > 0
   ) {
     return "Project manager";
   }
   if (tenantRole === "ADMIN") return "Organization admin";
   if (tenantRole === "OWNER" && workspaceRole === "ADMIN") return "Owner · Workspace admin";
-  if (tenantRole === "OWNER" && ledProjectIds && ledProjectIds.length > 0) {
+  if (tenantRole === "OWNER" && managedProjectIds && managedProjectIds.length > 0) {
     return "Owner · Project manager";
   }
 
   const base =
     workspaceRole === "ADMIN"
       ? "Workspace admin"
-      : ledProjectIds && ledProjectIds.length > 0
+      : managedProjectIds && managedProjectIds.length > 0
         ? "Project manager"
         : formatWorkspaceRole(workspaceRole);
 

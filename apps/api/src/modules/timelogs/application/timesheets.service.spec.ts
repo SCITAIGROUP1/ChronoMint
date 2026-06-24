@@ -217,7 +217,7 @@ describe("TimesheetsService", () => {
     expect(result).toEqual({ ok: true });
   });
 
-  it("approve denied when project lead lacks manage access", async () => {
+  it("approve denied when project manager lacks manage access", async () => {
     const mockAccess = {
       assertCanManageProject: vi
         .fn()

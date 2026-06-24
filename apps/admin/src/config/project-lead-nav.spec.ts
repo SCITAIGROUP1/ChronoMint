@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { ADMIN_NAV_ITEMS } from "./admin-nav";
-import { canAccessAdminApp, isProjectLeadOnly, projectLeadNavItems } from "./project-lead-nav";
+import { canAccessAdminApp, isProjectLeadOnly, projectLeadNavItems } from "./project-manager-nav";
 
 describe("projectLeadNavItems", () => {
-  it("omits admin-only sections for project leads", () => {
+  it("omits admin-only sections for project managers", () => {
     const hrefs = projectLeadNavItems().map((item) => item.href);
     expect(hrefs).toContain("/dashboard");
     expect(hrefs).toContain("/approvals");

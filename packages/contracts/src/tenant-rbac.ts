@@ -6,8 +6,8 @@ export const platformRoleSchema = z.enum(["SUPERADMIN"]);
 /** Organization purchaser — one row per user globally (D08). */
 export const tenantMemberRoleSchema = z.enum(["OWNER", "ADMIN"]);
 
-/** Project-scoped PM — F17; same user may be LEAD on multiple projects. */
-export const teamMemberRoleSchema = z.enum(["LEAD", "MEMBER"]);
+/** Project-scoped PM — F17; same user may be PROJECT_MANAGER on multiple projects. */
+export const teamMemberRoleSchema = z.enum(["PROJECT_MANAGER", "MEMBER"]);
 
 export const tenantStatusSchema = z.enum(["pending_setup", "active", "suspended", "churned"]);
 

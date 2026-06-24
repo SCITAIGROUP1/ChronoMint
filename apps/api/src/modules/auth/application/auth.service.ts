@@ -923,9 +923,9 @@ export class AuthService {
     );
     await assertTenantAllowsOperations(this.prisma, tenantId);
     const tenantRole = await resolveTenantRoleForUser(this.prisma, membership.user.id, tenantId);
-    const ledProjectIds =
+    const managedProjectIds =
       membership.role === "MEMBER"
-        ? await this.projectAccess.ledProjectIds(membership.workspaceId, membership.user.id)
+        ? await this.projectAccess.managedProjectIds(membership.workspaceId, membership.user.id)
         : undefined;
     return this.buildSession(
       membership.user,
@@ -936,7 +936,7 @@ export class AuthService {
       tenantRole,
       impersonatorId,
       impersonatorName,
-      ledProjectIds
+      managedProjectIds
     );
   }
 
@@ -957,7 +957,7 @@ export class AuthService {
     tenantRole?: "OWNER" | "ADMIN",
     impersonatorId?: string,
     impersonatorName?: string,
-    ledProjectIds?: string[]
+    managedProjectIds?: string[]
   ): AuthSessionDto {
     const names = user.firstName
       ? { firstName: user.firstName, lastName: user.lastName ?? "" }
@@ -982,7 +982,7 @@ export class AuthService {
       ...(preferences.defaultWorkspaceId
         ? { defaultWorkspaceId: preferences.defaultWorkspaceId }
         : {}),
-      ...(ledProjectIds && ledProjectIds.length > 0 ? { ledProjectIds } : {}),
+      ...(managedProjectIds && managedProjectIds.length > 0 ? { managedProjectIds } : {}),
       impersonatorId,
       impersonatorName
     };

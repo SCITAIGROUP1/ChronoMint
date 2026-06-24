@@ -224,7 +224,7 @@ export function AdminContextSelectForm({
                     const gradient = getAvatarGradient(workspace.name);
                     const accessLabel = formatAdminWorkspaceAccessLabel(
                       workspace.role,
-                      workspace.ledProjectIds,
+                      workspace.managedProjectIds,
                       session?.tenantRole
                     );
 

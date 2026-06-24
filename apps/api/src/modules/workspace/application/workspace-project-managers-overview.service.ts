@@ -50,7 +50,7 @@ export class WorkspaceProjectManagersOverviewService {
     weekEnd.setUTCHours(23, 59, 59, 999);
 
     const leadWhere: Prisma.TeamMemberWhereInput = {
-      role: "LEAD",
+      role: "PROJECT_MANAGER",
       team: {
         project: {
           workspaceId,
@@ -137,7 +137,7 @@ export class WorkspaceProjectManagersOverviewService {
           : ("inactive" as const);
       const status = workspaceMember.isActive ? activityStatus : ("inactive" as const);
 
-      const ledProjects = rows.map((row) => ({
+      const managedProjects = rows.map((row) => ({
         projectId: row.team.project.id,
         projectName: row.team.project.name,
         teamMemberId: row.id,
@@ -152,9 +152,9 @@ export class WorkspaceProjectManagersOverviewService {
         userEmail: firstRow.user.email,
         workspaceRole: workspaceMember.role as ProjectManagerOverviewDto["workspaceRole"],
         isWorkspaceMemberActive: workspaceMember.isActive,
-        ledProjects,
-        ledProjectCount: ledProjects.length,
-        activeLedProjectCount: ledProjects.filter((project) => project.isActive).length,
+        managedProjects,
+        managedProjectCount: managedProjects.length,
+        activeLedProjectCount: managedProjects.filter((project) => project.isActive).length,
         status,
         weekHours,
         lastActiveAt,
@@ -171,7 +171,7 @@ export class WorkspaceProjectManagersOverviewService {
 
     const allProjectIds = new Set<string>();
     for (const manager of overviewManagers) {
-      for (const project of manager.ledProjects) {
+      for (const project of manager.managedProjects) {
         if (project.isActive && project.projectIsActive) {
           allProjectIds.add(project.projectId);
         }

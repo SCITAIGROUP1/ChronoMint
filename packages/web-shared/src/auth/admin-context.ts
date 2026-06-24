@@ -13,11 +13,11 @@ export type AdminContextBreadcrumbSegment = {
 export function hasAdminWorkspaceAccess(workspace: AdminAccessibleWorkspace): boolean {
   return (
     workspace.role === "ADMIN" ||
-    Boolean(workspace.ledProjectIds && workspace.ledProjectIds.length > 0)
+    Boolean(workspace.managedProjectIds && workspace.managedProjectIds.length > 0)
   );
 }
 
-/** Workspaces the user can open in the admin app (ADMIN or project lead). */
+/** Workspaces the user can open in the admin app (ADMIN or project manager). */
 export function filterAdminAccessibleWorkspaces<T extends AdminAccessibleWorkspace>(
   workspaces: readonly T[]
 ): T[] {
@@ -51,7 +51,7 @@ export function resolveAdminContextBreadcrumb(options: {
   const isOwner = session.tenantRole === "OWNER";
   const accessLabel = formatAdminWorkspaceAccessLabel(
     session.workspaceRole ?? "MEMBER",
-    session.ledProjectIds,
+    session.managedProjectIds,
     session.tenantRole
   );
 

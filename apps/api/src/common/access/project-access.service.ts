@@ -9,11 +9,11 @@ export type WorkspaceRole = "ADMIN" | "MEMBER";
 export class ProjectAccessService {
   constructor(private prisma: PrismaService) {}
 
-  async ledProjectIds(workspaceId: string, userId: string): Promise<string[]> {
+  async managedProjectIds(workspaceId: string, userId: string): Promise<string[]> {
     const rows = await this.prisma.teamMember.findMany({
       where: {
         userId,
-        role: "LEAD",
+        role: "PROJECT_MANAGER",
         isActive: true,
         team: { project: { workspaceId, isActive: true } }
       },
@@ -34,7 +34,7 @@ export class ProjectAccessService {
       });
       return rows.map((row) => row.id);
     }
-    return this.ledProjectIds(workspaceId, userId);
+    return this.managedProjectIds(workspaceId, userId);
   }
 
   async assertCanManageProject(
@@ -60,7 +60,7 @@ export class ProjectAccessService {
     const lead = await this.prisma.teamMember.findFirst({
       where: {
         userId,
-        role: "LEAD",
+        role: "PROJECT_MANAGER",
         isActive: true,
         team: { projectId, project: { workspaceId, isActive: true } }
       }
@@ -68,7 +68,7 @@ export class ProjectAccessService {
     if (!lead) {
       throw new DomainException(
         ErrorCodes.FORBIDDEN,
-        "You are not a project lead for this project",
+        "You are not a project manager for this project",
         HttpStatus.FORBIDDEN
       );
     }

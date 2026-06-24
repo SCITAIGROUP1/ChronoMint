@@ -115,11 +115,14 @@ describe("PlatformTenantsService", () => {
         status: "trial",
         trialEndsAt: null,
         currentPeriodEnd: null,
+        planAssignedAt: new Date("2026-01-01T00:00:00.000Z"),
         plan: { name: "Pilot", slug: PLAN_SLUGS.PILOT }
       },
       members: [{ user: { email: "owner@acme.com" } }],
       _count: { workspaces: 0, members: 1 }
     });
+
+    const mockLifecycle = { recordEvent: vi.fn().mockResolvedValue(undefined) };
 
     service = new PlatformTenantsService(
       mockPrisma,
@@ -129,7 +132,8 @@ describe("PlatformTenantsService", () => {
       mockAudit as never,
       mockProvisioning as never,
       { notifyAll: vi.fn().mockResolvedValue(undefined) } as never,
-      { fulfillOpenInquiryForPlan: vi.fn().mockResolvedValue(undefined) } as never
+      { fulfillOpenInquiryForPlan: vi.fn().mockResolvedValue(undefined) } as never,
+      mockLifecycle as never
     );
   });
 
@@ -176,6 +180,7 @@ describe("PlatformTenantsService", () => {
       })
     };
 
+    const mockLifecycle = { recordEvent: vi.fn().mockResolvedValue(undefined) };
     service = new PlatformTenantsService(
       mockPrisma,
       mockOwnerMailer as never,
@@ -184,7 +189,8 @@ describe("PlatformTenantsService", () => {
       mockAudit as never,
       mockProvisioning as never,
       { notifyAll: vi.fn().mockResolvedValue(undefined) } as never,
-      { fulfillOpenInquiryForPlan: vi.fn().mockResolvedValue(undefined) } as never
+      { fulfillOpenInquiryForPlan: vi.fn().mockResolvedValue(undefined) } as never,
+      mockLifecycle as never
     );
 
     await service.createTenant(
@@ -268,7 +274,13 @@ describe("PlatformTenantsService", () => {
       id: "tenant-1",
       status: "active",
       slug: "acme",
-      subscription: { id: "sub-1", status: "active", stripeSubscriptionId: null }
+      subscription: {
+        id: "sub-1",
+        status: "active",
+        stripeSubscriptionId: null,
+        planAssignedAt: new Date("2026-01-01T00:00:00.000Z"),
+        plan: { name: "Pilot", slug: PLAN_SLUGS.PILOT }
+      }
     });
     mockPrisma.tenantMember.findMany.mockResolvedValue([
       { userId: "user-1" },
@@ -279,7 +291,13 @@ describe("PlatformTenantsService", () => {
         id: "tenant-1",
         status: "active",
         slug: "acme",
-        subscription: { id: "sub-1", status: "active", stripeSubscriptionId: null }
+        subscription: {
+          id: "sub-1",
+          status: "active",
+          stripeSubscriptionId: null,
+          planAssignedAt: new Date("2026-01-01T00:00:00.000Z"),
+          plan: { name: "Pilot", slug: PLAN_SLUGS.PILOT }
+        }
       })
       .mockResolvedValueOnce({
         id: "tenant-1",
@@ -291,6 +309,7 @@ describe("PlatformTenantsService", () => {
           status: "suspended",
           trialEndsAt: null,
           currentPeriodEnd: null,
+          planAssignedAt: new Date("2026-01-01T00:00:00.000Z"),
           plan: { name: "Pilot", slug: PLAN_SLUGS.PILOT }
         },
         members: [{ user: { email: "owner@acme.com" } }],

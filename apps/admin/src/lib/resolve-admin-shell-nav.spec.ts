@@ -89,7 +89,7 @@ describe("resolveAdminShellNav", () => {
     expect(navItems.find((item) => item.href === "/notifications")?.badge).toBe(1);
   });
 
-  it("returns filtered nav for project leads", () => {
+  it("returns filtered nav for project managers", () => {
     const { navItems } = resolveAdminShellNav({
       pathname: "/projects",
       projectLeadOnly: true,

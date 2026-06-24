@@ -13,7 +13,6 @@ import {
   applyDefaultWorkspaceIfNeeded,
   AuthShell,
   extractFieldErrorsFromMessage,
-  canLoginToAdminApp,
   hasMultipleWorkspaces,
   resolveAdminLandingPath,
   shouldShowAdminContextPicker,
@@ -50,15 +49,7 @@ export default function LoginPage() {
   async function completeLogin(
     res: AuthSessionDto & { accessToken: string; refreshToken?: string }
   ) {
-    if (!canLoginToAdminApp(res)) {
-      setError("Admin access required");
-      return;
-    }
     const switched = await applyDefaultWorkspaceIfNeeded(res, res.accessToken);
-    if (!canLoginToAdminApp(switched.session)) {
-      setError("Admin access required");
-      return;
-    }
     setSession(switched.session, switched.accessToken, res.refreshToken);
 
     try {

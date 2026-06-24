@@ -18,7 +18,7 @@ export function ProjectManagerProfileDialog({
       open={manager !== null}
       onOpenChange={(open) => !open && onClose()}
       title="Project manager profile"
-      description="Workspace member with project lead assignments"
+      description="Workspace member with project manager assignments"
       icon={<User className="size-5" />}
       size="lg"
       footer={
@@ -52,7 +52,7 @@ export function ProjectManagerProfileDialog({
             </div>
             <div className="flex items-center justify-between gap-4">
               <dt className="text-muted-foreground">Projects led</dt>
-              <dd>{manager.ledProjectCount}</dd>
+              <dd>{manager.managedProjectCount}</dd>
             </div>
             <div className="flex items-center justify-between gap-4">
               <dt className="text-muted-foreground">Hours this week</dt>
@@ -64,11 +64,11 @@ export function ProjectManagerProfileDialog({
             </div>
           </dl>
 
-          {manager.ledProjects.length > 0 ? (
+          {manager.managedProjects.length > 0 ? (
             <div className="space-y-2">
               <p className="text-sm font-medium">Led projects</p>
               <ul className="space-y-2 rounded-lg border bg-muted/20 p-3 text-sm">
-                {manager.ledProjects.map((project) => (
+                {manager.managedProjects.map((project) => (
                   <li
                     key={project.teamMemberId}
                     className="flex items-center justify-between gap-3"

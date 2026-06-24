@@ -2,7 +2,7 @@ import type { AuthSessionDto } from "@kloqra/contracts";
 import type { SidebarNavItem } from "@kloqra/ui";
 import { canAccessAccountMode, isPersonalAccountPath } from "@kloqra/web-shared";
 import type { AdminNavItem } from "@/config/admin-nav";
-import { projectLeadNavItems } from "@/config/project-lead-nav";
+import { projectLeadNavItems } from "@/config/project-manager-nav";
 import { resolveAccountNavItems } from "@/lib/resolve-account-nav";
 
 export type AdminShellMode = "account" | "workspace";

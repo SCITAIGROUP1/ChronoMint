@@ -33,7 +33,7 @@ describe("projectManagersOverviewSchema", () => {
           userEmail: "casey@kloqra.dev",
           workspaceRole: "MEMBER",
           isWorkspaceMemberActive: true,
-          ledProjects: [
+          managedProjects: [
             {
               projectId: "550e8400-e29b-41d4-a716-446655440003",
               projectName: "Brand Campaign Q2",
@@ -42,7 +42,7 @@ describe("projectManagersOverviewSchema", () => {
               projectIsActive: true
             }
           ],
-          ledProjectCount: 1,
+          managedProjectCount: 1,
           activeLedProjectCount: 1,
           status: "active",
           weekHours: 12.5,

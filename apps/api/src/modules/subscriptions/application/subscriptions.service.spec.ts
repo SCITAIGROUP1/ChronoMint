@@ -55,7 +55,12 @@ describe("SubscriptionsService", () => {
         findFirst: vi.fn()
       }
     };
-    service = new SubscriptionsService(mockPrisma, mockNotifications as never);
+    const mockLifecycle = { recordEvent: vi.fn().mockResolvedValue(undefined) };
+    service = new SubscriptionsService(
+      mockPrisma,
+      mockNotifications as never,
+      mockLifecycle as never
+    );
   });
 
   it("maps subscription with plan limits", async () => {
@@ -158,11 +163,11 @@ describe("SubscriptionsService", () => {
     expect(mockPrisma.tenantSubscription.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { tenantId },
-        data: {
+        data: expect.objectContaining({
           planId: starterPlan.id,
           status: "active",
           trialEndsAt: null
-        }
+        })
       })
     );
   });

@@ -38,7 +38,7 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
     href: "/project-managers",
     label: "Project managers",
     Icon: Briefcase,
-    keywords: ["pm", "project lead", "managers", "provisioning"]
+    keywords: ["pm", "project manager", "managers", "provisioning"]
   },
   { href: "/projects", label: "Projects", Icon: FolderKanban, keywords: ["clients"] },
   { href: "/categories", label: "Categories", Icon: Tags },

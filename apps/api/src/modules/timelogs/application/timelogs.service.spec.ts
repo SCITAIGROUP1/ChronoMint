@@ -117,6 +117,10 @@ describe("TimelogsService list", () => {
   let mockPrisma: {
     timeLog: { findMany: ReturnType<typeof vi.fn> };
   };
+  let _mockAccess: {
+    assertCanLogTask: ReturnType<typeof vi.fn>;
+    manageableProjectIds: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(() => {
     mockPrisma = {
@@ -337,15 +341,21 @@ describe("TimelogsService resolveBillable", () => {
   });
 
   it("MEMBER cannot override isBillable — task default is always used", () => {
-    expect(service.resolveBillable("MEMBER", false, true)).toBe(false);
-    expect(service.resolveBillable("MEMBER", true, false)).toBe(true);
-    expect(service.resolveBillable("MEMBER", true, undefined)).toBe(true);
+    expect(service.resolveBillable("MEMBER", false, false, true)).toBe(false);
+    expect(service.resolveBillable("MEMBER", false, true, false)).toBe(true);
+    expect(service.resolveBillable("MEMBER", false, true, undefined)).toBe(true);
   });
 
   it("ADMIN can override isBillable", () => {
-    expect(service.resolveBillable("ADMIN", false, true)).toBe(true);
-    expect(service.resolveBillable("ADMIN", true, false)).toBe(false);
-    expect(service.resolveBillable("ADMIN", true, undefined)).toBe(true);
+    expect(service.resolveBillable("ADMIN", false, false, true)).toBe(true);
+    expect(service.resolveBillable("ADMIN", false, true, false)).toBe(false);
+    expect(service.resolveBillable("ADMIN", false, true, undefined)).toBe(true);
+  });
+
+  it("PROJECT MANAGER can override isBillable", () => {
+    expect(service.resolveBillable("MEMBER", true, false, true)).toBe(true);
+    expect(service.resolveBillable("MEMBER", true, true, false)).toBe(false);
+    expect(service.resolveBillable("MEMBER", true, true, undefined)).toBe(true);
   });
 });
 
@@ -353,7 +363,7 @@ describe("TimelogsService createBatch", () => {
   let service: TimelogsService;
   let mockPrisma: any;
   let mockTimesheetLock: any;
-  let mockAccess: any;
+  let _mockAccess: any;
   let mockAudit: any;
   let mockReportCache: any;
 
@@ -369,8 +379,9 @@ describe("TimelogsService createBatch", () => {
     mockTimesheetLock = {
       assertTaskPeriodEditable: vi.fn().mockResolvedValue(undefined)
     };
-    mockAccess = {
-      assertCanLogTask: vi.fn().mockResolvedValue(undefined)
+    _mockAccess = {
+      assertCanLogTask: vi.fn().mockResolvedValue(undefined),
+      manageableProjectIds: vi.fn().mockResolvedValue([])
     };
     mockAudit = {
       recordEvent: vi.fn().mockResolvedValue(undefined),

@@ -80,11 +80,11 @@ export class TasksService {
     userId: string,
     role: "ADMIN" | "MEMBER",
     query: ListTasksQuery,
-    ledProjectIds: string[] = []
+    managedProjectIds: string[] = []
   ) {
     let projectIds = await this.access.accessibleProjectIds(workspaceId, userId, role);
-    if (role === "MEMBER" && ledProjectIds.length > 0) {
-      projectIds = [...new Set([...projectIds, ...ledProjectIds])];
+    if (role === "MEMBER" && managedProjectIds.length > 0) {
+      projectIds = [...new Set([...projectIds, ...managedProjectIds])];
     }
     if (query.projectId) {
       const filterProjectIds = Array.isArray(query.projectId) ? query.projectId : [query.projectId];
@@ -100,7 +100,7 @@ export class TasksService {
       ...(role === "MEMBER"
         ? {
             OR: [
-              { projectId: { in: ledProjectIds } },
+              { projectId: { in: managedProjectIds } },
               { isCommon: true },
               { assignees: { some: { userId } } }
             ]

@@ -111,7 +111,7 @@ export function WorkspaceSwitcher({
 
   const visible = filterAdminAccess
     ? workspaces.filter(
-        (w) => w.role === "ADMIN" || Boolean(w.ledProjectIds && w.ledProjectIds.length > 0)
+        (w) => w.role === "ADMIN" || Boolean(w.managedProjectIds && w.managedProjectIds.length > 0)
       )
     : adminOnly
       ? workspaces.filter((w) => w.role === "ADMIN")
@@ -128,12 +128,12 @@ export function WorkspaceSwitcher({
   const triggerTitle = isAccountContext ? orgName : (currentWorkspace?.name ?? "Select workspace");
   function workspaceAccessLabel(
     workspaceRole: WorkspaceWithRoleDto["role"],
-    ledProjectIds?: string[]
+    managedProjectIds?: string[]
   ): string {
     if (memberPortal) return formatMemberPortalWorkspaceLabel();
     return formatAdminWorkspaceAccessLabel(
       workspaceRole,
-      ledProjectIds ?? session?.ledProjectIds,
+      managedProjectIds ?? session?.managedProjectIds,
       session?.tenantRole
     );
   }
@@ -141,7 +141,7 @@ export function WorkspaceSwitcher({
   const triggerSubtitle = isAccountContext
     ? formatTenantRoleLabel(session?.tenantRole)
     : currentWorkspace
-      ? workspaceAccessLabel(currentWorkspace.role, currentWorkspace.ledProjectIds)
+      ? workspaceAccessLabel(currentWorkspace.role, currentWorkspace.managedProjectIds)
       : "—";
 
   useEffect(() => {
@@ -222,9 +222,9 @@ export function WorkspaceSwitcher({
       if (
         filterAdminAccess &&
         res.workspaceRole !== "ADMIN" &&
-        !(res.ledProjectIds && res.ledProjectIds.length > 0)
+        !(res.managedProjectIds && res.managedProjectIds.length > 0)
       ) {
-        toast.error("Admin or project lead access required for this app.");
+        toast.error("Admin or project manager access required for this app.");
         return;
       }
       setSession(res, res.accessToken, res.refreshToken);
@@ -355,7 +355,7 @@ export function WorkspaceSwitcher({
                           {workspace.name}
                         </span>
                         <span className="block text-[11px] text-muted-foreground">
-                          {workspaceAccessLabel(workspace.role, workspace.ledProjectIds)}
+                          {workspaceAccessLabel(workspace.role, workspace.managedProjectIds)}
                         </span>
                       </span>
                       {selected ? (

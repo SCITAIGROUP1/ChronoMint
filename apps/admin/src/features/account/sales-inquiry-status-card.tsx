@@ -34,7 +34,8 @@ export function SalesInquiryStatusCard({
     <Card data-testid="sales-inquiry-status">
       <CardHeader className="pb-2">
         <CardTitle className="text-base">
-          {inquiry.planName} request — {inquiry.status.replace(/_/g, " ")}
+          {inquiry.planName} request
+          {inquiry.status ? ` — ${inquiry.status.replace(/_/g, " ")}` : ""}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 text-sm text-muted-foreground">

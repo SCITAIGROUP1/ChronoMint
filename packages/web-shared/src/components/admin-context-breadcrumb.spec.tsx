@@ -19,7 +19,7 @@ vi.mock("../stores/session.store", () => ({
         tenantRole: "OWNER",
         workspaceRole: "ADMIN",
         workspaceName: "Acme Corporation",
-        ledProjectIds: []
+        managedProjectIds: []
       }
     })
 }));

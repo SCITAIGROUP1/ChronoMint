@@ -10,7 +10,7 @@ Tenant (Organization — purchaser of Kloqra)
   └── Workspace (operational partition — e.g. per client or internal team)
         └── Project (work stream; may name an end "project client")
               └── Team
-                    └── TeamMember (role: LEAD | MEMBER)
+                    └── TeamMember (role: PROJECT_MANAGER | MEMBER)
         └── Task → TimeLog
 ```
 
@@ -41,7 +41,7 @@ erDiagram
 | `tenant_members`       | User ↔ tenant           | **`UNIQUE(user_id)`** — one tenant per user (D08) — **implemented (F02)** |
 | `workspaces`           | Ops unit                | `tenant_id` NOT NULL FK — **implemented (F02)**                           |
 | `workspace_members`    | Per-workspace role      | Unique `(workspace_id, user_id)`                                          |
-| `team_members`         | Per-project access + PM | Add `role` `LEAD` \| `MEMBER` (F17)                                       |
+| `team_members`         | Per-project access + PM | Add `role` `PROJECT_MANAGER` \| `MEMBER` (F17)                            |
 | `plans`                | Catalog                 | `limits` JSON — **implemented (F09)**                                     |
 | `tenant_subscriptions` | Billing state           | Stripe ids (F11) — **implemented (F09)**                                  |
 
@@ -60,7 +60,7 @@ Existing `users`, `projects`, `tasks`, `time_logs` unchanged except `workspaces.
 2. Tenant owner creates workspace → assigns workspace admin **per workspace** (separate invite each time).
 3. Member may be in **multiple workspaces** within the same tenant; each requires its own `workspace_members` row.
 4. Same user may be workspace admin in multiple workspaces; each provisioned individually (D14).
-5. PM (`LEAD`) is on `team_members`; may lead multiple projects (D06).
+5. PM (`PROJECT_MANAGER`) is on `team_members`; may lead multiple projects (D06).
 
 ## Migration (pilots — D09)
 

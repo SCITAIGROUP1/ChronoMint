@@ -28,7 +28,7 @@ describe("ProjectAccessService", () => {
       { team: { projectId: "proj-1" } },
       { team: { projectId: "proj-2" } }
     ]);
-    const ids = await service.ledProjectIds("ws-1", "user-1");
+    const ids = await service.managedProjectIds("ws-1", "user-1");
     expect(ids).toEqual(["proj-1", "proj-2"]);
   });
 
@@ -39,7 +39,7 @@ describe("ProjectAccessService", () => {
     ).resolves.toBeUndefined();
   });
 
-  it("assertCanManageProject rejects MEMBER without LEAD", async () => {
+  it("assertCanManageProject rejects MEMBER without PROJECT_MANAGER", async () => {
     mockPrisma.teamMember.findFirst.mockResolvedValue(null);
     await expect(
       service.assertCanManageProject("ws-1", "user-1", "MEMBER", "proj-1")

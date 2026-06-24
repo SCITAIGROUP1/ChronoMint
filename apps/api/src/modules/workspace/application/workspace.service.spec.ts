@@ -76,7 +76,7 @@ describe("WorkspaceService", () => {
       assertSeatsForEmails: vi.fn().mockResolvedValue(undefined)
     };
     const mockProjectAccess = {
-      ledProjectIds: vi.fn().mockResolvedValue([])
+      managedProjectIds: vi.fn().mockResolvedValue([])
     };
     service = new WorkspaceService(
       mockPrisma,

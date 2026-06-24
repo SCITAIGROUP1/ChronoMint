@@ -5,7 +5,7 @@ export interface RequestUser {
   tenantId: string;
   workspaceId: string;
   role: "ADMIN" | "MEMBER";
-  ledProjectIds?: string[];
+  managedProjectIds?: string[];
   impersonatorId?: string;
 }
 

@@ -9,14 +9,14 @@
 
 Kloqra uses **four authorization layers**. Higher layers manage lower layers; **data isolation** is enforced at **workspace** and **tenant** boundaries.
 
-| Layer                 | Role(s)                | App                                       |
-| --------------------- | ---------------------- | ----------------------------------------- |
-| Platform              | Superadmin             | `platform-admin`                          |
-| Tenant (Organization) | Owner                  | `admin` → **Account** mode (`/account/*`) |
-| Workspace             | Admin, Member          | `admin` / `client`                        |
-| Project               | Lead (PM), Team member | `admin` (filtered) / `client`             |
+| Layer                 | Role(s)                      | App                                       |
+| --------------------- | ---------------------------- | ----------------------------------------- |
+| Platform              | Superadmin                   | `platform-admin`                          |
+| Tenant (Organization) | Owner                        | `admin` → **Account** mode (`/account/*`) |
+| Workspace             | Admin, Member                | `admin` / `client`                        |
+| Project               | Project Manager, Team member | `admin` (filtered) / `client`             |
 
-**Workspace roles** (`ADMIN` \| `MEMBER`) and **team roles** (`LEAD` \| `MEMBER`) are defined in `@kloqra/contracts` (`common.dto`, `tenant-rbac.ts`).
+**Workspace roles** (`ADMIN` \| `MEMBER`) and **team roles** (`PROJECT_MANAGER` \| `MEMBER`) are defined in `@kloqra/contracts` (`common.dto`, `tenant-rbac.ts`).
 
 ---
 
@@ -62,7 +62,7 @@ Full action catalog: [platform-admin.md](../specs/platform-admin.md). Plan confi
 | **Can**     | Projects, categories, approvals, exports, billing rates, team live                 |
 | **Scope**   | **One workspace** per membership; same person needs **separate row** per workspace |
 
-### Project lead / PM (`team_members.role = LEAD`)
+### Project manager / PM (`team_members.role = PROJECT_MANAGER`)
 
 |             |                                                                     |
 | ----------- | ------------------------------------------------------------------- |
@@ -70,7 +70,7 @@ Full action catalog: [platform-admin.md](../specs/platform-admin.md). Plan confi
 | **App**     | `admin` with nav filtered to led projects                           |
 | **Can**     | Tasks, team invites, approvals **for assigned projects only** (F17) |
 | **Cannot**  | Workspace-wide billing, categories CRUD, create projects (v1)       |
-| **Note**    | Same user may be `LEAD` on **multiple projects** (D06)              |
+| **Note**    | Same user may be `PROJECT_MANAGER` on **multiple projects** (D06)   |
 
 ### Member (`workspace_members.role = MEMBER`)
 
@@ -99,7 +99,7 @@ flowchart TB
     Member[Member]
   end
   subgraph project [Project]
-    PM[ProjectLead]
+    PM[ProjectManager]
     TeamMember[TeamMember]
   end
   Superadmin --> Owner
@@ -210,26 +210,26 @@ One `users` row → one `tenant_members` row → multiple `workspace_members` ro
 
 Legend: **Y** yes · **N** no · **S** scoped · **A** account-only · **—** not applicable
 
-| Domain                    | Superadmin | Tenant owner | Workspace admin | Project lead | Member |
-| ------------------------- | ---------- | ------------ | --------------- | ------------ | ------ |
-| Platform tenant CRUD      | Y          | N            | N               | N            | N      |
-| Account / subscription    | —          | A            | N               | N            | N      |
-| Create workspace          | —          | Y            | N               | N            | N      |
-| Assign workspace admin    | —          | Y            | N               | N            | N      |
-| Switch workspace (tenant) | —          | S            | S               | S            | S      |
-| Projects CRUD             | —          | S            | Y               | N            | N      |
-| Categories CRUD           | —          | S            | Y               | N            | N      |
-| Tasks CRUD                | —          | S            | Y               | S            | N      |
-| Team invites              | —          | S            | Y               | S            | N      |
-| Timer / own logs          | —          | S            | Y               | Y            | Y      |
-| Timesheet submit          | —          | S            | Y               | Y            | Y      |
-| Timesheet approve         | —          | S            | Y               | S            | N      |
-| Reporting dashboard       | —          | S            | Y               | S            | S      |
-| Billing rates (client)    | —          | S            | Y               | N            | N      |
-| Export wizard             | —          | S            | Y               | N            | N      |
-| Export me                 | —          | S            | Y               | Y            | Y      |
-| Team live / presence      | —          | S            | Y               | S            | N      |
-| Public API keys           | —          | S            | Y               | N            | N      |
+| Domain                    | Superadmin | Tenant owner | Workspace admin | Project manager | Member |
+| ------------------------- | ---------- | ------------ | --------------- | --------------- | ------ |
+| Platform tenant CRUD      | Y          | N            | N               | N               | N      |
+| Account / subscription    | —          | A            | N               | N               | N      |
+| Create workspace          | —          | Y            | N               | N               | N      |
+| Assign workspace admin    | —          | Y            | N               | N               | N      |
+| Switch workspace (tenant) | —          | S            | S               | S               | S      |
+| Projects CRUD             | —          | S            | Y               | N               | N      |
+| Categories CRUD           | —          | S            | Y               | N               | N      |
+| Tasks CRUD                | —          | S            | Y               | S               | N      |
+| Team invites              | —          | S            | Y               | S               | N      |
+| Timer / own logs          | —          | S            | Y               | Y               | Y      |
+| Timesheet submit          | —          | S            | Y               | Y               | Y      |
+| Timesheet approve         | —          | S            | Y               | S               | N      |
+| Reporting dashboard       | —          | S            | Y               | S               | S      |
+| Billing rates (client)    | —          | S            | Y               | N               | N      |
+| Export wizard             | —          | S            | Y               | N               | N      |
+| Export me                 | —          | S            | Y               | Y               | Y      |
+| Team live / presence      | —          | S            | Y               | S               | N      |
+| Public API keys           | —          | S            | Y               | N               | N      |
 
 **S** for tenant owner = only when they have a `workspace_members` row for that workspace.
 
@@ -265,7 +265,7 @@ flowchart TD
   TenantMatch -->|yes| SubGuard[SubscriptionWriteGuard]
   SubGuard --> RolesGuard[RolesGuard workspace role]
   RolesGuard --> ProjectCheck{Project-scoped action?}
-  ProjectCheck -->|yes| LeadCheck[LEAD or ADMIN]
+  ProjectCheck -->|yes| PMCheck[PROJECT_MANAGER or ADMIN]
   ProjectCheck -->|no| Handler[Controller]
 ```
 
@@ -275,13 +275,13 @@ Implement in SaaS-F04, F05, F10, F17. Until then, existing `workspaceId` guards 
 
 ## 10. Combined personas
 
-| Person      | Memberships                             | Apps                             |
-| ----------- | --------------------------------------- | -------------------------------- |
-| **Alex**    | `OWNER` only                            | Account                          |
-| **Sarah**   | `ADMIN` in Workspace Fabrikam + Contoso | Admin, workspace switcher        |
-| **Mike**    | `MEMBER` + `LEAD` on Project X, Y       | Admin filtered + client for time |
-| **Jane**    | `MEMBER` in two workspaces              | Client, switcher                 |
-| **Sarah+M** | `ADMIN` + `LEAD` on one project         | Admin full in WS + PM on project |
+| Person      | Memberships                                  | Apps                             |
+| ----------- | -------------------------------------------- | -------------------------------- |
+| **Alex**    | `OWNER` only                                 | Account                          |
+| **Sarah**   | `ADMIN` in Workspace Fabrikam + Contoso      | Admin, workspace switcher        |
+| **Mike**    | `MEMBER` + `PROJECT_MANAGER` on Project X, Y | Admin filtered + client for time |
+| **Jane**    | `MEMBER` in two workspaces                   | Client, switcher                 |
+| **Sarah+M** | `ADMIN` + `PROJECT_MANAGER` on one project   | Admin full in WS + PM on project |
 
 ---
 
@@ -350,32 +350,32 @@ Canonical checklist: [SAAS_PLATFORM_PLAN.md §7.2](./SAAS_PLATFORM_PLAN.md). RBA
 - [ ] `TENANT_RBAC.md` signed off (this doc)
 - [ ] Contracts enums match matrix (`tenant-rbac.spec.ts` green)
 - [x] F05 isolation E2E before F06+
-- [x] F17 matrix rows implemented in code (`docs/specs/project-lead.md`)
-- [ ] No `@Roles("ADMIN")` bypass for LEAD without service check
+- [x] F17 matrix rows implemented in code (`docs/specs/project-manager.md`)
+- [ ] No `@Roles("ADMIN")` bypass for PROJECT_MANAGER without service check
 
 ---
 
 ## 14. Current vs target
 
-| Today                             | Target                       |
-| --------------------------------- | ---------------------------- |
-| `ADMIN` \| `MEMBER` per workspace | + tenant + platform + `LEAD` |
-| Any user `POST /workspaces`       | Tenant owner only            |
-| No tenant entity                  | `tenants` + `tenant_members` |
-| Single app pair                   | + `platform-admin`           |
+| Today                             | Target                                  |
+| --------------------------------- | --------------------------------------- |
+| `ADMIN` \| `MEMBER` per workspace | + tenant + platform + `PROJECT_MANAGER` |
+| Any user `POST /workspaces`       | Tenant owner only                       |
+| No tenant entity                  | `tenants` + `tenant_members`            |
+| Single app pair                   | + `platform-admin`                      |
 
 ---
 
 ## 15. Implementation map
 
-| Epic    | RBAC deliverable          |
-| ------- | ------------------------- |
-| F03     | This document + contracts |
-| F04     | JWT `tenantId`, guards    |
-| F05     | Isolation E2E             |
-| F06–F07 | Tenant + workspace APIs   |
-| F08     | Account UI (§12)          |
-| F10     | Plan limits guard         |
-| F12     | Subscription write guard  |
-| F14–F15 | Platform routes           |
-| F17     | `LEAD` enforcement        |
+| Epic    | RBAC deliverable              |
+| ------- | ----------------------------- |
+| F03     | This document + contracts     |
+| F04     | JWT `tenantId`, guards        |
+| F05     | Isolation E2E                 |
+| F06–F07 | Tenant + workspace APIs       |
+| F08     | Account UI (§12)              |
+| F10     | Plan limits guard             |
+| F12     | Subscription write guard      |
+| F14–F15 | Platform routes               |
+| F17     | `PROJECT_MANAGER` enforcement |

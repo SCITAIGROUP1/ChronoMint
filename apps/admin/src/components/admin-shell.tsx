@@ -24,7 +24,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo } from "react";
 import { AdminScopeHint } from "@/components/admin-scope-hint";
 import { ADMIN_NAV_ITEMS } from "@/config/admin-nav";
-import { canAccessAdminApp, isProjectLeadOnly } from "@/config/project-lead-nav";
+import { canAccessAdminApp, isProjectLeadOnly } from "@/config/project-manager-nav";
 import { usePendingTimesheetsBadgeCount } from "@/features/approvals/use-pending-timesheets";
 import { GlobalSearchShell } from "@/features/global-search/global-search-shell";
 import { resolveAdminShellMode, resolveAdminShellNav } from "@/lib/resolve-admin-shell-nav";
@@ -40,9 +40,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const wsId = session?.workspaceId ?? "";
   const isOwner = session?.tenantRole === "OWNER";
   const canManageOrg = canManageOrganization(session);
-  const canUseAdminFeatures = canAccessAdminApp(session?.workspaceRole, session?.ledProjectIds);
-  const projectLeadOnly = isProjectLeadOnly(session?.workspaceRole, session?.ledProjectIds);
-  const ledProjectCount = session?.ledProjectIds?.length ?? 0;
+  const canUseAdminFeatures = canAccessAdminApp(session?.workspaceRole, session?.managedProjectIds);
+  const projectLeadOnly = isProjectLeadOnly(session?.workspaceRole, session?.managedProjectIds);
+  const managedProjectCount = session?.managedProjectIds?.length ?? 0;
   const isAccountMode = resolveAdminShellMode(pathname, session) === "account";
   const canUsePersonalFeatures = Boolean(wsId);
   const canUseWorkspaceOps = Boolean(wsId && canUseAdminFeatures);
@@ -70,7 +70,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (session) {
       if (!canLoginToAdminApp(session)) {
-        router.replace("/login?error=admin");
+        router.replace("/select-workspace");
         return;
       }
       if (isAccountMode) {
@@ -84,7 +84,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         return;
       }
       if (
-        !canAccessAdminApp(session.workspaceRole, session.ledProjectIds) &&
+        !canAccessAdminApp(session.workspaceRole, session.managedProjectIds) &&
         canAccessAccountMode(session)
       ) {
         router.replace(defaultAccountLandingPath(session));
@@ -93,7 +93,6 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     }
 
     void bootstrapSession({
-      requiredRole: "ADMIN",
       allowProjectLead: true,
       allowTenantOperator: true
     })
@@ -103,6 +102,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           return;
         }
         setWorkspaces(result.workspaces);
+        if (!canLoginToAdminApp(result.session)) {
+          router.replace("/select-workspace");
+        }
       })
       .catch(() => router.replace("/login?error=admin"));
   }, [session, setWorkspaces, router, isAccountMode, pathname]);
@@ -161,7 +163,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
               <AdminScopeHint
                 projectLeadOnly={projectLeadOnly}
                 workspaceName={session.workspaceName}
-                ledProjectCount={ledProjectCount}
+                managedProjectCount={managedProjectCount}
                 collapsed={collapsed}
               />
             ) : null}

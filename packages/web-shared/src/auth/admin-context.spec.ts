@@ -11,21 +11,21 @@ const ownerSession = {
   tenantRole: "OWNER",
   workspaceRole: "ADMIN",
   workspaceName: "Acme Corporation",
-  ledProjectIds: []
+  managedProjectIds: []
 } as unknown as AuthSessionDto;
 
 const opsSession = {
   tenantRole: "ADMIN",
   workspaceRole: "ADMIN",
   workspaceName: "Acme Corporation",
-  ledProjectIds: []
+  managedProjectIds: []
 } as unknown as AuthSessionDto;
 
 const leadSession = {
   tenantRole: "ADMIN",
   workspaceRole: "MEMBER",
   workspaceName: "Acme Corporation",
-  ledProjectIds: ["proj-1"]
+  managedProjectIds: ["proj-1"]
 } as AuthSessionDto;
 
 const workspaces = [
@@ -36,13 +36,13 @@ const workspaces = [
     name: "Design Studio",
     slug: "design",
     role: "MEMBER" as const,
-    ledProjectIds: ["proj-1"]
+    managedProjectIds: ["proj-1"]
   },
   { id: "4", name: "Plain Member", slug: "plain", role: "MEMBER" as const }
 ];
 
 describe("filterAdminAccessibleWorkspaces", () => {
-  it("includes workspace admins and project leads", () => {
+  it("includes workspace admins and project managers", () => {
     const filtered = filterAdminAccessibleWorkspaces(workspaces);
     expect(filtered.map((w) => w.name)).toEqual([
       "Acme Corporation",
@@ -107,7 +107,7 @@ describe("resolveAdminContextBreadcrumb", () => {
     ).toEqual([{ label: "Acme Corporation", href: "/dashboard" }, { label: "Organization admin" }]);
   });
 
-  it("labels project leads as project managers", () => {
+  it("labels project managers as project managers", () => {
     expect(
       resolveAdminContextBreadcrumb({
         session: leadSession,

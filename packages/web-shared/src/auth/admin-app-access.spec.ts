@@ -21,21 +21,25 @@ describe("canLoginToAdminApp", () => {
     expect(canLoginToAdminApp({ workspaceRole: "ADMIN", tenantRole: undefined })).toBe(true);
   });
 
-  it("allows project lead without workspace admin", () => {
+  it("allows project manager without workspace admin", () => {
     expect(
-      canLoginToAdminApp({ workspaceRole: "MEMBER", tenantRole: undefined, ledProjectIds: ["p1"] })
+      canLoginToAdminApp({
+        workspaceRole: "MEMBER",
+        tenantRole: undefined,
+        managedProjectIds: ["p1"]
+      })
     ).toBe(true);
   });
 
   it("allows organization owner without workspace admin", () => {
     expect(
-      canLoginToAdminApp({ workspaceRole: "MEMBER", tenantRole: "OWNER", ledProjectIds: [] })
+      canLoginToAdminApp({ workspaceRole: "MEMBER", tenantRole: "OWNER", managedProjectIds: [] })
     ).toBe(true);
   });
 
   it("allows organization admin without workspace admin", () => {
     expect(
-      canLoginToAdminApp({ workspaceRole: "MEMBER", tenantRole: "ADMIN", ledProjectIds: [] })
+      canLoginToAdminApp({ workspaceRole: "MEMBER", tenantRole: "ADMIN", managedProjectIds: [] })
     ).toBe(true);
   });
 

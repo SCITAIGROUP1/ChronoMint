@@ -61,11 +61,11 @@ export class WorkspaceService {
     return Promise.all(
       memberships.map(async (m) => {
         const role = m.role as "ADMIN" | "MEMBER";
-        const ledProjectIds =
+        const managedProjectIds =
           role === "MEMBER"
-            ? await this.projectAccess.ledProjectIds(m.workspaceId, userId)
+            ? await this.projectAccess.managedProjectIds(m.workspaceId, userId)
             : undefined;
-        return this.toListItem(m.workspace, role, ledProjectIds);
+        return this.toListItem(m.workspace, role, managedProjectIds);
       })
     );
   }
@@ -743,13 +743,13 @@ export class WorkspaceService {
   private toListItem(
     workspace: { id: string; name: string },
     role: "ADMIN" | "MEMBER",
-    ledProjectIds?: string[]
+    managedProjectIds?: string[]
   ): WorkspaceListItemDto {
     return {
       id: workspace.id,
       name: workspace.name,
       role,
-      ...(ledProjectIds && ledProjectIds.length > 0 ? { ledProjectIds } : {})
+      ...(managedProjectIds && managedProjectIds.length > 0 ? { managedProjectIds } : {})
     };
   }
 

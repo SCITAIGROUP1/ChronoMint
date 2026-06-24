@@ -14,7 +14,7 @@ describe("JwtAuthGuard", () => {
   };
   let authRevocation: { assertNotRevoked: ReturnType<typeof vi.fn> };
   let prisma: { workspace: { findUnique: ReturnType<typeof vi.fn> } };
-  let projectAccess: { ledProjectIds: ReturnType<typeof vi.fn> };
+  let projectAccess: { managedProjectIds: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
     jwtTokens = {
@@ -28,7 +28,7 @@ describe("JwtAuthGuard", () => {
         findUnique: vi.fn().mockResolvedValue({ tenantId: "t1" })
       }
     };
-    projectAccess = { ledProjectIds: vi.fn().mockResolvedValue([]) };
+    projectAccess = { managedProjectIds: vi.fn().mockResolvedValue([]) };
     guard = new JwtAuthGuard(
       jwtTokens as unknown as JwtTokenService,
       authRevocation as unknown as AuthRevocationService,

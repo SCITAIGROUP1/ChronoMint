@@ -14,7 +14,7 @@ import {
   type RequestUser
 } from "../../../../common/decorators/current-user.decorator";
 import { Roles } from "../../../../common/decorators/roles.decorator";
-import { AdminOrProjectLeadGuard } from "../../../../common/guards/admin-or-project-lead.guard";
+import { AdminOrProjectManagerGuard } from "../../../../common/guards/admin-or-project-manager.guard";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../../../common/guards/roles.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
@@ -35,7 +35,7 @@ export class ReportingController {
     return this.access.manageableProjectIds(user.workspaceId, user.userId, user.role);
   }
 
-  @UseGuards(AdminOrProjectLeadGuard)
+  @UseGuards(AdminOrProjectManagerGuard)
   @Roles("ADMIN", "MEMBER")
   @Get(ROUTES.REPORTING.DASHBOARD)
   async dashboard(
@@ -50,7 +50,7 @@ export class ReportingController {
     );
   }
 
-  @UseGuards(AdminOrProjectLeadGuard)
+  @UseGuards(AdminOrProjectManagerGuard)
   @Roles("ADMIN", "MEMBER")
   @Get(ROUTES.REPORTING.UTILIZATION)
   async utilization(
@@ -61,7 +61,7 @@ export class ReportingController {
     return this.reporting.utilization(user.workspaceId, query, projectIds);
   }
 
-  @UseGuards(AdminOrProjectLeadGuard)
+  @UseGuards(AdminOrProjectManagerGuard)
   @Roles("ADMIN", "MEMBER")
   @Get(ROUTES.REPORTING.BUDGET(":id"))
   async budgetBurnDown(@CurrentUser() user: RequestUser, @Param("id") id: string) {
@@ -69,7 +69,7 @@ export class ReportingController {
     return this.reporting.budgetBurnDown(user.workspaceId, id);
   }
 
-  @UseGuards(AdminOrProjectLeadGuard)
+  @UseGuards(AdminOrProjectManagerGuard)
   @Roles("ADMIN", "MEMBER")
   @Get(ROUTES.REPORTING.HEATMAP)
   async heatmap(
@@ -84,7 +84,7 @@ export class ReportingController {
     );
   }
 
-  @UseGuards(AdminOrProjectLeadGuard)
+  @UseGuards(AdminOrProjectManagerGuard)
   @Roles("ADMIN", "MEMBER")
   @Get(ROUTES.REPORTING.CATEGORIES_HEATMAP)
   async categoriesHeatmap(
@@ -99,7 +99,7 @@ export class ReportingController {
     );
   }
 
-  @UseGuards(AdminOrProjectLeadGuard)
+  @UseGuards(AdminOrProjectManagerGuard)
   @Roles("ADMIN", "MEMBER")
   @Get(ROUTES.REPORTING.TASKS)
   async tasks(

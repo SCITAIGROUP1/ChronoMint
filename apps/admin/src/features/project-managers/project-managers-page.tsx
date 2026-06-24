@@ -44,11 +44,11 @@ import { DashboardStatCard } from "@/components/dashboard-stat-card";
 import { api } from "@/lib/api";
 import { getWorkspaceId, useSessionStore } from "@/stores/session.store";
 
-function ledProjectsLabel(manager: ProjectManagerOverviewDto): string {
-  if (manager.ledProjects.length === 0) return "—";
-  if (manager.ledProjects.length === 1) return manager.ledProjects[0]!.projectName;
-  const first = manager.ledProjects[0]!.projectName;
-  return `${first} +${manager.ledProjects.length - 1}`;
+function managedProjectsLabel(manager: ProjectManagerOverviewDto): string {
+  if (!manager.managedProjects || manager.managedProjects.length === 0) return "—";
+  if (manager.managedProjects.length === 1) return manager.managedProjects[0]!.projectName;
+  const first = manager.managedProjects[0]!.projectName;
+  return `${first} +${manager.managedProjects.length - 1}`;
 }
 
 export function ProjectManagersPage() {
@@ -133,7 +133,7 @@ export function ProjectManagersPage() {
     setManagerBusyId(manager.userId);
     try {
       await Promise.all(
-        manager.ledProjects.map((project) =>
+        manager.managedProjects.map((project) =>
           api(ROUTES.PROJECTS.TEAM_MEMBER(project.projectId, project.teamMemberId), {
             method: "PATCH",
             workspaceId: ws,
@@ -160,7 +160,7 @@ export function ProjectManagersPage() {
     <div className="space-y-6">
       <AppBar
         title="Project managers"
-        description="Assign and manage project leads across your workspace."
+        description="Assign and manage project managers across your workspace."
         secondary={
           <AppBarListToolbar
             searchValue={search}
@@ -255,7 +255,7 @@ export function ProjectManagersPage() {
               <DashboardStatCard
                 label="Project managers"
                 value={String(summary.totalManagers)}
-                hint="Members with project lead role"
+                hint="Members with project manager role"
                 icon={Users}
                 tone="primary"
               />
@@ -295,7 +295,7 @@ export function ProjectManagersPage() {
           <div className="p-6">
             <EmptyState
               title="No project managers yet"
-              description="Assign workspace members as project leads to give them scoped admin access."
+              description="Assign workspace members as project managers to give them scoped admin access."
               action={
                 <div className="flex flex-wrap justify-center gap-2">
                   <Button type="button" onClick={() => openAssignForManager()}>
@@ -335,9 +335,9 @@ export function ProjectManagersPage() {
                     </DataTableCell>
                     <DataTableCell>
                       <div className="space-y-1">
-                        <p>{ledProjectsLabel(manager)}</p>
+                        <p>{managedProjectsLabel(manager)}</p>
                         <p className="text-xs text-muted-foreground">
-                          {manager.activeLedProjectCount} active of {manager.ledProjectCount}
+                          {manager.activeLedProjectCount} active of {manager.managedProjectCount}
                         </p>
                       </div>
                     </DataTableCell>
@@ -397,7 +397,7 @@ export function ProjectManagersPage() {
       />
       <ConfirmDialog
         open={demoteAllTarget !== null}
-        title="Remove all project lead roles?"
+        title="Remove all project manager roles?"
         description={
           demoteAllTarget
             ? `${demoteAllTarget.userName} will remain on assigned projects as a regular team member.`

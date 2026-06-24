@@ -28,7 +28,7 @@ import {
   type RequestUser
 } from "../../../../common/decorators/current-user.decorator";
 import { Roles } from "../../../../common/decorators/roles.decorator";
-import { AdminOrProjectLeadGuard } from "../../../../common/guards/admin-or-project-lead.guard";
+import { AdminOrProjectManagerGuard } from "../../../../common/guards/admin-or-project-manager.guard";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../../../common/guards/roles.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
@@ -47,7 +47,7 @@ export class ProjectsController {
   ) {
     return this.projects.list(user.workspaceId, user.userId, user.role, query, {
       adminScope: authScope === "admin",
-      ledProjectIds: user.ledProjectIds
+      managedProjectIds: user.managedProjectIds
     });
   }
 
@@ -85,7 +85,7 @@ export class ProjectsController {
     return this.projects.remove(user.workspaceId, id);
   }
 
-  @UseGuards(AdminOrProjectLeadGuard)
+  @UseGuards(AdminOrProjectManagerGuard)
   @Get(ROUTES.PROJECTS.TEAM(":id"))
   getTeam(
     @CurrentUser() user: RequestUser,
@@ -95,7 +95,7 @@ export class ProjectsController {
     return this.projects.getTeam(user.workspaceId, user.userId, user.role, id, query);
   }
 
-  @UseGuards(AdminOrProjectLeadGuard)
+  @UseGuards(AdminOrProjectManagerGuard)
   @Post(ROUTES.PROJECTS.TEAM_MEMBERS(":id"))
   addTeamMember(
     @CurrentUser() user: RequestUser,
@@ -111,7 +111,7 @@ export class ProjectsController {
     );
   }
 
-  @UseGuards(AdminOrProjectLeadGuard)
+  @UseGuards(AdminOrProjectManagerGuard)
   @Patch(ROUTES.PROJECTS.TEAM_MEMBER(":projectId", ":memberId"))
   updateTeamMember(
     @CurrentUser() user: RequestUser,
@@ -129,7 +129,7 @@ export class ProjectsController {
     );
   }
 
-  @UseGuards(AdminOrProjectLeadGuard)
+  @UseGuards(AdminOrProjectManagerGuard)
   @Delete(ROUTES.PROJECTS.TEAM_MEMBER(":projectId", ":memberId"))
   removeTeamMember(
     @CurrentUser() user: RequestUser,
@@ -145,7 +145,7 @@ export class ProjectsController {
     );
   }
 
-  @UseGuards(AdminOrProjectLeadGuard)
+  @UseGuards(AdminOrProjectManagerGuard)
   @Post(ROUTES.PROJECTS.TEAM_INVITES(":id"))
   createTeamInvite(
     @CurrentUser() user: RequestUser,

@@ -158,13 +158,13 @@ export class ProjectsService {
     userId: string,
     role: "ADMIN" | "MEMBER",
     query: ListProjectsQuery,
-    options?: { adminScope?: boolean; ledProjectIds?: string[] }
+    options?: { adminScope?: boolean; managedProjectIds?: string[] }
   ): Promise<ListProjectsResponse> {
     const projectIds =
       role === "ADMIN"
         ? await this.access.manageableProjectIds(workspaceId, userId, role)
-        : options?.adminScope && options.ledProjectIds && options.ledProjectIds.length > 0
-          ? options.ledProjectIds
+        : options?.adminScope && options.managedProjectIds && options.managedProjectIds.length > 0
+          ? options.managedProjectIds
           : await this.access.accessibleProjectIds(workspaceId, userId, role);
     if (projectIds.length === 0) {
       return emptyPaginatedResponse<ProjectListItemDto>(query.page, query.limit);
@@ -642,7 +642,7 @@ export class ProjectsService {
     if (dto.role !== undefined && actorRole !== "ADMIN") {
       throw new DomainException(
         ErrorCodes.FORBIDDEN,
-        "Only workspace admins can change project lead roles",
+        "Only workspace admins can change project manager roles",
         HttpStatus.FORBIDDEN
       );
     }
@@ -665,13 +665,13 @@ export class ProjectsService {
     }
     if (
       dto.role === "MEMBER" &&
-      member.role === "LEAD" &&
+      member.role === "PROJECT_MANAGER" &&
       actorRole !== "ADMIN" &&
       member.userId !== actorUserId
     ) {
       throw new DomainException(
         ErrorCodes.FORBIDDEN,
-        "Project leads cannot demote other project leads",
+        "Project managers cannot demote other project managers",
         HttpStatus.FORBIDDEN
       );
     }

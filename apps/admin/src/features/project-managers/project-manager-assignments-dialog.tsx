@@ -44,10 +44,10 @@ export function ProjectManagerAssignmentsDialog({
         workspaceId,
         body: JSON.stringify({ role: "MEMBER" })
       });
-      toast.success(`${manager.userName} is no longer project lead on ${project.projectName}.`);
+      toast.success(`${manager.userName} is no longer project manager on ${project.projectName}.`);
       setDemoteTarget(null);
       await onChanged();
-      if (manager.ledProjects.length <= 1) onClose();
+      if (manager.managedProjects.length <= 1) onClose();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not update assignment.");
     } finally {
@@ -63,8 +63,8 @@ export function ProjectManagerAssignmentsDialog({
         title="Manage assignments"
         description={
           manager
-            ? `Project lead roles for ${manager.userName}`
-            : "Project lead roles for this manager"
+            ? `Project manager roles for ${manager.userName}`
+            : "Project manager roles for this manager"
         }
         icon={<Briefcase className="size-5" />}
         size="lg"
@@ -75,8 +75,8 @@ export function ProjectManagerAssignmentsDialog({
         }
       >
         {manager ? (
-          manager.ledProjects.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No project lead assignments.</p>
+          manager.managedProjects.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No project manager assignments.</p>
           ) : (
             <Table>
               <TableHeader>
@@ -87,7 +87,7 @@ export function ProjectManagerAssignmentsDialog({
                 </DataTableHeaderRow>
               </TableHeader>
               <TableBody>
-                {manager.ledProjects.map((project) => (
+                {manager.managedProjects.map((project) => (
                   <TableRow key={project.teamMemberId}>
                     <DataTableCell className="font-medium">
                       <Link
@@ -123,7 +123,7 @@ export function ProjectManagerAssignmentsDialog({
 
       <ConfirmDialog
         open={demoteTarget !== null}
-        title="Remove project lead role?"
+        title="Remove project manager role?"
         description={
           demoteTarget && manager
             ? `${manager.userName} will remain on ${demoteTarget.projectName} as a regular team member.`

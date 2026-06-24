@@ -1,10 +1,7 @@
 "use client";
 
-import type {
-  PlatformUserProfileDto,
-  DEFAULT_THEME,
-  type ThemePreference
-} from "@kloqra/contracts";
+import type { PlatformUserProfileDto, ThemePreference } from "@kloqra/contracts";
+import { DEFAULT_THEME } from "@kloqra/contracts";
 import { cn } from "@kloqra/ui";
 import { Check, Monitor, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";

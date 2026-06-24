@@ -26,7 +26,7 @@ describe("formatMemberPortalWorkspaceLabel", () => {
 });
 
 describe("formatAdminWorkspaceAccessLabel", () => {
-  it("labels project leads as project managers in admin chrome", () => {
+  it("labels project managers as project managers in admin chrome", () => {
     expect(formatAdminWorkspaceAccessLabel("MEMBER", ["project-1"])).toBe("Project manager");
     expect(formatAdminWorkspaceAccessLabel("ADMIN")).toBe("Workspace admin");
     expect(formatAdminWorkspaceAccessLabel("ADMIN", undefined, "ADMIN")).toBe("Organization admin");

@@ -13,7 +13,7 @@ export const workspaceSchema = z.object({
 
 export const workspaceWithRoleSchema = workspaceSchema.extend({
   role: workspaceRoleSchema,
-  ledProjectIds: z.array(uuidSchema).optional()
+  managedProjectIds: z.array(uuidSchema).optional()
 });
 
 /** Slim workspace row for switcher — omits slug and settings blob. */
@@ -22,7 +22,7 @@ export const workspaceListItemSchema = z.object({
   name: z.string().min(1).max(120),
   role: workspaceRoleSchema,
   /** Present when role is MEMBER and user leads one or more projects in this workspace. */
-  ledProjectIds: z.array(uuidSchema).optional()
+  managedProjectIds: z.array(uuidSchema).optional()
 });
 
 export const switchWorkspaceSchema = z.object({

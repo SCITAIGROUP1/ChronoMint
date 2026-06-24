@@ -11,7 +11,7 @@ Minimum regression cases for multi-tenant SaaS, mapped to integration tests in `
 | D12 — `past_due` blocks timer + timelog    | `subscription-lifecycle.e2e.ts`                                                   |
 | Subscription webhook updates status        | `stripe-webhook.e2e.ts`                                                           |
 | D16 — owner account + superadmin provision | `platform-tenants-provision.e2e.ts`, `tenants.e2e.ts`, admin `account-*.spec.ts`  |
-| D06 — multi-project LEAD scope             | `project-lead.e2e.ts`, admin `project-lead.spec.ts`                               |
+| D06 — multi-project PROJECT_MANAGER scope  | `project-lead.e2e.ts`, admin `project-lead.spec.ts`                               |
 | D13 — no platform impersonation            | `platform-audit.e2e.ts`                                                           |
 
 ## Suite entrypoints

@@ -1,4 +1,5 @@
-import type { SalesInquiryDto, PLAN_SLUGS, type PlanSlug } from "@kloqra/contracts";
+import type { SalesInquiryDto, PlanSlug } from "@kloqra/contracts";
+import { PLAN_SLUGS } from "@kloqra/contracts";
 
 type InquiryRow = {
   id: string;

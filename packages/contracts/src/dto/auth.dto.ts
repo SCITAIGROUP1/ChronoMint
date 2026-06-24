@@ -40,8 +40,8 @@ export const authSessionSchema = z.object({
   workspaceRole: workspaceRoleSchema,
   /** Preferred workspace from user preferences — avoids bootstrap GET /users/me. */
   defaultWorkspaceId: uuidSchema.optional(),
-  /** Project IDs where user is team_members.role = LEAD (MEMBER workspace role only; not in JWT). */
-  ledProjectIds: z.array(uuidSchema).optional(),
+  /** Project IDs where user is team_members.role = PROJECT_MANAGER (MEMBER workspace role only; not in JWT). */
+  managedProjectIds: z.array(uuidSchema).optional(),
   impersonatorId: uuidSchema.optional(),
   impersonatorName: z.string().optional()
 });

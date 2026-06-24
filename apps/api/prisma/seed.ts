@@ -527,7 +527,7 @@ async function seedProjects(
         data: {
           teamId: team.id,
           userId: user.id,
-          role: isLead ? "LEAD" : "MEMBER",
+          role: isLead ? "PROJECT_MANAGER" : "MEMBER",
           isActive: true
         }
       });
@@ -1231,7 +1231,7 @@ function printCredentials() {
     }
   }
 
-  console.log("\n  Workspaces & project leads:");
+  console.log("\n  Workspaces & project managers:");
   for (const ws of SEED_WORKSPACES) {
     const wsAdmins = ws.workspaceAdminEmails?.join(", ") ?? "—";
     console.log(`\n    ${ws.name} (${ws.slug}) — workspace admins: ${wsAdmins}`);

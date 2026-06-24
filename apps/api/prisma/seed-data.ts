@@ -195,7 +195,7 @@ export type SeedProjectSpec = {
   budgetBurnPct?: number;
   tasks: SeedTaskSpec[];
   memberEmails: string[];
-  /** Subset of memberEmails — team_members.role = LEAD (demo: 2 per project). */
+  /** Subset of memberEmails — team_members.role = PROJECT_MANAGER (demo: 2 per project). */
   leadEmails?: string[];
   timesheetApproval?: boolean;
   /** Per-member personal project colors (email → hex). Admin canonical color unchanged. */
@@ -256,7 +256,7 @@ export const SEED_DEMO_HIERARCHY = [
     level: "Project manager",
     email: SEED_DEMO_PERSONAS.projectManager,
     displayName: "Alex Chen",
-    scope: "Project LEAD on both workspaces",
+    scope: "Project PROJECT_MANAGER on both workspaces",
     app: "admin (project-lead subset)"
   },
   {

@@ -122,7 +122,7 @@ describe("WorkspaceProjectManagersOverviewService", () => {
 
     expect(result.managers).toHaveLength(2);
     expect(result.managers[0]?.userName).toBe("Casey Nguyen");
-    expect(result.managers[0]?.ledProjectCount).toBe(2);
+    expect(result.managers[0]?.managedProjectCount).toBe(2);
     expect(result.managers[0]?.isTrackingNow).toBe(true);
     expect(result.summary.totalManagers).toBe(2);
     expect(result.summary.totalLedProjects).toBe(2);
@@ -150,7 +150,7 @@ describe("WorkspaceProjectManagersOverviewService", () => {
     });
 
     expect(result.managers).toHaveLength(1);
-    expect(result.managers[0]?.ledProjectCount).toBe(1);
+    expect(result.managers[0]?.managedProjectCount).toBe(1);
   });
 
   it("filters by assignmentActive", async () => {
