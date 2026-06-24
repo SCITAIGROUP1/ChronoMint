@@ -56,6 +56,7 @@ describe("PlatformOpsService", () => {
       mockPrisma,
       mockStripe as never,
       mockSync as never,
+      { notifyAll: vi.fn().mockResolvedValue(undefined) } as never,
       mockQueue() as never,
       mockQueue() as never,
       mockQueue() as never,

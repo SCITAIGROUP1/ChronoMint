@@ -147,6 +147,14 @@ export async function cleanupTenantIsolationFixtures(prisma: PrismaService): Pro
   });
   const userIds = users.map((u) => u.id);
 
+  const tenant = await prisma.tenant.findUnique({ where: { slug: "isolation-org-b" } });
+  if (tenant) {
+    await prisma.tenantSalesInquiryReceipt.deleteMany({
+      where: { inquiry: { tenantId: tenant.id } }
+    });
+    await prisma.tenantSalesInquiry.deleteMany({ where: { tenantId: tenant.id } });
+  }
+
   if (userIds.length > 0) {
     await prisma.tenantMember.deleteMany({ where: { userId: { in: userIds } } });
     await prisma.workspaceMember.deleteMany({ where: { userId: { in: userIds } } });
@@ -154,7 +162,6 @@ export async function cleanupTenantIsolationFixtures(prisma: PrismaService): Pro
     await prisma.user.deleteMany({ where: { id: { in: userIds } } });
   }
 
-  const tenant = await prisma.tenant.findUnique({ where: { slug: "isolation-org-b" } });
   if (tenant) {
     await prisma.tenant.delete({ where: { id: tenant.id } });
   }

@@ -25,18 +25,20 @@
 
 ## API (SaaS-F06, F07)
 
-| Method | Route                                | Roles                                                                                   |
-| ------ | ------------------------------------ | --------------------------------------------------------------------------------------- |
-| GET    | `ROUTES.TENANTS.CURRENT`             | Tenant member (`tenant_members` row required)                                           |
-| PATCH  | `ROUTES.TENANTS.CURRENT`             | Tenant owner (complete `pending_setup` org profile → `active`)                          |
-| GET    | `ROUTES.TENANTS.OVERVIEW`            | Tenant owner                                                                            |
-| GET    | `ROUTES.TENANTS.ANALYTICS_SUMMARY`   | Tenant owner (cross-workspace rollup; see [tenant-analytics.md](./tenant-analytics.md)) |
-| GET    | `ROUTES.TENANTS.MEMBERS`             | Tenant owner, tenant admin                                                              |
-| POST   | `ROUTES.TENANTS.MEMBERS`             | Tenant owner (invite tenant `ADMIN`)                                                    |
-| PATCH  | `ROUTES.TENANTS.MEMBER(id)`          | Tenant owner                                                                            |
-| POST   | `ROUTES.TENANTS.WORKSPACES`          | Tenant owner (create workspace)                                                         |
-| POST   | `ROUTES.WORKSPACES.ASSIGN_ADMIN(id)` | Tenant owner (assign workspace admin)                                                   |
-| GET    | `ROUTES.TENANTS.SUBSCRIPTION`        | Tenant owner                                                                            |
+| Method                   | Route                                      | Roles                                                                                   |
+| ------------------------ | ------------------------------------------ | --------------------------------------------------------------------------------------- |
+| GET                      | `ROUTES.TENANTS.CURRENT`                   | Tenant member (`tenant_members` row required)                                           |
+| PATCH                    | `ROUTES.TENANTS.CURRENT`                   | Tenant owner, organization admin (complete `pending_setup` org profile → `active`)      |
+| GET                      | `ROUTES.TENANTS.OVERVIEW`                  | Tenant owner                                                                            |
+| GET                      | `ROUTES.TENANTS.ANALYTICS_SUMMARY`         | Tenant owner (cross-workspace rollup; see [tenant-analytics.md](./tenant-analytics.md)) |
+| GET                      | `ROUTES.TENANTS.MEMBERS`                   | Tenant owner, organization admin                                                        |
+| POST                     | `ROUTES.TENANTS.MEMBERS`                   | Tenant owner (invite organization `ADMIN`)                                              |
+| PATCH                    | `ROUTES.TENANTS.MEMBER(id)`                | Tenant owner                                                                            |
+| POST                     | `ROUTES.TENANTS.WORKSPACES`                | Tenant owner, organization admin (create workspace)                                     |
+| GET                      | `ROUTES.TENANTS.WORKSPACE_ADMINS_OVERVIEW` | Tenant owner, organization admin                                                        |
+| PATCH/DELETE/POST resend | `ROUTES.TENANTS.WORKSPACE_MEMBER`          | Tenant owner, organization admin (manage workspace admins without workspace JWT)        |
+| POST                     | `ROUTES.WORKSPACES.ASSIGN_ADMIN(id)`       | Tenant owner, organization admin (assign workspace admin)                               |
+| GET                      | `ROUTES.TENANTS.SUBSCRIPTION`              | Tenant owner                                                                            |
 
 ## Given / When / Then
 

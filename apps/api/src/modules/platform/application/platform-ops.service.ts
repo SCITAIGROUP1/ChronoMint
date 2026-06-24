@@ -7,6 +7,11 @@ import { PrismaService } from "../../../common/prisma/prisma.service";
 import { QUEUES } from "../../../common/queues";
 import { SubscriptionSyncService } from "../../subscriptions/application/subscription-sync.service";
 import { StripeClient } from "../../subscriptions/stripe/stripe.client";
+import { PlatformNotificationsDispatchService } from "./platform-notifications-dispatch.service";
+import { notifyQueueFailures, notifySubscriptionDrift } from "./platform-notifications.helper";
+
+const OPS_ALERT_COOLDOWN_MS = 60 * 60 * 1000;
+const opsAlertLastSent = new Map<string, number>();
 
 type TenantStatusKey = keyof PlatformOpsSummaryDto["tenants"];
 type SubscriptionStatusKey = keyof PlatformOpsSummaryDto["subscriptions"];
@@ -31,6 +36,7 @@ export class PlatformOpsService {
     private prisma: PrismaService,
     private stripe: StripeClient,
     private sync: SubscriptionSyncService,
+    private platformNotifications: PlatformNotificationsDispatchService,
     @InjectQueue(QUEUES.MAIL) private mailQueue: Queue,
     @InjectQueue(QUEUES.BULK_INVITE) private bulkInviteQueue: Queue,
     @InjectQueue(QUEUES.BULK_CATEGORY) private bulkCategoryQueue: Queue,
@@ -81,7 +87,7 @@ export class PlatformOpsService {
       if (key) subscriptions[key] = row._count._all;
     }
 
-    return {
+    const summary = {
       tenants,
       subscriptions,
       usage: { totalWorkspaces, totalSeats },
@@ -92,6 +98,35 @@ export class PlatformOpsService {
         lastCheckedAt: checkedAt.toISOString()
       }
     };
+
+    this.maybeNotifyOpsAlerts(summary);
+
+    return summary;
+  }
+
+  private maybeNotifyOpsAlerts(summary: PlatformOpsSummaryDto): void {
+    if (summary.reconcile.driftCount > 0 && this.shouldNotifyOpsAlert("drift")) {
+      notifySubscriptionDrift(this.platformNotifications, {
+        driftCount: summary.reconcile.driftCount
+      });
+    }
+
+    for (const [queueName, counts] of Object.entries(summary.queues)) {
+      if (counts.failed > 0 && this.shouldNotifyOpsAlert(`queue:${queueName}`)) {
+        notifyQueueFailures(this.platformNotifications, {
+          queueName,
+          failedCount: counts.failed
+        });
+      }
+    }
+  }
+
+  private shouldNotifyOpsAlert(key: string): boolean {
+    const now = Date.now();
+    const last = opsAlertLastSent.get(key) ?? 0;
+    if (now - last < OPS_ALERT_COOLDOWN_MS) return false;
+    opsAlertLastSent.set(key, now);
+    return true;
   }
 
   private async countFleetSeats(): Promise<number> {

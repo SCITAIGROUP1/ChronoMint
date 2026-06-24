@@ -419,27 +419,66 @@ describe("AuthService unit tests", () => {
   });
 
   describe("loginPlatform", () => {
-    it("returns platform session for valid superadmin", async () => {
+    it("returns platform session when 2FA is not enabled", async () => {
+      process.env.JWT_ACCESS_SECRET = "my-secret-key-32-chars-long-or-more";
       const platformUser = {
         id: "platform-1",
         email: "platform@kloqra.dev",
         name: "Platform Admin",
         role: "SUPERADMIN",
         isActive: true,
-        passwordHash: "hash"
+        passwordHash: "hash",
+        totpEnabledAt: null,
+        totpSecret: null
       };
       mockPrisma.platformUser = {
         findUnique: vi.fn().mockResolvedValue(platformUser)
       };
       vi.mocked(bcrypt.compare).mockResolvedValue(true as never);
 
-      const session = await authService.loginPlatform({
+      const result = await authService.loginPlatform({
         email: "platform@kloqra.dev",
         password: "password123"
       });
 
-      expect(session.platformRole).toBe("SUPERADMIN");
-      expect(session.user.email).toBe("platform@kloqra.dev");
+      expect(result).toEqual({
+        user: {
+          id: "platform-1",
+          email: "platform@kloqra.dev",
+          name: "Platform Admin",
+          platformRole: "SUPERADMIN"
+        },
+        platformRole: "SUPERADMIN"
+      });
+    });
+
+    it("requires TOTP when platform 2FA is enabled", async () => {
+      process.env.JWT_ACCESS_SECRET = "my-secret-key-32-chars-long-or-more";
+      const platformUser = {
+        id: "platform-1",
+        email: "platform@kloqra.dev",
+        name: "Platform Admin",
+        role: "SUPERADMIN",
+        isActive: true,
+        passwordHash: "hash",
+        totpEnabledAt: new Date(),
+        totpSecret: "secret"
+      };
+      mockPrisma.platformUser = {
+        findUnique: vi.fn().mockResolvedValue(platformUser)
+      };
+      vi.mocked(bcrypt.compare).mockResolvedValue(true as never);
+      mockJwt.sign.mockReturnValue("pending-2fa-token");
+
+      const result = await authService.loginPlatform({
+        email: "platform@kloqra.dev",
+        password: "password123"
+      });
+
+      expect(result).toEqual({
+        requires2fa: true,
+        pendingToken: "pending-2fa-token"
+      });
     });
 
     it("rejects inactive platform user", async () => {

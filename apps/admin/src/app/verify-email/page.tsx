@@ -2,6 +2,7 @@
 
 import {
   VerifyEmailPageContent,
+  canLoginToAdminApp,
   hasMultipleWorkspaces,
   resolveAdminLandingPath
 } from "@kloqra/web-shared";
@@ -22,7 +23,7 @@ function VerifyEmailContent() {
       email={email}
       loginHref="/login"
       onSession={async (session, accessToken, refreshToken) => {
-        if (session.workspaceRole !== "ADMIN") {
+        if (!canLoginToAdminApp(session)) {
           throw new Error("Admin access required");
         }
         setSession(session, accessToken, refreshToken);
@@ -31,7 +32,7 @@ function VerifyEmailContent() {
           router.push("/select-workspace");
           return;
         }
-        if (session.tenantRole === "OWNER") {
+        if (session.tenantRole === "OWNER" || session.tenantRole === "ADMIN") {
           router.push(await resolveAdminLandingPath(session, session.workspaceId));
           return;
         }

@@ -8,6 +8,7 @@ import { Injectable } from "@nestjs/common";
 import type Stripe from "stripe";
 import { generatedPrisma } from "../../../common/prisma/generated-prisma.util";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { SubscriptionLifecycleService } from "./subscription-lifecycle.service";
 import { SubscriptionNotificationsService } from "./subscription-notifications.service";
 import { toSubscriptionDto } from "./subscriptions.mapper";
 
@@ -15,7 +16,8 @@ import { toSubscriptionDto } from "./subscriptions.mapper";
 export class SubscriptionSyncService {
   constructor(
     private prisma: PrismaService,
-    private notifications: SubscriptionNotificationsService
+    private notifications: SubscriptionNotificationsService,
+    private lifecycle: SubscriptionLifecycleService
   ) {}
 
   private db() {
@@ -68,18 +70,70 @@ export class SubscriptionSyncService {
       : null;
     const trialEndsAt = stripeSub.trial_end ? new Date(stripeSub.trial_end * 1000) : null;
 
+    const price = stripeSub.items.data[0]?.price;
+    const interval = price?.recurring?.interval; // "month" or "year"
+    const billingInterval =
+      interval === "month" ? "monthly" : interval === "year" ? "yearly" : null;
+    const currentPeriodStart = stripeSub.current_period_start
+      ? new Date(stripeSub.current_period_start * 1000)
+      : null;
+
+    const oldSub = await this.db().tenantSubscription.findUnique({
+      where: { tenantId }
+    });
+
     const updated = await this.db().tenantSubscription.update({
       where: { tenantId },
       data: {
         status,
         stripeCustomerId: String(stripeSub.customer),
         stripeSubscriptionId: stripeSub.id,
+        currentPeriodStart,
         currentPeriodEnd,
+        billingInterval,
+        billingSource: "stripe",
         trialEndsAt: status === "trial" ? trialEndsAt : null,
         ...(planId ? { planId } : {})
       },
       include: { plan: true }
     });
+
+    if (oldSub) {
+      const planChanged = planId && planId !== oldSub.planId;
+      const statusChanged = status !== oldSub.status;
+      const periodRenewed =
+        oldSub.currentPeriodEnd &&
+        currentPeriodEnd &&
+        currentPeriodEnd.getTime() > oldSub.currentPeriodEnd.getTime();
+
+      if (planChanged) {
+        await this.lifecycle.recordEvent(tenantId, {
+          eventType: "plan_changed",
+          fromPlanId: oldSub.planId,
+          toPlanId: planId,
+          fromStatus: oldSub.status,
+          toStatus: status,
+          actorType: "system",
+          metadata: { stripeEventId: stripeSub.id, billingInterval }
+        });
+      }
+      if (statusChanged && !planChanged) {
+        await this.lifecycle.recordEvent(tenantId, {
+          eventType: status === "canceled" ? "canceled" : "status_changed",
+          fromStatus: oldSub.status,
+          toStatus: status,
+          actorType: "system",
+          metadata: { stripeEventId: stripeSub.id }
+        });
+      }
+      if (periodRenewed && !planChanged) {
+        await this.lifecycle.recordEvent(tenantId, {
+          eventType: "period_renewed",
+          actorType: "system",
+          metadata: { stripeEventId: stripeSub.id, currentPeriodStart, currentPeriodEnd }
+        });
+      }
+    }
 
     if (options?.previousStatus !== "past_due" && status === "past_due") {
       await this.notifications.notifyPaymentFailed(tenantId);
@@ -104,15 +158,42 @@ export class SubscriptionSyncService {
       planId = plan?.id;
     }
 
+    const oldSub = await this.db().tenantSubscription.findUnique({
+      where: { tenantId }
+    });
+
     await this.db().tenantSubscription.update({
       where: { tenantId },
       data: {
         ...(planId ? { planId } : {}),
         ...(stripeCustomerId ? { stripeCustomerId } : {}),
         ...(stripeSubscriptionId ? { stripeSubscriptionId } : {}),
+        billingSource: "stripe",
         status: "active"
       }
     });
+
+    if (oldSub) {
+      if (planId && planId !== oldSub.planId) {
+        await this.lifecycle.recordEvent(tenantId, {
+          eventType: "plan_changed",
+          fromPlanId: oldSub.planId,
+          toPlanId: planId,
+          fromStatus: oldSub.status,
+          toStatus: "active",
+          actorType: "tenant_owner",
+          metadata: { stripeSessionId: session.id }
+        });
+      } else if (oldSub.status !== "active") {
+        await this.lifecycle.recordEvent(tenantId, {
+          eventType: "status_changed",
+          fromStatus: oldSub.status,
+          toStatus: "active",
+          actorType: "tenant_owner",
+          metadata: { stripeSessionId: session.id }
+        });
+      }
+    }
   }
 
   async handleSubscriptionDeleted(stripeSub: Stripe.Subscription): Promise<void> {
@@ -120,10 +201,24 @@ export class SubscriptionSyncService {
       stripeSub.metadata?.tenantId ?? (await this.findTenantIdByStripeSubscription(stripeSub.id));
     if (!tenantId) return;
 
+    const oldSub = await this.db().tenantSubscription.findUnique({
+      where: { tenantId }
+    });
+
     await this.db().tenantSubscription.update({
       where: { tenantId },
       data: { status: "canceled" }
     });
+
+    if (oldSub && oldSub.status !== "canceled") {
+      await this.lifecycle.recordEvent(tenantId, {
+        eventType: "canceled",
+        fromStatus: oldSub.status,
+        toStatus: "canceled",
+        actorType: "system",
+        metadata: { stripeSubscriptionId: stripeSub.id }
+      });
+    }
   }
 
   async handlePaymentFailed(invoice: Stripe.Invoice): Promise<void> {
@@ -134,7 +229,7 @@ export class SubscriptionSyncService {
     const tenantId = await this.findTenantIdByStripeSubscription(subscriptionId);
     if (!tenantId) return;
 
-    const existing = await this.db().tenantSubscription.findUnique({
+    const oldSub = await this.db().tenantSubscription.findUnique({
       where: { tenantId },
       select: { status: true }
     });
@@ -144,7 +239,14 @@ export class SubscriptionSyncService {
       data: { status: "past_due" }
     });
 
-    if (existing?.status !== "past_due") {
+    if (oldSub && oldSub.status !== "past_due") {
+      await this.lifecycle.recordEvent(tenantId, {
+        eventType: "status_changed",
+        fromStatus: oldSub.status,
+        toStatus: "past_due",
+        actorType: "system",
+        metadata: { stripeInvoiceId: invoice.id }
+      });
       await this.notifications.notifyPaymentFailed(tenantId);
     }
   }

@@ -18,8 +18,29 @@
 | Artifact                    | Path                                                            |
 | --------------------------- | --------------------------------------------------------------- |
 | Plan slugs + default limits | [plan-catalog.ts](../../packages/contracts/src/plan-catalog.ts) |
+| Limits schema               | [tenant-rbac.ts](../../packages/contracts/src/tenant-rbac.ts)   |
 | Subscription DTO            | [tenant.dto.ts](../../packages/contracts/src/dto/tenant.dto.ts) |
 | Route                       | `ROUTES.TENANTS.SUBSCRIPTION`                                   |
+
+## Where plan config and prices live
+
+Platform staff **manage the catalog** from platform-admin **Plans**. Runtime source of truth is the `plans` table.
+
+| Layer                     | File / table                                                   | What it holds                                                                                      |
+| ------------------------- | -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| **Stable seed IDs**       | `packages/contracts/src/plan-catalog.ts`                       | `PLAN_SLUGS`, `PLAN_IDS`, `DEFAULT_PLAN_LIMITS` (bootstrap only)                                   |
+| **Limits schema**         | `packages/contracts/src/tenant-rbac.ts`                        | `planLimitsSchema` field definitions                                                               |
+| **Database (SSOT)**       | `plans` table                                                  | Limits, Stripe IDs, marketing copy, display prices, **tier-specific** `features`, visibility flags |
+| **Common pricing basics** | `platform_catalog_settings.pricing_baseline_features`          | Shared bullets on every billing card (edited on platform-admin **Plans**)                          |
+| **Seed**                  | `apps/api/prisma/seed-data.ts` → `SEED_PLANS`                  | Initial rows + Stripe ID env mapping                                                               |
+| **Stripe env**            | `STRIPE_PRICE_STARTER`, `STRIPE_PRICE_PRO`, `STRIPE_PRODUCT_*` | Overrides on seed — see [ENVIRONMENT.md](../development/ENVIRONMENT.md)                            |
+| **Owner pricing UI**      | `GET /plans/pricing`                                           | Reads `visible_on_pricing` plans from DB                                                           |
+| **Self-serve signup**     | `GET /plans/public`                                            | Reads `is_public` plans from DB                                                                    |
+| **Per-tenant override**   | `tenant_subscriptions.limits_override`                         | Enterprise caps via `PATCH /platform/tenants/:id`                                                  |
+
+**Important:** Display prices in the DB (`monthly_price_cents`, `yearly_price_cents`) are for marketing. **Active plan for each tenant** is always `tenant_subscriptions.plan_id` (join `plans` for limits and name). Stripe `stripe_price_id` is required only for real Checkout; simulated billing updates `plan_id` directly.
+
+Platform staff edit catalog via `PATCH /platform/plans/:id` (audited as `platform.plan.updated`).
 
 ## Catalog (seeded)
 
@@ -33,10 +54,11 @@
 
 ## API
 
-| Method | Route                         | Roles                                |
-| ------ | ----------------------------- | ------------------------------------ |
-| GET    | `ROUTES.TENANTS.SUBSCRIPTION` | Tenant owner                         |
-| GET    | `ROUTES.TENANTS.OVERVIEW`     | Tenant owner (includes subscription) |
+| Method | Route                         | Roles                                 |
+| ------ | ----------------------------- | ------------------------------------- |
+| GET    | `ROUTES.TENANTS.SUBSCRIPTION` | Tenant owner                          |
+| PATCH  | `ROUTES.TENANTS.SUBSCRIPTION` | Tenant owner (simulated billing only) |
+| GET    | `ROUTES.TENANTS.OVERVIEW`     | Tenant owner (includes subscription)  |
 
 ## Given / When / Then
 
@@ -70,7 +92,7 @@
 ## Tests
 
 - Unit: `plan-limit.service.spec.ts`, `subscriptions.service.spec.ts`, `plan-catalog.spec.ts`, `subscription-sync.service.spec.ts`
-- E2E: `tenants.e2e.ts`, `plan-limits.e2e.ts`, `subscription-lifecycle.e2e.ts`, `stripe-webhook.e2e.ts`
+- E2E: `tenants.e2e.ts`, `plan-limits.e2e.ts`, `subscription-lifecycle.e2e.ts`, `subscription-plan-change.e2e.ts`, `stripe-webhook.e2e.ts`
 - Playwright: `apps/admin/e2e/account-billing.spec.ts`
 
 ## Stripe upgrade path (F11–F13)

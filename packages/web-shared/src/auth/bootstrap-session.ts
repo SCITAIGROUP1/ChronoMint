@@ -3,6 +3,7 @@ import type { AuthSessionDto, WorkspaceWithRoleDto } from "@kloqra/contracts";
 import { getApiBase } from "../api/base";
 import { api } from "../api/client";
 import { getAccessToken, useSessionStore } from "../stores/session.store";
+import { canLoginToAdminApp } from "./admin-app-access";
 import { applyDefaultWorkspaceIfNeeded } from "./apply-default-workspace";
 import { isAccessTokenExpired } from "./jwt-payload";
 import { tryRefreshSession } from "./refresh-session";
@@ -57,6 +58,8 @@ export type BootstrapOptions = {
   requiredRole?: "ADMIN" | "MEMBER";
   /** Allow workspace MEMBER with led projects (admin app project-lead access). */
   allowProjectLead?: boolean;
+  /** Allow tenant OWNER/ADMIN without workspace ADMIN (organization account mode). */
+  allowTenantOperator?: boolean;
 };
 
 /**
@@ -81,24 +84,25 @@ export async function bootstrapSession(options: BootstrapOptions = {}): Promise<
 
   try {
     let session = await api<AuthSessionDto>(ROUTES.AUTH.ME);
-    const hasProjectLeadAccess = Boolean(session.ledProjectIds && session.ledProjectIds.length > 0);
 
-    if (options.requiredRole && session.workspaceRole !== options.requiredRole) {
-      if (!(options.allowProjectLead && hasProjectLeadAccess)) {
+    if (options.requiredRole === "ADMIN") {
+      if (!canLoginToAdminApp(session)) {
         return { ok: false };
       }
+    } else if (options.requiredRole && session.workspaceRole !== options.requiredRole) {
+      return { ok: false };
     }
 
     const switched = await applyDefaultWorkspaceIfNeeded(session, token);
     session = switched.session;
     token = switched.accessToken;
 
-    if (options.requiredRole && session.workspaceRole !== options.requiredRole) {
-      if (
-        !(options.allowProjectLead && session.ledProjectIds && session.ledProjectIds.length > 0)
-      ) {
+    if (options.requiredRole === "ADMIN") {
+      if (!canLoginToAdminApp(session)) {
         return { ok: false };
       }
+    } else if (options.requiredRole && session.workspaceRole !== options.requiredRole) {
+      return { ok: false };
     }
 
     useSessionStore.getState().setSession(session, token);

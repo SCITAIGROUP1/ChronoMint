@@ -6,9 +6,11 @@ import {
   bulkInviteMemberSchema,
   teamMembersOverviewQuerySchema,
   teamActivitiesQuerySchema,
+  projectManagersOverviewQuerySchema,
   type TeamActivitiesQuery,
   type InviteMemberDto,
   type TeamMembersOverviewQuery,
+  type ProjectManagersOverviewQuery,
   ROUTES,
   ErrorCodes
 } from "@kloqra/contracts";
@@ -38,6 +40,7 @@ import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../../../common/guards/roles.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
 import { WorkspaceMembersOverviewService } from "../../application/workspace-members-overview.service";
+import { WorkspaceProjectManagersOverviewService } from "../../application/workspace-project-managers-overview.service";
 import { WorkspaceTeamActivitiesService } from "../../application/workspace-team-activities.service";
 import { WorkspaceService } from "../../application/workspace.service";
 
@@ -56,6 +59,7 @@ export class WorkspaceController {
   constructor(
     private workspace: WorkspaceService,
     private overviewService: WorkspaceMembersOverviewService,
+    private projectManagersOverviewService: WorkspaceProjectManagersOverviewService,
     private teamActivitiesService: WorkspaceTeamActivitiesService
   ) {}
 
@@ -81,6 +85,18 @@ export class WorkspaceController {
   ) {
     assertWorkspaceRoute(id, user);
     return this.overviewService.getOverview(id, query);
+  }
+
+  @Roles("ADMIN")
+  @Get(ROUTES.WORKSPACES.PROJECT_MANAGERS_OVERVIEW(":id"))
+  projectManagersOverview(
+    @Param("id") id: string,
+    @Query(new ZodValidationPipe(projectManagersOverviewQuerySchema))
+    query: ProjectManagersOverviewQuery,
+    @CurrentUser() user: RequestUser
+  ) {
+    assertWorkspaceRoute(id, user);
+    return this.projectManagersOverviewService.getOverview(id, query);
   }
 
   @Get(ROUTES.WORKSPACES.MEMBERS(":id"))

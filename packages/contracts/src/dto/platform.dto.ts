@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createPaginatedListResponseSchema } from "../pagination";
+import { createPaginatedListResponseSchema, listPaginationQuerySchema } from "../pagination";
 import {
   billingAlertSchema,
   planLimitsSchema,
@@ -8,6 +8,7 @@ import {
   tenantStatusSchema
 } from "../tenant-rbac";
 import { emailSchema, isoDatetimeSchema, slugSchema, uuidSchema } from "./common.dto";
+import { planCatalogItemSchema, planCatalogListResponseSchema } from "./plan.dto";
 
 export const platformUserSchema = z.object({
   id: uuidSchema,
@@ -44,7 +45,11 @@ export const platformTenantSubscriptionSummarySchema = z.object({
   status: subscriptionStatusSchema,
   trialEndsAt: isoDatetimeSchema.nullable(),
   currentPeriodEnd: isoDatetimeSchema.nullable(),
-  billingAlert: billingAlertSchema.optional()
+  billingAlert: billingAlertSchema.optional(),
+  currentPeriodStart: isoDatetimeSchema.nullable(),
+  billingInterval: z.string().nullable(),
+  planAssignedAt: isoDatetimeSchema,
+  billingSource: z.string()
 });
 
 export const platformTenantDetailSchema = platformTenantListItemSchema.extend({
@@ -56,20 +61,37 @@ export const platformTenantListResponseSchema = createPaginatedListResponseSchem
   platformTenantListItemSchema
 );
 
+export const listPlatformTenantsQuerySchema = listPaginationQuerySchema.extend({
+  status: tenantStatusSchema.optional(),
+  planSlug: z.string().min(1).max(64).optional(),
+  subscriptionStatus: subscriptionStatusSchema.optional()
+});
+
 export const createPlatformTenantFirstWorkspaceSchema = z.object({
   name: z.string().min(1).max(120),
   slug: slugSchema.optional()
 });
 
-export const createPlatformTenantSchema = z.object({
-  organizationName: z.string().min(1).max(120),
-  ownerEmail: emailSchema,
-  ownerName: z.string().min(1).max(120).optional(),
-  planId: uuidSchema,
-  subscriptionStatus: z.enum(["trial", "active"]).optional(),
-  limitsOverride: planLimitsSchema.partial().optional(),
-  firstWorkspace: createPlatformTenantFirstWorkspaceSchema.optional()
-});
+export const createPlatformTenantSchema = z
+  .object({
+    organizationName: z.string().min(1).max(120),
+    ownerEmail: emailSchema,
+    ownerName: z.string().min(1).max(120).optional(),
+    tenantAdminEmail: emailSchema.optional(),
+    planId: uuidSchema,
+    subscriptionStatus: z.enum(["trial", "active"]).optional(),
+    limitsOverride: planLimitsSchema.partial().optional(),
+    firstWorkspace: createPlatformTenantFirstWorkspaceSchema.optional()
+  })
+  .refine(
+    (value) =>
+      !value.tenantAdminEmail ||
+      value.tenantAdminEmail.trim().toLowerCase() !== value.ownerEmail.trim().toLowerCase(),
+    {
+      message: "Tenant admin email must differ from owner email",
+      path: ["tenantAdminEmail"]
+    }
+  );
 
 export const updatePlatformTenantSchema = z
   .object({
@@ -96,19 +118,15 @@ export const updatePlatformTenantSchema = z
 export const createPlatformTenantResponseSchema = z.object({
   tenant: platformTenantDetailSchema,
   ownerUserId: uuidSchema,
-  temporaryPassword: z.string().optional()
+  temporaryPassword: z.string().optional(),
+  tenantAdminUserId: uuidSchema.optional(),
+  tenantAdminTemporaryPassword: z.string().optional()
 });
 
-export const platformPlanListItemSchema = z.object({
-  id: uuidSchema,
-  name: z.string().min(1).max(120),
-  slug: z.string().min(1),
-  isPublic: z.boolean(),
-  limits: planLimitsSchema
-});
+export const platformPlanListItemSchema = planCatalogItemSchema;
 
-export const platformPlanListResponseSchema = z.object({
-  items: z.array(platformPlanListItemSchema)
+export const platformPlanListResponseSchema = planCatalogListResponseSchema.extend({
+  pricingBaselineFeatures: z.array(z.string().min(1).max(200))
 });
 
 export const platformOpsQueueCountsSchema = z.object({
@@ -156,6 +174,7 @@ export type PlatformSessionWithTokenDto = z.infer<typeof platformSessionWithToke
 export type PlatformTenantListItemDto = z.infer<typeof platformTenantListItemSchema>;
 export type PlatformTenantDetailDto = z.infer<typeof platformTenantDetailSchema>;
 export type PlatformTenantListResponseDto = z.infer<typeof platformTenantListResponseSchema>;
+export type ListPlatformTenantsQuery = z.infer<typeof listPlatformTenantsQuerySchema>;
 export type CreatePlatformTenantDto = z.infer<typeof createPlatformTenantSchema>;
 export type UpdatePlatformTenantDto = z.infer<typeof updatePlatformTenantSchema>;
 export type CreatePlatformTenantResponseDto = z.infer<typeof createPlatformTenantResponseSchema>;

@@ -5,14 +5,14 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "../../api/client";
 import { getWorkspaceId, useSessionStore } from "../../stores/session.store";
 
-export function useTenantSubscription() {
+export function useTenantSubscription(enabled = true) {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
   const [subscription, setSubscription] = useState<TenantSubscriptionDto | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
-    if (!ws) {
+    if (!enabled || !ws) {
       setSubscription(null);
       setLoading(false);
       return;
@@ -30,7 +30,7 @@ export function useTenantSubscription() {
     } finally {
       setLoading(false);
     }
-  }, [ws]);
+  }, [ws, enabled]);
 
   useEffect(() => {
     void reload();

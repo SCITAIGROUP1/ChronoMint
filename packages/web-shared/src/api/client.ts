@@ -1,6 +1,8 @@
+import { tryRefreshPlatformSession } from "../auth/bootstrap-platform-session";
 import { isAccessTokenExpired } from "../auth/jwt-payload";
 import { tryRefreshSession } from "../auth/refresh-session";
 import { isWorkspaceMismatchError, resolveApiWorkspaceId } from "../auth/workspace-context";
+import { getPlatformAccessToken, usePlatformSessionStore } from "../stores/platform-session.store";
 import { getAccessToken, useSessionStore } from "../stores/session.store";
 import { getApiBase } from "./base";
 import { invalidateListItemsCache } from "./list-items-cache";
@@ -122,6 +124,7 @@ async function parseApiErrorBody(res: Response): Promise<{ message: string; body
 
 function handleSessionFailure(message: string): void {
   if (typeof window === "undefined") return;
+  if (AUTH_SCOPE === "platform") return;
   if (isWorkspaceMismatchError(message)) {
     useSessionStore.getState().clear();
     const loginPath = "/login";
@@ -133,11 +136,27 @@ function handleSessionFailure(message: string): void {
 
 function handleFatalAuthFailure(): void {
   if (typeof window === "undefined") return;
-  useSessionStore.getState().clear();
+  if (AUTH_SCOPE === "platform") {
+    usePlatformSessionStore.getState().clear();
+  } else {
+    useSessionStore.getState().clear();
+  }
   const loginPath = "/login";
   if (!window.location.pathname.startsWith(loginPath)) {
     window.location.assign(loginPath);
   }
+}
+
+function readAuthToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return AUTH_SCOPE === "platform" ? getPlatformAccessToken() : getAccessToken();
+}
+
+async function refreshAuthToken(): Promise<string | null> {
+  if (AUTH_SCOPE === "platform") {
+    return tryRefreshPlatformSession();
+  }
+  return tryRefreshSession();
 }
 
 function shouldAttemptRefresh(status: number, body: ApiErrorBody): boolean {
@@ -190,11 +209,11 @@ async function executeApiRequest<T>(
     }
   }
 
-  if (ws) headers["X-Workspace-Id"] = ws;
+  if (ws && AUTH_SCOPE !== "platform") headers["X-Workspace-Id"] = ws;
 
-  let token = typeof window !== "undefined" ? getAccessToken() : null;
+  let token = readAuthToken();
   if (token && isAccessTokenExpired(token)) {
-    token = await tryRefreshSession();
+    token = await refreshAuthToken();
   }
   if (token && !isAccessTokenExpired(token)) {
     headers.Authorization = `Bearer ${token}`;
@@ -214,7 +233,7 @@ async function executeApiRequest<T>(
       typeof window !== "undefined" &&
       shouldAttemptRefresh(res.status, body)
     ) {
-      const refreshed = await tryRefreshSession();
+      const refreshed = await refreshAuthToken();
       if (refreshed) {
         return api<T>(path, { ...options, _retry: true });
       }

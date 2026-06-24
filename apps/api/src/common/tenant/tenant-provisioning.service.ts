@@ -17,6 +17,7 @@ export type ProvisionTenantInput = {
   subscriptionStatus?: "trial" | "active";
   limitsOverride?: Partial<PlanLimits> | null;
   firstWorkspace?: { name: string; slug?: string };
+  tenantAdminEmail?: string;
   /** Self-serve only — caller supplies hashed password. */
   passwordHash?: string;
 };
@@ -26,6 +27,8 @@ export type ProvisionTenantResult = {
   ownerUserId: string;
   workspaceId?: string;
   temporaryPassword?: string;
+  tenantAdminUserId?: string;
+  tenantAdminTemporaryPassword?: string;
 };
 
 @Injectable()
@@ -137,14 +140,69 @@ export class TenantProvisioningService {
         });
       }
 
-      return { tenantId: tenant.id, ownerUserId: user.id, workspaceId };
+      let tenantAdminUserId: string | undefined;
+      let tenantAdminTemporaryPassword: string | undefined;
+
+      if (input.tenantAdminEmail) {
+        const adminEmail = input.tenantAdminEmail.trim().toLowerCase();
+        tenantAdminTemporaryPassword = generateTempPassword();
+        const adminPasswordHash = await hashPassword(tenantAdminTemporaryPassword);
+        const adminDisplayName =
+          adminEmail
+            .split("@")[0]
+            ?.replace(/[._-]+/g, " ")
+            .trim() || "Admin";
+        const adminNameParts = splitDisplayName(adminDisplayName);
+        const adminUser = await tx.user.create({
+          data: {
+            email: adminEmail,
+            passwordHash: adminPasswordHash,
+            name: adminDisplayName,
+            firstName: adminNameParts.firstName,
+            lastName: adminNameParts.lastName,
+            mustChangePassword: input.mode === "platform",
+            emailVerifiedAt: input.mode === "platform" ? new Date() : null
+          }
+        });
+        tenantAdminUserId = adminUser.id;
+
+        await gtx.tenantMember.create({
+          data: {
+            tenantId: tenant.id,
+            userId: adminUser.id,
+            role: "ADMIN"
+          }
+        });
+
+        if (workspaceId) {
+          await tx.workspaceMember.create({
+            data: {
+              workspaceId,
+              userId: adminUser.id,
+              role: "ADMIN"
+            }
+          });
+        }
+      }
+
+      return {
+        tenantId: tenant.id,
+        ownerUserId: user.id,
+        workspaceId,
+        tenantAdminUserId,
+        tenantAdminTemporaryPassword
+      };
     });
 
     return {
       tenantId: result.tenantId,
       ownerUserId: result.ownerUserId,
       workspaceId: result.workspaceId,
-      ...(temporaryPassword ? { temporaryPassword } : {})
+      ...(temporaryPassword ? { temporaryPassword } : {}),
+      ...(result.tenantAdminUserId ? { tenantAdminUserId: result.tenantAdminUserId } : {}),
+      ...(result.tenantAdminTemporaryPassword
+        ? { tenantAdminTemporaryPassword: result.tenantAdminTemporaryPassword }
+        : {})
     };
   }
 }

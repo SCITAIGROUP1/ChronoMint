@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { platformOpsSummarySchema } from "./platform.dto";
+import {
+  createPlatformTenantSchema,
+  listPlatformTenantsQuerySchema,
+  platformOpsSummarySchema
+} from "./platform.dto";
 
 describe("platformOpsSummarySchema", () => {
   it("accepts ops summary payload", () => {
@@ -31,5 +35,50 @@ describe("platformOpsSummarySchema", () => {
       }
     });
     expect(result.success).toBe(true);
+  });
+});
+
+describe("createPlatformTenantSchema", () => {
+  const base = {
+    organizationName: "Acme",
+    ownerEmail: "owner@acme.com",
+    planId: "00000000-0000-4000-8000-000000000001"
+  };
+
+  it("accepts optional tenant admin email", () => {
+    expect(
+      createPlatformTenantSchema.safeParse({
+        ...base,
+        tenantAdminEmail: "ops@acme.com"
+      }).success
+    ).toBe(true);
+  });
+
+  it("rejects tenant admin email equal to owner email", () => {
+    const result = createPlatformTenantSchema.safeParse({
+      ...base,
+      tenantAdminEmail: "owner@acme.com"
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("listPlatformTenantsQuerySchema", () => {
+  it("accepts pagination and optional filters", () => {
+    const result = listPlatformTenantsQuerySchema.safeParse({
+      page: 1,
+      limit: 25,
+      search: "acme",
+      status: "active",
+      planSlug: "pilot",
+      subscriptionStatus: "trial"
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("defaults page and limit", () => {
+    const result = listPlatformTenantsQuerySchema.parse({});
+    expect(result.page).toBe(1);
+    expect(result.limit).toBeGreaterThan(0);
   });
 });

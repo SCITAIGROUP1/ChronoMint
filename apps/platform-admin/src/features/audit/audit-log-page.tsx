@@ -54,7 +54,7 @@ export function AuditLogPage() {
   const { data, loading, error } = usePlatformAuditEvents(query);
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <AppBar title="Audit log" description="Immutable record of platform staff actions." />
 
       <div className="flex flex-wrap items-end gap-3">

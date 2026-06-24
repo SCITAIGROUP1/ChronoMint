@@ -1,13 +1,8 @@
 import { expect, test } from "@playwright/test";
+import { loginPlatformAdmin } from "./helpers/platform-auth";
 
 test("platform superadmin can view audit log", async ({ page }) => {
-  await page.goto("/login");
-  await page.getByLabel("Email").fill("platform@kloqra.dev");
-  await page.getByLabel("Password").fill("password123");
-  await page.getByRole("button", { name: "Sign in" }).click();
-
-  await expect(page).toHaveURL(/\/tenants/);
-
+  await loginPlatformAdmin(page);
   await page.getByRole("link", { name: "Audit log" }).click();
   await expect(page).toHaveURL(/\/audit/);
   await expect(page.getByRole("heading", { name: "Audit log" })).toBeVisible();

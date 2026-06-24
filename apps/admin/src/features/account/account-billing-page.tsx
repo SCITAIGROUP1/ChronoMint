@@ -1,25 +1,35 @@
 "use client";
 
-import { DEFAULT_PLAN_LIMITS, PLAN_SLUGS, type PaidPlanSlug } from "@kloqra/contracts";
+import { type PaidPlanSlug } from "@kloqra/contracts";
+import { AppBar, CenteredLoader, StaggerItem } from "@kloqra/ui";
 import {
-  AppBar,
-  Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  CenteredLoader
-} from "@kloqra/ui";
-import {
+  BILLING_INTERVAL_OPTIONS,
+  buildPricingTiersFromCatalog,
+  isPaidCheckoutTier,
+  isTierCurrent,
   useCreateCheckoutSession,
+  useChangeSubscriptionPlan,
   useCreatePortalSession,
+  usePricingPlans,
+  useSalesInquiry,
+  useSubmitSalesInquiry,
   useTenantSubscription,
-  getLegalUrls
+  useUploadSalesReceipt,
+  getLegalUrls,
+  type BillingInterval,
+  type PlanPricingTier
 } from "@kloqra/web-shared";
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { SegmentedControl } from "@/components/admin-page";
+import { PLAN_PRICING_TIERS } from "@/config/plan-pricing-catalog";
+import {
+  CONTACT_SALES_PLAN_SLUG,
+  ContactSalesDialog
+} from "@/features/account/contact-sales-dialog";
+import { PlanPricingCard } from "@/features/account/plan-pricing-card";
+import { SalesInquiryStatusCard } from "@/features/account/sales-inquiry-status-card";
 
 function formatDate(value: string | null): string {
   if (!value) return "—";
@@ -30,18 +40,37 @@ function formatDate(value: string | null): string {
   });
 }
 
-const UPGRADE_PLANS: { slug: PaidPlanSlug; name: string }[] = [
-  { slug: PLAN_SLUGS.STARTER, name: "Starter" },
-  { slug: PLAN_SLUGS.PRO, name: "Pro" }
-];
+function tierTestId(tier: PlanPricingTier): string | undefined {
+  if (isPaidCheckoutTier(tier)) {
+    return `billing-upgrade-${tier.slug}`;
+  }
+  if (tier.kind === "contact") {
+    return "billing-contact-sales";
+  }
+  return undefined;
+}
 
 export function AccountBillingPage() {
   const { subscription, loading, error, reload } = useTenantSubscription();
+  const { catalog, loading: pricingLoading } = usePricingPlans();
+  const { inquiry, reload: reloadInquiry } = useSalesInquiry();
+  const { submit: submitInquiry, loading: submitInquiryLoading } = useSubmitSalesInquiry();
+  const { upload: uploadReceipt, loading: uploadReceiptLoading } = useUploadSalesReceipt();
+  const pricingTiers = useMemo(
+    () => (catalog ? buildPricingTiersFromCatalog(catalog) : PLAN_PRICING_TIERS),
+    [catalog]
+  );
   const { createCheckout, loading: checkoutLoading } = useCreateCheckoutSession();
+  const { changePlan, loading: changePlanLoading } = useChangeSubscriptionPlan();
   const { createPortal, loading: portalLoading } = useCreatePortalSession();
   const [upgradingSlug, setUpgradingSlug] = useState<PaidPlanSlug | null>(null);
+  const [billingInterval, setBillingInterval] = useState<BillingInterval>("monthly");
+  const [contactDialogOpen, setContactDialogOpen] = useState(false);
+  const isSimulatedBilling = subscription?.billingMode === "simulated";
+  const upgradeLoading = isSimulatedBilling ? changePlanLoading : checkoutLoading;
+  const hasActiveInquiry = inquiry != null;
 
-  if (loading) return <CenteredLoader label="Loading billing…" />;
+  if (loading || pricingLoading) return <CenteredLoader label="Loading billing…" />;
   if (error || !subscription) {
     return (
       <div className="p-6 text-sm text-destructive" data-testid="billing-error">
@@ -52,6 +81,18 @@ export function AccountBillingPage() {
 
   async function handleUpgrade(planSlug: PaidPlanSlug) {
     setUpgradingSlug(planSlug);
+    if (isSimulatedBilling) {
+      const updated = await changePlan({ planSlug });
+      setUpgradingSlug(null);
+      if (updated) {
+        await reload();
+        toast.success(`Plan updated to ${updated.planName}`);
+        return;
+      }
+      toast.error("Could not change plan. Try again or contact support.");
+      return;
+    }
+
     const url = await createCheckout({ planSlug });
     setUpgradingSlug(null);
     if (url) {
@@ -59,6 +100,31 @@ export function AccountBillingPage() {
       return;
     }
     toast.error("Could not start checkout. Try again or contact support.");
+  }
+
+  async function handleContactSalesSubmit(input: { message?: string }) {
+    const result = await submitInquiry({
+      planSlug: CONTACT_SALES_PLAN_SLUG,
+      message: input.message,
+      billingInterval
+    });
+    if (result) {
+      setContactDialogOpen(false);
+      await reloadInquiry();
+      toast.success("Sales request submitted — we will email you shortly.");
+      return;
+    }
+    toast.error("Could not submit request. Try again or contact support.");
+  }
+
+  async function handleReceiptUpload(file: File) {
+    const result = await uploadReceipt(file);
+    if (result) {
+      await reloadInquiry();
+      toast.success("Receipt uploaded — our team will review it.");
+      return;
+    }
+    toast.error("Could not upload receipt. Check file type and size.");
   }
 
   async function handleManage() {
@@ -74,10 +140,14 @@ export function AccountBillingPage() {
     subscription.billingAlert === "past_due" || subscription.status === "past_due";
   const showTrialEnding = subscription.billingAlert === "trial_ending";
   const refundUrl = getLegalUrls().refund;
+  const contactTier = pricingTiers.find((tier) => tier.kind === "contact");
 
   return (
-    <div className="space-y-6 p-6">
-      <AppBar title="Billing" description="Subscription, upgrades, and plan limits." />
+    <div className="space-y-6">
+      <AppBar
+        title="Billing and Plan"
+        description="Find the right plan for you. Simple, transparent pricing with no hidden fees."
+      />
 
       {showPastDue ? (
         <div
@@ -97,84 +167,100 @@ export function AccountBillingPage() {
         </div>
       ) : null}
 
-      <Card data-testid="billing-plan-card">
-        <CardHeader>
-          <CardTitle className="text-base">{subscription.planName}</CardTitle>
-          <CardDescription>
-            Status: <span className="capitalize text-foreground">{subscription.status}</span>
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4 text-sm">
-          <dl className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <dt className="text-muted-foreground">Workspaces included</dt>
-              <dd className="font-medium">{subscription.limits.maxWorkspaces}</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Seats included</dt>
-              <dd className="font-medium">{subscription.limits.maxSeats}</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Trial ends</dt>
-              <dd className="font-medium">{formatDate(subscription.trialEndsAt)}</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Current period ends</dt>
-              <dd className="font-medium">{formatDate(subscription.currentPeriodEnd)}</dd>
-            </div>
-          </dl>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={!subscription.stripeCustomerId || portalLoading}
-              onClick={() => void handleManage()}
-              data-testid="billing-manage-button"
-            >
-              {portalLoading ? "Opening…" : "Manage subscription"}
-            </Button>
-            <Button type="button" variant="ghost" onClick={() => void reload()}>
-              Refresh
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {inquiry ? (
+        <SalesInquiryStatusCard
+          inquiry={inquiry}
+          uploading={uploadReceiptLoading}
+          onUpload={(file) => void handleReceiptUpload(file)}
+        />
+      ) : null}
 
-      <div className="grid gap-4 md:grid-cols-2" data-testid="billing-upgrade-plans">
-        {UPGRADE_PLANS.map((plan) => {
-          const limits = DEFAULT_PLAN_LIMITS[plan.slug];
-          const isCurrent = subscription.planName.toLowerCase() === plan.name.toLowerCase();
+      <section
+        className="flex flex-col items-center gap-3 rounded-2xl border border-border/70 bg-muted/20 px-6 py-6 text-center"
+        aria-label="Billing interval"
+      >
+        <p className="text-sm text-muted-foreground">
+          Choose a plan that fits your team and upgrade anytime as you grow.
+        </p>
+        <div className="w-full max-w-[240px]" data-testid="billing-interval-toggle">
+          <SegmentedControl
+            value={billingInterval}
+            onChange={setBillingInterval}
+            options={BILLING_INTERVAL_OPTIONS}
+            size="md"
+            fullWidth
+          />
+        </div>
+        {billingInterval === "yearly" ? (
+          <p className="max-w-md text-xs text-muted-foreground">
+            Yearly pricing includes 2 months free. Checkout uses monthly billing until annual plans
+            are enabled.
+          </p>
+        ) : null}
+        {isSimulatedBilling ? (
+          <p
+            className="max-w-md text-xs text-muted-foreground"
+            data-testid="billing-simulated-note"
+          >
+            Payments are simulated in this environment. Plan changes apply immediately.
+          </p>
+        ) : null}
+      </section>
+
+      <div className="grid items-stretch gap-6 lg:grid-cols-3" data-testid="billing-upgrade-plans">
+        {pricingTiers.map((tier, index) => {
+          const isCurrent = isTierCurrent(tier, subscription);
+          const checkoutSlug = isPaidCheckoutTier(tier) ? tier.slug : null;
+          const isContact = tier.kind === "contact";
+
           return (
-            <Card key={plan.slug}>
-              <CardHeader>
-                <CardTitle className="text-base">{plan.name}</CardTitle>
-                <CardDescription>
-                  {limits.maxWorkspaces} workspaces · {limits.maxSeats} seats
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button
-                  type="button"
-                  disabled={isCurrent || checkoutLoading}
-                  onClick={() => void handleUpgrade(plan.slug)}
-                  data-testid={`billing-upgrade-${plan.slug}`}
-                >
-                  {upgradingSlug === plan.slug
-                    ? "Redirecting…"
-                    : isCurrent
-                      ? "Current plan"
-                      : `Upgrade to ${plan.name}`}
-                </Button>
-              </CardContent>
-            </Card>
+            <StaggerItem key={tier.name} index={index} className="h-full">
+              <PlanPricingCard
+                tier={tier}
+                billingInterval={billingInterval}
+                isCurrent={isCurrent}
+                checkoutLoading={isContact ? submitInquiryLoading : upgradeLoading}
+                upgrading={checkoutSlug !== null && upgradingSlug === checkoutSlug}
+                testId={tierTestId(tier)}
+                onUpgrade={
+                  checkoutSlug
+                    ? () => {
+                        void handleUpgrade(checkoutSlug);
+                      }
+                    : undefined
+                }
+                onContact={
+                  isContact && !isCurrent && !hasActiveInquiry
+                    ? () => setContactDialogOpen(true)
+                    : undefined
+                }
+              />
+            </StaggerItem>
           );
         })}
       </div>
 
+      {contactTier ? (
+        <ContactSalesDialog
+          open={contactDialogOpen}
+          onOpenChange={setContactDialogOpen}
+          planName={contactTier.name}
+          billingInterval={billingInterval}
+          loading={submitInquiryLoading}
+          onSubmit={(input) => void handleContactSalesSubmit(input)}
+        />
+      ) : null}
+
       <p className="text-xs text-muted-foreground">
         Invoices and payment methods are managed in the{" "}
-        <button type="button" className="underline" onClick={() => void handleManage()}>
-          Stripe customer portal
+        <button
+          type="button"
+          className="underline"
+          disabled={!subscription.stripeCustomerId || portalLoading}
+          onClick={() => void handleManage()}
+          data-testid="billing-manage-button"
+        >
+          {portalLoading ? "Opening portal…" : "Stripe customer portal"}
         </button>
         .
         {refundUrl ? (

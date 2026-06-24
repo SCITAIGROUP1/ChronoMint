@@ -1,14 +1,13 @@
 import {
   ErrorCodes,
+  listPlatformTenantsQuerySchema,
   type CreatePlatformTenantDto,
   type CreatePlatformTenantResponseDto,
   type DeleteTenantResponseDto,
-  type PlatformPlanListResponseDto,
   type PlatformTenantDetailDto,
   type PlatformTenantListResponseDto,
   type UpdatePlatformTenantDto
 } from "@kloqra/contracts";
-import { listPaginationQuerySchema } from "@kloqra/contracts";
 import { HttpStatus, Injectable, NotFoundException } from "@nestjs/common";
 import type { z } from "zod";
 import type { Prisma } from "../../../../prisma/generated/client";
@@ -20,10 +19,20 @@ import { TenantProvisioningService } from "../../../common/tenant/tenant-provisi
 // eslint-disable-next-line no-restricted-imports
 import { AuthService } from "../../auth/application/auth.service";
 import { resolveBillingAlert } from "../../subscriptions/application/billing-alert.util";
+import { SubscriptionLifecycleService } from "../../subscriptions/application/subscription-lifecycle.service";
+import { SubscriptionSalesInquiryService } from "../../subscriptions/application/subscription-sales-inquiry.service";
 import { StripeClient } from "../../subscriptions/stripe/stripe.client";
 import { PlatformAuditService, type PlatformAuditContext } from "./platform-audit.service";
+import { PlatformNotificationsDispatchService } from "./platform-notifications-dispatch.service";
+import {
+  notifyTenantChurned,
+  notifyTenantCreated,
+  notifyTenantDeleted,
+  notifyTenantSuspended,
+  notifyTenantUpdated
+} from "./platform-notifications.helper";
 
-type ListQuery = z.infer<typeof listPaginationQuerySchema>;
+type ListQuery = z.infer<typeof listPlatformTenantsQuerySchema>;
 type UpdateAuditKind = "default" | "suspend";
 
 @Injectable()
@@ -34,7 +43,10 @@ export class PlatformTenantsService {
     private auth: AuthService,
     private stripe: StripeClient,
     private audit: PlatformAuditService,
-    private provisioning: TenantProvisioningService
+    private provisioning: TenantProvisioningService,
+    private platformNotifications: PlatformNotificationsDispatchService,
+    private salesInquiries: SubscriptionSalesInquiryService,
+    private lifecycle: SubscriptionLifecycleService
   ) {}
 
   private db() {
@@ -43,15 +55,25 @@ export class PlatformTenantsService {
 
   async listTenants(query: ListQuery): Promise<PlatformTenantListResponseDto> {
     const db = this.db();
-    const { page, limit, search } = query;
-    const where = search
-      ? {
-          OR: [
-            { name: { contains: search, mode: "insensitive" as const } },
-            { slug: { contains: search, mode: "insensitive" as const } }
-          ]
-        }
-      : undefined;
+    const { page, limit, search, status, planSlug, subscriptionStatus } = query;
+
+    const where: Prisma.TenantWhereInput = {};
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: "insensitive" } },
+        { slug: { contains: search, mode: "insensitive" } }
+      ];
+    }
+    if (status) {
+      where.status = status;
+    }
+    if (planSlug || subscriptionStatus) {
+      where.subscription = {
+        ...(planSlug ? { plan: { slug: planSlug } } : {}),
+        ...(subscriptionStatus ? { status: subscriptionStatus } : {})
+      };
+    }
 
     const [total, tenants] = await Promise.all([
       db.tenant.count({ where }),
@@ -99,21 +121,6 @@ export class PlatformTenantsService {
     return this.toTenantDetail(tenant);
   }
 
-  async listPlans(): Promise<PlatformPlanListResponseDto> {
-    const plans = await this.db().plan.findMany({
-      orderBy: [{ sortOrder: "asc" }, { name: "asc" }]
-    });
-    return {
-      items: plans.map((plan) => ({
-        id: plan.id,
-        name: plan.name,
-        slug: plan.slug,
-        isPublic: plan.isPublic,
-        limits: plan.limits as PlatformPlanListResponseDto["items"][number]["limits"]
-      }))
-    };
-  }
-
   async createTenant(
     dto: CreatePlatformTenantDto,
     ctx: PlatformAuditContext
@@ -141,6 +148,25 @@ export class PlatformTenantsService {
       }
     }
 
+    const tenantAdminEmail = dto.tenantAdminEmail?.trim().toLowerCase();
+    if (tenantAdminEmail) {
+      const existingAdminUser = await this.prisma.user.findUnique({
+        where: { email: tenantAdminEmail }
+      });
+      if (existingAdminUser) {
+        const existingMember = await db.tenantMember.findUnique({
+          where: { userId: existingAdminUser.id }
+        });
+        if (existingMember) {
+          throw new DomainException(
+            ErrorCodes.ALREADY_IN_ORGANIZATION,
+            "Tenant admin email already belongs to an organization",
+            HttpStatus.CONFLICT
+          );
+        }
+      }
+    }
+
     const ownerName = dto.ownerName?.trim() || organizationName;
     const subscriptionStatus = dto.subscriptionStatus ?? "trial";
 
@@ -154,7 +180,8 @@ export class PlatformTenantsService {
       limitsOverride: dto.limitsOverride ?? undefined,
       firstWorkspace: dto.firstWorkspace
         ? { name: dto.firstWorkspace.name.trim(), slug: dto.firstWorkspace.slug }
-        : undefined
+        : undefined,
+      ...(tenantAdminEmail ? { tenantAdminEmail } : {})
     });
 
     const temporaryPassword = result.temporaryPassword;
@@ -174,6 +201,17 @@ export class PlatformTenantsService {
       })
       .catch(() => undefined);
 
+    if (tenantAdminEmail && result.tenantAdminTemporaryPassword) {
+      void this.ownerMailer
+        .sendTenantAdminCredentials({
+          to: tenantAdminEmail,
+          organizationName,
+          inviterName: "Kloqra Platform",
+          temporaryPassword: result.tenantAdminTemporaryPassword
+        })
+        .catch(() => undefined);
+    }
+
     const tenant = await this.getTenant(result.tenantId);
     const includeDevPassword = process.env.NODE_ENV !== "production";
 
@@ -186,14 +224,26 @@ export class PlatformTenantsService {
         slug: tenant.slug,
         ownerEmail: email,
         planId: dto.planId,
+        ...(tenantAdminEmail ? { tenantAdminEmail } : {}),
         ...(dto.firstWorkspace ? { firstWorkspaceName: dto.firstWorkspace.name.trim() } : {})
       }
+    });
+
+    notifyTenantCreated(this.platformNotifications, {
+      tenantId: result.tenantId,
+      name: organizationName,
+      slug: tenant.slug,
+      excludePlatformUserId: ctx.actorPlatformUserId
     });
 
     return {
       tenant,
       ownerUserId: result.ownerUserId,
-      ...(includeDevPassword ? { temporaryPassword } : {})
+      ...(includeDevPassword ? { temporaryPassword } : {}),
+      ...(result.tenantAdminUserId ? { tenantAdminUserId: result.tenantAdminUserId } : {}),
+      ...(includeDevPassword && result.tenantAdminTemporaryPassword
+        ? { tenantAdminTemporaryPassword: result.tenantAdminTemporaryPassword }
+        : {})
     };
   }
 
@@ -240,6 +290,26 @@ export class PlatformTenantsService {
       }
     }
 
+    const openInquiry = dto.planId
+      ? await db.tenantSalesInquiry.findFirst({
+          where: {
+            tenantId: id,
+            requestedPlanId: dto.planId,
+            status: { in: ["open", "awaiting_receipt", "receipt_submitted"] }
+          },
+          orderBy: { createdAt: "desc" }
+        })
+      : null;
+
+    const billingInterval = openInquiry?.billingInterval || "monthly";
+    const now = new Date();
+    const currentPeriodEnd = new Date();
+    if (billingInterval === "yearly") {
+      currentPeriodEnd.setFullYear(currentPeriodEnd.getFullYear() + 1);
+    } else {
+      currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1);
+    }
+
     await this.prisma.$transaction(async (tx) => {
       const gtx = generatedPrisma(tx);
       const settings =
@@ -269,10 +339,24 @@ export class PlatformTenantsService {
           effectiveSubscriptionStatus !== undefined ||
           dto.limitsOverride !== undefined)
       ) {
+        const oldPlanId = tenant.subscription.planId;
+        const newPlanId = dto.planId !== undefined ? dto.planId : oldPlanId;
+        const oldStatus = tenant.subscription.status;
+        const newStatus =
+          effectiveSubscriptionStatus !== undefined ? effectiveSubscriptionStatus : oldStatus;
+
         await gtx.tenantSubscription.update({
           where: { tenantId: id },
           data: {
-            ...(dto.planId !== undefined ? { planId: dto.planId } : {}),
+            ...(dto.planId !== undefined
+              ? {
+                  planId: dto.planId,
+                  billingInterval,
+                  billingSource: "manual",
+                  currentPeriodStart: now,
+                  currentPeriodEnd
+                }
+              : {}),
             ...(effectiveSubscriptionStatus !== undefined
               ? { status: effectiveSubscriptionStatus }
               : {}),
@@ -281,6 +365,40 @@ export class PlatformTenantsService {
               : {})
           } as Prisma.TenantSubscriptionUncheckedUpdateInput
         });
+
+        if (oldPlanId !== newPlanId) {
+          await this.lifecycle.recordEvent(
+            id,
+            {
+              eventType: "plan_changed",
+              fromPlanId: oldPlanId,
+              toPlanId: newPlanId,
+              fromStatus: oldStatus,
+              toStatus: newStatus,
+              actorType: "platform_user",
+              actorId: ctx.actorPlatformUserId,
+              metadata: {
+                reason: "Manual platform admin plan change",
+                salesInquiryId: openInquiry?.id || null,
+                billingInterval
+              }
+            },
+            tx
+          );
+        } else if (oldStatus !== newStatus) {
+          await this.lifecycle.recordEvent(
+            id,
+            {
+              eventType: "status_changed",
+              fromStatus: oldStatus,
+              toStatus: newStatus,
+              actorType: "platform_user",
+              actorId: ctx.actorPlatformUserId,
+              metadata: { reason: "Manual platform admin status change" }
+            },
+            tx
+          );
+        }
       }
 
       if (dto.status === "suspended") {
@@ -292,6 +410,10 @@ export class PlatformTenantsService {
         await this.revokeTenantReportingApiKeys(id, tx);
       }
     });
+
+    if (dto.planId !== undefined && dto.planId !== tenant.subscription?.planId) {
+      await this.salesInquiries.fulfillOpenInquiryForPlan(id, dto.planId);
+    }
 
     const summary = this.buildUpdateAuditSummary(id, tenant, dto);
     if (auditKind === "suspend") {
@@ -317,7 +439,29 @@ export class PlatformTenantsService {
       });
     }
 
-    return this.getTenant(id);
+    const updated = await this.getTenant(id);
+    const excludePlatformUserId = ctx.actorPlatformUserId;
+    if (auditKind === "suspend" || dto.status === "suspended") {
+      notifyTenantSuspended(this.platformNotifications, {
+        tenantId: id,
+        name: updated.name,
+        excludePlatformUserId
+      });
+    } else if (dto.status === "churned") {
+      notifyTenantChurned(this.platformNotifications, {
+        tenantId: id,
+        name: updated.name,
+        excludePlatformUserId
+      });
+    } else if (Object.keys(summary).length > 1) {
+      notifyTenantUpdated(this.platformNotifications, {
+        tenantId: id,
+        name: updated.name,
+        excludePlatformUserId
+      });
+    }
+
+    return updated;
   }
 
   async suspendTenant(id: string, ctx: PlatformAuditContext): Promise<PlatformTenantDetailDto> {
@@ -357,6 +501,12 @@ export class PlatformTenantsService {
     });
 
     await this.db().tenant.delete({ where: { id } });
+
+    notifyTenantDeleted(this.platformNotifications, {
+      tenantId: id,
+      name: tenant.name,
+      excludePlatformUserId: ctx.actorPlatformUserId
+    });
 
     return { ok: true, deletedTenantId: id };
   }
@@ -573,7 +723,11 @@ export class PlatformTenantsService {
             >["status"],
             trialEndsAt: subscription.trialEndsAt?.toISOString() ?? null,
             currentPeriodEnd: subscription.currentPeriodEnd?.toISOString() ?? null,
-            billingAlert: billingAlert ?? undefined
+            billingAlert: billingAlert ?? undefined,
+            currentPeriodStart: subscription.currentPeriodStart?.toISOString() ?? null,
+            billingInterval: subscription.billingInterval,
+            planAssignedAt: subscription.planAssignedAt.toISOString(),
+            billingSource: subscription.billingSource
           }
         : null
     };

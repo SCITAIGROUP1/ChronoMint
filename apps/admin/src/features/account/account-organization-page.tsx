@@ -1,5 +1,6 @@
 "use client";
 
+import { slugifyName } from "@kloqra/contracts";
 import {
   AppBar,
   Button,
@@ -11,7 +12,7 @@ import {
   Input,
   Label
 } from "@kloqra/ui";
-import { useTenantCurrent, useUpdateTenantCurrent } from "@kloqra/web-shared";
+import { CopyableValue, useTenantCurrent, useUpdateTenantCurrent } from "@kloqra/web-shared";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -21,6 +22,7 @@ export function AccountOrganizationPage() {
   const { updateTenantCurrent, saving, error: saveError } = useUpdateTenantCurrent();
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
+  const [slugTouched, setSlugTouched] = useState(false);
   const [formError, setFormError] = useState("");
 
   const pendingSetup = tenant?.status === "pending_setup";
@@ -29,13 +31,21 @@ export function AccountOrganizationPage() {
     if (!tenant) return;
     setName(tenant.name);
     setSlug(tenant.slug);
+    setSlugTouched(false);
   }, [tenant]);
+
+  function onNameChange(nextName: string) {
+    setName(nextName);
+    if (pendingSetup && !slugTouched) {
+      setSlug(slugifyName(nextName));
+    }
+  }
 
   async function completeSetup(e: React.FormEvent) {
     e.preventDefault();
     setFormError("");
     if (!name.trim() || !slug.trim()) {
-      setFormError("Organization name and slug are required.");
+      setFormError("Organization name and organization ID are required.");
       return;
     }
     try {
@@ -57,7 +67,7 @@ export function AccountOrganizationPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <AppBar
         title="Organization"
         description={
@@ -78,18 +88,26 @@ export function AccountOrganizationPage() {
                 <Input
                   id="org-name"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => onNameChange(e.target.value)}
                   required
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="org-slug">Slug</Label>
+                <Label htmlFor="org-slug">Organization ID</Label>
                 <Input
                   id="org-slug"
                   value={slug}
-                  onChange={(e) => setSlug(e.target.value)}
+                  onChange={(e) => {
+                    setSlugTouched(true);
+                    setSlug(e.target.value);
+                  }}
                   required
+                  className="font-mono"
+                  data-testid="org-slug-input"
                 />
+                <p className="text-xs text-muted-foreground">
+                  Used in exports, billing records, and when contacting support.
+                </p>
               </div>
               {formError || saveError ? (
                 <p className="text-destructive">{formError || saveError}</p>
@@ -100,10 +118,10 @@ export function AccountOrganizationPage() {
             </form>
           ) : (
             <>
-              <div>
-                <span className="text-muted-foreground">Slug</span>
-                <p className="font-mono">{tenant.slug}</p>
-              </div>
+              <CopyableValue label="Organization ID" value={tenant.slug} testId="copy-org-slug" />
+              <p className="text-xs text-muted-foreground">
+                Used in exports, billing records, and when contacting support.
+              </p>
               <div>
                 <span className="text-muted-foreground">Status</span>
                 <p>{tenant.status}</p>

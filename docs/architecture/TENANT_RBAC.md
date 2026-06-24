@@ -9,12 +9,12 @@
 
 Kloqra uses **four authorization layers**. Higher layers manage lower layers; **data isolation** is enforced at **workspace** and **tenant** boundaries.
 
-| Layer                 | Role(s)                        | App                           |
-| --------------------- | ------------------------------ | ----------------------------- |
-| Platform              | Superadmin                     | `platform-admin`              |
-| Tenant (Organization) | Owner, optional Admin delegate | `admin` → **Account** mode    |
-| Workspace             | Admin, Member                  | `admin` / `client`            |
-| Project               | Lead (PM), Team member         | `admin` (filtered) / `client` |
+| Layer                 | Role(s)                | App                                       |
+| --------------------- | ---------------------- | ----------------------------------------- |
+| Platform              | Superadmin             | `platform-admin`                          |
+| Tenant (Organization) | Owner                  | `admin` → **Account** mode (`/account/*`) |
+| Workspace             | Admin, Member          | `admin` / `client`                        |
+| Project               | Lead (PM), Team member | `admin` (filtered) / `client`             |
 
 **Workspace roles** (`ADMIN` \| `MEMBER`) and **team roles** (`LEAD` \| `MEMBER`) are defined in `@kloqra/contracts` (`common.dto`, `tenant-rbac.ts`).
 
@@ -24,13 +24,15 @@ Kloqra uses **four authorization layers**. Higher layers manage lower layers; **
 
 ### Platform superadmin
 
-|              |                                                                    |
-| ------------ | ------------------------------------------------------------------ |
-| **Persona**  | Kloqra operations / support                                        |
-| **App**      | `apps/platform-admin` (internal deploy)                            |
-| **Contract** | `platformRoleSchema` → `SUPERADMIN`                                |
-| **Can**      | Create/suspend tenants, assign plans, view tenant metadata         |
-| **Cannot**   | Impersonate users (D13); access customer timesheet data by default |
+|              |                                                                                     |
+| ------------ | ----------------------------------------------------------------------------------- |
+| **Persona**  | Kloqra operations / support                                                         |
+| **App**      | `apps/platform-admin` (internal deploy)                                             |
+| **Contract** | `platformRoleSchema` → `SUPERADMIN`                                                 |
+| **Can**      | Tenant lifecycle, plan assignment, fleet ops, audit log, own account security       |
+| **Cannot**   | Impersonate users (D13); access customer timesheet/workspace data; edit plan prices |
+
+Full action catalog: [platform-admin.md](../specs/platform-admin.md). Plan config SSOT: [plans.md](../specs/plans.md).
 
 ### Tenant owner (`OWNER`)
 
@@ -42,13 +44,14 @@ Kloqra uses **four authorization layers**. Higher layers manage lower layers; **
 | **Can**     | Create workspaces, assign workspace admins, subscription/billing (F13), org settings |
 | **Cannot**  | Auto-access every workspace’s ops unless also `workspace_members` row                |
 
-### Tenant admin (`ADMIN`) — optional delegate
+### Organization admin (`tenant_members.role = ADMIN`)
 
-|             |                                                                                                             |
-| ----------- | ----------------------------------------------------------------------------------------------------------- |
-| **Persona** | IT / finance delegate                                                                                       |
-| **Can**     | Help manage account settings, list organization members, invite tenant admins (owner-only for invite/patch) |
-| **Cannot**  | Platform access                                                                                             |
+|             |                                                                                              |
+| ----------- | -------------------------------------------------------------------------------------------- |
+| **Persona** | Operations delegate for the organization                                                     |
+| **App**     | `admin` → Account mode (Workspaces, Workspace admins, Organization) + workspace mode         |
+| **Can**     | Org profile (`PATCH /tenants/current`), create workspaces, assign/manage workspace admins    |
+| **Cannot**  | Subscription/billing, data export, invite other organization admins, account overview rollup |
 
 ### Workspace admin (`workspace_members.role = ADMIN`)
 
@@ -134,6 +137,12 @@ flowchart LR
 | `client`         | `client`                 | Member                     |
 
 **Admin shell:** Tenant owner lands on **Account** (`/account`); workspace operators land on **Workspace** (`/dashboard`, etc.). Use existing `LayoutShell` from `@kloqra/ui`.
+
+**Context orientation (admin):**
+
+- **Breadcrumb** — sticky strip above page content: `Organization › Workspace › Role` (owners in workspace mode) or `Organization › Organization` (account mode). Non-owners see `Workspace › Role` only.
+- **Context switcher** — sidebar control lists Organization (owners) and all admin-accessible workspaces with role labels (`Owner · Admin`, `Project manager`, etc.).
+- **Post-login picker** — when a user has **3+ contexts** (organization + 2+ workspaces, or 3+ workspaces), login redirects to `/select-context` (“Choose how you want to work”) instead of workspace-only selection.
 
 ---
 

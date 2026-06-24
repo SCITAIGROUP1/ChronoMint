@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { loginPlatformAdmin } from "./helpers/platform-auth";
 
 const OPS_SUMMARY = {
   tenants: {
@@ -40,10 +41,7 @@ test("platform ops dashboard shows fleet metrics", async ({ page }) => {
     });
   });
 
-  await page.goto("/login");
-  await page.getByLabel("Email").fill("platform@kloqra.dev");
-  await page.getByLabel("Password").fill("password123");
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await loginPlatformAdmin(page);
   await expect(page).toHaveURL(/\/tenants/, { timeout: 30_000 });
 
   await page.getByRole("link", { name: "Ops" }).click();

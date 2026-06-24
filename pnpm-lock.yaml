@@ -435,6 +435,9 @@ importers:
       '@types/react-dom':
         specifier: ^19.0.2
         version: 19.2.3(@types/react@19.2.16)
+      otplib:
+        specifier: ^13.4.1
+        version: 13.4.1
       tailwindcss:
         specifier: ^4.0.0
         version: 4.3.0
@@ -10250,7 +10253,7 @@ snapshots:
       sirv: 3.0.2
       tinyglobby: 0.2.17
       tinyrainbow: 1.2.0
-      vitest: 2.1.9(@edge-runtime/vm@3.2.0)(@types/node@22.19.19)(@vitest/ui@2.1.9)(jsdom@26.1.0)(lightningcss@1.32.0)(terser@5.48.0)
+      vitest: 2.1.9(@edge-runtime/vm@3.2.0)(@types/node@22.19.19)(@vitest/ui@2.1.9)(jsdom@29.1.1(@noble/hashes@2.2.0))(lightningcss@1.32.0)(terser@5.48.0)
 
   '@vitest/utils@2.1.8':
     dependencies:

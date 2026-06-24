@@ -40,6 +40,7 @@ test("signup page submits and redirects to verify email", async ({ page }) => {
   await page.getByLabel("Work email").fill("signup-ui@example.com");
   await page.getByLabel("Password").fill("Password123!");
   await page.getByLabel("Organization name").fill("UI Test Org");
+  await expect(page.getByTestId("signup-org-id-preview")).toContainText("ui-test-org");
 
   await page.getByRole("button", { name: "Create account" }).click();
   await expect(page).toHaveURL(/\/verify-email\?email=signup-ui%40example.com/);

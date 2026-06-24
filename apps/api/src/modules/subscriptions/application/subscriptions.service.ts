@@ -1,10 +1,16 @@
-import { ErrorCodes, PLAN_SLUGS, type TenantSubscriptionDto } from "@kloqra/contracts";
+import {
+  ErrorCodes,
+  PLAN_SLUGS,
+  type PaidPlanSlug,
+  type TenantSubscriptionDto
+} from "@kloqra/contracts";
 import { HttpStatus, Injectable } from "@nestjs/common";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { generatedPrisma } from "../../../common/prisma/generated-prisma.util";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { assertTenantAllowsOperations } from "../../../common/tenant/assert-tenant-operations.util";
 import { BLOCKED_WRITE_STATUSES } from "../subscription.constants";
+import { SubscriptionLifecycleService } from "./subscription-lifecycle.service";
 import { SubscriptionNotificationsService } from "./subscription-notifications.service";
 import { toSubscriptionDto, type SubscriptionWithPlan } from "./subscriptions.mapper";
 
@@ -12,7 +18,8 @@ import { toSubscriptionDto, type SubscriptionWithPlan } from "./subscriptions.ma
 export class SubscriptionsService {
   constructor(
     private prisma: PrismaService,
-    private notifications: SubscriptionNotificationsService
+    private notifications: SubscriptionNotificationsService,
+    private lifecycle: SubscriptionLifecycleService
   ) {}
 
   private db() {
@@ -88,16 +95,81 @@ export class SubscriptionsService {
           })()
         : null;
 
+    const now = new Date();
+    const currentPeriodEnd = new Date();
+    currentPeriodEnd.setDate(currentPeriodEnd.getDate() + 30);
+
     const created = await this.db().tenantSubscription.create({
       data: {
         tenantId,
         planId: plan.id,
         status,
-        trialEndsAt
+        trialEndsAt,
+        currentPeriodStart: now,
+        currentPeriodEnd,
+        billingInterval: "monthly",
+        billingSource: "manual",
+        planAssignedAt: now
       },
       include: { plan: true }
     });
 
+    await this.lifecycle.recordEvent(tenantId, {
+      eventType: "created",
+      fromPlanId: null,
+      toPlanId: plan.id,
+      fromStatus: null,
+      toStatus: status,
+      actorType: "system",
+      metadata: { billingInterval: "monthly" }
+    });
+
     return toSubscriptionDto(created);
+  }
+
+  async changePlan(tenantId: string, planSlug: PaidPlanSlug): Promise<TenantSubscriptionDto> {
+    const subscription = await this.loadSubscriptionOrThrow(tenantId);
+    const plan = await this.db().plan.findUnique({ where: { slug: planSlug } });
+    if (!plan) {
+      throw new DomainException(
+        ErrorCodes.NOT_FOUND,
+        `Plan not found: ${planSlug}`,
+        HttpStatus.NOT_FOUND
+      );
+    }
+
+    if (subscription.planId === plan.id) {
+      return toSubscriptionDto(subscription);
+    }
+
+    const now = new Date();
+    const currentPeriodEnd = new Date();
+    currentPeriodEnd.setDate(currentPeriodEnd.getDate() + 30);
+
+    const updated = await this.db().tenantSubscription.update({
+      where: { tenantId },
+      data: {
+        planId: plan.id,
+        status: "active",
+        trialEndsAt: null,
+        currentPeriodStart: now,
+        currentPeriodEnd,
+        billingInterval: "monthly",
+        billingSource: "simulated"
+      },
+      include: { plan: true }
+    });
+
+    await this.lifecycle.recordEvent(tenantId, {
+      eventType: "plan_changed",
+      fromPlanId: subscription.planId,
+      toPlanId: plan.id,
+      fromStatus: subscription.status,
+      toStatus: "active",
+      actorType: "tenant_owner",
+      metadata: { billingInterval: "monthly" }
+    });
+
+    return toSubscriptionDto(updated);
   }
 }

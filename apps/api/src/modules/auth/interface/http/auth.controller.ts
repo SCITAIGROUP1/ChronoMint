@@ -10,6 +10,8 @@ import {
   completeImpersonationSchema,
   impersonateSchema,
   refreshSessionSchema,
+  platform2faSetupEnableRequestSchema,
+  completePlatform2faSetupSchema,
   ROUTES,
   ErrorCodes,
   type AuthSessionDto,
@@ -101,9 +103,16 @@ export class AuthController {
     guardCookieAuthRequest(req);
     const scope = getAuthScope(req);
     if (scope === "platform") {
-      const session = await this.auth.loginPlatform(
+      const result = await this.auth.loginPlatform(
         body as Parameters<AuthService["loginPlatform"]>[0]
       );
+      if ("requires2fa" in result && result.requires2fa) {
+        return result;
+      }
+      if ("requires2faSetup" in result && result.requires2faSetup) {
+        return result;
+      }
+      const session = result as PlatformSessionDto;
       await this.platformAudit.recordEvent({
         context: {
           actorPlatformUserId: session.user.id,
@@ -154,17 +163,59 @@ export class AuthController {
   }
 
   @Throttle({ auth: { limit: 5, ttl: 60_000 } })
+  @Post(ROUTES.AUTH.PLATFORM_2FA_SETUP_ENABLE)
+  async enablePlatform2faSetup(
+    @Body(new ZodValidationPipe(platform2faSetupEnableRequestSchema)) body: { pendingToken: string }
+  ) {
+    return this.auth.enablePlatform2faSetup(body.pendingToken);
+  }
+
+  @Throttle({ auth: { limit: 5, ttl: 60_000 } })
+  @Post(ROUTES.AUTH.PLATFORM_COMPLETE_2FA_SETUP)
+  async completePlatform2faSetup(
+    @Body(new ZodValidationPipe(completePlatform2faSetupSchema)) body: unknown,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response
+  ) {
+    guardCookieAuthRequest(req);
+    const session = await this.auth.completePlatform2faSetup(
+      body as Parameters<AuthService["completePlatform2faSetup"]>[0]
+    );
+    await this.platformAudit.recordEvent({
+      context: {
+        actorPlatformUserId: session.user.id,
+        ipAddress: req.ip || req.socket.remoteAddress || undefined,
+        userAgent: req.get("user-agent") ?? undefined
+      },
+      action: "platform.2fa.enabled",
+      summary: { email: session.user.email }
+    });
+    const tokens = await this.setPlatformCookies(req, res, session);
+    return { ...session, ...tokens };
+  }
+
+  @Throttle({ auth: { limit: 5, ttl: 60_000 } })
   @Post(ROUTES.AUTH.FORGOT_PASSWORD)
-  async forgotPassword(@Body(new ZodValidationPipe(forgotPasswordSchema)) body: { email: string }) {
-    return this.auth.forgotPassword(body.email);
+  async forgotPassword(
+    @Body(new ZodValidationPipe(forgotPasswordSchema)) body: { email: string },
+    @Req() req: Request
+  ) {
+    const scope = getAuthScope(req);
+    return this.auth.forgotPassword(body.email, scope === "platform" ? "platform" : undefined);
   }
 
   @Throttle({ auth: { limit: 5, ttl: 60_000 } })
   @Post(ROUTES.AUTH.RESET_PASSWORD)
   async resetPassword(
-    @Body(new ZodValidationPipe(resetPasswordSchema)) body: { token: string; newPassword: string }
+    @Body(new ZodValidationPipe(resetPasswordSchema)) body: { token: string; newPassword: string },
+    @Req() req: Request
   ) {
-    return this.auth.resetPassword(body.token, body.newPassword);
+    const scope = getAuthScope(req);
+    return this.auth.resetPassword(
+      body.token,
+      body.newPassword,
+      scope === "platform" ? "platform" : undefined
+    );
   }
 
   @Throttle({ auth: { limit: 10, ttl: 60_000 } })

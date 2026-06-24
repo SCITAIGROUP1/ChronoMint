@@ -11,6 +11,7 @@ import {
   AuthShell,
   SetPasswordForm,
   applyDefaultWorkspaceIfNeeded,
+  canLoginToAdminApp,
   extractFieldErrorsFromMessage,
   hasMultipleWorkspaces,
   resolveAdminLandingPath
@@ -39,7 +40,7 @@ export function AdminSetPasswordForm() {
     res: AuthSessionDto & { accessToken: string; refreshToken?: string }
   ) {
     const switched = await applyDefaultWorkspaceIfNeeded(res, res.accessToken);
-    if (switched.session.workspaceRole !== "ADMIN") {
+    if (!canLoginToAdminApp(switched.session)) {
       throw new Error("Admin access required");
     }
     setSession(switched.session, switched.accessToken, res.refreshToken);

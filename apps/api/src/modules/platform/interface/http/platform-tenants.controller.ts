@@ -1,6 +1,6 @@
 import {
   createPlatformTenantSchema,
-  listPaginationQuerySchema,
+  listPlatformTenantsQuerySchema,
   ROUTES,
   updatePlatformTenantSchema,
   type CreatePlatformTenantDto,
@@ -35,7 +35,7 @@ export class PlatformTenantsController {
 
   @Get(ROUTES.PLATFORM.TENANTS)
   list(
-    @Query(new ZodValidationPipe(listPaginationQuerySchema)) query: unknown,
+    @Query(new ZodValidationPipe(listPlatformTenantsQuerySchema)) query: unknown,
     @CurrentPlatformUser() _user: PlatformRequestUser
   ) {
     return this.platformTenants.listTenants(
@@ -83,16 +83,5 @@ export class PlatformTenantsController {
     @Req() req: Request
   ) {
     return this.platformTenants.deleteTenant(id, platformAuditContextFromRequest(user, req));
-  }
-}
-
-@Controller()
-@UseGuards(PlatformGuard)
-export class PlatformPlansController {
-  constructor(private platformTenants: PlatformTenantsService) {}
-
-  @Get(ROUTES.PLATFORM.PLANS)
-  list(@CurrentPlatformUser() _user: PlatformRequestUser) {
-    return this.platformTenants.listPlans();
   }
 }

@@ -17,9 +17,12 @@ import {
   DAY_CATEGORY_BOOST,
   LOG_DESCRIPTIONS,
   SEED_CATEGORIES,
+  SEED_DEMO_HIERARCHY,
+  SEED_DEMO_PERSONAS,
   SEED_NOTIFICATIONS,
   SEED_PASSWORD,
   SEED_PLANS,
+  SEED_PRICING_BASELINE_FEATURES,
   SEED_PLATFORM_SUPERADMIN,
   SEED_TENANT,
   SEED_TENANT_SUBSCRIPTION,
@@ -170,6 +173,7 @@ async function main() {
   const passwordHash = await bcrypt.hash(SEED_PASSWORD, 10);
   const users = await seedUsers(passwordHash);
   await seedPlans();
+  await seedCatalogSettings();
   const tenant = await seedTenant(users);
   await seedTenantSubscription(tenant.id);
   await seedPlatformSuperadmin(passwordHash);
@@ -236,6 +240,9 @@ async function resetDatabase() {
   await prisma.refreshToken.deleteMany();
   await prisma.platformAuditEvent.deleteMany();
   await prisma.platformRefreshToken.deleteMany();
+  await (
+    prisma as unknown as { platformNotification: { deleteMany: () => Promise<unknown> } }
+  ).platformNotification.deleteMany();
   await prisma.platformUser.deleteMany();
   await prisma.stripeWebhookEvent.deleteMany();
   await notificationRepo().deleteMany();
@@ -243,6 +250,12 @@ async function resetDatabase() {
   await prisma.workspace.deleteMany();
   await prisma.tenantMember.deleteMany();
   await prisma.tenantDataExportJob.deleteMany();
+  await (
+    prisma as unknown as { tenantSalesInquiryReceipt: { deleteMany: () => Promise<unknown> } }
+  ).tenantSalesInquiryReceipt.deleteMany();
+  await (
+    prisma as unknown as { tenantSalesInquiry: { deleteMany: () => Promise<unknown> } }
+  ).tenantSalesInquiry.deleteMany();
   await prisma.tenantSubscription.deleteMany();
   await prisma.tenant.deleteMany();
   await prisma.plan.deleteMany();
@@ -369,7 +382,15 @@ async function seedPlans() {
         isPublic: plan.isPublic,
         sortOrder: plan.sortOrder,
         stripeProductId: plan.stripeProductId,
-        stripePriceId: plan.stripePriceId
+        stripePriceId: plan.stripePriceId,
+        tagline: plan.tagline,
+        monthlyPriceCents: plan.monthlyPriceCents,
+        yearlyPriceCents: plan.yearlyPriceCents,
+        features: plan.features as Prisma.InputJsonValue,
+        recommended: plan.recommended,
+        billingMode: plan.billingMode,
+        contactHref: plan.contactHref,
+        visibleOnPricing: plan.visibleOnPricing
       },
       update: {
         name: plan.name,
@@ -378,11 +399,32 @@ async function seedPlans() {
         isPublic: plan.isPublic,
         sortOrder: plan.sortOrder,
         stripeProductId: plan.stripeProductId,
-        stripePriceId: plan.stripePriceId
+        stripePriceId: plan.stripePriceId,
+        tagline: plan.tagline,
+        monthlyPriceCents: plan.monthlyPriceCents,
+        yearlyPriceCents: plan.yearlyPriceCents,
+        features: plan.features as Prisma.InputJsonValue,
+        recommended: plan.recommended,
+        billingMode: plan.billingMode,
+        contactHref: plan.contactHref,
+        visibleOnPricing: plan.visibleOnPricing
       }
     });
   }
   console.log(`  plans: ${SEED_PLANS.map((p) => p.slug).join(", ")}`);
+}
+
+async function seedCatalogSettings() {
+  await prisma.platformCatalogSettings.upsert({
+    where: { id: 1 },
+    create: {
+      id: 1,
+      pricingBaselineFeatures: [...SEED_PRICING_BASELINE_FEATURES]
+    },
+    update: {
+      pricingBaselineFeatures: [...SEED_PRICING_BASELINE_FEATURES]
+    }
+  });
 }
 
 async function seedTenantSubscription(tenantId: string) {
@@ -436,12 +478,12 @@ async function seedWorkspace(
   for (const email of spec.memberEmails) {
     const user = users.get(email);
     if (!user) continue;
-    const userSpec = SEED_USERS.find((u) => u.email === email)!;
+    const isWorkspaceAdmin = spec.workspaceAdminEmails?.includes(email) ?? false;
     await prisma.workspaceMember.create({
       data: {
         workspaceId: workspace.id,
         userId: user.id,
-        role: userSpec.role
+        role: isWorkspaceAdmin ? "ADMIN" : "MEMBER"
       }
     });
   }
@@ -480,8 +522,14 @@ async function seedProjects(
     for (const email of projectSpec.memberEmails) {
       const user = users.get(email);
       if (!user) continue;
+      const isLead = projectSpec.leadEmails?.includes(email) ?? false;
       await prisma.teamMember.create({
-        data: { teamId: team.id, userId: user.id, isActive: true }
+        data: {
+          teamId: team.id,
+          userId: user.id,
+          role: isLead ? "LEAD" : "MEMBER",
+          isActive: true
+        }
       });
     }
 
@@ -1163,33 +1211,37 @@ function printCredentials() {
   console.log(`  Password: ${SEED_PASSWORD}`);
   console.log("══════════════════════════════════════════════════════════\n");
 
-  const admins = SEED_USERS.filter((u) => u.role === "ADMIN");
-  const members = SEED_USERS.filter((u) => u.role === "MEMBER");
-
-  console.log("  Admins (2):");
-  for (const u of admins) {
-    console.log(`    ${u.email.padEnd(28)} ${u.name}`);
-  }
-
-  console.log("\n  Members (12):");
-  for (const u of members) {
-    const range = `${u.historyDays}d history · intensity ${Math.round(u.intensity * 100)}%`;
-    console.log(`    ${u.email.padEnd(28)} ${u.name.padEnd(18)} (${range})`);
-  }
-
-  const pending = SEED_USERS.find((u) => u.email === "pending@kloqra.dev");
-  if (pending) {
-    console.log("\n  Email verification demo:");
+  console.log("  Hierarchy (platform → tenant → workspace → project → team):");
+  for (const row of SEED_DEMO_HIERARCHY) {
     console.log(
-      `    ${pending.email.padEnd(28)} ${pending.name} (unverified — use /verify-email after login)`
+      `    ${row.level.padEnd(26)} ${row.email.padEnd(24)} ${row.displayName} — ${row.scope}`
     );
   }
 
-  console.log("\n  Workspaces:");
+  const members = SEED_USERS.filter(
+    (u) =>
+      !Object.values(SEED_DEMO_PERSONAS).includes(
+        u.email as (typeof SEED_DEMO_PERSONAS)[keyof typeof SEED_DEMO_PERSONAS]
+      )
+  );
+  if (members.length > 0) {
+    console.log(`\n  Additional workspace members (${members.length} — 90d history each):`);
+    for (const u of members) {
+      console.log(`    ${u.email.padEnd(28)} ${u.name}`);
+    }
+  }
+
+  console.log("\n  Workspaces & project leads:");
   for (const ws of SEED_WORKSPACES) {
-    console.log(
-      `    ${ws.slug.padEnd(12)} ${ws.name} — ${ws.projects.length} projects, ${ws.memberEmails.length} members`
-    );
+    const wsAdmins = ws.workspaceAdminEmails?.join(", ") ?? "—";
+    console.log(`\n    ${ws.name} (${ws.slug}) — workspace admins: ${wsAdmins}`);
+    for (const project of ws.projects) {
+      const leads = project.leadEmails ?? [];
+      const team = project.memberEmails.filter((email) => !leads.includes(email));
+      console.log(`      ${project.name}`);
+      console.log(`        leads:   ${leads.join(", ")}`);
+      console.log(`        members: ${team.join(", ")}`);
+    }
   }
 
   console.log("\n══════════════════════════════════════════════════════════\n");
@@ -1244,10 +1296,12 @@ async function printSummary(workspaces: Workspace[], users: Map<string, User>) {
     rollupRepo().task.count({ where: { assignees: { none: {} } } })
   ]);
 
+  const projectCount = SEED_WORKSPACES.reduce((total, ws) => total + ws.projects.length, 0);
+
   console.log("Seed complete:", {
     users: users.size,
     workspaces: workspaces.length,
-    projects: SEED_WORKSPACES.length * 4,
+    projects: projectCount,
     taskAssignees: assigneeCount,
     userProjectColors: colorCount,
     unassignedTasks: unassignedTaskCount,

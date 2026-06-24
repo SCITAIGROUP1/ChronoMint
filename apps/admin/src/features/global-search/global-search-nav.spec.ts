@@ -9,7 +9,7 @@ describe("global-search-nav", () => {
   it("filters pages by label", () => {
     const matches = filterAdminNavItems("billing");
     expect(matches).toHaveLength(1);
-    expect(matches[0]?.label).toBe("Billing");
+    expect(matches[0]?.label).toBe("Hourly rates");
   });
 
   it("filters pages by keyword", () => {

@@ -2,6 +2,7 @@ import { ROUTES } from "@kloqra/contracts";
 import { type INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import cookieParser from "cookie-parser";
+import request from "supertest";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import type { PrismaClient } from "../prisma/generated/client";
 import { AppModule } from "../src/app.module";
@@ -68,15 +69,29 @@ describe("Tenants E2E", () => {
     expect(res.body.id).toBe(adminSession.tenantId);
   });
 
+  it("GET /tenants/public/:slug returns active organization branding", async () => {
+    const res = await request(app.getHttpServer()).get(ROUTES.TENANTS.PUBLIC("kloqra-demo"));
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      slug: "kloqra-demo",
+      name: "Kloqra Demo Organization"
+    });
+  });
+
+  it("GET /tenants/public/:slug returns 404 for unknown slug", async () => {
+    const res = await request(app.getHttpServer()).get(ROUTES.TENANTS.PUBLIC("missing-org"));
+    expect(res.status).toBe(404);
+  });
+
   it("returns overview with workspace count and pilot subscription", async () => {
     const res = await authedAgent(app, adminSession).get(ROUTES.TENANTS.OVERVIEW);
     expect(res.status).toBe(200);
-    expect(res.body.workspaceCount).toBeGreaterThanOrEqual(3);
+    expect(res.body.workspaceCount).toBeGreaterThanOrEqual(2);
     expect(res.body.seatCount).toBeGreaterThan(0);
     expect(res.body.subscription).toMatchObject({
       tenantId: adminSession.tenantId,
       status: "active",
-      planName: "Pilot",
+      planName: "Enterprise",
       limits: { maxWorkspaces: 25, maxSeats: 100, maxReportingApiKeys: 50 }
     });
   });
@@ -86,8 +101,9 @@ describe("Tenants E2E", () => {
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({
       tenantId: adminSession.tenantId,
-      planName: "Pilot",
-      status: "active"
+      planName: "Enterprise",
+      status: "active",
+      billingMode: expect.stringMatching(/^(simulated|stripe)$/)
     });
   });
 
@@ -102,6 +118,8 @@ describe("Tenants E2E", () => {
     const emails = (res.body as Array<{ userEmail: string }>).map((member) => member.userEmail);
     expect(emails).toContain("admin@kloqra.dev");
     expect(emails).toContain("ops@kloqra.dev");
+    expect(emails).not.toContain("acme-admin@kloqra.dev");
+    expect(emails).not.toContain("meridian-admin@kloqra.dev");
   });
 
   it("rejects workspace-only users from current tenant route", async () => {
@@ -153,6 +171,26 @@ describe("Tenants E2E", () => {
     const res = await authedAgent(app, adminSession)
       .patch(ROUTES.TENANTS.MEMBER(adminMemberId))
       .send({ isActive: false });
+    expect(res.status).toBe(403);
+  });
+
+  it("allows organization admin to update tenant profile", async () => {
+    const res = await authedAgent(app, opsSession)
+      .patch(ROUTES.TENANTS.CURRENT)
+      .send({ name: "Kloqra Demo Organization" });
+    expect(res.status).toBe(200);
+    expect(res.body.name).toBe("Kloqra Demo Organization");
+  });
+
+  it("allows organization admin to list workspace admins overview", async () => {
+    const res = await authedAgent(app, opsSession).get(ROUTES.TENANTS.WORKSPACE_ADMINS_OVERVIEW);
+    expect(res.status).toBe(200);
+    expect(res.body.summary.totalAdmins).toBeGreaterThan(0);
+    expect(Array.isArray(res.body.admins)).toBe(true);
+  });
+
+  it("rejects organization admin from tenant overview", async () => {
+    const res = await authedAgent(app, opsSession).get(ROUTES.TENANTS.OVERVIEW);
     expect(res.status).toBe(403);
   });
 });

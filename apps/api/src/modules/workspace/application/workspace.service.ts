@@ -24,8 +24,8 @@ import { PrismaService } from "../../../common/prisma/prisma.service";
 import { QUEUES } from "../../../common/queues";
 import {
   resolveUserTenantId,
-  requireTenantOwner,
-  requireTenantOwnerInTenant
+  requireTenantOperator,
+  requireTenantOwnerOrAdmin
 } from "../../../common/tenant/tenant-context";
 import {
   activeWorkspaceMemberWhere,
@@ -639,7 +639,7 @@ export class WorkspaceService {
       slug = `${slug}-${Date.now()}`;
     }
 
-    const { tenantId } = await requireTenantOwner(this.prisma, userId);
+    const { tenantId } = await requireTenantOperator(this.prisma, userId);
 
     await this.planLimit.assertWorkspaceCreateAllowed(tenantId);
     await this.assertNameAvailable(dto.name, tenantId);
@@ -672,7 +672,7 @@ export class WorkspaceService {
     workspaceId: string,
     dto: AssignWorkspaceAdminDto
   ): Promise<InviteMemberResponseDto> {
-    await requireTenantOwnerInTenant(this.prisma, actingUserId, tenantId);
+    await requireTenantOwnerOrAdmin(this.prisma, actingUserId, tenantId);
 
     const workspace = await this.prisma.workspace.findUnique({ where: { id: workspaceId } });
     if (!workspace) {
@@ -810,6 +810,58 @@ export class WorkspaceService {
     return this.prisma.workspaceMember.count({
       where: { workspaceId, role: "ADMIN" }
     });
+  }
+
+  private async assertTenantWorkspace(
+    tenantId: string,
+    workspaceId: string
+  ): Promise<{ id: string; name: string; tenantId: string }> {
+    const workspace = await this.prisma.workspace.findUnique({ where: { id: workspaceId } });
+    if (!workspace) {
+      throw new DomainException(ErrorCodes.NOT_FOUND, "Workspace not found", HttpStatus.NOT_FOUND);
+    }
+    if (workspace.tenantId !== tenantId) {
+      throw new DomainException(
+        ErrorCodes.FORBIDDEN,
+        "Workspace does not belong to your organization",
+        HttpStatus.FORBIDDEN
+      );
+    }
+    return workspace;
+  }
+
+  async updateMemberAsTenantOperator(
+    actingUserId: string,
+    tenantId: string,
+    workspaceId: string,
+    memberId: string,
+    dto: UpdateWorkspaceMemberDto
+  ) {
+    await requireTenantOwnerOrAdmin(this.prisma, actingUserId, tenantId);
+    await this.assertTenantWorkspace(tenantId, workspaceId);
+    return this.updateMember(workspaceId, memberId, dto, actingUserId);
+  }
+
+  async removeMemberAsTenantOperator(
+    actingUserId: string,
+    tenantId: string,
+    workspaceId: string,
+    memberId: string
+  ) {
+    await requireTenantOwnerOrAdmin(this.prisma, actingUserId, tenantId);
+    await this.assertTenantWorkspace(tenantId, workspaceId);
+    return this.removeMember(workspaceId, memberId, actingUserId);
+  }
+
+  async resendMemberCredentialsAsTenantOperator(
+    actingUserId: string,
+    tenantId: string,
+    workspaceId: string,
+    memberId: string
+  ): Promise<MemberEmailDeliveryDto> {
+    await requireTenantOwnerOrAdmin(this.prisma, actingUserId, tenantId);
+    await this.assertTenantWorkspace(tenantId, workspaceId);
+    return this.resendMemberCredentials(workspaceId, memberId);
   }
 
   private toMemberDto(member: WorkspaceMemberWithUser) {

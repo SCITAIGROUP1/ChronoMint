@@ -11,6 +11,7 @@ import {
   TableBody,
   TableRow
 } from "@kloqra/ui";
+import { canManageOrganization } from "@kloqra/web-shared";
 import { Plus, UserPlus } from "lucide-react";
 import { useState } from "react";
 import { CreateWorkspaceDialog } from "./components/create-workspace-dialog";
@@ -21,17 +22,17 @@ import { useWorkspacesStore } from "@/stores/workspaces.store";
 export function AccountWorkspacesPage() {
   const session = useSessionStore((s) => s.session);
   const workspaces = useWorkspacesStore((s) => s.workspaces);
-  const isOwner = session?.tenantRole === "OWNER";
+  const canManage = canManageOrganization(session);
   const [createOpen, setCreateOpen] = useState(false);
   const [assignTarget, setAssignTarget] = useState<{ id: string; name: string } | null>(null);
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <AppBar
         title="Workspaces"
         description="Create workspaces and assign admins per workspace."
         actions={
-          isOwner ? (
+          canManage ? (
             <Button type="button" onClick={() => setCreateOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
               Create workspace
@@ -45,13 +46,13 @@ export function AccountWorkspacesPage() {
             <DataTableHeaderRow>
               <DataTableHead>Name</DataTableHead>
               <DataTableHead>Your role</DataTableHead>
-              {isOwner ? <DataTableHead className="text-right">Actions</DataTableHead> : null}
+              {canManage ? <DataTableHead className="text-right">Actions</DataTableHead> : null}
             </DataTableHeaderRow>
             {workspaces.map((workspace) => (
               <TableRow key={workspace.id}>
                 <DataTableCell>{workspace.name}</DataTableCell>
                 <DataTableCell>{workspace.role}</DataTableCell>
-                {isOwner ? (
+                {canManage ? (
                   <DataTableCell className="text-right">
                     <Button
                       type="button"

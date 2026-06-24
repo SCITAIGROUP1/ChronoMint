@@ -59,7 +59,8 @@ describe("tenant-rbac", () => {
         status: "trial",
         trialEndsAt: "2026-02-01T00:00:00.000Z",
         currentPeriodEnd: null,
-        limits: { maxWorkspaces: 10, maxSeats: 100, maxReportingApiKeys: 50 }
+        limits: { maxWorkspaces: 10, maxSeats: 100, maxReportingApiKeys: 50 },
+        billingMode: "simulated"
       },
       workspaceCount: 2,
       seatCount: 15

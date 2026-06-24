@@ -6,14 +6,28 @@ import {
   tenantAnalyticsQuerySchema,
   updateTenantMemberSchema,
   updateTenantCurrentSchema,
+  updateWorkspaceMemberSchema,
+  workspaceAdminsOverviewQuerySchema,
   type AssignWorkspaceAdminDto,
   type CreateTenantWorkspaceDto,
   type InviteTenantMemberDto,
   type TenantAnalyticsQueryDto,
   type UpdateTenantCurrentDto,
-  type UpdateTenantMemberDto
+  type UpdateTenantMemberDto,
+  type UpdateWorkspaceMemberDto,
+  type WorkspaceAdminsOverviewQuery
 } from "@kloqra/contracts";
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards
+} from "@nestjs/common";
 import {
   CurrentUser,
   type RequestUser
@@ -27,6 +41,7 @@ import { SubscriptionsService } from "../../../subscriptions/application/subscri
 import { WorkspaceService } from "../../../workspace/application/workspace.service";
 /* eslint-enable no-restricted-imports */
 import { TenantAnalyticsService } from "../../application/tenant-analytics.service";
+import { TenantWorkspaceAdminsOverviewService } from "../../application/tenant-workspace-admins-overview.service";
 import { TenantsService } from "../../application/tenants.service";
 
 @Controller()
@@ -35,6 +50,7 @@ export class TenantsController {
   constructor(
     private tenants: TenantsService,
     private tenantAnalytics: TenantAnalyticsService,
+    private workspaceAdminsOverviewService: TenantWorkspaceAdminsOverviewService,
     private workspace: WorkspaceService,
     private subscriptions: SubscriptionsService
   ) {}
@@ -44,7 +60,7 @@ export class TenantsController {
     return this.tenants.getCurrent(user.userId, user.tenantId);
   }
 
-  @TenantRoles("OWNER")
+  @TenantRoles("OWNER", "ADMIN")
   @Patch(ROUTES.TENANTS.CURRENT)
   updateCurrent(
     @CurrentUser() user: RequestUser,
@@ -99,7 +115,17 @@ export class TenantsController {
     return this.tenants.updateMember(user.userId, user.tenantId, id, body);
   }
 
-  @TenantRoles("OWNER")
+  @TenantRoles("OWNER", "ADMIN")
+  @Get(ROUTES.TENANTS.WORKSPACE_ADMINS_OVERVIEW)
+  workspaceAdminsOverview(
+    @CurrentUser() user: RequestUser,
+    @Query(new ZodValidationPipe(workspaceAdminsOverviewQuerySchema))
+    query: WorkspaceAdminsOverviewQuery
+  ) {
+    return this.workspaceAdminsOverviewService.getOverview(user.tenantId, query);
+  }
+
+  @TenantRoles("OWNER", "ADMIN")
   @Post(ROUTES.TENANTS.WORKSPACES)
   createWorkspace(
     @CurrentUser() user: RequestUser,
@@ -108,7 +134,7 @@ export class TenantsController {
     return this.workspace.create(user.userId, body);
   }
 
-  @TenantRoles("OWNER")
+  @TenantRoles("OWNER", "ADMIN")
   @Post(ROUTES.WORKSPACES.ASSIGN_ADMIN(":workspaceId"))
   assignWorkspaceAdmin(
     @CurrentUser() user: RequestUser,
@@ -116,5 +142,52 @@ export class TenantsController {
     @Body(new ZodValidationPipe(assignWorkspaceAdminSchema)) body: AssignWorkspaceAdminDto
   ) {
     return this.workspace.assignAdminAsTenantOwner(user.userId, user.tenantId, workspaceId, body);
+  }
+
+  @TenantRoles("OWNER", "ADMIN")
+  @Patch(ROUTES.TENANTS.WORKSPACE_MEMBER(":workspaceId", ":memberId"))
+  updateWorkspaceMember(
+    @CurrentUser() user: RequestUser,
+    @Param("workspaceId") workspaceId: string,
+    @Param("memberId") memberId: string,
+    @Body(new ZodValidationPipe(updateWorkspaceMemberSchema)) body: UpdateWorkspaceMemberDto
+  ) {
+    return this.workspace.updateMemberAsTenantOperator(
+      user.userId,
+      user.tenantId,
+      workspaceId,
+      memberId,
+      body
+    );
+  }
+
+  @TenantRoles("OWNER", "ADMIN")
+  @Delete(ROUTES.TENANTS.WORKSPACE_MEMBER(":workspaceId", ":memberId"))
+  removeWorkspaceMember(
+    @CurrentUser() user: RequestUser,
+    @Param("workspaceId") workspaceId: string,
+    @Param("memberId") memberId: string
+  ) {
+    return this.workspace.removeMemberAsTenantOperator(
+      user.userId,
+      user.tenantId,
+      workspaceId,
+      memberId
+    );
+  }
+
+  @TenantRoles("OWNER", "ADMIN")
+  @Post(ROUTES.TENANTS.WORKSPACE_MEMBER_RESEND(":workspaceId", ":memberId"))
+  resendWorkspaceMemberCredentials(
+    @CurrentUser() user: RequestUser,
+    @Param("workspaceId") workspaceId: string,
+    @Param("memberId") memberId: string
+  ) {
+    return this.workspace.resendMemberCredentialsAsTenantOperator(
+      user.userId,
+      user.tenantId,
+      workspaceId,
+      memberId
+    );
   }
 }

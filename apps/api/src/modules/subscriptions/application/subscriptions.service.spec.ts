@@ -1,4 +1,4 @@
-import { ErrorCodes , PLAN_IDS, PLAN_SLUGS } from "@kloqra/contracts";
+import { ErrorCodes, PLAN_IDS, PLAN_SLUGS } from "@kloqra/contracts";
 import { HttpStatus } from "@nestjs/common";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { DomainException } from "../../../common/errors/domain.exception";
@@ -15,6 +15,13 @@ describe("SubscriptionsService", () => {
     name: "Pilot",
     slug: PLAN_SLUGS.PILOT,
     limits: { maxWorkspaces: 25, maxSeats: 100, maxReportingApiKeys: 50 }
+  };
+
+  const starterPlan = {
+    id: PLAN_IDS[PLAN_SLUGS.STARTER],
+    name: "Starter",
+    slug: PLAN_SLUGS.STARTER,
+    limits: { maxWorkspaces: 3, maxSeats: 10, maxReportingApiKeys: 5 }
   };
 
   const subscriptionRow = {
@@ -38,7 +45,8 @@ describe("SubscriptionsService", () => {
       },
       tenantSubscription: {
         findUnique: vi.fn(),
-        create: vi.fn()
+        create: vi.fn(),
+        update: vi.fn()
       },
       plan: {
         findUnique: vi.fn()
@@ -125,5 +133,51 @@ describe("SubscriptionsService", () => {
   it("assertSubscriptionAllowsWrites allows active", async () => {
     mockPrisma.tenantSubscription.findUnique.mockResolvedValue(subscriptionRow);
     await expect(service.assertSubscriptionAllowsWrites(tenantId)).resolves.toBeUndefined();
+  });
+
+  it("changePlan updates planId, sets active, and clears trial", async () => {
+    mockPrisma.tenantSubscription.findUnique.mockResolvedValue({
+      ...subscriptionRow,
+      status: "trial",
+      trialEndsAt: new Date("2026-07-01T00:00:00.000Z")
+    });
+    mockPrisma.plan.findUnique.mockResolvedValue(starterPlan);
+    mockPrisma.tenantSubscription.update.mockResolvedValue({
+      ...subscriptionRow,
+      planId: starterPlan.id,
+      status: "active",
+      trialEndsAt: null,
+      plan: starterPlan
+    });
+
+    const result = await service.changePlan(tenantId, PLAN_SLUGS.STARTER);
+
+    expect(result.planName).toBe("Starter");
+    expect(result.status).toBe("active");
+    expect(result.trialEndsAt).toBeNull();
+    expect(mockPrisma.tenantSubscription.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { tenantId },
+        data: {
+          planId: starterPlan.id,
+          status: "active",
+          trialEndsAt: null
+        }
+      })
+    );
+  });
+
+  it("changePlan is a no-op when plan is unchanged", async () => {
+    mockPrisma.tenantSubscription.findUnique.mockResolvedValue({
+      ...subscriptionRow,
+      planId: starterPlan.id,
+      plan: starterPlan
+    });
+    mockPrisma.plan.findUnique.mockResolvedValue(starterPlan);
+
+    const result = await service.changePlan(tenantId, PLAN_SLUGS.STARTER);
+
+    expect(result.planName).toBe("Starter");
+    expect(mockPrisma.tenantSubscription.update).not.toHaveBeenCalled();
   });
 });

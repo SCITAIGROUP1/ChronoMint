@@ -65,12 +65,14 @@ describe("Workspace lifecycle E2E", () => {
     expect(workspace.tenantId).toBe(adminSession.tenantId);
   });
 
-  it("rejects tenant admin creating workspace", async () => {
+  it("allows organization admin to create workspace", async () => {
     const opsSession = await loginAs(app, "ops@kloqra.dev");
     const res = await authedAgent(app, opsSession)
       .post(ROUTES.TENANTS.WORKSPACES)
       .send({ name: `Ops WS ${uniqueSuffix}` });
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(201);
+    expect(res.body.id).toBeTruthy();
+    createdWorkspaceIds.push(res.body.id);
   });
 
   it("rejects workspace-only member creating workspace", async () => {

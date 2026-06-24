@@ -4,11 +4,16 @@ import { isoDatetimeSchema, uuidSchema } from "./common.dto";
 
 export const platformAuditActionSchema = z.enum([
   "platform.login",
+  "platform.2fa.enabled",
+  "platform.2fa.disabled",
+  "platform.password.reset",
   "platform.tenant.created",
   "platform.tenant.updated",
   "platform.tenant.suspended",
   "platform.tenant.churned",
-  "platform.tenant.deleted"
+  "platform.tenant.deleted",
+  "platform.plan.updated",
+  "platform.catalog_settings.updated"
 ]);
 
 export const platformAuditEventSchema = z.object({

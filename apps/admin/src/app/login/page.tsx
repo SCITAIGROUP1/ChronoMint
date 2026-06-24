@@ -5,15 +5,20 @@ import type {
   AuthSessionDto,
   LoginRequires2faResponseDto,
   LoginRequiresPasswordChangeResponseDto,
-  LoginRequiresEmailVerificationResponseDto
+  LoginRequiresEmailVerificationResponseDto,
+  WorkspaceListItemDto
 } from "@kloqra/contracts";
 import { Button, Input, Label, PasswordInput } from "@kloqra/ui";
 import {
   applyDefaultWorkspaceIfNeeded,
   AuthShell,
   extractFieldErrorsFromMessage,
+  canLoginToAdminApp,
   hasMultipleWorkspaces,
-  resolveAdminLandingPath
+  resolveAdminLandingPath,
+  shouldShowAdminContextPicker,
+  orgLoginDescription,
+  useOrgLoginBranding
 } from "@kloqra/web-shared";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -30,6 +35,7 @@ type LoginResponse =
 export default function LoginPage() {
   const router = useRouter();
   const setSession = useSessionStore((s) => s.setSession);
+  const orgBranding = useOrgLoginBranding();
   const [email, setEmail] = useState("admin@kloqra.dev");
   const [password, setPassword] = useState("password123");
   const [totpCode, setTotpCode] = useState("");
@@ -44,19 +50,30 @@ export default function LoginPage() {
   async function completeLogin(
     res: AuthSessionDto & { accessToken: string; refreshToken?: string }
   ) {
-    if (res.workspaceRole !== "ADMIN") {
+    if (!canLoginToAdminApp(res)) {
       setError("Admin access required");
       return;
     }
     const switched = await applyDefaultWorkspaceIfNeeded(res, res.accessToken);
-    if (switched.session.workspaceRole !== "ADMIN") {
+    if (!canLoginToAdminApp(switched.session)) {
       setError("Admin access required");
       return;
     }
     setSession(switched.session, switched.accessToken, res.refreshToken);
 
     try {
-      const multi = await hasMultipleWorkspaces(switched.session.workspaceId, "ADMIN");
+      const workspaces = await api<WorkspaceListItemDto[]>(ROUTES.WORKSPACES.LIST, {
+        workspaceId: switched.session.workspaceId
+      });
+
+      if (shouldShowAdminContextPicker(switched.session, workspaces)) {
+        router.push("/select-context");
+        return;
+      }
+
+      const multi = await hasMultipleWorkspaces(switched.session.workspaceId, {
+        filterAdminAccess: true
+      });
       if (multi) {
         router.push("/select-workspace");
         return;
@@ -65,7 +82,7 @@ export default function LoginPage() {
       console.error("Failed to check workspaces:", err);
     }
 
-    if (switched.session.tenantRole === "OWNER") {
+    if (switched.session.tenantRole === "OWNER" || switched.session.tenantRole === "ADMIN") {
       router.push(await resolveAdminLandingPath(switched.session, switched.session.workspaceId));
       return;
     }
@@ -136,7 +153,10 @@ export default function LoginPage() {
     <AuthShell
       title="Admin sign in"
       portalLabel="Admin Portal"
-      description="Enter your email and password to access your account."
+      description={orgLoginDescription(
+        orgBranding,
+        "Enter your email and password to access your account."
+      )}
     >
       <form onSubmit={submit} className="flex flex-col gap-4">
         {!pendingToken ? (

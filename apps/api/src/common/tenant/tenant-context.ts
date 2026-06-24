@@ -46,6 +46,24 @@ export async function assertWorkspaceInUserTenant(
   return workspaceTenantId;
 }
 
+export async function requireTenantOperator(
+  prisma: PrismaService,
+  userId: string
+): Promise<{ tenantId: string }> {
+  const tenantMember = await prisma.tenantMember.findUnique({
+    where: { userId },
+    select: { tenantId: true, role: true, isActive: true }
+  });
+  if (!tenantMember?.isActive || (tenantMember.role !== "OWNER" && tenantMember.role !== "ADMIN")) {
+    throw new DomainException(
+      ErrorCodes.FORBIDDEN,
+      "Only organization owners and admins can perform this action",
+      HttpStatus.FORBIDDEN
+    );
+  }
+  return { tenantId: tenantMember.tenantId };
+}
+
 export async function requireTenantOwner(
   prisma: PrismaService,
   userId: string

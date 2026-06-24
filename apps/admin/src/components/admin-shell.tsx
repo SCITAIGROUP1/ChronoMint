@@ -5,55 +5,98 @@ import { ResponsiveLayoutShell, SidebarUserFooter, type SidebarNavItem } from "@
 import {
   bootstrapSession,
   BrandMark,
+  AdminContextBreadcrumb,
+  canAccessAccountMode,
+  canAccessAccountPath,
+  canLoginToAdminApp,
+  canManageOrganization,
+  defaultAccountLandingPath,
   logoutSession,
   ShellHeaderActions,
   useNotificationSocket,
   useNotificationUnreadCount,
   useTenantSubscription,
+  useUserProfile,
   WorkspaceSwitcher
 } from "@kloqra/web-shared";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo } from "react";
-import { ACCOUNT_NAV_ITEMS } from "@/config/account-nav";
+import { AdminScopeHint } from "@/components/admin-scope-hint";
 import { ADMIN_NAV_ITEMS } from "@/config/admin-nav";
-import {
-  canAccessAdminApp,
-  isProjectLeadOnly,
-  projectLeadNavItems
-} from "@/config/project-lead-nav";
+import { canAccessAdminApp, isProjectLeadOnly } from "@/config/project-lead-nav";
 import { usePendingTimesheetsBadgeCount } from "@/features/approvals/use-pending-timesheets";
 import { GlobalSearchShell } from "@/features/global-search/global-search-shell";
+import { resolveAdminShellMode, resolveAdminShellNav } from "@/lib/resolve-admin-shell-nav";
 import { useAdminWorkspaceDataSync } from "@/lib/workspace-data-sync";
 import { useSessionStore } from "@/stores/session.store";
 import { useWorkspacesStore } from "@/stores/workspaces.store";
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const session = useSessionStore((s) => s.session);
   const setWorkspaces = useWorkspacesStore((s) => s.setWorkspaces);
   const wsId = session?.workspaceId ?? "";
+  const isOwner = session?.tenantRole === "OWNER";
+  const canManageOrg = canManageOrganization(session);
   const canUseAdminFeatures = canAccessAdminApp(session?.workspaceRole, session?.ledProjectIds);
   const projectLeadOnly = isProjectLeadOnly(session?.workspaceRole, session?.ledProjectIds);
-  useNotificationSocket(wsId, Boolean(wsId && canUseAdminFeatures));
+  const ledProjectCount = session?.ledProjectIds?.length ?? 0;
+  const isAccountMode = resolveAdminShellMode(pathname, session) === "account";
+  const canUsePersonalFeatures = Boolean(wsId);
+  const canUseWorkspaceOps = Boolean(wsId && canUseAdminFeatures);
+  const notificationsEnabled = isAccountMode ? canUsePersonalFeatures : canUseWorkspaceOps;
+
+  useUserProfile();
+  useNotificationSocket(wsId, notificationsEnabled);
   useAdminWorkspaceDataSync(wsId);
-  const { count: notificationUnreadCount } = useNotificationUnreadCount(
-    wsId,
-    Boolean(wsId && canUseAdminFeatures)
-  );
-  const pendingCount = usePendingTimesheetsBadgeCount(wsId, Boolean(wsId && canUseAdminFeatures));
-  const { subscription } = useTenantSubscription();
-  const billingAlert = session?.tenantRole === "OWNER" ? subscription?.billingAlert : null;
+  const { count: notificationUnreadCount } = useNotificationUnreadCount(wsId, notificationsEnabled);
+  const pendingCount = usePendingTimesheetsBadgeCount(wsId, canUseWorkspaceOps);
+  const { subscription } = useTenantSubscription(isOwner);
+  const billingAlert = isOwner ? subscription?.billingAlert : null;
+
+  const { mode: _mode, navItems } = useMemo(() => {
+    return resolveAdminShellNav({
+      pathname,
+      projectLeadOnly,
+      workspaceNavItems: ADMIN_NAV_ITEMS,
+      pendingCount,
+      notificationUnreadCount,
+      session
+    });
+  }, [pathname, projectLeadOnly, pendingCount, notificationUnreadCount, session]);
 
   useEffect(() => {
     if (session) {
-      if (!canAccessAdminApp(session.workspaceRole, session.ledProjectIds)) {
+      if (!canLoginToAdminApp(session)) {
         router.replace("/login?error=admin");
+        return;
+      }
+      if (isAccountMode) {
+        if (!canAccessAccountMode(session)) {
+          router.replace("/dashboard");
+          return;
+        }
+        if (!canAccessAccountPath(session, pathname)) {
+          router.replace(defaultAccountLandingPath(session));
+        }
+        return;
+      }
+      if (
+        !canAccessAdminApp(session.workspaceRole, session.ledProjectIds) &&
+        canAccessAccountMode(session)
+      ) {
+        router.replace(defaultAccountLandingPath(session));
       }
       return;
     }
 
-    void bootstrapSession({ requiredRole: "ADMIN", allowProjectLead: true })
+    void bootstrapSession({
+      requiredRole: "ADMIN",
+      allowProjectLead: true,
+      allowTenantOperator: true
+    })
       .then((result) => {
         if (!result.ok) {
           router.replace("/login?error=admin");
@@ -62,29 +105,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         setWorkspaces(result.workspaces);
       })
       .catch(() => router.replace("/login?error=admin"));
-  }, [session, setWorkspaces, router]);
-
-  const nav = useMemo((): readonly SidebarNavItem[] => {
-    const tenantRole = session?.tenantRole;
-    const accountItems: SidebarNavItem[] =
-      tenantRole === "OWNER" || tenantRole === "ADMIN"
-        ? ACCOUNT_NAV_ITEMS.map((item) => ({
-            href: item.href,
-            label: item.label,
-            Icon: item.Icon
-          }))
-        : [];
-
-    const workspaceItems = (projectLeadOnly ? projectLeadNavItems() : ADMIN_NAV_ITEMS).map(
-      (item) => {
-        if (item.href === "/approvals") return { ...item, badge: pendingCount };
-        if (item.href === "/notifications") return { ...item, badge: notificationUnreadCount };
-        return item;
-      }
-    );
-
-    return [...accountItems, ...workspaceItems];
-  }, [pendingCount, notificationUnreadCount, session?.tenantRole, projectLeadOnly]);
+  }, [session, setWorkspaces, router, isAccountMode, pathname]);
 
   if (!session) {
     return (
@@ -97,15 +118,26 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     );
   }
 
+  if (isAccountMode && !canAccessAccountPath(session, pathname)) {
+    return null;
+  }
+
+  const logoSubtitle = isAccountMode ? "Organization" : "Admin Portal";
+  const logoLinkHref = isAccountMode ? defaultAccountLandingPath(session) : "/dashboard";
+  const navSectionLabel = isAccountMode ? "Organization" : undefined;
+  const navAriaLabel = isAccountMode ? "Organization navigation" : "Workspace navigation";
+
   return (
     <>
-      <GlobalSearchShell workspaceId={wsId} />
+      <GlobalSearchShell workspaceId={wsId} isOwner={isOwner} />
       <ResponsiveLayoutShell
-        navItems={nav}
+        navItems={navItems as SidebarNavItem[]}
         logoIcon={<BrandMark size="lg" iconOnly />}
         logoTitle={BRAND_NAME}
-        logoSubtitle="Admin Portal"
-        logoLinkHref="/dashboard"
+        logoSubtitle={logoSubtitle}
+        logoLinkHref={logoLinkHref}
+        navSectionLabel={navSectionLabel}
+        navAriaLabel={navAriaLabel}
         shellToolbar={
           <ShellHeaderActions
             workspaceId={wsId}
@@ -115,17 +147,33 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           />
         }
         workspaceSwitcher={(collapsed) => (
-          <WorkspaceSwitcher filterAdminAccess defaultRedirect="/dashboard" collapsed={collapsed} />
+          <WorkspaceSwitcher
+            filterAdminAccess
+            defaultRedirect="/dashboard"
+            collapsed={collapsed}
+            organizationHref={canManageOrg ? defaultAccountLandingPath(session) : undefined}
+            contextMode={canManageOrg ? (isAccountMode ? "account" : "workspace") : undefined}
+          />
         )}
         footerContent={(collapsed) => (
-          <SidebarUserFooter
-            collapsed={collapsed}
-            userName={session.user.name ?? (projectLeadOnly ? "Project lead" : "Admin")}
-            profileHref="/profile"
-            onLogout={() => {
-              void logoutSession(session.workspaceId).then(() => router.push("/login"));
-            }}
-          />
+          <div className={collapsed ? "flex flex-col items-center gap-2" : "space-y-3"}>
+            {!isAccountMode ? (
+              <AdminScopeHint
+                projectLeadOnly={projectLeadOnly}
+                workspaceName={session.workspaceName}
+                ledProjectCount={ledProjectCount}
+                collapsed={collapsed}
+              />
+            ) : null}
+            <SidebarUserFooter
+              collapsed={collapsed}
+              userName={session.user.name ?? (projectLeadOnly ? "Project manager" : "Admin")}
+              profileHref="/profile"
+              onLogout={() => {
+                void logoutSession(session.workspaceId).then(() => router.push("/login"));
+              }}
+            />
+          </div>
         )}
       >
         {billingAlert ? (
@@ -141,6 +189,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             </Link>
           </div>
         ) : null}
+        <AdminContextBreadcrumb contextMode={isAccountMode ? "account" : "workspace"} />
         {children}
       </ResponsiveLayoutShell>
     </>

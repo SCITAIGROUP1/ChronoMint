@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { AuthHeroPanel } from "./auth-hero-panel";
 import { BrandMark } from "./brand-mark";
 import { LegalFooterLinks } from "./legal-footer";
+import { PlatformAuthHeroPanel } from "./platform-auth-hero-panel";
 
 export type AuthShellProps = {
   title: string;
@@ -12,9 +13,19 @@ export type AuthShellProps = {
   footer?: ReactNode;
   description?: string;
   portalLabel?: string;
+  variant?: "default" | "platform";
+  hero?: ReactNode;
 };
 
-export function AuthShell({ title, children, footer, description, portalLabel }: AuthShellProps) {
+export function AuthShell({
+  title,
+  children,
+  footer,
+  description,
+  portalLabel,
+  variant = "default",
+  hero
+}: AuthShellProps) {
   const year = new Date().getFullYear();
 
   return (
@@ -51,7 +62,7 @@ export function AuthShell({ title, children, footer, description, portalLabel }:
           </footer>
         </div>
 
-        <AuthHeroPanel />
+        {hero ?? (variant === "platform" ? <PlatformAuthHeroPanel /> : <AuthHeroPanel />)}
       </div>
     </main>
   );

@@ -1,10 +1,6 @@
-export function slugifyName(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 64);
-}
+import { slugifyName } from "@kloqra/contracts";
+
+export { slugifyName };
 
 export async function resolveUniqueSlug(
   findBySlug: (slug: string) => Promise<{ id: string } | null>,

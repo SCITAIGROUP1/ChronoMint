@@ -3,43 +3,57 @@
 import { ROUTES, type PlatformTenantDetailDto } from "@kloqra/contracts";
 import {
   AppBar,
-  Badge,
   Button,
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
+  CenteredLoader,
+  DashboardStatCard,
   Input,
-  Label
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from "@kloqra/ui";
-import { api } from "@kloqra/web-shared";
+import { api, CopyableValue, usePlatformPlans, usePlatformTenantDetail } from "@kloqra/web-shared";
+import { Activity, CreditCard, Users } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { formatTenantStatusLabel, tenantStatusTone } from "./tenant-labels";
+import { TenantSalesInquiriesCard } from "./tenant-sales-inquiries-card";
+
+function syncPlanId(
+  tenant: PlatformTenantDetailDto,
+  plans: ReturnType<typeof usePlatformPlans>["plans"]
+) {
+  return plans.find((plan) => plan.slug === tenant.planSlug)?.id ?? "";
+}
 
 export function TenantDetailPage({ tenantId }: { tenantId: string }) {
-  const [tenant, setTenant] = useState<PlatformTenantDetailDto | null>(null);
-  const [error, setError] = useState("");
+  const { plans } = usePlatformPlans();
+  const { tenant, setTenant, loading, error } = usePlatformTenantDetail(tenantId);
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [planId, setPlanId] = useState("");
   const [saving, setSaving] = useState(false);
   const [actionMessage, setActionMessage] = useState("");
-
-  async function loadTenant() {
-    const data = await api<PlatformTenantDetailDto>(ROUTES.PLATFORM.TENANT(tenantId));
-    setTenant(data);
-    setName(data.name);
-    setSlug(data.slug);
-  }
+  const [actionError, setActionError] = useState("");
 
   useEffect(() => {
-    void loadTenant().catch(() => setError("Failed to load tenant"));
-  }, [tenantId]);
+    if (!tenant) return;
+    setName(tenant.name);
+    setSlug(tenant.slug);
+    setPlanId(syncPlanId(tenant, plans));
+  }, [tenant, plans]);
 
   async function patchTenant(body: Record<string, unknown>) {
     setSaving(true);
     setActionMessage("");
-    setError("");
+    setActionError("");
     try {
       const updated = await api<PlatformTenantDetailDto>(ROUTES.PLATFORM.TENANT(tenantId), {
         method: "PATCH",
@@ -48,9 +62,10 @@ export function TenantDetailPage({ tenantId }: { tenantId: string }) {
       setTenant(updated);
       setName(updated.name);
       setSlug(updated.slug);
-      setActionMessage("Tenant updated.");
+      setPlanId(syncPlanId(updated, plans));
+      setActionMessage("Organization updated.");
     } catch {
-      setError("Update failed.");
+      setActionError("Could not save changes.");
     } finally {
       setSaving(false);
     }
@@ -58,15 +73,15 @@ export function TenantDetailPage({ tenantId }: { tenantId: string }) {
 
   async function suspendTenant() {
     setSaving(true);
-    setError("");
+    setActionError("");
     try {
       const updated = await api<PlatformTenantDetailDto>(ROUTES.PLATFORM.SUSPEND_TENANT(tenantId), {
         method: "POST"
       });
       setTenant(updated);
-      setActionMessage("Tenant suspended.");
+      setActionMessage("Organization suspended.");
     } catch {
-      setError("Suspend failed.");
+      setActionError("Could not suspend organization.");
     } finally {
       setSaving(false);
     }
@@ -81,130 +96,185 @@ export function TenantDetailPage({ tenantId }: { tenantId: string }) {
       return;
     }
     setSaving(true);
-    setError("");
+    setActionError("");
     try {
       await api(ROUTES.PLATFORM.TENANT_DELETE(tenantId), { method: "DELETE" });
       window.location.assign("/tenants");
     } catch {
-      setError("Delete failed. Check export, churn, and retention preconditions.");
+      setActionError("Delete failed. Check export, churn, and retention preconditions.");
     } finally {
       setSaving(false);
     }
   }
 
-  if (error && !tenant) {
-    return <p className="p-6 text-sm text-destructive">{error}</p>;
+  if (loading) {
+    return <CenteredLoader label="Loading organization…" />;
   }
 
-  if (!tenant) {
-    return <p className="p-6 text-sm text-muted-foreground">Loading tenant…</p>;
+  if (error || !tenant) {
+    return (
+      <div className="p-6 text-sm text-destructive">{error ?? "Organization unavailable"}</div>
+    );
   }
+
+  const subscriptionHint = tenant.subscription
+    ? [
+        formatTenantStatusLabel(tenant.subscription.status),
+        tenant.subscription.billingAlert ? tenant.subscription.billingAlert : null
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : "No subscription";
+
+  const planHint = tenant.subscription
+    ? [
+        tenant.subscription.status === "trial"
+          ? `Trial ends: ${tenant.subscription.trialEndsAt ? new Date(tenant.subscription.trialEndsAt).toLocaleDateString() : "—"}`
+          : `Renews: ${tenant.subscription.currentPeriodEnd ? new Date(tenant.subscription.currentPeriodEnd).toLocaleDateString() : "—"}`,
+        tenant.subscription.billingInterval ? tenant.subscription.billingInterval : null
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : "No active subscription";
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <AppBar
         title={tenant.name}
-        description={`Organization slug: ${tenant.slug}`}
+        description="Organization account on Kloqra."
         actions={
-          <div className="flex items-center gap-3">
-            <Badge variant={tenant.status === "active" ? "default" : "secondary"}>
-              {tenant.status}
-            </Badge>
-            <Link href="/tenants" className="text-sm text-primary hover:underline">
-              Back to list
-            </Link>
-          </div>
+          <Link href="/tenants" className="text-sm text-primary hover:underline">
+            Back to tenants
+          </Link>
         }
       />
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      {actionMessage ? <p className="text-sm text-muted-foreground">{actionMessage}</p> : null}
-      <div className="grid gap-4 md:grid-cols-2">
+
+      <div className="mx-auto max-w-6xl space-y-6">
+        {actionError ? <p className="text-sm text-destructive">{actionError}</p> : null}
+        {actionMessage ? <p className="text-sm text-muted-foreground">{actionMessage}</p> : null}
+
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card>
+            <CardContent className="pt-6">
+              <DashboardStatCard
+                label="Status"
+                value={formatTenantStatusLabel(tenant.status)}
+                hint={subscriptionHint}
+                icon={Activity}
+                tone={tenantStatusTone(tenant.status)}
+              />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <DashboardStatCard
+                label="Plan"
+                value={tenant.subscription?.planName ?? tenant.planSlug ?? "—"}
+                hint={planHint}
+                icon={CreditCard}
+              />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <DashboardStatCard
+                label="Members"
+                value={String(tenant.memberCount)}
+                hint={`${tenant.workspaceCount} workspace${tenant.workspaceCount === 1 ? "" : "s"}`}
+                icon={Users}
+              />
+            </CardContent>
+          </Card>
+        </div>
+
         <Card>
           <CardHeader>
-            <CardTitle>Organization</CardTitle>
+            <CardTitle className="text-base">Organization profile</CardTitle>
+            <CardDescription>Name, slug, plan assignment, and owner contact.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <p>
-              <span className="text-muted-foreground">Owner email:</span> {tenant.ownerEmail ?? "—"}
+          <CardContent className="space-y-6">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <CopyableValue
+                label="Organization ID"
+                value={tenant.slug}
+                testId="copy-tenant-slug"
+              />
+              {tenant.ownerEmail ? (
+                <CopyableValue
+                  label="Owner email"
+                  value={tenant.ownerEmail}
+                  testId="copy-tenant-owner-email"
+                />
+              ) : (
+                <div className="text-sm">
+                  <span className="text-muted-foreground">Owner email</span>
+                  <p className="mt-1">—</p>
+                </div>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Created {new Date(tenant.createdAt).toLocaleString()}
             </p>
-            <p>
-              <span className="text-muted-foreground">Workspaces:</span> {tenant.workspaceCount}
-            </p>
-            <p>
-              <span className="text-muted-foreground">Members:</span> {tenant.memberCount}
-            </p>
-            <p>
-              <span className="text-muted-foreground">Created:</span>{" "}
-              {new Date(tenant.createdAt).toLocaleString()}
-            </p>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="tenant-name">Display name</Label>
+                <Input id="tenant-name" value={name} onChange={(e) => setName(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="tenant-slug">Organization ID</Label>
+                <Input
+                  id="tenant-slug"
+                  value={slug}
+                  onChange={(e) => setSlug(e.target.value)}
+                  className="font-mono"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="plan-id">Plan</Label>
+              <Select value={planId} onValueChange={setPlanId}>
+                <SelectTrigger id="plan-id">
+                  <SelectValue placeholder="Select plan" />
+                </SelectTrigger>
+                <SelectContent>
+                  {plans.map((plan) => (
+                    <SelectItem key={plan.id} value={plan.id}>
+                      {plan.name} ({plan.slug})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                disabled={saving}
+                onClick={() =>
+                  void patchTenant({
+                    name: name.trim(),
+                    slug: slug.trim(),
+                    ...(planId ? { planId } : {})
+                  })
+                }
+              >
+                {saving ? "Saving…" : "Save changes"}
+              </Button>
+            </div>
           </CardContent>
         </Card>
-        <Card>
+
+        <TenantSalesInquiriesCard tenantId={tenantId} />
+
+        <Card className="border-destructive/20">
           <CardHeader>
-            <CardTitle>Subscription</CardTitle>
+            <CardTitle className="text-base">Account status</CardTitle>
+            <CardDescription>
+              Suspend access, mark churned after offboarding, or permanently delete when retention
+              allows.
+            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            {tenant.subscription ? (
-              <>
-                <p>
-                  <span className="text-muted-foreground">Plan:</span>{" "}
-                  {tenant.subscription.planName}
-                </p>
-                <p>
-                  <span className="text-muted-foreground">Status:</span>{" "}
-                  {tenant.subscription.status}
-                </p>
-                {tenant.subscription.billingAlert ? (
-                  <p>
-                    <span className="text-muted-foreground">Billing alert:</span>{" "}
-                    {tenant.subscription.billingAlert}
-                  </p>
-                ) : null}
-              </>
-            ) : (
-              <p className="text-muted-foreground">No subscription</p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Platform actions</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="tenant-name">Name</Label>
-              <Input id="tenant-name" value={name} onChange={(e) => setName(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="tenant-slug">Slug</Label>
-              <Input id="tenant-slug" value={slug} onChange={(e) => setSlug(e.target.value)} />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="plan-id">Plan ID override</Label>
-            <Input
-              id="plan-id"
-              value={planId}
-              onChange={(e) => setPlanId(e.target.value)}
-              placeholder="Plan UUID (optional)"
-            />
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              disabled={saving}
-              onClick={() =>
-                void patchTenant({
-                  name: name.trim(),
-                  slug: slug.trim(),
-                  ...(planId.trim() ? { planId: planId.trim() } : {})
-                })
-              }
-            >
-              Save changes
-            </Button>
+          <CardContent className="flex flex-wrap gap-2">
             {tenant.status !== "suspended" && tenant.status !== "churned" ? (
               <Button
                 type="button"
@@ -212,28 +282,30 @@ export function TenantDetailPage({ tenantId }: { tenantId: string }) {
                 disabled={saving}
                 onClick={() => void suspendTenant()}
               >
-                Suspend tenant
+                Suspend organization
               </Button>
             ) : null}
             {tenant.status === "suspended" ? (
-              <Button
-                type="button"
-                variant="outline"
-                disabled={saving}
-                onClick={() => void patchTenant({ status: "active", subscriptionStatus: "active" })}
-              >
-                Reactivate
-              </Button>
-            ) : null}
-            {tenant.status === "suspended" ? (
-              <Button
-                type="button"
-                variant="outline"
-                disabled={saving}
-                onClick={() => void patchTenant({ status: "churned" })}
-              >
-                Mark churned
-              </Button>
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={saving}
+                  onClick={() =>
+                    void patchTenant({ status: "active", subscriptionStatus: "active" })
+                  }
+                >
+                  Reactivate
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={saving}
+                  onClick={() => void patchTenant({ status: "churned" })}
+                >
+                  Mark churned
+                </Button>
+              </>
             ) : null}
             {tenant.status === "churned" ? (
               <Button
@@ -246,9 +318,9 @@ export function TenantDetailPage({ tenantId }: { tenantId: string }) {
                 Delete permanently
               </Button>
             ) : null}
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

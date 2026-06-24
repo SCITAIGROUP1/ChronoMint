@@ -10,4 +10,9 @@ export class PublicPlansController {
   listPublic() {
     return this.plans.listPublicPlans();
   }
+
+  @Get(ROUTES.PLANS.PRICING)
+  listPricing() {
+    return this.plans.listPricingPlans();
+  }
 }

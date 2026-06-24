@@ -6,22 +6,30 @@ import type {
   LoginRequires2faResponseDto,
   LoginRequiresPasswordChangeResponseDto,
   LoginRequiresEmailVerificationResponseDto,
+  LoginRequiresPlatform2faSetupResponseDto,
   SetInitialPasswordDto,
   OkResponseDto,
   PlatformSessionDto,
+  Platform2faSetupEnableResponseDto,
+  CompletePlatform2faSetupDto,
   SignupDto
 } from "@kloqra/contracts";
 import { Injectable, HttpStatus } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import * as bcrypt from "bcrypt";
 import { ProjectAccessService } from "../../../common/access/project-access.service";
-import { verify as verifyTotp } from "../../../common/auth/otplib.util";
+import {
+  verify as verifyTotp,
+  generateSecret,
+  generateURI
+} from "../../../common/auth/otplib.util";
 import { hashPassword } from "../../../common/auth/password.util";
 import { DomainException } from "../../../common/errors/domain.exception";
 import {
   AuthMailer,
   buildAdminVerifyEmailUrl,
   buildPasswordResetUrl,
+  buildPlatformPasswordResetUrl,
   buildVerifyEmailUrl
 } from "../../../common/mailer/auth.mailer";
 import { generatedPrisma } from "../../../common/prisma/generated-prisma.util";
@@ -260,8 +268,36 @@ export class AuthService {
     });
   }
 
-  async forgotPassword(email: string): Promise<OkResponseDto> {
+  async forgotPassword(email: string, scope?: string): Promise<OkResponseDto> {
     const normalized = email.trim().toLowerCase();
+    if (scope === "platform") {
+      const platformUser = await this.db().platformUser.findUnique({
+        where: { email: normalized }
+      });
+      if (!platformUser) {
+        return { ok: true };
+      }
+
+      const raw = randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+      await this.db().platformUser.update({
+        where: { id: platformUser.id },
+        data: {
+          passwordResetTokenHash: hashToken(raw),
+          passwordResetExpiresAt: expiresAt
+        }
+      });
+
+      void this.authMailer
+        .sendPlatformPasswordReset({
+          to: platformUser.email,
+          resetUrl: buildPlatformPasswordResetUrl(raw)
+        })
+        .catch(() => undefined);
+
+      return { ok: true };
+    }
+
     const user = await this.prisma.user.findUnique({ where: { email: normalized } });
     if (!user) {
       return { ok: true };
@@ -284,7 +320,35 @@ export class AuthService {
     return { ok: true };
   }
 
-  async resetPassword(token: string, newPassword: string): Promise<OkResponseDto> {
+  async resetPassword(token: string, newPassword: string, scope?: string): Promise<OkResponseDto> {
+    if (scope === "platform") {
+      const platformUser = await this.db().platformUser.findFirst({
+        where: {
+          passwordResetTokenHash: hashToken(token),
+          passwordResetExpiresAt: { gt: new Date() }
+        }
+      });
+      if (!platformUser) {
+        throw new DomainException(
+          ErrorCodes.UNAUTHORIZED,
+          "Password reset link is invalid or expired",
+          HttpStatus.UNAUTHORIZED
+        );
+      }
+
+      const passwordHash = await hashPassword(newPassword);
+      await this.db().platformUser.update({
+        where: { id: platformUser.id },
+        data: {
+          passwordHash,
+          passwordResetTokenHash: null,
+          passwordResetExpiresAt: null
+        }
+      });
+      await this.revokeAllPlatformRefreshTokens(platformUser.id);
+      return { ok: true };
+    }
+
     const user = await this.prisma.user.findFirst({
       where: {
         passwordResetTokenHash: hashToken(token),
@@ -1061,10 +1125,20 @@ export class AuthService {
     return { id: membership.userId, name: membership.user.name };
   }
 
-  async loginPlatform(dto: LoginDto): Promise<PlatformSessionDto> {
-    const user = await this.db().platformUser.findUnique({
-      where: { email: dto.email }
-    });
+  async loginPlatform(
+    dto: LoginDto
+  ): Promise<
+    PlatformSessionDto | LoginRequires2faResponseDto | LoginRequiresPlatform2faSetupResponseDto
+  > {
+    let platformUserId: string | undefined;
+
+    if (dto.pendingToken) {
+      platformUserId = this.verifyPlatformPending2faToken(dto.pendingToken);
+    }
+
+    const user = platformUserId
+      ? await this.db().platformUser.findUnique({ where: { id: platformUserId } })
+      : await this.db().platformUser.findUnique({ where: { email: dto.email } });
 
     if (!user || !user.isActive) {
       throw new DomainException(
@@ -1074,12 +1148,14 @@ export class AuthService {
       );
     }
 
-    if (!(await bcrypt.compare(dto.password, user.passwordHash))) {
-      throw new DomainException(
-        ErrorCodes.UNAUTHORIZED,
-        INVALID_LOGIN_MESSAGE,
-        HttpStatus.UNAUTHORIZED
-      );
+    if (!dto.pendingToken) {
+      if (!(await bcrypt.compare(dto.password, user.passwordHash))) {
+        throw new DomainException(
+          ErrorCodes.UNAUTHORIZED,
+          INVALID_LOGIN_MESSAGE,
+          HttpStatus.UNAUTHORIZED
+        );
+      }
     }
 
     if (user.role !== "SUPERADMIN") {
@@ -1090,7 +1166,123 @@ export class AuthService {
       );
     }
 
+    if (!user.totpEnabledAt || !user.totpSecret) {
+      return this.buildPlatformSession(user);
+    }
+
+    if (!dto.totpCode) {
+      return {
+        requires2fa: true,
+        pendingToken: this.signPlatformPending2faToken(user.id)
+      };
+    }
+
+    const verification = await verifyTotp({ token: dto.totpCode, secret: user.totpSecret });
+    if (!verification.valid) {
+      throw new DomainException(
+        ErrorCodes.UNAUTHORIZED,
+        "Invalid authentication code",
+        HttpStatus.UNAUTHORIZED
+      );
+    }
+
     return this.buildPlatformSession(user);
+  }
+
+  async enablePlatform2faSetup(pendingToken: string): Promise<Platform2faSetupEnableResponseDto> {
+    const platformUserId = this.verifyPlatformPending2faSetupToken(pendingToken);
+    const user = await this.db().platformUser.findUniqueOrThrow({ where: { id: platformUserId } });
+    if (user.totpEnabledAt) {
+      throw new DomainException(
+        ErrorCodes.VALIDATION_ERROR,
+        "Two-factor authentication is already enabled",
+        HttpStatus.CONFLICT
+      );
+    }
+
+    const secret = await generateSecret();
+    const otpauthUrl = await generateURI({
+      issuer: "Kloqra Platform",
+      label: user.email,
+      secret
+    });
+
+    await this.db().platformUser.update({
+      where: { id: platformUserId },
+      data: { totpSecret: secret, totpEnabledAt: null }
+    });
+
+    return { secret, otpauthUrl };
+  }
+
+  async completePlatform2faSetup(dto: CompletePlatform2faSetupDto): Promise<PlatformSessionDto> {
+    const platformUserId = this.verifyPlatformPending2faSetupToken(dto.pendingToken);
+    const user = await this.db().platformUser.findUniqueOrThrow({ where: { id: platformUserId } });
+    if (!user.totpSecret) {
+      throw new DomainException(
+        ErrorCodes.VALIDATION_ERROR,
+        "Enable two-factor authentication first",
+        HttpStatus.BAD_REQUEST
+      );
+    }
+
+    const verification = await verifyTotp({ token: dto.code, secret: user.totpSecret });
+    if (!verification.valid) {
+      throw new DomainException(
+        ErrorCodes.UNAUTHORIZED,
+        "Invalid authentication code",
+        HttpStatus.UNAUTHORIZED
+      );
+    }
+
+    const updated = await this.db().platformUser.update({
+      where: { id: platformUserId },
+      data: { totpEnabledAt: new Date() }
+    });
+
+    return this.buildPlatformSession(updated);
+  }
+
+  private signPlatformPending2faToken(platformUserId: string): string {
+    const secret = process.env.JWT_ACCESS_SECRET?.trim();
+    if (!secret) throw new Error("JWT_ACCESS_SECRET is not set on the API service");
+    return this.jwt.sign(
+      { sub: platformUserId, purpose: "platform-2fa-pending" },
+      { secret, expiresIn: "5m" }
+    );
+  }
+
+  private verifyPlatformPending2faToken(token: string): string {
+    return this.verifyPendingToken(
+      token,
+      "platform-2fa-pending",
+      "Two-factor session expired — sign in again"
+    );
+  }
+
+  private signPlatformPending2faSetupToken(platformUserId: string): string {
+    const secret = process.env.JWT_ACCESS_SECRET?.trim();
+    if (!secret) throw new Error("JWT_ACCESS_SECRET is not set on the API service");
+    return this.jwt.sign(
+      { sub: platformUserId, purpose: "platform-2fa-setup-pending" },
+      { secret, expiresIn: "15m" }
+    );
+  }
+
+  private verifyPlatformPending2faSetupToken(token: string): string {
+    return this.verifyPendingToken(
+      token,
+      "platform-2fa-setup-pending",
+      "Two-factor setup session expired — sign in again"
+    );
+  }
+
+  private async revokeAllPlatformRefreshTokens(platformUserId: string): Promise<void> {
+    const now = new Date();
+    await this.db().platformRefreshToken.updateMany({
+      where: { platformUserId, revokedAt: null },
+      data: { revokedAt: now }
+    });
   }
 
   buildPlatformSession(user: {

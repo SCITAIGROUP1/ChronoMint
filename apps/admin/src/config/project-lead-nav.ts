@@ -15,13 +15,7 @@ export function projectLeadNavItems(): readonly AdminNavItem[] {
   return ADMIN_NAV_ITEMS.filter((item) => LEAD_ALLOWED_HREFS.has(item.href));
 }
 
-export function canAccessAdminApp(
-  workspaceRole: "ADMIN" | "MEMBER" | undefined,
-  ledProjectIds: string[] | undefined
-): boolean {
-  if (workspaceRole === "ADMIN") return true;
-  return Boolean(ledProjectIds && ledProjectIds.length > 0);
-}
+export { canAccessAdminApp } from "@kloqra/web-shared";
 
 export function isProjectLeadOnly(
   workspaceRole: "ADMIN" | "MEMBER" | undefined,

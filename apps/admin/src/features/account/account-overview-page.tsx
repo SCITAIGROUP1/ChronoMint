@@ -7,26 +7,20 @@ import {
   CardHeader,
   CardTitle,
   CenteredLoader,
-  DataTableCard,
-  DataTableCell,
-  DataTableHead,
-  DataTableHeaderRow,
   DateRangePicker,
   SegmentedControl,
-  Skeleton,
-  Table,
-  TableBody,
-  TableHeader,
-  TableRow
+  Skeleton
 } from "@kloqra/ui";
 import {
   localMidnightUtcInZone,
   todayInZone,
+  CopyableValue,
   useTenantAnalyticsSummary,
   useTenantOverview
 } from "@kloqra/web-shared";
 import { Building2, Clock, CreditCard, DollarSign, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { AccountWorkspaceHoursTable } from "./account-workspace-hours-table";
 import { DashboardStatCard } from "@/components/dashboard-stat-card";
 import { formatDurationClock } from "@/components/report-charts";
 
@@ -137,7 +131,7 @@ export function AccountOverviewPage() {
       : undefined;
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <AppBar title="Account overview" description="Organization summary and plan status." />
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -165,9 +159,13 @@ export function AccountOverviewPage() {
         <CardHeader>
           <CardTitle className="text-base">{overview.tenant.name}</CardTitle>
         </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
-          Organization slug:{" "}
-          <span className="font-mono text-foreground">{overview.tenant.slug}</span>
+        <CardContent className="space-y-3 text-sm text-muted-foreground">
+          <CopyableValue
+            label="Organization ID"
+            value={overview.tenant.slug}
+            testId="copy-org-slug-overview"
+          />
+          <p className="text-xs">Used in exports, billing records, and when contacting support.</p>
         </CardContent>
       </Card>
 
@@ -241,54 +239,12 @@ export function AccountOverviewPage() {
           </div>
         ) : null}
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Hours by workspace</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Read-only rollup for the selected period.
-            </p>
-          </CardHeader>
-          <CardContent className="p-0 pt-0">
-            <DataTableCard className="border-0 shadow-none">
-              {rollupLoading ? (
-                <div className="p-4">
-                  <Skeleton className="h-40 w-full" />
-                </div>
-              ) : summary && summary.byWorkspace.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <DataTableHeaderRow>
-                      <DataTableHead>Workspace</DataTableHead>
-                      <DataTableHead className="text-right">Hours</DataTableHead>
-                      <DataTableHead className="text-right">Billable %</DataTableHead>
-                      <DataTableHead className="text-right">Amount</DataTableHead>
-                    </DataTableHeaderRow>
-                  </TableHeader>
-                  <TableBody>
-                    {summary.byWorkspace.map((row) => (
-                      <TableRow key={row.workspaceId}>
-                        <DataTableCell>{row.workspaceName}</DataTableCell>
-                        <DataTableCell className="text-right tabular-nums">
-                          {formatDurationClock(row.totalHours)}
-                        </DataTableCell>
-                        <DataTableCell className="text-right tabular-nums">
-                          {row.billablePercent.toFixed(0)}%
-                        </DataTableCell>
-                        <DataTableCell className="text-right tabular-nums">
-                          {row.currency
-                            ? formatMoney(row.billableAmount, row.currency)
-                            : formatMoney(row.billableAmount, totals?.currency ?? "USD")}
-                        </DataTableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <p className="p-4 text-sm text-muted-foreground">No time logged in this period.</p>
-              )}
-            </DataTableCard>
-          </CardContent>
-        </Card>
+        <AccountWorkspaceHoursTable
+          rows={summary?.byWorkspace ?? []}
+          loading={rollupLoading}
+          fallbackCurrency={totals?.currency ?? "USD"}
+          formatMoney={formatMoney}
+        />
       </section>
     </div>
   );

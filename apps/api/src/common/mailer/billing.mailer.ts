@@ -77,4 +77,94 @@ export class BillingMailer {
 
     return result;
   }
+
+  async sendSalesInquiryReceived(input: {
+    to: string;
+    name: string;
+    planName: string;
+    billingUrl: string;
+  }): Promise<SendMailResult> {
+    const layout = {
+      title: "Sales inquiry received",
+      preheader: "We received your enterprise plan request.",
+      body: `Hi ${input.name},\n\nThanks for your interest in ${input.planName}. Our team will send payment instructions shortly.`,
+      ctaHref: input.billingUrl,
+      ctaLabel: "View billing",
+      variant: "info" as const
+    };
+
+    const result = await this.mailer.send({
+      to: [input.to],
+      subject: subjectPrefix("We received your sales inquiry"),
+      html: renderBrandedEmailHtml(layout),
+      text: renderBrandedEmailText(layout)
+    });
+
+    if (!result.sent && result.reason === "unconfigured") {
+      this.logger.warn(`Sales inquiry email skipped (mailer unconfigured) for ${input.to}`);
+    }
+
+    return result;
+  }
+
+  async sendPaymentInstructions(input: {
+    to: string;
+    name: string;
+    planName: string;
+    billingInterval: string | null;
+    instructions: string;
+    billingUrl: string;
+  }): Promise<SendMailResult> {
+    const intervalLabel = input.billingInterval === "yearly" ? "yearly" : "monthly";
+    const layout = {
+      title: "Payment instructions",
+      preheader: `Complete your ${input.planName} upgrade.`,
+      body: `Hi ${input.name},\n\nTo activate ${input.planName} (${intervalLabel} billing), please use the instructions below and upload your receipt on the billing page.\n\n${input.instructions}`,
+      ctaHref: input.billingUrl,
+      ctaLabel: "Upload receipt",
+      variant: "info" as const
+    };
+
+    const result = await this.mailer.send({
+      to: [input.to],
+      subject: subjectPrefix(`Payment instructions for ${input.planName}`),
+      html: renderBrandedEmailHtml(layout),
+      text: renderBrandedEmailText(layout)
+    });
+
+    if (!result.sent && result.reason === "unconfigured") {
+      this.logger.warn(`Payment instructions email skipped (mailer unconfigured) for ${input.to}`);
+    }
+
+    return result;
+  }
+
+  async sendPlanActivatedByPlatform(input: {
+    to: string;
+    name: string;
+    planName: string;
+    billingUrl: string;
+  }): Promise<SendMailResult> {
+    const layout = {
+      title: "Plan activated",
+      preheader: `Your ${input.planName} plan is now active.`,
+      body: `Hi ${input.name},\n\nYour organization is now on ${input.planName}. Thank you for your payment.`,
+      ctaHref: input.billingUrl,
+      ctaLabel: "View billing",
+      variant: "success" as const
+    };
+
+    const result = await this.mailer.send({
+      to: [input.to],
+      subject: subjectPrefix(`Your ${input.planName} plan is active`),
+      html: renderBrandedEmailHtml(layout),
+      text: renderBrandedEmailText(layout)
+    });
+
+    if (!result.sent && result.reason === "unconfigured") {
+      this.logger.warn(`Plan activated email skipped (mailer unconfigured) for ${input.to}`);
+    }
+
+    return result;
+  }
 }

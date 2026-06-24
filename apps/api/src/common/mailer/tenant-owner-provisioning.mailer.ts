@@ -13,6 +13,19 @@ export type TenantOwnerCredentialsMailInput = {
   temporaryPassword: string;
 };
 
+export type TenantAdminCredentialsMailInput = {
+  to: string;
+  organizationName: string;
+  temporaryPassword: string;
+  inviterName?: string;
+};
+
+export type TenantAdminAddedMailInput = {
+  to: string;
+  organizationName: string;
+  inviterName?: string;
+};
+
 @Injectable()
 export class TenantOwnerProvisioningMailer {
   private readonly logger = new Logger(TenantOwnerProvisioningMailer.name);
@@ -55,5 +68,69 @@ export class TenantOwnerProvisioningMailer {
     }
 
     return result;
+  }
+
+  async sendTenantAdminCredentials(
+    input: TenantAdminCredentialsMailInput
+  ): Promise<SendMailResult> {
+    const loginUrl = `${adminClientOrigin()}/login`;
+    const intro = input.inviterName
+      ? `${input.inviterName} added you as an organization administrator for ${input.organizationName}.`
+      : `You've been added as an organization administrator for ${input.organizationName} on Kloqra.`;
+
+    const layout = {
+      title: `Organization admin access — ${input.organizationName}`,
+      preheader: "Your Kloqra Admin sign-in details are inside.",
+      body: `${intro}\n\nSign in with the credentials below. You will be asked to set a new password on first login.`,
+      ctaHref: loginUrl,
+      ctaLabel: "Sign in to Kloqra Admin",
+      variant: "success" as const,
+      details: [
+        { label: "Email", value: input.to },
+        { label: "Temporary password", value: input.temporaryPassword },
+        { label: "Sign-in URL", value: loginUrl }
+      ],
+      footer: "If you did not expect this email, contact Kloqra support."
+    };
+
+    const result = await this.mailer.send({
+      to: [input.to],
+      subject: subjectPrefix(`Organization admin access for ${input.organizationName}`),
+      html: renderBrandedEmailHtml(layout),
+      text: renderBrandedEmailText(layout)
+    });
+
+    if (!result.sent && result.reason === "unconfigured") {
+      this.logger.warn(
+        `Tenant admin credentials email skipped (SMTP unconfigured) for ${input.to}. Temporary password logged for local dev only.`
+      );
+      this.logger.warn(`DEV ONLY temp password for ${input.to}: ${input.temporaryPassword}`);
+    }
+
+    return result;
+  }
+
+  async sendTenantAdminAdded(input: TenantAdminAddedMailInput): Promise<SendMailResult> {
+    const loginUrl = `${adminClientOrigin()}/login`;
+    const intro = input.inviterName
+      ? `${input.inviterName} added you as an organization administrator for ${input.organizationName}.`
+      : `You've been added as an organization administrator for ${input.organizationName}.`;
+
+    const layout = {
+      title: `Organization admin access — ${input.organizationName}`,
+      preheader: "Sign in to Kloqra Admin with your existing account.",
+      body: `${intro}\n\nSign in with your existing Kloqra account to manage workspaces and organization settings.`,
+      ctaHref: loginUrl,
+      ctaLabel: "Sign in to Kloqra Admin",
+      variant: "success" as const,
+      footer: "If you did not expect this email, contact Kloqra support."
+    };
+
+    return this.mailer.send({
+      to: [input.to],
+      subject: subjectPrefix(`Organization admin access for ${input.organizationName}`),
+      html: renderBrandedEmailHtml(layout),
+      text: renderBrandedEmailText(layout)
+    });
   }
 }

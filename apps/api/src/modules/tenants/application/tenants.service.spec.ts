@@ -2,7 +2,7 @@ import { ErrorCodes } from "@kloqra/contracts";
 import { HttpStatus } from "@nestjs/common";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { DomainException } from "../../../common/errors/domain.exception";
-import type { MemberProvisioningMailer } from "../../../common/mailer/member-provisioning.mailer";
+import type { TenantOwnerProvisioningMailer } from "../../../common/mailer/tenant-owner-provisioning.mailer";
 import * as tenantContext from "../../../common/tenant/tenant-context";
 import type { PlanLimitService } from "../../subscriptions/application/plan-limit.service";
 import type { SubscriptionsService } from "../../subscriptions/application/subscriptions.service";
@@ -16,7 +16,11 @@ vi.mock("../../../common/auth/password.util", () => ({
 describe("TenantsService", () => {
   let service: TenantsService;
   let mockPrisma: any;
-  let mockMailer: MemberProvisioningMailer;
+  let mockMailer: {
+    sendTenantAdminCredentials: ReturnType<typeof vi.fn>;
+    sendTenantAdminAdded: ReturnType<typeof vi.fn>;
+    isConfigured: boolean;
+  };
   let mockSubscriptions: SubscriptionsService;
   let mockPlanLimit: PlanLimitService;
   const tenantId = "t-1";
@@ -58,10 +62,10 @@ describe("TenantsService", () => {
       }
     };
     mockMailer = {
-      sendNewMemberCredentials: vi.fn().mockResolvedValue({ sent: true }),
-      sendWorkspaceAdded: vi.fn().mockResolvedValue({ sent: true }),
+      sendTenantAdminCredentials: vi.fn().mockResolvedValue({ sent: true }),
+      sendTenantAdminAdded: vi.fn().mockResolvedValue({ sent: true }),
       isConfigured: false
-    } as unknown as MemberProvisioningMailer;
+    };
     mockSubscriptions = {
       getSubscriptionForTenant: vi.fn().mockResolvedValue({
         tenantId,
@@ -80,7 +84,7 @@ describe("TenantsService", () => {
     } as unknown as PlanLimitService;
     service = new TenantsService(
       mockPrisma,
-      mockMailer,
+      mockMailer as unknown as TenantOwnerProvisioningMailer,
       { sendEmailVerification: vi.fn().mockResolvedValue(undefined) } as never,
       mockSubscriptions,
       mockPlanLimit
@@ -104,6 +108,27 @@ describe("TenantsService", () => {
     mockPrisma.tenantMember.findUnique.mockResolvedValue(null);
 
     await expect(service.getCurrent("member-1", tenantId)).rejects.toBeInstanceOf(DomainException);
+  });
+
+  it("getPublicBySlug returns active tenant branding", async () => {
+    const result = await service.getPublicBySlug("kloqra-demo");
+
+    expect(result).toEqual({
+      slug: "kloqra-demo",
+      name: "Kloqra Demo Organization"
+    });
+  });
+
+  it("getPublicBySlug rejects unknown or inactive tenants", async () => {
+    mockPrisma.tenant.findUnique.mockResolvedValueOnce({
+      ...tenant,
+      status: "pending_setup"
+    });
+
+    await expect(service.getPublicBySlug("kloqra-demo")).rejects.toBeInstanceOf(DomainException);
+
+    mockPrisma.tenant.findUnique.mockResolvedValueOnce(null);
+    await expect(service.getPublicBySlug("missing-org")).rejects.toBeInstanceOf(DomainException);
   });
 
   it("getOverview returns workspace and seat counts with subscription from service", async () => {
@@ -150,6 +175,7 @@ describe("TenantsService", () => {
   });
 
   it("inviteMember creates tenant admin for new user", async () => {
+    mockMailer.isConfigured = true;
     mockPrisma.tenantMember.findUnique.mockResolvedValue({
       tenantId,
       role: "OWNER",
@@ -181,6 +207,13 @@ describe("TenantsService", () => {
     expect(result.userCreated).toBe(true);
     expect(result.member.role).toBe("ADMIN");
     expect(result.temporaryPassword).toBe("TempPass123!");
+    expect(mockMailer.sendTenantAdminCredentials).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: "delegate@kloqra.dev",
+        organizationName: tenant.name,
+        temporaryPassword: "TempPass123!"
+      })
+    );
   });
 
   it("inviteMember rejects users from another organization", async () => {

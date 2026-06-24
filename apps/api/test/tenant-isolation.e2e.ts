@@ -69,7 +69,7 @@ describe("Tenant isolation E2E", () => {
       where: { id: { in: (res.body as Array<{ id: string }>).map((w) => w.id) } },
       select: { slug: true }
     });
-    expect(workspaces.map((w) => w.slug).sort()).toEqual(["acme", "apex", "meridian"]);
+    expect(workspaces.map((w) => w.slug).sort()).toEqual(["acme", "meridian"]);
     expect(tenantASession.tenantId).toBe(demoTenantId);
     expect(workspaces.some((w) => w.slug === "isolation-ws-b")).toBe(false);
   });

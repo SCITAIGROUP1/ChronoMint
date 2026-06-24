@@ -7,6 +7,7 @@ import {
   tenantStatusSchema
 } from "../tenant-rbac";
 import { isoDatetimeSchema, slugSchema, uuidSchema } from "./common.dto";
+import { billingModeSchema } from "./subscription.dto";
 import { inviteMemberResponseSchema } from "./workspace.dto";
 
 export const tenantSchema = z.object({
@@ -16,6 +17,12 @@ export const tenantSchema = z.object({
   status: tenantStatusSchema,
   settings: z.record(z.unknown()).optional(),
   createdAt: isoDatetimeSchema
+});
+
+/** Public org lookup by slug (login branding only). */
+export const publicTenantSchema = z.object({
+  slug: slugSchema,
+  name: z.string().min(1).max(120)
 });
 
 export const tenantMemberSchema = z.object({
@@ -37,7 +44,8 @@ export const tenantSubscriptionSchema = z.object({
   currentPeriodEnd: isoDatetimeSchema.nullable(),
   limits: planLimitsSchema,
   stripeCustomerId: z.string().nullable().optional(),
-  billingAlert: billingAlertSchema.optional()
+  billingAlert: billingAlertSchema.optional(),
+  billingMode: billingModeSchema
 });
 
 export const tenantOverviewSchema = z.object({
@@ -100,6 +108,7 @@ export const updateTenantCurrentSchema = z
   });
 
 export type TenantDto = z.infer<typeof tenantSchema>;
+export type PublicTenantDto = z.infer<typeof publicTenantSchema>;
 export type TenantMemberDto = z.infer<typeof tenantMemberSchema>;
 export type TenantSubscriptionDto = z.infer<typeof tenantSubscriptionSchema>;
 export type TenantOverviewDto = z.infer<typeof tenantOverviewSchema>;

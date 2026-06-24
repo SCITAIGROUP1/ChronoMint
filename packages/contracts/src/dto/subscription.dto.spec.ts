@@ -1,9 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
+  changeSubscriptionPlanSchema,
   checkoutSessionResponseSchema,
   createCheckoutSessionSchema,
   portalSessionResponseSchema
 } from "./subscription.dto";
+
+describe("changeSubscriptionPlanSchema", () => {
+  it("accepts starter and pro plan slugs", () => {
+    expect(changeSubscriptionPlanSchema.safeParse({ planSlug: "starter" }).success).toBe(true);
+    expect(changeSubscriptionPlanSchema.safeParse({ planSlug: "pro" }).success).toBe(true);
+    expect(changeSubscriptionPlanSchema.safeParse({ planSlug: "pilot" }).success).toBe(false);
+  });
+});
 
 describe("createCheckoutSessionSchema", () => {
   it("accepts starter and pro plan slugs", () => {

@@ -5,6 +5,7 @@ import {
   type TenantSubscriptionDto
 } from "@kloqra/contracts";
 import { resolveBillingAlert } from "./billing-alert.util";
+import { resolveBillingMode } from "./billing-mode.util";
 
 export type SubscriptionWithPlan = {
   tenantId: string;
@@ -51,6 +52,7 @@ export function toSubscriptionDto(row: SubscriptionWithPlan): TenantSubscription
     billingAlert: resolveBillingAlert({
       status: row.status,
       trialEndsAt: row.trialEndsAt
-    })
+    }),
+    billingMode: resolveBillingMode()
   };
 }

@@ -7,7 +7,11 @@ import { PlatformTenantsService } from "./platform-tenants.service";
 describe("PlatformTenantsService", () => {
   let service: PlatformTenantsService;
   let mockPrisma: any;
-  let mockOwnerMailer: { sendOwnerCredentials: ReturnType<typeof vi.fn>; isConfigured: boolean };
+  let mockOwnerMailer: {
+    sendOwnerCredentials: ReturnType<typeof vi.fn>;
+    sendTenantAdminCredentials: ReturnType<typeof vi.fn>;
+    isConfigured: boolean;
+  };
   let mockAuth: { revokeAllRefreshTokens: ReturnType<typeof vi.fn> };
   let mockStripe: { isConfigured: ReturnType<typeof vi.fn>; getClient: ReturnType<typeof vi.fn> };
   let mockAudit: { recordEvent: ReturnType<typeof vi.fn> };
@@ -30,6 +34,9 @@ describe("PlatformTenantsService", () => {
     vi.clearAllMocks();
     mockOwnerMailer = {
       sendOwnerCredentials: vi.fn().mockResolvedValue({ sent: false, reason: "unconfigured" }),
+      sendTenantAdminCredentials: vi
+        .fn()
+        .mockResolvedValue({ sent: false, reason: "unconfigured" }),
       isConfigured: false
     };
     mockAuth = { revokeAllRefreshTokens: vi.fn().mockResolvedValue(undefined) };
@@ -98,13 +105,31 @@ describe("PlatformTenantsService", () => {
       $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn(mockPrisma))
     };
 
+    mockPrisma.tenant.findUnique.mockResolvedValue({
+      id: "tenant-new",
+      name: "Acme",
+      slug: "acme",
+      status: "pending_setup",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      subscription: {
+        status: "trial",
+        trialEndsAt: null,
+        currentPeriodEnd: null,
+        plan: { name: "Pilot", slug: PLAN_SLUGS.PILOT }
+      },
+      members: [{ user: { email: "owner@acme.com" } }],
+      _count: { workspaces: 0, members: 1 }
+    });
+
     service = new PlatformTenantsService(
       mockPrisma,
       mockOwnerMailer as never,
       mockAuth as never,
       mockStripe as never,
       mockAudit as never,
-      mockProvisioning as never
+      mockProvisioning as never,
+      { notifyAll: vi.fn().mockResolvedValue(undefined) } as never,
+      { fulfillOpenInquiryForPlan: vi.fn().mockResolvedValue(undefined) } as never
     );
   });
 
@@ -115,10 +140,74 @@ describe("PlatformTenantsService", () => {
     expect(result.items[0]?.workspaceCount).toBe(2);
   });
 
-  it("lists plans for platform picker", async () => {
-    const result = await service.listPlans();
-    expect(result.items).toHaveLength(1);
-    expect(result.items[0]?.slug).toBe(PLAN_SLUGS.PILOT);
+  it("filters tenants by status and search", async () => {
+    await service.listTenants({
+      page: 1,
+      limit: 25,
+      search: "acme",
+      status: "active",
+      planSlug: "starter",
+      subscriptionStatus: "active"
+    });
+
+    expect(mockPrisma.tenant.count).toHaveBeenCalledWith({
+      where: {
+        OR: [
+          { name: { contains: "acme", mode: "insensitive" } },
+          { slug: { contains: "acme", mode: "insensitive" } }
+        ],
+        status: "active",
+        subscription: {
+          plan: { slug: "starter" },
+          status: "active"
+        }
+      }
+    });
+  });
+
+  it("provisions tenant admin with admin portal credentials email", async () => {
+    const mockProvisioning = {
+      provisionTenant: vi.fn().mockResolvedValue({
+        tenantId: "tenant-new",
+        ownerUserId: "user-new",
+        temporaryPassword: "OwnerTemp123!",
+        tenantAdminUserId: "user-admin",
+        tenantAdminTemporaryPassword: "AdminTemp123!"
+      })
+    };
+
+    service = new PlatformTenantsService(
+      mockPrisma,
+      mockOwnerMailer as never,
+      mockAuth as never,
+      mockStripe as never,
+      mockAudit as never,
+      mockProvisioning as never,
+      { notifyAll: vi.fn().mockResolvedValue(undefined) } as never,
+      { fulfillOpenInquiryForPlan: vi.fn().mockResolvedValue(undefined) } as never
+    );
+
+    await service.createTenant(
+      {
+        organizationName: "ABC",
+        ownerEmail: "owner@abc.com",
+        tenantAdminEmail: "kloqratenantadmin@yopmail.com",
+        planId: pilotPlan.id
+      },
+      auditCtx
+    );
+
+    expect(mockOwnerMailer.sendOwnerCredentials).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "owner@abc.com", organizationName: "ABC" })
+    );
+    expect(mockOwnerMailer.sendTenantAdminCredentials).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: "kloqratenantadmin@yopmail.com",
+        organizationName: "ABC",
+        inviterName: "Kloqra Platform",
+        temporaryPassword: "AdminTemp123!"
+      })
+    );
   });
 
   it("rejects create when owner already belongs to a tenant", async () => {
@@ -130,6 +219,27 @@ describe("PlatformTenantsService", () => {
         {
           organizationName: "Acme",
           ownerEmail: "owner@acme.com",
+          planId: pilotPlan.id
+        },
+        auditCtx
+      )
+    ).rejects.toSatisfy(
+      (err: unknown) => err instanceof DomainException && err.getStatus() === HttpStatus.CONFLICT
+    );
+  });
+
+  it("rejects create when tenant admin already belongs to a tenant", async () => {
+    mockPrisma.user.findUnique
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: "user-2", email: "ops@acme.com" });
+    mockPrisma.tenantMember.findUnique.mockResolvedValue({ tenantId: "other-tenant" });
+
+    await expect(
+      service.createTenant(
+        {
+          organizationName: "Acme",
+          ownerEmail: "owner@acme.com",
+          tenantAdminEmail: "ops@acme.com",
           planId: pilotPlan.id
         },
         auditCtx

@@ -1,6 +1,6 @@
 "use client";
 
-import { PLAN_SLUGS, ROUTES, type SignupPlanSlug } from "@kloqra/contracts";
+import { PLAN_SLUGS, ROUTES, slugifyName, type SignupPlanSlug } from "@kloqra/contracts";
 import { Button, Input, Label, PasswordInput } from "@kloqra/ui";
 import { AuthShell, getLegalUrls, usePublicPlans } from "@kloqra/web-shared";
 import Link from "next/link";
@@ -40,6 +40,11 @@ function SignupForm() {
       { slug: PLAN_SLUGS.PRO, name: "Pro" }
     ];
   }, [plans]);
+
+  const organizationIdPreview = useMemo(() => {
+    const preview = slugifyName(organizationName.trim());
+    return preview || "your-organization";
+  }, [organizationName]);
 
   const legal = getLegalUrls();
   const legalRequired = Boolean(legal.tos && legal.privacy);
@@ -148,6 +153,10 @@ function SignupForm() {
             onChange={(e) => setOrganizationName(e.target.value)}
             autoComplete="organization"
           />
+          <p className="text-xs text-muted-foreground" data-testid="signup-org-id-preview">
+            Your organization ID will be:{" "}
+            <span className="font-mono text-foreground">{organizationIdPreview}</span>
+          </p>
         </div>
         {legalRequired ? (
           <label className="flex items-start gap-2 text-sm">

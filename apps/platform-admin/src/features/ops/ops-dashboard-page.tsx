@@ -1,6 +1,13 @@
 "use client";
 
-import { CenteredLoader } from "@kloqra/ui";
+import {
+  AppBar,
+  Card,
+  CardContent,
+  CenteredLoader,
+  DashboardStatCard,
+  type DashboardStatTone
+} from "@kloqra/ui";
 import { usePlatformOpsSummary } from "@kloqra/web-shared";
 import { Activity, AlertTriangle, Building2, CreditCard, Users, Workflow } from "lucide-react";
 
@@ -12,89 +19,96 @@ function formatUsd(cents: number) {
   }).format(cents / 100);
 }
 
-function StatCard({
-  label,
-  value,
-  hint,
-  icon: Icon
-}: {
-  label: string;
-  value: string | number;
-  hint?: string;
-  icon: typeof Building2;
-}) {
-  return (
-    <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {label}
-          </p>
-          <p className="mt-1 text-2xl font-semibold tabular-nums text-foreground">{value}</p>
-          {hint ? <p className="mt-1 text-xs text-muted-foreground">{hint}</p> : null}
-        </div>
-        <Icon className="size-5 shrink-0 text-muted-foreground" aria-hidden />
-      </div>
-    </div>
-  );
-}
+const OPS_STAT_TONES: DashboardStatTone[] = [
+  "primary",
+  "success",
+  "warning",
+  "premium",
+  "primary",
+  "warning"
+];
 
 export function OpsDashboardPage() {
   const { summary, loading, error } = usePlatformOpsSummary();
 
-  if (loading) return <CenteredLoader label="Loading ops summary…" />;
-  if (error || !summary) {
-    return <div className="p-6 text-sm text-destructive">{error ?? "Ops summary unavailable"}</div>;
-  }
+  return (
+    <div className="space-y-6">
+      <AppBar
+        title="Ops"
+        description="Fleet health — tenants, subscriptions, usage, and background queues."
+      />
 
+      {loading ? <CenteredLoader label="Loading ops summary…" /> : null}
+      {!loading && (error || !summary) ? (
+        <div className="text-sm text-destructive">{error ?? "Ops summary unavailable"}</div>
+      ) : null}
+      {!loading && summary ? <OpsDashboardContent summary={summary} /> : null}
+    </div>
+  );
+}
+
+function OpsDashboardContent({
+  summary
+}: {
+  summary: NonNullable<ReturnType<typeof usePlatformOpsSummary>["summary"]>;
+}) {
   const failedJobs = Object.values(summary.queues).reduce((sum, queue) => sum + queue.failed, 0);
 
-  return (
-    <div className="space-y-6 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Ops</h1>
-        <p className="text-sm text-muted-foreground">
-          Fleet health — tenants, subscriptions, usage, and background queues.
-        </p>
-      </div>
+  const stats = [
+    {
+      label: "Active tenants",
+      value: String(summary.tenants.active),
+      hint: `${summary.tenants.pendingSetup} pending setup`,
+      icon: Building2
+    },
+    {
+      label: "Trial subscriptions",
+      value: String(summary.subscriptions.trial),
+      hint: `${summary.tenants.suspended} suspended orgs`,
+      icon: Activity
+    },
+    {
+      label: "Past due",
+      value: String(summary.subscriptions.pastDue),
+      hint: `${summary.subscriptions.canceled} canceled`,
+      icon: AlertTriangle
+    },
+    {
+      label: "MRR (Stripe)",
+      value: summary.mrr ? formatUsd(summary.mrr.amountCents) : "—",
+      hint: summary.mrr ? "Active + trialing" : "Stripe not configured",
+      icon: CreditCard
+    },
+    {
+      label: "Total seats",
+      value: String(summary.usage.totalSeats),
+      hint: `${summary.usage.totalWorkspaces} workspaces`,
+      icon: Users
+    },
+    {
+      label: "Failed queue jobs",
+      value: String(failedJobs),
+      hint: `${summary.reconcile.driftCount} subscription drift`,
+      icon: Workflow
+    }
+  ] as const;
 
+  return (
+    <>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <StatCard
-          label="Active tenants"
-          value={summary.tenants.active}
-          hint={`${summary.tenants.pendingSetup} pending setup`}
-          icon={Building2}
-        />
-        <StatCard
-          label="Trial subscriptions"
-          value={summary.subscriptions.trial}
-          hint={`${summary.tenants.suspended} suspended orgs`}
-          icon={Activity}
-        />
-        <StatCard
-          label="Past due"
-          value={summary.subscriptions.pastDue}
-          hint={`${summary.subscriptions.canceled} canceled`}
-          icon={AlertTriangle}
-        />
-        <StatCard
-          label="MRR (Stripe)"
-          value={summary.mrr ? formatUsd(summary.mrr.amountCents) : "—"}
-          hint={summary.mrr ? "Active + trialing" : "Stripe not configured"}
-          icon={CreditCard}
-        />
-        <StatCard
-          label="Total seats"
-          value={summary.usage.totalSeats}
-          hint={`${summary.usage.totalWorkspaces} workspaces`}
-          icon={Users}
-        />
-        <StatCard
-          label="Failed queue jobs"
-          value={failedJobs}
-          hint={`${summary.reconcile.driftCount} subscription drift`}
-          icon={Workflow}
-        />
+        {stats.map((stat, index) => (
+          <Card key={stat.label} className="border-primary/10 shadow-sm">
+            <CardContent className="p-4">
+              <DashboardStatCard
+                label={stat.label}
+                value={stat.value}
+                hint={stat.hint}
+                icon={stat.icon}
+                tone={OPS_STAT_TONES[index]}
+              />
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       <div className="rounded-lg border border-border">
@@ -118,6 +132,6 @@ export function OpsDashboardPage() {
           ))}
         </div>
       </div>
-    </div>
+    </>
   );
 }

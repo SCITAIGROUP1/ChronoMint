@@ -54,6 +54,12 @@ export class SubscriptionBillingService {
     });
     const ownerEmail = owner?.user.email;
 
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { slug: true }
+    });
+    const tenantSlug = tenant?.slug;
+
     const stripe = this.stripeClient.getClient();
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
@@ -62,9 +68,9 @@ export class SubscriptionBillingService {
       line_items: [{ price: plan.stripePriceId, quantity: 1 }],
       success_url: dto.successUrl ?? this.defaultSuccessUrl(),
       cancel_url: dto.cancelUrl ?? this.defaultCancelUrl(),
-      metadata: { tenantId, planSlug: dto.planSlug },
+      metadata: { tenantId, tenantSlug: tenantSlug ?? "", planSlug: dto.planSlug },
       subscription_data: {
-        metadata: { tenantId, planSlug: dto.planSlug }
+        metadata: { tenantId, tenantSlug: tenantSlug ?? "", planSlug: dto.planSlug }
       }
     });
 

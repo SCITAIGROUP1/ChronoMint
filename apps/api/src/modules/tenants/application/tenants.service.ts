@@ -1,6 +1,7 @@
 import type {
   InviteTenantMemberDto,
   InviteTenantMemberResponseDto,
+  PublicTenantDto,
   TenantDto,
   TenantMemberDto,
   TenantOverviewDto,
@@ -12,7 +13,7 @@ import { HttpStatus, Injectable } from "@nestjs/common";
 import { generateTempPassword, hashPassword } from "../../../common/auth/password.util";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { deliverMemberEmail } from "../../../common/mailer/member-email-delivery.util";
-import { MemberProvisioningMailer } from "../../../common/mailer/member-provisioning.mailer";
+import { TenantOwnerProvisioningMailer } from "../../../common/mailer/tenant-owner-provisioning.mailer";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import {
   requireTenantMember,
@@ -48,7 +49,7 @@ type TenantMemberRow = {
 export class TenantsService {
   constructor(
     private prisma: PrismaService,
-    private memberMailer: MemberProvisioningMailer,
+    private tenantMailer: TenantOwnerProvisioningMailer,
     private auth: AuthService,
     private subscriptions: SubscriptionsService,
     private planLimit: PlanLimitService
@@ -106,12 +107,32 @@ export class TenantsService {
     return this.toTenantDto(tenant);
   }
 
+  async getPublicBySlug(slug: string): Promise<PublicTenantDto> {
+    const normalized = slug.trim().toLowerCase();
+    if (!normalized) {
+      throw new DomainException(
+        ErrorCodes.NOT_FOUND,
+        "Organization not found",
+        HttpStatus.NOT_FOUND
+      );
+    }
+    const tenant = await this.prisma.tenant.findUnique({ where: { slug: normalized } });
+    if (!tenant || tenant.status !== "active") {
+      throw new DomainException(
+        ErrorCodes.NOT_FOUND,
+        "Organization not found",
+        HttpStatus.NOT_FOUND
+      );
+    }
+    return { slug: tenant.slug, name: tenant.name };
+  }
+
   async updateCurrent(
     userId: string,
     tenantId: string,
     dto: UpdateTenantCurrentDto
   ): Promise<TenantDto> {
-    await requireTenantOwnerInTenant(this.prisma, userId, tenantId);
+    await requireTenantOwnerOrAdmin(this.prisma, userId, tenantId);
     const tenant = await this.loadTenantOrThrow(tenantId);
 
     const nextName = dto.name?.trim() ?? tenant.name;
@@ -234,17 +255,17 @@ export class TenantsService {
       include: { user: true }
     });
 
-    await deliverMemberEmail(this.memberMailer.isConfigured, () =>
+    await deliverMemberEmail(this.tenantMailer.isConfigured, () =>
       userCreated && temporaryPassword
-        ? this.memberMailer.sendNewMemberCredentials({
+        ? this.tenantMailer.sendTenantAdminCredentials({
             to: email,
-            workspaceName: tenant.name,
+            organizationName: tenant.name,
             inviterName,
             temporaryPassword
           })
-        : this.memberMailer.sendWorkspaceAdded({
+        : this.tenantMailer.sendTenantAdminAdded({
             to: email,
-            workspaceName: tenant.name,
+            organizationName: tenant.name,
             inviterName
           })
     );

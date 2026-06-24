@@ -1,3 +1,4 @@
+import { ROUTES } from "@kloqra/contracts";
 import { type INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import cookieParser from "cookie-parser";
@@ -33,6 +34,35 @@ describe("Platform tenants E2E", () => {
     const demo = res.body.items.find((item: { slug: string }) => item.slug === "kloqra-demo");
     expect(demo).toBeTruthy();
     expect(res.body.total).toBeGreaterThan(0);
+  });
+
+  it("GET /platform/tenants supports search and filters", async () => {
+    const session = await loginAsPlatform(app);
+    const res = await platformAuthedAgent(app, session).get(
+      "/platform/tenants?page=1&limit=10&search=kloqra&status=active&planSlug=pilot&subscriptionStatus=active"
+    );
+    expect(res.status).toBe(200);
+    expect(res.body.page).toBe(1);
+    expect(res.body.limit).toBe(10);
+    expect(Array.isArray(res.body.items)).toBe(true);
+  });
+
+  it("GET/PATCH /platform/plans exposes catalog config", async () => {
+    const session = await loginAsPlatform(app);
+    const listRes = await platformAuthedAgent(app, session).get(ROUTES.PLATFORM.PLANS);
+    expect(listRes.status).toBe(200);
+    expect(listRes.body.items.length).toBeGreaterThan(0);
+    const planId = listRes.body.items[0].id as string;
+
+    const detailRes = await platformAuthedAgent(app, session).get(ROUTES.PLATFORM.PLAN(planId));
+    expect(detailRes.status).toBe(200);
+    expect(detailRes.body.limits).toBeTruthy();
+
+    const patchRes = await platformAuthedAgent(app, session)
+      .patch(ROUTES.PLATFORM.PLAN(planId))
+      .send({ tagline: "Updated from e2e" });
+    expect(patchRes.status).toBe(200);
+    expect(patchRes.body.tagline).toBe("Updated from e2e");
   });
 
   it("GET /platform/tenants/:id returns tenant detail", async () => {

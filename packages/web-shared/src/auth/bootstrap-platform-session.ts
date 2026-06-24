@@ -1,6 +1,8 @@
 import { ROUTES } from "@kloqra/contracts";
 import type { PlatformSessionDto } from "@kloqra/contracts";
 import { getApiBase } from "../api/base";
+import { clearThemeHydration } from "../hooks/theme-preference-state";
+import { clearStoredThemePreference } from "../hooks/theme-storage";
 import {
   getPlatformAccessToken,
   getPlatformRefreshToken,
@@ -72,6 +74,7 @@ export async function bootstrapPlatformSession(): Promise<BootstrapPlatformResul
 }
 
 export async function logoutPlatformSession(): Promise<void> {
+  const userId = usePlatformSessionStore.getState().session?.user.id;
   try {
     await fetch(`${getApiBase()}${ROUTES.AUTH.LOGOUT}`, {
       method: "DELETE",
@@ -81,5 +84,7 @@ export async function logoutPlatformSession(): Promise<void> {
   } catch {
     /* clear local state regardless */
   }
+  clearStoredThemePreference(userId);
+  clearThemeHydration();
   usePlatformSessionStore.getState().clear();
 }
