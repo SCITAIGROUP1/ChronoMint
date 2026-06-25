@@ -5,7 +5,7 @@ import {
   PLATFORM_NOTIFICATION_CREATED_EVENT,
   platformNotificationCreatedEventSchema
 } from "@kloqra/contracts";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { io, type Socket } from "socket.io-client";
 import { getApiBase } from "../api/base";
 import { tryRefreshPlatformSession } from "../auth/bootstrap-platform-session";
@@ -116,7 +116,7 @@ export function usePlatformNotificationSocket(enabled = true) {
   const applyPush = usePlatformNotificationsStore((s) => s.applyNotificationPush);
   const setSocketConnected = usePlatformNotificationsStore((s) => s.setSocketConnected);
   const refreshUnread = usePlatformNotificationsStore((s) => s.refreshUnread);
-  const hadConnectedRef = { current: false };
+  const hadConnectedRef = useRef(false);
 
   useEffect(() => {
     if (!enabled || typeof window === "undefined") return;

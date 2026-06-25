@@ -19,7 +19,7 @@ import {
 } from "@kloqra/web-shared";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { api } from "@/lib/api";
 
 type PlatformLoginResponse =
@@ -27,7 +27,7 @@ type PlatformLoginResponse =
   | LoginRequires2faResponseDto
   | LoginRequiresPlatform2faSetupResponseDto;
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const securityNotice =
@@ -189,5 +189,13 @@ export default function LoginPage() {
         ) : null}
       </form>
     </AuthShell>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }

@@ -40,5 +40,5 @@ export function useWorkspacePermissions() {
       managedProjectIds,
       role
     };
-  }, [session?.workspaceRole, session?.tenantRole, session?.managedProjectIds]);
+  }, [session]);
 }
