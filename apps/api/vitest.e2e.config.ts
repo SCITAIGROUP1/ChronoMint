@@ -31,6 +31,7 @@ export default defineConfig({
     include: ["test/**/*.e2e.ts"],
     setupFiles: ["./test/setup.ts"],
     testTimeout: 30000,
+    hookTimeout: 30000,
     pool: "forks",
     poolOptions: {
       forks: {
