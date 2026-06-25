@@ -43,19 +43,21 @@ describe("CategoriesService", () => {
         id: "c1",
         workspaceId: "w1",
         name: "Design",
-        description: null
+        description: null,
+        isActive: true
       });
       expect(dto).toEqual({
         id: "c1",
         workspaceId: "w1",
         name: "Design",
-        description: null
+        description: null,
+        isActive: true
       });
     });
 
     it("includes taskCount when provided", () => {
       const dto = service.toDto(
-        { id: "c1", workspaceId: "w1", name: "Design", description: "UI work" },
+        { id: "c1", workspaceId: "w1", name: "Design", description: "UI work", isActive: true },
         3
       );
       expect(dto.taskCount).toBe(3);
@@ -72,6 +74,7 @@ describe("CategoriesService", () => {
           workspaceId: "w1",
           name: "Design",
           description: null,
+          isActive: true,
           _count: { tasks: 2 }
         }
       ]);
@@ -89,6 +92,7 @@ describe("CategoriesService", () => {
             id: "c1",
             name: "Design",
             description: null,
+            isActive: true,
             taskCount: 2
           }
         ],

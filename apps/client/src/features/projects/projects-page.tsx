@@ -4,6 +4,7 @@ import { ROUTES } from "@kloqra/contracts";
 import type { ProjectDto } from "@kloqra/contracts";
 import {
   AppBar,
+  Badge,
   DataTableCard,
   DataTableCell,
   DataTableHead,
@@ -81,7 +82,11 @@ export function ProjectsPage() {
                       </Link>
                     </DataTableCell>
                     <DataTableCell>{p.clientName ?? "—"}</DataTableCell>
-                    <DataTableCell>{p.isActive ? "Yes" : "No"}</DataTableCell>
+                    <DataTableCell>
+                      <Badge variant={p.isActive ? "default" : "secondary"}>
+                        {p.isActive ? "Active" : "Inactive"}
+                      </Badge>
+                    </DataTableCell>
                   </TableRow>
                 ))}
               </TableBody>

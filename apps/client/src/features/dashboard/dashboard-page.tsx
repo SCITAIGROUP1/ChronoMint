@@ -73,7 +73,7 @@ import {
 } from "@/features/submissions/use-my-submissions";
 import {
   buildSubmissionByKey,
-  isTimeEntryLocked,
+  isTimeEntryReadOnly,
   LOCKED_ENTRY_MESSAGE
 } from "@/features/time-tracker/entry-approval-status";
 import { suggestBillableFromTask } from "@/features/timesheet/time-entry-draft";
@@ -355,8 +355,12 @@ export function DashboardPage() {
     setLoading(true);
     try {
       await Promise.all([
-        fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects),
-        fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws }).then(setTasks),
+        fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, {
+          workspaceId: ws
+        }).then(setProjects),
+        fetchListItems<TaskDto>(ROUTES.TASKS.LIST, {
+          workspaceId: ws
+        }).then(setTasks),
         fetchListItems<CategoryDto>(ROUTES.CATEGORIES.LIST, { workspaceId: ws }).then(
           setCategories
         ),
@@ -383,7 +387,10 @@ export function DashboardPage() {
       setScopeTasks([]);
       return;
     }
-    const filters: Record<string, string> = { projectId: filterProjectId };
+    const filters: Record<string, string | boolean> = {
+      projectId: filterProjectId,
+      loggableOnly: true
+    };
     if (filterCategoryId) filters.categoryId = filterCategoryId;
     fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws, filters })
       .then(setScopeTasks)
@@ -528,9 +535,10 @@ export function DashboardPage() {
     (log: TimeLogDto) => {
       const task = tasks.find((t) => t.id === log.taskId);
       const project = task ? projects.find((p) => p.id === task.projectId) : undefined;
-      return isTimeEntryLocked(log, project, submissionByKey);
+      const category = task ? categories.find((c) => c.id === task.categoryId) : undefined;
+      return isTimeEntryReadOnly(log, project, task, category, submissionByKey);
     },
-    [tasks, projects, submissionByKey]
+    [tasks, projects, categories, submissionByKey]
   );
 
   const handleDeleteLog = async (logId: string) => {

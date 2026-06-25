@@ -1,15 +1,18 @@
 import type { TimeLogDto } from "@kloqra/contracts";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { fromDateKey, todayInZone, toDateKeyInZone } from "../timesheet/calendar-utils";
 import {
   buildWeekDayTabs,
   buildWeekGroupsForRange,
+  defaultActiveDayKey,
   formatDayTabLabel,
   formatHoursCompact,
   formatHoursDecimal,
   formatWeekSectionLabel,
   formatWeekTotals,
   groupLogsByDay,
-  groupLogsByWeek
+  groupLogsByWeek,
+  type DayLogGroup
 } from "./group-logs-by-week";
 
 function log(
@@ -87,6 +90,55 @@ describe("buildWeekGroupsForRange", () => {
     expect(groups).toHaveLength(2);
     expect(groups[0]?.logs.map((entry) => entry.id)).toEqual(["a"]);
     expect(groups[1]?.logs).toEqual([]);
+  });
+});
+
+describe("defaultActiveDayKey", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function day(dayKey: string, logs: TimeLogDto[] = []): DayLogGroup {
+    const dayDate = fromDateKey(dayKey);
+    return {
+      day: dayDate,
+      dayKey,
+      dayLabel: formatDayTabLabel(dayDate, "UTC"),
+      dateLabel: dayKey,
+      logs,
+      totalSec: logs.reduce((sum, entry) => sum + entry.durationSec, 0)
+    };
+  }
+
+  it("selects today when it is in the week", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-25T15:00:00.000Z"));
+    const todayKey = toDateKeyInZone(todayInZone("UTC"), "UTC");
+
+    const days = [
+      day("2026-06-22"),
+      day("2026-06-23"),
+      day("2026-06-24"),
+      day(todayKey, [log({ startTime: "2026-06-25T10:00:00.000Z", durationSec: 1800 })]),
+      day("2026-06-26"),
+      day("2026-06-27"),
+      day("2026-06-28")
+    ];
+
+    expect(defaultActiveDayKey(days, "UTC")).toBe(todayKey);
+  });
+
+  it("falls back to the last day with entries when today is outside the week", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-25T12:00:00.000Z"));
+
+    const days = [
+      day("2026-06-01", [log({ startTime: "2026-06-01T10:00:00.000Z", durationSec: 3600 })]),
+      day("2026-06-02"),
+      day("2026-06-03", [log({ startTime: "2026-06-03T10:00:00.000Z", durationSec: 1800 })])
+    ];
+
+    expect(defaultActiveDayKey(days, "UTC")).toBe("2026-06-03");
   });
 });
 

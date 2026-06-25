@@ -7,6 +7,7 @@ import {
   AppBar,
   AppBarListToolbar,
   appBarListFilterTriggerClass,
+  Badge,
   Button,
   DataTableCard,
   DataTableCell,
@@ -177,7 +178,7 @@ export function ProjectsListPage() {
 
       <DataTableCard>
         {loading ? (
-          <TableLoadingState rows={6} columns={4} />
+          <TableLoadingState rows={6} columns={5} />
         ) : projects.length === 0 ? (
           <div className="p-6">
             <EmptyState
@@ -207,6 +208,7 @@ export function ProjectsListPage() {
                 <DataTableHeaderRow>
                   <DataTableHead>Project Name</DataTableHead>
                   <DataTableHead>Client Name</DataTableHead>
+                  <DataTableHead>Active</DataTableHead>
                   <DataTableHead className="text-right">Total Time Tracked</DataTableHead>
                   <DataTableHead className="w-10" />
                 </DataTableHeaderRow>
@@ -234,6 +236,11 @@ export function ProjectsListPage() {
                       </DataTableCell>
                       <DataTableCell className="text-muted-foreground">
                         {p.clientName ?? "—"}
+                      </DataTableCell>
+                      <DataTableCell>
+                        <Badge variant={p.isActive ? "default" : "secondary"}>
+                          {p.isActive ? "Active" : "Inactive"}
+                        </Badge>
                       </DataTableCell>
                       <DataTableCell className="text-right tabular-nums text-muted-foreground">
                         {formatTotalTracked(p.totalTrackedSec)}

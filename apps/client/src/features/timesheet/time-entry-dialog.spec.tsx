@@ -5,6 +5,25 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { TimeEntryDialog } from "./time-entry-dialog";
 import type { TimeEntryDraft } from "./time-entry-draft";
 
+vi.hoisted(() => {
+  Object.defineProperty(globalThis, "localStorage", {
+    value: {
+      getItem: vi.fn(),
+      setItem: vi.fn(),
+      removeItem: vi.fn()
+    },
+    writable: true
+  });
+});
+
+vi.mock("@/lib/api", () => ({
+  api: vi.fn().mockResolvedValue({ items: [] })
+}));
+
+vi.mock("@/hooks/use-live-entry-catalog", () => ({
+  useLiveEntryCatalog: vi.fn()
+}));
+
 const draft: TimeEntryDraft = {
   date: "2026-06-09",
   projectId: "proj-1",

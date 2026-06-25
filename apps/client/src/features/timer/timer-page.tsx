@@ -3,8 +3,7 @@
 import { BRAND_NAME, ROUTES, resolveEffectiveTimezone } from "@kloqra/contracts";
 import type {
   ActiveTimerDto,
-  TaskDto,
-  ProjectDto,
+  CategoryDto,
   ListTimeLogsResponseDto,
   AutoStoppedTimerDto
 } from "@kloqra/contracts";
@@ -22,13 +21,7 @@ import {
   SearchableSelect,
   EmptyState
 } from "@kloqra/ui";
-import {
-  fetchListItems,
-  useRefetchOnWindowFocus,
-  useUserProfile,
-  todayInZone,
-  localMidnightUtcInZone
-} from "@kloqra/web-shared";
+import { useUserProfile, todayInZone, localMidnightUtcInZone } from "@kloqra/web-shared";
 import { Play, Pause, Square } from "lucide-react";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { toast } from "sonner";
@@ -38,7 +31,9 @@ import { resolveTimerStartErrorMessage } from "./timer-start-error";
 import { JiraIssuePicker } from "@/components/jira-issue-picker";
 import { useIsImpersonating } from "@/hooks/use-is-impersonating";
 import { useJiraIssues } from "@/hooks/use-jira-issues";
+import { useLiveEntryCatalog } from "@/hooks/use-live-entry-catalog";
 import { api } from "@/lib/api";
+import { filterLoggingProjects, filterLoggingTasks } from "@/lib/logging-catalog-filters";
 import { formatProjectLabel, formatTaskLabel } from "@/lib/project-labels";
 import { useProjectsStore } from "@/stores/projects.store";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
@@ -142,7 +137,7 @@ function TimerRing({
 export function TimerPage() {
   const session = useSessionStore((s) => s.session);
   const { active, elapsedSec, isPaused, setActive, tick } = useTimerStore();
-  const { tasks, projects, workspaceNamesById, setTasks, setProjects } = useProjectsStore();
+  const { tasks, projects, workspaceNamesById } = useProjectsStore();
   const ws = session?.workspaceId ?? getWorkspaceId() ?? "";
   const { profile } = useUserProfile();
   const timezone = useMemo(() => {
@@ -160,8 +155,11 @@ export function TimerPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [todayLogs, setTodayLogs] = useState<any[]>([]);
+  const [categories, setCategories] = useState<CategoryDto[]>([]);
   const [jiraConnected, setJiraConnected] = useState(false);
   const { issues: jiraIssues } = useJiraIssues(jiraConnected);
+
+  useLiveEntryCatalog(ws, setCategories, { pollIntervalMs: 30_000 });
 
   // Stale Warning Dialog state
   const [showStaleDialog, setShowStaleDialog] = useState(false);
@@ -227,44 +225,40 @@ export function TimerPage() {
 
   useEffect(() => {
     if (!ws) return;
-    void Promise.all([
-      fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects),
-      fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws }).then(setTasks),
-      fetchActiveTimer(),
-      fetchTodayLogs()
-    ]);
-  }, [ws, setProjects, setTasks, fetchActiveTimer, fetchTodayLogs]);
+    void Promise.all([fetchActiveTimer(), fetchTodayLogs()]);
+  }, [ws, fetchActiveTimer, fetchTodayLogs]);
 
-  const reloadCatalog = useCallback(() => {
-    if (!ws) return;
-    void Promise.all([
-      fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws, bypassCache: true }).then(
-        setProjects
-      ),
-      fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws, bypassCache: true }).then(
-        setTasks
-      )
-    ]);
-  }, [ws, setProjects, setTasks]);
-
-  useRefetchOnWindowFocus(reloadCatalog, Boolean(ws));
-
-  // Handle active status ticks
   useEffect(() => {
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, [tick]);
 
-  // Handle background polling of active timer state (every 30s)
   useEffect(() => {
     if (!ws) return;
-    const intervalId = setInterval(fetchActiveTimer, 30000);
+    const intervalId = setInterval(fetchActiveTimer, 30_000);
     return () => clearInterval(intervalId);
   }, [ws, fetchActiveTimer]);
 
+  const selectableProjects = useMemo(() => filterLoggingProjects(projects), [projects]);
+  const selectableTasks = useMemo(
+    () => filterLoggingTasks(tasks, projects, categories),
+    [tasks, projects, categories]
+  );
+
+  useEffect(() => {
+    if (projectId && !selectableProjects.some((p) => p.id === projectId)) {
+      setProjectId("");
+      setTaskChoice("");
+      return;
+    }
+    if (taskChoice && !selectableTasks.some((t) => t.id === taskChoice)) {
+      setTaskChoice("");
+    }
+  }, [selectableProjects, selectableTasks, projectId, taskChoice]);
+
   const projectTasks = useMemo(
-    () => tasks.filter((t) => t.projectId === projectId),
-    [tasks, projectId]
+    () => selectableTasks.filter((t) => t.projectId === projectId),
+    [selectableTasks, projectId]
   );
 
   const projectTasksByCategory = useMemo(() => {
@@ -613,7 +607,7 @@ export function TimerPage() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {projects.length === 0 ? (
+                    {selectableProjects.length === 0 ? (
                       <EmptyState
                         title="No projects assigned"
                         description="You are not on any projects yet. Ask your admin to add you to a project."
@@ -625,7 +619,7 @@ export function TimerPage() {
                           <SearchableSelect
                             value={projectId}
                             onValueChange={onProjectChange}
-                            options={projects.map((p) => ({
+                            options={selectableProjects.map((p) => ({
                               value: p.id,
                               label: formatProjectLabel(p, workspaceNamesById)
                             }))}
@@ -635,7 +629,8 @@ export function TimerPage() {
                               <span className="flex items-center gap-2">
                                 <ProjectColorDot
                                   color={
-                                    projects.find((p) => p.id === option.value)?.color ?? "#236bfe"
+                                    selectableProjects.find((p) => p.id === option.value)?.color ??
+                                    "#236bfe"
                                   }
                                 />
                                 {option.label}
@@ -646,8 +641,8 @@ export function TimerPage() {
                                 <span className="flex items-center gap-2">
                                   <ProjectColorDot
                                     color={
-                                      projects.find((p) => p.id === option.value)?.color ??
-                                      "#236bfe"
+                                      selectableProjects.find((p) => p.id === option.value)
+                                        ?.color ?? "#236bfe"
                                     }
                                   />
                                   {option.label}

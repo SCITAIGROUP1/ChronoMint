@@ -467,7 +467,7 @@ describe("contracts", () => {
   });
 
   it("allows partial category update", () => {
-    const r = updateCategorySchema.safeParse({ description: null });
+    const r = updateCategorySchema.safeParse({ description: null, isActive: false });
     expect(r.success).toBe(true);
   });
 
@@ -497,6 +497,7 @@ describe("contracts", () => {
       taskName: "Implement feature",
       billableDefault: true,
       isCommon: true,
+      isActive: true,
       assignees: [{ userId: UUID, userName: "Sam" }]
     });
     expect(r.success).toBe(true);

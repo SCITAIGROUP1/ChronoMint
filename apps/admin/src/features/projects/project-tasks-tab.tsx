@@ -4,7 +4,13 @@ import { useProjectDetail } from "./project-detail-context";
 import { ProjectTasksPanel } from "./project-tasks-panel";
 
 export function ProjectTasksTab() {
-  const { workspaceId, projectId } = useProjectDetail();
+  const { workspaceId, projectId, project } = useProjectDetail();
 
-  return <ProjectTasksPanel workspaceId={workspaceId} projectId={projectId} />;
+  return (
+    <ProjectTasksPanel
+      workspaceId={workspaceId}
+      projectId={projectId}
+      projectIsActive={project?.isActive ?? true}
+    />
+  );
 }

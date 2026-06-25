@@ -81,6 +81,8 @@ Controller: [timelogs.controller.ts](../../apps/api/src/modules/timelogs/interfa
 
 ### Per-project approval locks
 
+See also [entity-lifecycle.md](./entity-lifecycle.md) for inactive project/category/task read-only rules.
+
 **Given** a project with `timesheetApprovalEnabled: true`  
 **When** the member’s period for that project is `SUBMITTED` or `APPROVED`  
 **Then** create/update/delete on entries in that project and period returns `TIMELOG_NOT_EDITABLE` for **all roles** (including admins).

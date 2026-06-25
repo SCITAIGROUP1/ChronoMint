@@ -1,7 +1,14 @@
-import type { ProjectDto, TimeLogDto, TimesheetPeriodDto } from "@kloqra/contracts";
+import type {
+  CategoryDto,
+  ProjectDto,
+  TaskDto,
+  TimeLogDto,
+  TimesheetPeriodDto
+} from "@kloqra/contracts";
 import { describe, expect, it } from "vitest";
 import {
   isTimeEntryLocked,
+  isTimeEntryReadOnly,
   resolveEntryApprovalStatus,
   buildSubmissionByKey
 } from "./entry-approval-status";
@@ -45,6 +52,45 @@ const submittedPeriod: TimesheetPeriodDto = {
   reviewedAt: null,
   submittedAt: "2026-06-10T00:00:00.000Z"
 };
+
+const task: TaskDto = {
+  id: "task-1",
+  projectId: "proj-1",
+  categoryId: "cat-1",
+  taskName: "Code review",
+  billableDefault: true,
+  isCommon: true,
+  isActive: true,
+  assignees: []
+};
+
+const category: CategoryDto = {
+  id: "cat-1",
+  workspaceId: "ws-1",
+  name: "Development",
+  description: null,
+  isActive: true
+};
+
+describe("isTimeEntryReadOnly", () => {
+  it("returns true when the project is inactive", () => {
+    expect(
+      isTimeEntryReadOnly(log, { ...project, isActive: false }, task, category, new Map())
+    ).toBe(true);
+  });
+
+  it("returns true when the task is inactive", () => {
+    expect(
+      isTimeEntryReadOnly(log, project, { ...task, isActive: false }, category, new Map())
+    ).toBe(true);
+  });
+
+  it("returns true when the category is inactive", () => {
+    expect(
+      isTimeEntryReadOnly(log, project, task, { ...category, isActive: false }, new Map())
+    ).toBe(true);
+  });
+});
 
 describe("isTimeEntryLocked", () => {
   it("returns true when the entry falls in a submitted period", () => {

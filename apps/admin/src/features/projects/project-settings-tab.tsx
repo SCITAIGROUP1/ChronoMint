@@ -3,10 +3,13 @@
 import { PROJECT_COLORS, DEFAULT_PROJECT_COLOR, ROUTES } from "@kloqra/contracts";
 import type { ProjectDto } from "@kloqra/contracts";
 import {
+  Badge,
   Button,
+  ConfirmDialog,
   Input,
   Label,
   ProjectColorEditor,
+  SegmentedControl,
   Select,
   SelectContent,
   SelectItem,
@@ -17,6 +20,7 @@ import { SettingsCard, SettingsSaveBar, extractFieldErrorsFromMessage } from "@k
 import { Palette, Save, Settings2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { getProjectConfirmCopy, type ProjectConfirmAction } from "./project-confirmation";
 import { useProjectDetail } from "./project-detail-context";
 import { api } from "@/lib/api";
 
@@ -54,6 +58,11 @@ export function ProjectSettingsTab() {
   const [fieldErrors, setFieldErrors] = useState<{ name?: string }>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [statusConfirm, setStatusConfirm] = useState<ProjectConfirmAction | null>(null);
+
+  const statusConfirmCopy = statusConfirm
+    ? getProjectConfirmCopy(statusConfirm, { name: editName.trim() || project?.name || "Project" })
+    : null;
 
   useEffect(() => {
     if (!project) return;
@@ -112,6 +121,17 @@ export function ProjectSettingsTab() {
     }
   }
 
+  function requestStatusChange(nextActive: boolean) {
+    if (nextActive === editIsActive) return;
+    setStatusConfirm(nextActive ? "activate" : "deactivate");
+  }
+
+  function handleConfirmStatusChange() {
+    if (!statusConfirm) return;
+    setEditIsActive(statusConfirm === "activate");
+    setStatusConfirm(null);
+  }
+
   return (
     <form onSubmit={(e) => void handleSave(e)} className="space-y-6">
       <SettingsCard
@@ -148,15 +168,32 @@ export function ProjectSettingsTab() {
             </div>
           </div>
 
-          <label className="flex cursor-pointer items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              className="size-4 rounded border border-input accent-primary"
-              checked={editIsActive}
-              onChange={(e) => setEditIsActive(e.target.checked)}
-            />
-            <span>Project is active (inactive projects are hidden from members)</span>
-          </label>
+          <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-medium">Project status</p>
+                  <Badge variant={editIsActive ? "default" : "secondary"}>
+                    {editIsActive ? "Active" : "Inactive"}
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Inactive projects are hidden from time logging and all time entries are frozen.
+                </p>
+              </div>
+              <fieldset className="shrink-0 border-0 p-0">
+                <legend className="sr-only">Project status</legend>
+                <SegmentedControl
+                  value={editIsActive ? "active" : "inactive"}
+                  onChange={(value) => requestStatusChange(value === "active")}
+                  options={[
+                    { value: "active", label: "Active" },
+                    { value: "inactive", label: "Inactive" }
+                  ]}
+                />
+              </fieldset>
+            </div>
+          </div>
 
           <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-4">
             <p className="text-sm font-medium">Timesheet approval</p>
@@ -215,6 +252,16 @@ export function ProjectSettingsTab() {
           {saving ? "Saving…" : "Save Changes"}
         </Button>
       </SettingsSaveBar>
+
+      <ConfirmDialog
+        open={statusConfirm !== null}
+        title={statusConfirmCopy?.title ?? ""}
+        description={statusConfirmCopy?.description}
+        confirmLabel={statusConfirmCopy?.confirmLabel}
+        destructive={statusConfirmCopy?.destructive}
+        onConfirm={handleConfirmStatusChange}
+        onCancel={() => setStatusConfirm(null)}
+      />
     </form>
   );
 }

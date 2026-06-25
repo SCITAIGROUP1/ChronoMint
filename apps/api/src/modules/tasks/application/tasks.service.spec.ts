@@ -92,6 +92,8 @@ describe("TasksService", () => {
           categoryId: "c1",
           taskName: "Frontend",
           billableDefault: true,
+          isCommon: true,
+          isActive: true,
           category: { name: "Software Development" },
           assignees: []
         }
@@ -106,6 +108,8 @@ describe("TasksService", () => {
             categoryName: "Software Development",
             taskName: "Frontend",
             billableDefault: true,
+            isCommon: true,
+            isActive: true,
             assignees: []
           }
         ],
@@ -126,6 +130,8 @@ describe("TasksService", () => {
           categoryId: "c1",
           taskName: "Frontend",
           billableDefault: false,
+          isCommon: true,
+          isActive: true,
           category: { name: "Software Development" },
           assignees: [{ userId: "u1", user: { name: "Sam" } }]
         }
@@ -137,7 +143,9 @@ describe("TasksService", () => {
         categoryId: "c1",
         categoryName: "Software Development",
         taskName: "Frontend",
-        billableDefault: false
+        billableDefault: false,
+        isCommon: true,
+        isActive: true
       });
     });
 
@@ -151,6 +159,8 @@ describe("TasksService", () => {
           categoryId: "c1",
           taskName: "Frontend",
           billableDefault: true,
+          isCommon: true,
+          isActive: true,
           category: { name: "Software Development" },
           assignees: [{ userId: "u1", user: { name: "Sam" } }]
         }
@@ -167,6 +177,8 @@ describe("TasksService", () => {
         categoryName: "Software Development",
         taskName: "Frontend",
         billableDefault: true,
+        isCommon: true,
+        isActive: true,
         assignees: [{ userId: "u1", userName: "Sam" }]
       });
     });
@@ -179,6 +191,24 @@ describe("TasksService", () => {
       expect(prisma.task.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { projectId: { in: ["p1"] }, categoryId: "c1" }
+        })
+      );
+    });
+
+    it("applies loggableOnly filter for active project, category, and task", async () => {
+      access.accessibleProjectIds.mockResolvedValue(["p1"]);
+      prisma.task.count.mockResolvedValue(0);
+      prisma.task.findMany.mockResolvedValue([]);
+      await service.list("w1", "u1", "MEMBER", { page: 1, limit: 20, loggableOnly: true });
+      expect(prisma.task.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            projectId: { in: ["p1"] },
+            isActive: true,
+            category: { isActive: true },
+            project: { isActive: true },
+            OR: [{ isCommon: true }, { assignees: { some: { userId: "u1" } } }]
+          }
         })
       );
     });
@@ -222,7 +252,7 @@ describe("TasksService", () => {
         name: "Website",
         workspaceId: "w1"
       });
-      prisma.category.findFirst.mockResolvedValue({ id: "c1" });
+      prisma.category.findFirst.mockResolvedValue({ id: "c1", isActive: true });
       prisma.teamMember.findMany.mockResolvedValue([{ userId: "u1" }]);
       prisma.$transaction.mockImplementation(async (fn: (tx: typeof prisma) => Promise<unknown>) =>
         fn(prisma as any)
@@ -264,7 +294,7 @@ describe("TasksService", () => {
         name: "Website",
         workspaceId: "w1"
       });
-      prisma.category.findFirst.mockResolvedValue({ id: "c1" });
+      prisma.category.findFirst.mockResolvedValue({ id: "c1", isActive: true });
       prisma.teamMember.findMany.mockResolvedValue([{ userId: "u1" }]);
       prisma.$transaction.mockImplementation(async (fn: (tx: typeof prisma) => Promise<unknown>) =>
         fn(prisma as any)
@@ -313,7 +343,7 @@ describe("TasksService", () => {
         name: "Website",
         workspaceId: "w1"
       });
-      prisma.category.findFirst.mockResolvedValue({ id: "c1" });
+      prisma.category.findFirst.mockResolvedValue({ id: "c1", isActive: true });
       prisma.teamMember.findMany.mockResolvedValue([{ userId: "u1" }]);
       prisma.$transaction.mockImplementation(async (fn: (tx: typeof prisma) => Promise<unknown>) =>
         fn(prisma as any)

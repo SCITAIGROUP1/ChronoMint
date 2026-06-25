@@ -4,6 +4,7 @@ import {
   formatDuration,
   fromDateKey,
   startOfWeekWithPreference,
+  todayInZone,
   toDateKey,
   toDateKeyInZone
 } from "../timesheet/calendar-utils";
@@ -97,11 +98,19 @@ export function formatDayTabDateLabel(day: Date, timezone: string): string {
   }).format(day);
 }
 
-export function defaultActiveDayKey(days: DayLogGroup[]): string {
+export function defaultActiveDayKey(days: DayLogGroup[], timezone: string): string {
+  if (days.length === 0) return "";
+
+  const todayKey = toDateKeyInZone(todayInZone(timezone), timezone);
+  if (days.some((day) => day.dayKey === todayKey)) {
+    return todayKey;
+  }
+
   const withEntries = days.filter((day) => day.logs.length > 0);
   if (withEntries.length > 0) {
     return withEntries[withEntries.length - 1]!.dayKey;
   }
+
   return days[days.length - 1]?.dayKey ?? "";
 }
 
