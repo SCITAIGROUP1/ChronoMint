@@ -4,19 +4,30 @@ import { reactLayers } from "@kloqra/config-eslint/react";
 
 export default [
   {
-    ignores: [
-      "**/prisma/generated/**",
-      "**/prisma/seed.js",
-      "**/prisma/seed.js.map",
-      "**/seed.js",
-      "**/seed.js.map",
-      "**/prisma/*.js",
-      "**/prisma/*.js.map"
-    ]
+    ignores: ["**/prisma/generated/**/*.map", "**/prisma/*.map"]
   },
   ...base,
   ...nestLayers,
   ...reactLayers,
+  {
+    files: ["**/prisma/**/*.js"],
+    languageOptions: {
+      sourceType: "commonjs",
+      globals: {
+        module: "writable",
+        exports: "writable",
+        require: "readonly",
+        process: "readonly",
+        console: "readonly",
+        __dirname: "readonly",
+        __filename: "readonly"
+      }
+    },
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+      "no-undef": "off"
+    }
+  },
   {
     files: ["scripts/**/*.mjs"],
     languageOptions: {
