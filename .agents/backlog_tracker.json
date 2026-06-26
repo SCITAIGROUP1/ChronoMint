@@ -1,0 +1,151 @@
+{
+  "project": "Kloqra",
+  "last_updated": "2026-06-26",
+  "overall_status": "project_initiation",
+  "active_sprint": 1,
+  "releases": [
+    {
+      "version": "0.1.0",
+      "status": "planning",
+      "release_date": "2026-07-10"
+    }
+  ],
+  "modules": [
+    {
+      "module_name": "Phase 1: Project Foundation & Tooling",
+      "status": "not_started",
+      "epics": [
+        {
+          "epic_id": "EPIC-001",
+          "name": "Monorepo Scaffolding & Dev Environment",
+          "description": "Establish the PNPM monorepo structure, ESLint/Prettier rules, Husky git hooks, Docker Compose, and CI/CD stubs.",
+          "status": "planned",
+          "stories": [
+            {
+              "story_id": "STORY-001.1",
+              "name": "Monorepo Workspace Scaffolding",
+              "description": "Initialize monorepo structure with apps (api, client, admin) and packages (config, shared UI, contracts).",
+              "status": "in_review",
+              "priority": "Must Have",
+              "story_points": 5,
+              "sprint": 1,
+              "assignee": "LeadDeveloper",
+              "depends_on": [],
+              "jira_ticket": "",
+              "github_issue": "PVTI_lADOEUQ_7s4BbvlGzgw8xAY",
+              "status_history": [
+                {
+                  "status": "backlog",
+                  "updated_at": "2026-06-26T18:00:00Z"
+                },
+                {
+                  "status": "in_sprint",
+                  "updated_at": "2026-06-26T13:29:07Z"
+                },
+                {
+                  "status": "ticket_written",
+                  "updated_at": "2026-06-26T13:31:00Z"
+                },
+                {
+                  "status": "ticket_written",
+                  "updated_at": "2026-06-26T13:33:51.304Z"
+                },
+                {
+                  "status": "in_progress",
+                  "updated_at": "2026-06-26T19:06:55+05:30"
+                },
+                {
+                  "status": "in_review",
+                  "updated_at": "2026-06-26T19:46:00+05:30"
+                }
+              ]
+            },
+            {
+              "story_id": "STORY-001.2",
+              "name": "Husky & Pre-commit Quality Gates",
+              "description": "Configure Husky, commitlint, and lint-staged to run formatting and lint checks on commit.",
+              "status": "in_review",
+              "priority": "Should Have",
+              "story_points": 3,
+              "sprint": 1,
+              "assignee": "LeadDeveloper",
+              "depends_on": [
+                "STORY-001.1"
+              ],
+              "jira_ticket": "",
+              "github_issue": "PVTI_lADOEUQ_7s4BbvlGzgw8xA8",
+              "status_history": [
+                {
+                  "status": "backlog",
+                  "updated_at": "2026-06-26T18:00:00Z"
+                },
+                {
+                  "status": "in_sprint",
+                  "updated_at": "2026-06-26T13:29:07Z"
+                },
+                {
+                  "status": "ticket_written",
+                  "updated_at": "2026-06-26T13:31:00Z"
+                },
+                {
+                  "status": "ticket_written",
+                  "updated_at": "2026-06-26T13:33:51.304Z"
+                },
+                {
+                  "status": "in_progress",
+                  "updated_at": "2026-06-26T19:06:55+05:30"
+                },
+                {
+                  "status": "in_review",
+                  "updated_at": "2026-06-26T19:46:00+05:30"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "epic_id": "EPIC-002",
+          "name": "Core Database & Terminology Schema",
+          "description": "Initialize Prisma, design core schema (User, Session, Workspaces), and set up the local DB Docker container.",
+          "status": "planned",
+          "stories": [
+            {
+              "story_id": "STORY-002.1",
+              "name": "Database Scaffolding & Prisma Migration",
+              "description": "Set up PostgreSQL Docker service, initialize Prisma ORM, and create initial migrations for core schemas.",
+              "status": "backlog",
+              "priority": "Must Have",
+              "story_points": 5,
+              "sprint": 1,
+              "assignee": "LeadDeveloper",
+              "depends_on": [
+                "STORY-001.1"
+              ],
+              "jira_ticket": "",
+              "github_issue": "",
+              "status_history": [
+                {
+                  "status": "backlog",
+                  "updated_at": "2026-06-26T18:00:00Z"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "module_name": "Phase 2: Core Authentication & Routing",
+      "status": "not_started",
+      "epics": [
+        {
+          "epic_id": "EPIC-003",
+          "name": "Authentication & Security Gateway",
+          "description": "Build user registration, password hashing, JWT token issue/refresh mechanism, and HTTP Route Guards.",
+          "status": "planned",
+          "stories": []
+        }
+      ]
+    }
+  ]
+}
