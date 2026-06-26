@@ -1,5 +1,6 @@
 import { TicketDetailPage } from "@/features/helpdesk/ticket-detail/ticket-detail-page";
 
-export default function TicketRoute({ params }: { params: { ticketId: string } }) {
-  return <TicketDetailPage ticketId={params.ticketId} />;
+export default async function TicketRoute({ params }: { params: Promise<{ ticketId: string }> }) {
+  const { ticketId } = await params;
+  return <TicketDetailPage ticketId={ticketId} />;
 }
