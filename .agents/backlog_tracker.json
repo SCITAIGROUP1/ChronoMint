@@ -6,26 +6,26 @@
   "releases": [
     {
       "version": "0.1.0",
-      "status": "planning",
-      "release_date": "2026-07-10"
+      "status": "released",
+      "release_date": "2026-06-26"
     }
   ],
   "modules": [
     {
       "module_name": "Phase 1: Project Foundation & Tooling",
-      "status": "not_started",
+      "status": "in_progress",
       "epics": [
         {
           "epic_id": "EPIC-001",
           "name": "Monorepo Scaffolding & Dev Environment",
           "description": "Establish the PNPM monorepo structure, ESLint/Prettier rules, Husky git hooks, Docker Compose, and CI/CD stubs.",
-          "status": "planned",
+          "status": "completed",
           "stories": [
             {
               "story_id": "STORY-001.1",
               "name": "Monorepo Workspace Scaffolding",
               "description": "Initialize monorepo structure with apps (api, client, admin) and packages (config, shared UI, contracts).",
-              "status": "in_review",
+              "status": "released",
               "priority": "Must Have",
               "story_points": 5,
               "sprint": 1,
@@ -57,6 +57,18 @@
                 {
                   "status": "in_review",
                   "updated_at": "2026-06-26T19:46:00+05:30"
+                },
+                {
+                  "status": "review_approved",
+                  "updated_at": "2026-06-26T19:15:52+05:30"
+                },
+                {
+                  "status": "qa_passed",
+                  "updated_at": "2026-06-26T19:57:00+05:30"
+                },
+                {
+                  "status": "released",
+                  "updated_at": "2026-06-26T19:27:38+05:30"
                 }
               ]
             },
@@ -64,7 +76,7 @@
               "story_id": "STORY-001.2",
               "name": "Husky & Pre-commit Quality Gates",
               "description": "Configure Husky, commitlint, and lint-staged to run formatting and lint checks on commit.",
-              "status": "in_review",
+              "status": "released",
               "priority": "Should Have",
               "story_points": 3,
               "sprint": 1,
@@ -98,6 +110,18 @@
                 {
                   "status": "in_review",
                   "updated_at": "2026-06-26T19:46:00+05:30"
+                },
+                {
+                  "status": "review_approved",
+                  "updated_at": "2026-06-26T19:15:52+05:30"
+                },
+                {
+                  "status": "qa_passed",
+                  "updated_at": "2026-06-26T19:57:00+05:30"
+                },
+                {
+                  "status": "released",
+                  "updated_at": "2026-06-26T19:27:38+05:30"
                 }
               ]
             }
