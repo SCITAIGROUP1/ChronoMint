@@ -1,5 +1,5 @@
-import { StaffListPage } from "@/features/staff/staff-list-page";
 import type { Metadata } from "next";
+import { StaffListPage } from "@/features/staff/staff-list-page";
 
 export const metadata: Metadata = {
   title: "Staff Management | Kloqra Admin",

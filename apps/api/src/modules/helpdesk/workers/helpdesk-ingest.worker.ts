@@ -1,9 +1,9 @@
 import { Processor, WorkerHost } from "@nestjs/bullmq";
+import { Logger } from "@nestjs/common";
 import { Job } from "bullmq";
 import { QUEUES } from "../../../common/queues";
 import { HelpdeskTicketsService } from "../application/helpdesk-tickets.service";
 import { IngestTicketJobPayload } from "./job-payloads";
-import { Logger } from "@nestjs/common";
 // import { HelpdeskGateway } from "../gateway/helpdesk.gateway";
 
 @Processor(QUEUES.HELPDESK_INGEST)
@@ -11,7 +11,7 @@ export class HelpdeskIngestWorker extends WorkerHost {
   private readonly logger = new Logger(HelpdeskIngestWorker.name);
 
   constructor(
-    private readonly ticketsService: HelpdeskTicketsService,
+    private readonly ticketsService: HelpdeskTicketsService
     // private readonly gateway: HelpdeskGateway
   ) {
     super();
@@ -19,10 +19,10 @@ export class HelpdeskIngestWorker extends WorkerHost {
 
   async process(job: Job<IngestTicketJobPayload, any, string>): Promise<any> {
     this.logger.log(`Processing ingest job ${job.id} for subject: ${job.data.subject}`);
-    
+
     try {
       const ticket = await this.ticketsService.createFromIngest(job.data);
-      
+
       // TODO: emit gateway event when gateway is implemented
       // this.gateway.emitTicketCreated(ticket);
 

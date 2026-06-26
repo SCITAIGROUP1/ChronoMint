@@ -1,9 +1,9 @@
 import { Processor, WorkerHost } from "@nestjs/bullmq";
-import { Job } from "bullmq";
-import { QUEUES } from "../../../common/queues";
 import { Logger } from "@nestjs/common";
+import { Job } from "bullmq";
 import { MailerService } from "../../../common/mailer/mailer.service";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { QUEUES } from "../../../common/queues";
 
 export interface ReplyEmailJob {
   ticketId: string;
@@ -29,10 +29,19 @@ export class HelpdeskReplyWorker extends WorkerHost {
 
   async process(job: Job<ReplyEmailJob, any, string>): Promise<any> {
     this.logger.log(`Processing reply job ${job.id} for ticket: ${job.data.ticketId}`);
-    
+
     try {
-      const { ticketId, messageId, toEmail, toName, subject, body, htmlBody, replyToMessageId } = job.data;
-      
+      const {
+        ticketId,
+        messageId,
+        toEmail,
+        toName: _toName,
+        subject,
+        body,
+        htmlBody,
+        replyToMessageId: _replyToMessageId
+      } = job.data;
+
       // TODO: build branded template, send via mailerService
       await this.mailerService.send({
         to: [toEmail],

@@ -1,17 +1,16 @@
-import { Injectable, Logger } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
-import { PrismaService } from "../../../common/prisma/prisma.service";
-import { HelpdeskSlaService } from "./helpdesk-sla.service";
-import { IngestTicketJobPayload } from "../workers/job-payloads";
-import { MessageDirection, TicketType } from "@prisma/client";
 import { InjectQueue } from "@nestjs/bullmq";
+import { Injectable, Logger } from "@nestjs/common";
+import { Prisma, MessageDirection, TicketType } from "@prisma/client";
 import { Queue } from "bullmq";
+import { PrismaService } from "../../../common/prisma/prisma.service";
 import { QUEUES } from "../../../common/queues";
+import { IngestTicketJobPayload } from "../workers/job-payloads";
 import {
   TICKET_TYPE_QUEUE,
   TICKET_TYPE_SLA_MINUTES,
-  resolveTicketPriority,
+  resolveTicketPriority
 } from "./helpdesk-routing";
+import { HelpdeskSlaService } from "./helpdesk-sla.service";
 
 @Injectable()
 export class HelpdeskTicketsService {
@@ -30,19 +29,18 @@ export class HelpdeskTicketsService {
       const ticketType: TicketType = payload.ticketType ?? TicketType.GENERAL;
 
       // 2. Find target queue by type → slug, fall back to suggestedQueueSlug, then first queue
-      const preferredSlug =
-        payload.suggestedQueueSlug ?? TICKET_TYPE_QUEUE[ticketType];
+      const preferredSlug = payload.suggestedQueueSlug ?? TICKET_TYPE_QUEUE[ticketType];
 
       let queue = null;
       if (preferredSlug) {
         queue = await tx.helpDeskQueue.findUnique({
-          where: { slug: preferredSlug },
+          where: { slug: preferredSlug }
         });
       }
       // Fallback: first available queue
       if (!queue) {
         queue = await tx.helpDeskQueue.findFirst({
-          orderBy: { sortOrder: "asc" },
+          orderBy: { sortOrder: "asc" }
         });
       }
       if (!queue) {
@@ -59,7 +57,7 @@ export class HelpdeskTicketsService {
       // 4. Auto-assign (least-loaded agent in that queue)
       const agents = await tx.helpDeskAgent.findMany({
         where: { queueId: queue.id, isActive: true },
-        select: { platformUserId: true },
+        select: { platformUserId: true }
       });
       let assignedToId: string | null = null;
       if (agents.length > 0) {
@@ -67,15 +65,13 @@ export class HelpdeskTicketsService {
           by: ["assignedToId"],
           where: {
             assignedToId: { in: agents.map((a) => a.platformUserId) },
-            status: { in: ["OPEN", "IN_PROGRESS"] },
+            status: { in: ["OPEN", "IN_PROGRESS"] }
           },
-          _count: { id: true },
+          _count: { id: true }
         });
         let minCount = Infinity;
         for (const agent of agents) {
-          const stat = agentStats.find(
-            (s) => s.assignedToId === agent.platformUserId
-          );
+          const stat = agentStats.find((s) => s.assignedToId === agent.platformUserId);
           const count = stat ? stat._count.id : 0;
           if (count < minCount) {
             minCount = count;
@@ -90,9 +86,7 @@ export class HelpdeskTicketsService {
       const queuePolicy = queue.slaPolicy as any;
 
       const firstResponseMinutes =
-        typeSla?.firstResponseMinutes ??
-        queuePolicy?.firstResponseMinutes ??
-        null;
+        typeSla?.firstResponseMinutes ?? queuePolicy?.firstResponseMinutes ?? null;
       const resolutionMinutes =
         typeSla?.resolutionMinutes ?? queuePolicy?.resolutionMinutes ?? null;
 
@@ -115,9 +109,7 @@ export class HelpdeskTicketsService {
           ticketType,
           priority,
           tenantId: payload.tenantId ?? null,
-          metadata: payload.metadata
-            ? (payload.metadata as Prisma.InputJsonValue)
-            : undefined,
+          metadata: payload.metadata ? (payload.metadata as Prisma.InputJsonValue) : undefined,
           firstResponseDue,
           resolutionDue,
           messages: {
@@ -128,8 +120,8 @@ export class HelpdeskTicketsService {
               body: payload.body,
               htmlBody: payload.htmlBody,
               emailMessageId: payload.emailMessageId,
-              attachments: payload.attachments || [],
-            },
+              attachments: payload.attachments || []
+            }
           },
           history: {
             create: {
@@ -140,11 +132,11 @@ export class HelpdeskTicketsService {
                 ticketType,
                 priority,
                 queueId: queue.id,
-                queueSlug: queue.slug,
-              },
-            },
-          },
-        },
+                queueSlug: queue.slug
+              }
+            }
+          }
+        }
       });
 
       // 7. Enqueue SLA delayed jobs
@@ -175,8 +167,8 @@ export class HelpdeskTicketsService {
             ticketNumber: ticket.ticketNumber,
             subject: ticket.subject,
             ticketType,
-            priority,
-          },
+            priority
+          }
         });
       }
 

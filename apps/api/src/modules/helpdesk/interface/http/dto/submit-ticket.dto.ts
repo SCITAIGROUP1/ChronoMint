@@ -1,6 +1,6 @@
-import { IsEmail, IsEnum, IsNotEmpty, IsObject, IsOptional, IsString } from "class-validator";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { TicketType } from "@prisma/client";
+import { IsEmail, IsEnum, IsNotEmpty, IsObject, IsOptional, IsString } from "class-validator";
 
 export class SubmitTicketDto {
   @ApiProperty({ enum: TicketType, description: "Type of support request" })

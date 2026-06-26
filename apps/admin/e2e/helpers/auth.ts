@@ -4,11 +4,15 @@ const ADMIN_EMAIL = "admin@kloqra.dev";
 const ADMIN_PASSWORD = "password123";
 const ACME_WORKSPACE_ADMIN_EMAIL = "acme-admin@kloqra.dev";
 
-async function completePostLoginSelection(page: Page, workspaceName = "Acme Corporation") {
+export async function completePostLoginSelection(page: Page, workspaceName = "Acme Corporation") {
+  // Wait a bit to see which page it lands on
+  await page.waitForURL(/.*(select-context|select-workspace|dashboard|account)/, {
+    timeout: 30_000
+  });
+
   if (page.url().includes("select-context")) {
     await page.getByRole("button", { name: new RegExp(workspaceName, "i") }).click();
-    await page.waitForURL(/.*(dashboard|account)/, { timeout: 30_000 });
-    return;
+    await page.waitForURL(/.*(select-workspace|dashboard|account)/, { timeout: 30_000 });
   }
 
   if (page.url().includes("select-workspace")) {

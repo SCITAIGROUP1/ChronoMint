@@ -1,8 +1,8 @@
 import { Processor, WorkerHost } from "@nestjs/bullmq";
-import { Job } from "bullmq";
-import { QUEUES } from "../../../common/queues";
 import { Logger } from "@nestjs/common";
+import { Job } from "bullmq";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { QUEUES } from "../../../common/queues";
 
 export interface SlaCheckJob {
   ticketId: string;
@@ -19,24 +19,24 @@ export class HelpdeskSlaWorker extends WorkerHost {
 
   async process(job: Job<SlaCheckJob, any, string>): Promise<any> {
     this.logger.log(`Processing SLA job ${job.id} for ticket: ${job.data.ticketId}`);
-    
+
     try {
       const { ticketId, checkType } = job.data;
-      
+
       const ticket = await this.prisma.helpDeskTicket.findUnique({
         where: { id: ticketId }
       });
 
       if (!ticket) return;
-      if (ticket.status === 'RESOLVED' || ticket.status === 'CLOSED') {
+      if (ticket.status === "RESOLVED" || ticket.status === "CLOSED") {
         this.logger.log(`Ticket ${ticketId} is already resolved/closed. Ignoring SLA check.`);
         return;
       }
 
       let breached = false;
-      if (checkType === 'first_response' && !ticket.firstResponseAt) {
+      if (checkType === "first_response" && !ticket.firstResponseAt) {
         breached = true;
-      } else if (checkType === 'resolution' && !ticket.resolvedAt) {
+      } else if (checkType === "resolution" && !ticket.resolvedAt) {
         breached = true;
       }
 
@@ -49,8 +49,8 @@ export class HelpdeskSlaWorker extends WorkerHost {
           this.prisma.helpDeskTicketHistory.create({
             data: {
               ticketId,
-              actorName: 'System (SLA)',
-              action: `sla_breached_${checkType}`,
+              actorName: "System (SLA)",
+              action: `sla_breached_${checkType}`
             }
           })
         ]);

@@ -26,10 +26,10 @@ import { PlatformNotificationsController } from "./interface/http/platform-notif
 import { PlatformOpsController } from "./interface/http/platform-ops.controller";
 import { PlatformPlansController } from "./interface/http/platform-plans.controller";
 import { PlatformSalesInquiriesController } from "./interface/http/platform-sales-inquiries.controller";
+import { PlatformStaffController } from "./interface/http/platform-staff.controller";
 import { PlatformSubscriptionsController } from "./interface/http/platform-subscriptions.controller";
 import { PlatformTenantsController } from "./interface/http/platform-tenants.controller";
 import { PlatformUsersController } from "./interface/http/platform-users.controller";
-import { PlatformStaffController } from "./interface/http/platform-staff.controller";
 import { PlatformAuditModule } from "./platform-audit.module";
 
 @Module({

@@ -122,6 +122,30 @@ test("manage subscription button is disabled without stripe customer", async ({ 
 
 test("contact sales opens dialog and submits inquiry", async ({ page }) => {
   let submitted = false;
+
+  await page.route("**/tenants/current/subscription", async (route) => {
+    if (route.request().method() === "GET") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          tenantId: "00000000-0000-4000-8000-000000000099",
+          planId: "00000000-0000-4000-8000-000000000002",
+          planName: "Starter",
+          status: "active",
+          trialEndsAt: null,
+          currentPeriodEnd: null,
+          limits: { maxWorkspaces: 3, maxSeats: 10, maxReportingApiKeys: 5 },
+          stripeCustomerId: null,
+          billingAlert: null,
+          billingMode: "stripe"
+        })
+      });
+      return;
+    }
+    await route.continue();
+  });
+
   await page.route("**/tenants/current/subscription/sales-inquiry**", async (route) => {
     const method = route.request().method();
     if (method === "GET") {

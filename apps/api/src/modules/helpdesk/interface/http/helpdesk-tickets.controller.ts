@@ -1,11 +1,11 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from "@nestjs/common";
-import { PrismaService } from "../../../../common/prisma/prisma.service";
 import { InjectQueue } from "@nestjs/bullmq";
-import { Queue } from "bullmq";
-import { QUEUES } from "../../../../common/queues";
-import { SubmitTicketDto } from "./dto/submit-ticket.dto";
+import { Body, Controller, Get, Param, Patch, Post, Query } from "@nestjs/common";
 import { TicketChannel } from "@prisma/client";
+import { Queue } from "bullmq";
+import { PrismaService } from "../../../../common/prisma/prisma.service";
+import { QUEUES } from "../../../../common/queues";
 import { IngestTicketJobPayload } from "../../workers/job-payloads";
+import { SubmitTicketDto } from "./dto/submit-ticket.dto";
 
 @Controller()
 export class HelpdeskTicketsController {
@@ -24,7 +24,7 @@ export class HelpdeskTicketsController {
       requesterName: dto.requesterName,
       requesterEmail: dto.requesterEmail,
       tenantId: dto.tenantId,
-      metadata: dto.metadata,
+      metadata: dto.metadata
     };
 
     const job = await this.ingestQueue.add("ingest", payload);
@@ -41,7 +41,7 @@ export class HelpdeskTicketsController {
     @Query("limit") limit = "25",
     @Query("search") search?: string,
     @Query("status") status?: string,
-    @Query("channel") channel?: string,
+    @Query("channel") channel?: string
   ) {
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
     const limitNum = Math.max(1, parseInt(limit, 10) || 25);
@@ -52,7 +52,7 @@ export class HelpdeskTicketsController {
     if (search) {
       where.OR = [
         { subject: { contains: search, mode: "insensitive" } },
-        { requesterName: { contains: search, mode: "insensitive" } },
+        { requesterName: { contains: search, mode: "insensitive" } }
       ];
     }
     if (status && status !== "ALL") {
@@ -70,13 +70,13 @@ export class HelpdeskTicketsController {
         take: limitNum,
         include: {
           queue: true,
-          assignedTo: true,
+          assignedTo: true
         }
       }),
-      this.prisma.helpDeskTicket.count({ where }),
+      this.prisma.helpDeskTicket.count({ where })
     ]);
 
-    const data = tickets.map(t => ({
+    const data = tickets.map((t) => ({
       id: t.id,
       ticketNumber: t.ticketNumber,
       subject: t.subject,
@@ -91,11 +91,11 @@ export class HelpdeskTicketsController {
       firstResponseDue: t.firstResponseDue,
       resolutionDue: t.resolutionDue,
       createdAt: t.createdAt,
-      ticketType: t.ticketType,
+      ticketType: t.ticketType
     }));
 
-    return { 
-      data, 
+    return {
+      data,
       total,
       page: pageNum,
       limit: limitNum,
@@ -110,7 +110,7 @@ export class HelpdeskTicketsController {
       include: {
         queue: true,
         assignedTo: true,
-        messages: { orderBy: { createdAt: "asc" } },
+        messages: { orderBy: { createdAt: "asc" } }
       }
     });
     if (!ticket) {
@@ -134,7 +134,7 @@ export class HelpdeskTicketsController {
       createdAt: ticket.createdAt,
       ticketType: ticket.ticketType,
       metadata: ticket.metadata,
-      messages: ticket.messages,
+      messages: ticket.messages
     };
   }
 

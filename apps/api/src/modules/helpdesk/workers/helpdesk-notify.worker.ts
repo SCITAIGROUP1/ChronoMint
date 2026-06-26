@@ -1,8 +1,8 @@
 import { Processor, WorkerHost } from "@nestjs/bullmq";
-import { Job } from "bullmq";
-import { QUEUES } from "../../../common/queues";
 import { Logger } from "@nestjs/common";
+import { Job } from "bullmq";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { QUEUES } from "../../../common/queues";
 import { PlatformNotificationsRealtimeService } from "../../platform/application/platform-notifications-realtime.service";
 
 export interface HelpdeskNotifyJob {
@@ -25,10 +25,10 @@ export class HelpdeskNotifyWorker extends WorkerHost {
 
   async process(job: Job<HelpdeskNotifyJob, any, string>): Promise<any> {
     this.logger.log(`Processing notify job ${job.id} for ticket: ${job.data.ticketId}`);
-    
+
     try {
       const { type, ticketId, recipientPlatformUserIds, metadata } = job.data;
-      
+
       const titleMap = {
         ticket_assigned: "Ticket Assigned",
         new_reply: "New Reply on Ticket",

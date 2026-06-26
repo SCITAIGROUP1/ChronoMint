@@ -1,24 +1,19 @@
+import { Button } from "@kloqra/ui";
 import { Clock, UserCircle2, Building, Tag } from "lucide-react";
-import { Badge, Button } from "@kloqra/ui";
 import {
   TicketTypeBadge,
   PriorityDot,
   StatusBadge,
-  TicketMetadataPanel,
-  type TicketTypeKey,
-  type TicketPriorityKey,
-  type TicketStatusKey,
+  TicketMetadataPanel
 } from "../shared/ticket-type-config";
 
 export function TicketSidebar({ ticket }: { ticket: any }) {
-
   const minutesLeft = ticket.firstResponseDue
     ? Math.max(0, Math.round((new Date(ticket.firstResponseDue).getTime() - Date.now()) / 60000))
     : null;
 
   return (
     <div className="p-5 space-y-5 text-sm">
-
       {/* --- Status & Type --- */}
       <div>
         <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
@@ -56,13 +51,15 @@ export function TicketSidebar({ ticket }: { ticket: any }) {
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               SLA
             </h3>
-            <div className={`flex items-center gap-2 p-3 rounded-lg border ${
-              minutesLeft < 15
-                ? "bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-900"
-                : minutesLeft < 60
-                ? "bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-900"
-                : "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-900"
-            }`}>
+            <div
+              className={`flex items-center gap-2 p-3 rounded-lg border ${
+                minutesLeft < 15
+                  ? "bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-900"
+                  : minutesLeft < 60
+                    ? "bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-900"
+                    : "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-900"
+              }`}
+            >
               <Clock className="h-4 w-4 shrink-0" />
               <div>
                 <div className="text-xs font-medium">First Response Due</div>
@@ -116,10 +113,7 @@ export function TicketSidebar({ ticket }: { ticket: any }) {
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Additional Details
             </h3>
-            <TicketMetadataPanel
-              ticketType={ticket.ticketType}
-              metadata={ticket.metadata}
-            />
+            <TicketMetadataPanel ticketType={ticket.ticketType} metadata={ticket.metadata} />
           </div>
         </>
       )}
@@ -130,10 +124,18 @@ export function TicketSidebar({ ticket }: { ticket: any }) {
         <Button size="sm" variant="outline" className="w-full justify-start">
           Assign to me
         </Button>
-        <Button size="sm" variant="outline" className="w-full justify-start text-amber-600 hover:text-amber-700">
+        <Button
+          size="sm"
+          variant="outline"
+          className="w-full justify-start text-amber-600 hover:text-amber-700"
+        >
           Mark On Hold
         </Button>
-        <Button size="sm" variant="outline" className="w-full justify-start text-emerald-600 hover:text-emerald-700">
+        <Button
+          size="sm"
+          variant="outline"
+          className="w-full justify-start text-emerald-600 hover:text-emerald-700"
+        >
           Mark Resolved
         </Button>
       </div>

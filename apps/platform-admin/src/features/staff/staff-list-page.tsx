@@ -23,10 +23,10 @@ import {
   Badge
 } from "@kloqra/ui";
 import { api, usePlatformStaff } from "@kloqra/web-shared";
-import { Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
-import { StaffCreateModal } from "./staff-create-modal";
 import { format } from "date-fns";
+import { Trash2 } from "lucide-react";
+import { useState } from "react";
+import { StaffCreateModal } from "./staff-create-modal";
 
 const ALL = "__all__";
 

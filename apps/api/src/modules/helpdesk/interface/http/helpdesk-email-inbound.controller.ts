@@ -1,22 +1,20 @@
-import { Body, Controller, Logger, Post, Req } from "@nestjs/common";
 import { InjectQueue } from "@nestjs/bullmq";
+import { Body, Controller, Logger, Post } from "@nestjs/common";
+import { TicketChannel, TicketType } from "@prisma/client";
 import { Queue } from "bullmq";
 import { QUEUES } from "../../../../common/queues";
-import { TicketChannel, TicketType } from "@prisma/client";
 import { IngestTicketJobPayload } from "../../workers/job-payloads";
 
 @Controller("helpdesk/email-inbound")
 export class HelpdeskEmailInboundController {
   private readonly logger = new Logger(HelpdeskEmailInboundController.name);
 
-  constructor(
-    @InjectQueue(QUEUES.HELPDESK_INGEST) private readonly ingestQueue: Queue
-  ) {}
+  constructor(@InjectQueue(QUEUES.HELPDESK_INGEST) private readonly ingestQueue: Queue) {}
 
   @Post()
   async handleIncomingEmail(@Body() payload: any) {
     this.logger.log(`Received inbound email webhook`);
-    
+
     try {
       // Assuming a generic JSON webhook from Brevo/Postmark
       const subject = payload.Subject || "No Subject";
@@ -34,7 +32,7 @@ export class HelpdeskEmailInboundController {
         htmlBody,
         requesterName,
         requesterEmail,
-        emailMessageId: messageId,
+        emailMessageId: messageId
       };
 
       await this.ingestQueue.add("ingest", jobPayload);

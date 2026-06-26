@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import {
   AppBar,
   Button,
@@ -23,10 +22,11 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
+  DialogFooter
 } from "@kloqra/ui";
-import { api } from "@/lib/api";
 import { usePlatformSessionStore } from "@kloqra/web-shared";
+import { useEffect, useState } from "react";
+import { api } from "@/lib/api";
 
 export default function PlatformStaffPage() {
   const [staff, setStaff] = useState<any[]>([]);
@@ -45,7 +45,13 @@ export default function PlatformStaffPage() {
   const fetchStaff = async () => {
     setLoading(true);
     try {
-      const res = await api<{ items: any[]; total: number; page: number; limit: number; totalPages: number }>("/platform/staff");
+      const res = await api<{
+        items: any[];
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+      }>("/platform/staff");
       setStaff(res.items);
     } catch (err: any) {
       setError(err.message);
@@ -70,8 +76,8 @@ export default function PlatformStaffPage() {
           email: newEmail,
           name: newName,
           role: newRole,
-          password: newPassword,
-        }),
+          password: newPassword
+        })
       });
       setInviteOpen(false);
       setNewEmail("");
@@ -104,9 +110,7 @@ export default function PlatformStaffPage() {
       <AppBar
         title="Platform Staff"
         description="Manage super admins and support agents who have access to the platform portal."
-        actions={
-          <Button onClick={() => setInviteOpen(true)}>Invite Staff</Button>
-        }
+        actions={<Button onClick={() => setInviteOpen(true)}>Invite Staff</Button>}
       />
 
       <DataTableCard>
@@ -136,7 +140,12 @@ export default function PlatformStaffPage() {
                   </DataTableCell>
                   <DataTableCell className="text-right">
                     {member.id !== session?.user.id && (
-                      <Button variant="ghost" size="sm" onClick={() => handleDelete(member.id)} className="text-destructive">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDelete(member.id)}
+                        className="text-destructive"
+                      >
                         Remove
                       </Button>
                     )}
@@ -157,11 +166,22 @@ export default function PlatformStaffPage() {
             <div className="space-y-4 py-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Full Name</label>
-                <Input required value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Jane Doe" />
+                <Input
+                  required
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="Jane Doe"
+                />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Email</label>
-                <Input type="email" required value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="jane@example.com" />
+                <Input
+                  type="email"
+                  required
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  placeholder="jane@example.com"
+                />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Role</label>
@@ -177,11 +197,20 @@ export default function PlatformStaffPage() {
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Initial Password</label>
-                <Input type="password" required minLength={8} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Minimum 8 characters" />
+                <Input
+                  type="password"
+                  required
+                  minLength={8}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Minimum 8 characters"
+                />
               </div>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setInviteOpen(false)}>Cancel</Button>
+              <Button type="button" variant="outline" onClick={() => setInviteOpen(false)}>
+                Cancel
+              </Button>
               <Button type="submit" disabled={inviteLoading}>
                 {inviteLoading ? "Inviting..." : "Send Invite"}
               </Button>

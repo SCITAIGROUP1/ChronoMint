@@ -270,8 +270,10 @@ async function resetDatabase() {
   await prisma.user.deleteMany();
 }
 
-async function seedHelpdesk(tenantId: string) {
-  const superadmin = await prisma.platformUser.findUnique({ where: { email: SEED_PLATFORM_SUPERADMIN.email } });
+async function seedHelpdesk(_tenantId: string) {
+  const superadmin = await prisma.platformUser.findUnique({
+    where: { email: SEED_PLATFORM_SUPERADMIN.email }
+  });
   if (!superadmin) return;
 
   const QUEUE_CONFIGS = [
@@ -310,7 +312,8 @@ async function seedHelpdesk(tenantId: string) {
     {
       name: "Security Response",
       slug: "security-response",
-      description: "Security incidents, vulnerability reports, and data concerns. Highest priority SLA.",
+      description:
+        "Security incidents, vulnerability reports, and data concerns. Highest priority SLA.",
       color: "#dc2626",
       sortOrder: 4,
       slaPolicy: { firstResponseMinutes: 15, resolutionMinutes: 120 }
@@ -350,7 +353,11 @@ async function seedHelpdesk(tenantId: string) {
       priority: "HIGH" as any,
       status: "OPEN" as any,
       queueSlug: "technical-support",
-      metadata: { severity: "high", stepsToReproduce: "Open app, click save, it spins forever", browserEnv: "iOS Safari" }
+      metadata: {
+        severity: "high",
+        stepsToReproduce: "Open app, click save, it spins forever",
+        browserEnv: "iOS Safari"
+      }
     },
     {
       subject: "Charged twice for March invoice",
@@ -361,7 +368,11 @@ async function seedHelpdesk(tenantId: string) {
       priority: "CRITICAL" as any,
       status: "OPEN" as any,
       queueSlug: "billing-accounts",
-      metadata: { billingIssueType: "payment_failed", invoiceId: "INV-2026-003", transactionDate: "2026-03-01" }
+      metadata: {
+        billingIssueType: "payment_failed",
+        invoiceId: "INV-2026-003",
+        transactionDate: "2026-03-01"
+      }
     },
     {
       subject: "Security vulnerability in custom domain",
@@ -400,11 +411,11 @@ async function seedHelpdesk(tenantId: string) {
 
   let ticketCount = 0;
   for (const t of sampleTickets) {
-    const queue = queues.find(q => q.slug === t.queueSlug) || queues[0];
-    
+    const queue = queues.find((q) => q.slug === t.queueSlug) || queues[0];
+
     // Assign one ticket to superadmin for demo purposes
     const assignedToId = t.ticketType === "SECURITY" ? superadmin.id : null;
-    
+
     await prisma.helpDeskTicket.create({
       data: {
         subject: t.subject,
@@ -422,7 +433,7 @@ async function seedHelpdesk(tenantId: string) {
             direction: "INBOUND",
             authorName: t.requesterName,
             authorEmail: t.requesterEmail,
-            body: `Description for: ${t.subject}\n\nPlease help resolve this as soon as possible.`,
+            body: `Description for: ${t.subject}\n\nPlease help resolve this as soon as possible.`
           }
         },
         history: {
@@ -437,7 +448,9 @@ async function seedHelpdesk(tenantId: string) {
     ticketCount++;
   }
 
-  console.log(`  helpdesk seeded: ${queues.length} queues, superadmin (${superadmin.email}) assigned to all, ${ticketCount} sample tickets created`);
+  console.log(
+    `  helpdesk seeded: ${queues.length} queues, superadmin (${superadmin.email}) assigned to all, ${ticketCount} sample tickets created`
+  );
 }
 
 async function seedDashboardLayouts(

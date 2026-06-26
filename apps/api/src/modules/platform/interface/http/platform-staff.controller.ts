@@ -1,28 +1,19 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Post,
-  Query,
-  UseGuards,
-} from "@nestjs/common";
-import { PrismaService } from "../../../../common/prisma/prisma.service";
-import { PlatformGuard } from "../../../../common/guards/platform.guard";
+import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
+import * as bcrypt from "bcrypt";
+import { z } from "zod";
 import {
   CurrentPlatformUser,
   type PlatformRequestUser
 } from "../../../../common/decorators/current-platform-user.decorator";
-import * as bcrypt from "bcrypt";
-import { z } from "zod";
-import { Prisma } from "@prisma/client";
+import { PlatformGuard } from "../../../../common/guards/platform.guard";
+import { PrismaService } from "../../../../common/prisma/prisma.service";
 
 const createStaffSchema = z.object({
   email: z.string().email(),
   name: z.string().min(1),
   role: z.enum(["SUPERADMIN", "SUPPORT"]),
-  password: z.string().min(8),
+  password: z.string().min(8)
 });
 
 @Controller("platform/staff")
@@ -52,7 +43,7 @@ export class PlatformStaffController {
     if (search) {
       where.OR = [
         { email: { contains: search, mode: "insensitive" } },
-        { name: { contains: search, mode: "insensitive" } },
+        { name: { contains: search, mode: "insensitive" } }
       ];
     }
 
@@ -69,39 +60,36 @@ export class PlatformStaffController {
         where,
         orderBy: { createdAt: "desc" },
         skip,
-        take: limit,
+        take: limit
       }),
-      this.prisma.platformUser.count({ where }),
+      this.prisma.platformUser.count({ where })
     ]);
 
     return {
-      items: staff.map(u => ({
+      items: staff.map((u) => ({
         id: u.id,
         email: u.email,
         name: u.name,
         role: u.role,
         isActive: u.isActive,
-        createdAt: u.createdAt,
+        createdAt: u.createdAt
       })),
       total,
       page,
       limit,
-      totalPages: Math.ceil(total / limit),
+      totalPages: Math.ceil(total / limit)
     };
   }
 
   @Post()
-  async createStaff(
-    @CurrentPlatformUser() user: PlatformRequestUser,
-    @Body() body: any
-  ) {
+  async createStaff(@CurrentPlatformUser() user: PlatformRequestUser, @Body() body: any) {
     if (user.platformRole !== "SUPERADMIN") {
       throw new Error("Unauthorized");
     }
 
     const parsed = createStaffSchema.parse(body);
     const existingUser = await this.prisma.platformUser.findUnique({
-      where: { email: parsed.email },
+      where: { email: parsed.email }
     });
 
     if (existingUser) {
@@ -116,18 +104,15 @@ export class PlatformStaffController {
         email: parsed.email,
         name: parsed.name,
         role: parsed.role,
-        passwordHash,
-      },
+        passwordHash
+      }
     });
 
     return { id: newUser.id, success: true };
   }
 
   @Delete(":id")
-  async deleteStaff(
-    @CurrentPlatformUser() user: PlatformRequestUser,
-    @Param("id") id: string
-  ) {
+  async deleteStaff(@CurrentPlatformUser() user: PlatformRequestUser, @Param("id") id: string) {
     if (user.platformRole !== "SUPERADMIN") {
       throw new Error("Unauthorized");
     }
@@ -137,7 +122,7 @@ export class PlatformStaffController {
     }
 
     await this.prisma.platformUser.delete({
-      where: { id },
+      where: { id }
     });
 
     return { success: true };

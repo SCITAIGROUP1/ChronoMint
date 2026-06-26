@@ -1158,7 +1158,7 @@ export class AuthService {
       }
     }
 
-    if (user.role !== "SUPERADMIN") {
+    if (user.role !== "SUPERADMIN" && user.role !== "SUPPORT") {
       throw new DomainException(
         ErrorCodes.FORBIDDEN,
         "Platform access required",

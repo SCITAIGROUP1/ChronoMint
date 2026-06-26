@@ -19,12 +19,16 @@ import {
   TableHeader,
   TablePagination,
   TableRow,
-  TableLoadingState,
+  TableLoadingState
 } from "@kloqra/ui";
-import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
+import Link from "next/link";
+import {
+  TicketTypeBadge,
+  PriorityDot,
+  StatusBadge
+} from "@/features/helpdesk/shared/ticket-type-config";
 import { useHelpdeskTickets } from "@/features/helpdesk/use-helpdesk-tickets";
-import { TicketTypeBadge, PriorityDot, StatusBadge } from "@/features/helpdesk/shared/ticket-type-config";
 
 export default function HelpDeskPage() {
   const {
@@ -42,7 +46,7 @@ export default function HelpDeskPage() {
     statusFilter,
     setStatusFilter,
     channelFilter,
-    setChannelFilter,
+    setChannelFilter
   } = useHelpdeskTickets();
 
   return (
@@ -58,10 +62,7 @@ export default function HelpDeskPage() {
             searchAriaLabel="Search tickets"
             filters={
               <>
-                <Select
-                  value={statusFilter}
-                  onValueChange={(value) => setStatusFilter(value)}
-                >
+                <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value)}>
                   <SelectTrigger
                     className={appBarListFilterTriggerClass}
                     aria-label="Filter by status"
@@ -75,10 +76,7 @@ export default function HelpDeskPage() {
                     <SelectItem value="RESOLVED">Resolved</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select
-                  value={channelFilter}
-                  onValueChange={(value) => setChannelFilter(value)}
-                >
+                <Select value={channelFilter} onValueChange={(value) => setChannelFilter(value)}>
                   <SelectTrigger
                     className={appBarListFilterTriggerClass}
                     aria-label="Filter by channel"
@@ -126,7 +124,10 @@ export default function HelpDeskPage() {
                 {tickets.map((ticket) => (
                   <TableRow key={ticket.id}>
                     <DataTableCell>
-                      <Link href={`/helpdesk/${ticket.id}`} className="hover:underline font-medium block">
+                      <Link
+                        href={`/helpdesk/${ticket.id}`}
+                        className="hover:underline font-medium block"
+                      >
                         {ticket.subject}
                       </Link>
                       <div className="mt-1 flex items-center gap-2">
@@ -139,7 +140,9 @@ export default function HelpDeskPage() {
                     </DataTableCell>
                     <DataTableCell>
                       <div className="font-medium text-sm">{ticket.queueName}</div>
-                      <div className="text-xs text-muted-foreground">{ticket.channel.replace("_", " ")}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {ticket.channel.replace("_", " ")}
+                      </div>
                     </DataTableCell>
                     <DataTableCell>
                       <PriorityDot priority={ticket.priority} />

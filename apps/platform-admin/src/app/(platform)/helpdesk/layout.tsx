@@ -1,10 +1,9 @@
-import { ReactNode } from "react";
-import { Metadata } from "next";
+import { type Metadata } from "next";
+import { type ReactNode } from "react";
 export const metadata: Metadata = {
   title: "Help Desk | Kloqra Admin",
   description: "Platform Support & Ticketing"
 };
-
 import { HelpDeskSocketProvider } from "@/features/helpdesk/shared/helpdesk-socket-provider";
 
 export default function HelpDeskLayout({ children }: { children: ReactNode }) {
