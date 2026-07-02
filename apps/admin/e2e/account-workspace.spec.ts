@@ -6,7 +6,7 @@ test("tenant owner lands on account and can open workspaces page", async ({ page
     timeout: 30_000
   });
 
-  await page.getByRole("link", { name: "Workspaces" }).click();
+  await page.getByRole("link", { name: "Workspaces", exact: true }).click();
   await expect(page.getByRole("heading", { name: /^workspaces$/i })).toBeVisible();
   await expect(page.getByRole("button", { name: /create workspace/i })).toBeVisible();
 });

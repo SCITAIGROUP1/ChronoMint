@@ -579,7 +579,11 @@ export function OpsDashboardPage() {
         return (
           <div className="divide-y divide-border/40 text-xs w-full h-full overflow-y-auto px-1">
             {Object.entries(summary.queues).map(([name, counts]) => (
-              <div key={name} className="py-2.5 flex items-center justify-between gap-2">
+              <div
+                key={name}
+                data-testid={`ops-queue-${name}`}
+                className="py-2.5 flex items-center justify-between gap-2"
+              >
                 <div className="min-w-0 flex-1">
                   <div className="font-semibold text-foreground flex items-center gap-1.5">
                     <Workflow className="size-3 text-muted-foreground" />
