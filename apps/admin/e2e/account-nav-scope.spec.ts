@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { SEED } from "./constants/seed";
 import { loginAsAdmin, loginAsOrganizationAdmin } from "./helpers/auth";
 
 async function expandSidebarIfCollapsed(page: Page) {
@@ -53,7 +54,8 @@ test.describe("Admin nav scope by role", () => {
 
     await openContextSwitcher(page);
     await expect(page.getByRole("option", { name: /organization.*owner/i })).toBeVisible();
-    await expect(page.getByRole("option", { name: /acme corporation/i })).toBeVisible();
+    const acmeRegex = new RegExp(SEED.workspaces.acme.name, "i");
+    await expect(page.getByRole("option", { name: acmeRegex })).toBeVisible();
   });
 
   test("tenant owner keeps organization chrome on profile and settings", async ({ page }) => {

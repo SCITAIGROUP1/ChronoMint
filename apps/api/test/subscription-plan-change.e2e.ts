@@ -3,6 +3,7 @@ import { type INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import cookieParser from "cookie-parser";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { SEED_PLANS } from "../prisma/seed-data";
 import { AppModule } from "../src/app.module";
 import { PrismaService } from "../src/common/prisma/prisma.service";
 import { authedAgent, loginAs } from "./helpers/auth";
@@ -67,16 +68,17 @@ describe("Subscription plan change E2E", () => {
       .send({ planSlug: PLAN_SLUGS.STARTER });
 
     expect(res.status).toBe(200);
+    const starterPlan = SEED_PLANS.find((p) => p.slug === PLAN_SLUGS.STARTER)!;
     expect(res.body).toMatchObject({
       tenantId: adminSession.tenantId,
-      planName: "Starter",
+      planName: starterPlan.name,
       status: "active",
       billingMode: "simulated",
-      limits: { maxWorkspaces: 3, maxSeats: 10, maxReportingApiKeys: 5 }
+      limits: starterPlan.limits
     });
 
     const getRes = await authedAgent(app, adminSession).get(ROUTES.TENANTS.SUBSCRIPTION);
-    expect(getRes.body.planName).toBe("Starter");
+    expect(getRes.body.planName).toBe(starterPlan.name);
   });
 
   it("owner PATCH can upgrade to pro", async () => {
@@ -85,8 +87,9 @@ describe("Subscription plan change E2E", () => {
       .send({ planSlug: PLAN_SLUGS.PRO });
 
     expect(res.status).toBe(200);
-    expect(res.body.planName).toBe("Pro");
-    expect(res.body.limits).toMatchObject({ maxWorkspaces: 10, maxSeats: 50 });
+    const proPlan = SEED_PLANS.find((p) => p.slug === PLAN_SLUGS.PRO)!;
+    expect(res.body.planName).toBe(proPlan.name);
+    expect(res.body.limits).toMatchObject(proPlan.limits);
   });
 
   it("rejects PATCH for tenant admin", async () => {

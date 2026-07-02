@@ -3,6 +3,7 @@ import { type INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import cookieParser from "cookie-parser";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { SEED_WORKSPACES } from "../prisma/seed-data";
 import { AppModule } from "../src/app.module";
 import { authedAgent, loginAs } from "./helpers/auth";
 import { listItems } from "./helpers/pagination";
@@ -22,9 +23,12 @@ describe("Timesheets E2E", () => {
     memberSession = await loginAs(app, "drew@kloqra.dev");
     adminSession = await loginAs(app, "admin@kloqra.dev");
 
+    const acmeSpec = SEED_WORKSPACES.find((w) => w.slug === "acme")!;
+    const approvalProjectSpec = acmeSpec.projects.find((p) => p.name === "Support Retainer")!;
+
     const workspacesRes = await authedAgent(app, memberSession).get("/workspaces");
     expect(workspacesRes.status).toBe(200);
-    const acme = workspacesRes.body.find((w: { name?: string }) => w.name === "Acme Corporation");
+    const acme = workspacesRes.body.find((w: { name?: string }) => w.name === acmeSpec.name);
     expect(acme?.id).toBeTruthy();
     memberSession = { ...memberSession, workspaceId: acme.id };
     adminSession = { ...adminSession, workspaceId: acme.id };
@@ -32,7 +36,7 @@ describe("Timesheets E2E", () => {
     const projectsRes = await authedAgent(app, memberSession).get("/projects");
     expect(projectsRes.status).toBe(200);
     const approvalProject = listItems<ProjectListItemDto>(projectsRes.body).find(
-      (p) => p.name === "Support Retainer"
+      (p) => p.name === approvalProjectSpec.name
     );
     expect(approvalProject?.id).toBeTruthy();
     approvalProjectId = approvalProject!.id;

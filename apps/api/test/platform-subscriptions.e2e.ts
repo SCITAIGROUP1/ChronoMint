@@ -3,6 +3,7 @@ import { type INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import cookieParser from "cookie-parser";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { SEED_TENANT } from "../prisma/seed-data";
 import { AppModule } from "../src/app.module";
 import { loginAs } from "./helpers/auth";
 import { loginAsPlatform, platformAuthedAgent } from "./helpers/platform-auth";
@@ -75,12 +76,13 @@ describe("Platform Subscriptions E2E", () => {
       });
 
       // 3. Search by tenant name/slug
-      const searchRes = await agent.get(`${ROUTES.PLATFORM.SUBSCRIPTIONS}?search=kloqra`);
+      const searchTerm = SEED_TENANT.slug.split("-")[0];
+      const searchRes = await agent.get(`${ROUTES.PLATFORM.SUBSCRIPTIONS}?search=${searchTerm}`);
       expect(searchRes.status).toBe(200);
       searchRes.body.items.forEach((i: any) => {
         const matches =
-          i.tenantName.toLowerCase().includes("kloqra") ||
-          i.tenantSlug.toLowerCase().includes("kloqra");
+          i.tenantName.toLowerCase().includes(searchTerm) ||
+          i.tenantSlug.toLowerCase().includes(searchTerm);
         expect(matches).toBe(true);
       });
     });

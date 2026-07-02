@@ -147,8 +147,13 @@ describe("Platform tenant suspend — reporting API keys", () => {
   });
 
   it("revokes reporting API keys on suspend", async () => {
+    const to = new Date();
+    const from = new Date();
+    from.setDate(from.getDate() - 30);
     const res = await request(app.getHttpServer())
-      .get("/public/reporting/dashboard?from=2026-01-01T00:00:00.000Z&to=2026-01-31T23:59:59.999Z")
+      .get(
+        `/public/reporting/dashboard?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`
+      )
       .set(reportingApiKeyHeaders.API_KEY, apiKey)
       .set(reportingApiKeyHeaders.API_SECRET, secret);
 

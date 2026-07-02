@@ -11,6 +11,13 @@ import { authedAgent, loginAs } from "./helpers/auth";
 import { listItems } from "./helpers/pagination";
 import { setTenantLimitsOverride } from "./helpers/plan-limits";
 
+function reportingDateRange() {
+  const to = new Date();
+  const from = new Date();
+  from.setDate(from.getDate() - 30);
+  return { from: from.toISOString(), to: to.toISOString() };
+}
+
 describe("Public reporting API E2E", () => {
   let app: INestApplication;
   let prisma: PrismaService;
@@ -49,15 +56,19 @@ describe("Public reporting API E2E", () => {
   });
 
   it("rejects public reporting without API credentials", async () => {
+    const { from, to } = reportingDateRange();
     const res = await request(app.getHttpServer()).get(
-      "/public/reporting/dashboard?from=2026-01-01T00:00:00.000Z&to=2026-01-31T23:59:59.999Z"
+      `/public/reporting/dashboard?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
     );
     expect(res.status).toBe(401);
   });
 
   it("returns dashboard data with valid API key and secret", async () => {
+    const { from, to } = reportingDateRange();
     const res = await request(app.getHttpServer())
-      .get("/public/reporting/dashboard?from=2026-01-01T00:00:00.000Z&to=2026-01-31T23:59:59.999Z")
+      .get(
+        `/public/reporting/dashboard?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
+      )
       .set(reportingApiKeyHeaders.API_KEY, apiKey)
       .set(reportingApiKeyHeaders.API_SECRET, secret);
 

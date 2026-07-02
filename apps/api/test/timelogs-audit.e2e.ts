@@ -8,6 +8,10 @@ import { PrismaService } from "../src/common/prisma/prisma.service";
 import { authedAgent, loginAs } from "./helpers/auth";
 import { listItems } from "./helpers/pagination";
 
+const sentinelYear = new Date().getFullYear() + 20;
+const startTimeIso = `${sentinelYear}-01-01T10:00:00.000Z`;
+const endTimeIso = `${sentinelYear}-01-01T11:00:00.000Z`;
+
 describe("Timelog Audit E2E", () => {
   let app: INestApplication;
   let adminSession: Awaited<ReturnType<typeof loginAs>>;
@@ -33,14 +37,14 @@ describe("Timelog Audit E2E", () => {
     await prisma.timeLogAuditEvent.deleteMany({
       where: {
         OR: [
-          { before: { path: ["startTime"], equals: "2035-01-01T10:00:00.000Z" } },
-          { after: { path: ["startTime"], equals: "2035-01-01T10:00:00.000Z" } }
+          { before: { path: ["startTime"], equals: startTimeIso } },
+          { after: { path: ["startTime"], equals: startTimeIso } }
         ]
       }
     });
     await prisma.timeLog.deleteMany({
       where: {
-        startTime: new Date("2035-01-01T10:00:00.000Z")
+        startTime: new Date(startTimeIso)
       }
     });
   });
@@ -50,8 +54,8 @@ describe("Timelog Audit E2E", () => {
   });
 
   it("Member creates a timelog -> audit event recorded and viewable by member and admin", async () => {
-    const startTime = new Date("2035-01-01T10:00:00.000Z");
-    const endTime = new Date("2035-01-01T11:00:00.000Z");
+    const startTime = new Date(startTimeIso);
+    const endTime = new Date(endTimeIso);
 
     // 1. Member creates a time log
     const createRes = await authedAgent(app, memberSession).post("/timelogs").send({

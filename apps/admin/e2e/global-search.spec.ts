@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { SEED } from "./constants/seed";
 import { loginAsAdmin } from "./helpers/auth";
 
 async function openGlobalSearch(page: Page) {
@@ -26,24 +27,27 @@ test.describe("Admin global search", () => {
   });
 
   test("finds seeded projects and navigates on select", async ({ page }) => {
+    const projectName = SEED.projects.acme.supportRetainer.name;
+    const searchTerm = projectName.split(" ")[1]; // Retainer
+
     const dialog = await openGlobalSearch(page);
     const input = dialog.getByPlaceholder("Search pages, projects, tasks, people…");
     const projectsResponse = page.waitForResponse((response) => {
       if (response.request().method() !== "GET" || !response.ok()) return false;
       try {
         const url = new URL(response.url());
-        return url.pathname.endsWith("/projects") && url.searchParams.get("search") === "Retainer";
+        return url.pathname.endsWith("/projects") && url.searchParams.get("search") === searchTerm;
       } catch {
         return false;
       }
     });
-    await input.fill("Retainer");
+    await input.fill(searchTerm);
     await projectsResponse;
-    const projectHit = dialog.getByText("Support Retainer", { exact: true });
+    const projectHit = dialog.getByText(projectName, { exact: true });
     await expect(projectHit).toBeVisible({ timeout: 15_000 });
     await projectHit.click();
     await expect(page).toHaveURL(/\/projects\/[^/]+\/overview$/);
-    await expect(page.getByText("Support Retainer").first()).toBeVisible();
+    await expect(page.getByText(projectName).first()).toBeVisible();
   });
 
   test("navigates to approvals page from pages group", async ({ page }) => {

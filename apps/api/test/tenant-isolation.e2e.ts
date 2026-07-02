@@ -4,6 +4,7 @@ import { Test } from "@nestjs/testing";
 import cookieParser from "cookie-parser";
 import request from "supertest";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { SEED_WORKSPACES } from "../prisma/seed-data";
 import { AppModule } from "../src/app.module";
 import { PrismaService } from "../src/common/prisma/prisma.service";
 import { authedAgent, loginAs } from "./helpers/auth";
@@ -38,8 +39,9 @@ describe("Tenant isolation E2E", () => {
     tenantBOwnerSession = await loginAs(app, "owner-b@kloqra.dev");
     demoTenantId = tenantASession.tenantId;
 
+    const meridianSpec = SEED_WORKSPACES.find((w) => w.slug === "meridian")!;
     const meridian = await prisma.workspace.findUniqueOrThrow({
-      where: { slug: "meridian" },
+      where: { slug: meridianSpec.slug },
       select: { id: true }
     });
     meridianWorkspaceId = meridian.id;
@@ -69,7 +71,8 @@ describe("Tenant isolation E2E", () => {
       where: { id: { in: (res.body as Array<{ id: string }>).map((w) => w.id) } },
       select: { slug: true }
     });
-    expect(workspaces.map((w) => w.slug).sort()).toEqual(["acme", "meridian"]);
+    const expectedSlugs = SEED_WORKSPACES.map((w) => w.slug).sort();
+    expect(workspaces.map((w) => w.slug).sort()).toEqual(expectedSlugs);
     expect(tenantASession.tenantId).toBe(demoTenantId);
     expect(workspaces.some((w) => w.slug === "isolation-ws-b")).toBe(false);
   });

@@ -1,8 +1,9 @@
 import type { Page } from "@playwright/test";
+import { SEED } from "../constants/seed";
 
-const MEMBER_EMAIL = "member@kloqra.dev";
-const DREW_EMAIL = "drew@kloqra.dev";
-const PASSWORD = "password123";
+const MEMBER_EMAIL = SEED.personas.member.email;
+const DREW_EMAIL = SEED.personas.drew.email;
+const PASSWORD = SEED.personas.member.password;
 
 async function submitLogin(page: Page, email: string) {
   await page.goto("/login");
@@ -18,14 +19,16 @@ async function submitLogin(page: Page, email: string) {
   );
 
   if (page.url().includes("select-context")) {
-    await page.locator("button").filter({ hasText: "Kloqra" }).first().click();
+    // Kloqra Demo Organization -> Kloqra matches
+    const searchContext = SEED.tenant.name.split(" ")[0];
+    await page.locator("button").filter({ hasText: searchContext }).first().click();
     await page.waitForURL(/.*(select-workspace|dashboard|timer|timesheet|time-tracker)/, {
       timeout: 30_000
     });
   }
 
   if (page.url().includes("select-workspace")) {
-    await page.locator("button").filter({ hasText: "Acme Corporation" }).first().click();
+    await page.locator("button").filter({ hasText: SEED.workspaces.acme.name }).first().click();
     await page.waitForURL(/\/(dashboard|timer|timesheet|time-tracker)/, { timeout: 30_000 });
   }
 }

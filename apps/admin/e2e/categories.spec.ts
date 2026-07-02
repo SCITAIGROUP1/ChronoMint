@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { SEED } from "./constants/seed";
 
 test.describe("Admin categories", () => {
   test.beforeEach(async ({ page }) => {
@@ -8,12 +9,12 @@ test.describe("Admin categories", () => {
 
   test("lists seeded categories", async ({ page }) => {
     await expect(page.getByRole("columnheader", { name: "Name" })).toBeVisible();
-    await expect(page.getByText("Software Development").first()).toBeVisible();
+    await expect(page.getByText(SEED.categories.softwareDevelopment).first()).toBeVisible();
   });
 
   test("filters categories from the app bar search", async ({ page }) => {
     await page.getByRole("textbox", { name: "Search categories" }).fill("zzzz-no-category-xyz");
-    await expect(page.getByText("Software Development")).toHaveCount(0);
+    await expect(page.getByText(SEED.categories.softwareDevelopment)).toHaveCount(0);
   });
 
   test("creates, edits, and deletes an empty category", async ({ page }) => {

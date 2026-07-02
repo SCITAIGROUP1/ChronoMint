@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { SEED } from "./constants/seed";
 
 test.describe("Admin projects", () => {
   test.beforeEach(async ({ page }) => {
@@ -49,7 +50,7 @@ test.describe("Admin projects", () => {
   });
 
   test("shows duplicate project name error in create modal", async ({ page }) => {
-    const existingName = "Support Retainer";
+    const existingName = SEED.projects.acme.supportRetainer.name;
 
     await page.getByRole("button", { name: "New project" }).click();
     await page.locator("#name").fill(existingName);
@@ -70,13 +71,16 @@ test.describe("Admin projects", () => {
   });
 
   test("opens the clicked project row", async ({ page }) => {
-    await page.getByRole("link", { name: "Open Support Retainer" }).click();
-    await expect(page.getByText("Support Retainer")).toBeVisible();
-    await expect(page.getByText("Client: Contoso Retail")).toBeVisible();
+    const supportRetainer = SEED.projects.acme.supportRetainer;
+    const brandCampaign = SEED.projects.acme.brandCampaignQ2;
+
+    await page.getByRole("link", { name: `Open ${supportRetainer.name}` }).click();
+    await expect(page.getByText(supportRetainer.name)).toBeVisible();
+    await expect(page.getByText(`Client: ${supportRetainer.clientName}`)).toBeVisible();
 
     await page.goto("/projects");
-    await page.getByRole("link", { name: "Open Brand Campaign Q2" }).click();
-    await expect(page.getByText("Brand Campaign Q2")).toBeVisible();
+    await page.getByRole("link", { name: `Open ${brandCampaign.name}` }).click();
+    await expect(page.getByText(brandCampaign.name)).toBeVisible();
   });
 
   test("opens project overview tab from list", async ({ page }) => {

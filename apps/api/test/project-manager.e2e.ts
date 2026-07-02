@@ -3,6 +3,7 @@ import { type INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import cookieParser from "cookie-parser";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { SEED_WORKSPACES } from "../prisma/seed-data";
 import { AppModule } from "../src/app.module";
 import { authedAgent, loginAs } from "./helpers/auth";
 import { listItems } from "./helpers/pagination";
@@ -29,9 +30,13 @@ describe("Project lead E2E", () => {
     memberSession = await loginAs(app, "drew@kloqra.dev");
     otherMemberSession = await loginAs(app, "alex@kloqra.dev");
 
+    const acmeSpec = SEED_WORKSPACES.find((w) => w.slug === "acme")!;
+    const ledProjectSpec = acmeSpec.projects.find((p) => p.name === "Support Retainer")!;
+    const otherProjectSpec = acmeSpec.projects.find((p) => p.name === "Client Portal Redesign")!;
+
     const workspacesRes = await authedAgent(app, adminSession).get("/workspaces");
     expect(workspacesRes.status).toBe(200);
-    const acme = workspacesRes.body.find((w: { name?: string }) => w.name === "Acme Corporation");
+    const acme = workspacesRes.body.find((w: { name?: string }) => w.name === acmeSpec.name);
     expect(acme?.id).toBeTruthy();
     const workspaceId = acme.id as string;
     adminSession = { ...adminSession, workspaceId };
@@ -42,8 +47,8 @@ describe("Project lead E2E", () => {
     const projectsRes = await authedAgent(app, adminSession).get("/projects");
     expect(projectsRes.status).toBe(200);
     const projects = listItems<ProjectListItemDto>(projectsRes.body);
-    const ledProject = projects.find((p) => p.name === "Support Retainer");
-    const otherProject = projects.find((p) => p.name === "Client Portal Redesign");
+    const ledProject = projects.find((p) => p.name === ledProjectSpec.name);
+    const otherProject = projects.find((p) => p.name === otherProjectSpec.name);
     expect(ledProject?.id).toBeTruthy();
     expect(otherProject?.id).toBeTruthy();
     ledProjectId = ledProject!.id;

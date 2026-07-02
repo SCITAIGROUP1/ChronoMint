@@ -5,6 +5,7 @@ import cookieParser from "cookie-parser";
 import request from "supertest";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import type { PrismaClient } from "../prisma/generated/client";
+import { SEED_TENANT, SEED_PLANS, SEED_DEMO_PERSONAS } from "../prisma/seed-data";
 import { AppModule } from "../src/app.module";
 import { PrismaService } from "../src/common/prisma/prisma.service";
 import { authedAgent, loginAs } from "./helpers/auth";
@@ -65,16 +66,16 @@ describe("Tenants E2E", () => {
   it("returns current tenant for organization owner", async () => {
     const res = await authedAgent(app, adminSession).get(ROUTES.TENANTS.CURRENT);
     expect(res.status).toBe(200);
-    expect(res.body.slug).toBe("kloqra-demo");
+    expect(res.body.slug).toBe(SEED_TENANT.slug);
     expect(res.body.id).toBe(adminSession.tenantId);
   });
 
   it("GET /tenants/public/:slug returns active organization branding", async () => {
-    const res = await request(app.getHttpServer()).get(ROUTES.TENANTS.PUBLIC("kloqra-demo"));
+    const res = await request(app.getHttpServer()).get(ROUTES.TENANTS.PUBLIC(SEED_TENANT.slug));
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
-      slug: "kloqra-demo",
-      name: "Kloqra Demo Organization"
+      slug: SEED_TENANT.slug,
+      name: SEED_TENANT.name
     });
   });
 
@@ -88,20 +89,24 @@ describe("Tenants E2E", () => {
     expect(res.status).toBe(200);
     expect(res.body.workspaceCount).toBeGreaterThanOrEqual(2);
     expect(res.body.seatCount).toBeGreaterThan(0);
+
+    const pilotPlan = SEED_PLANS.find((p) => p.slug === "pilot")!;
     expect(res.body.subscription).toMatchObject({
       tenantId: adminSession.tenantId,
       status: "active",
-      planName: "Enterprise",
-      limits: { maxWorkspaces: 25, maxSeats: 100, maxReportingApiKeys: 50 }
+      planName: pilotPlan.name,
+      limits: pilotPlan.limits
     });
   });
 
   it("returns subscription for tenant owner", async () => {
     const res = await authedAgent(app, adminSession).get(ROUTES.TENANTS.SUBSCRIPTION);
     expect(res.status).toBe(200);
+
+    const pilotPlan = SEED_PLANS.find((p) => p.slug === "pilot")!;
     expect(res.body).toMatchObject({
       tenantId: adminSession.tenantId,
-      planName: "Enterprise",
+      planName: pilotPlan.name,
       status: "active",
       billingMode: expect.stringMatching(/^(simulated|stripe)$/)
     });
@@ -116,10 +121,10 @@ describe("Tenants E2E", () => {
     const res = await authedAgent(app, opsSession).get(ROUTES.TENANTS.MEMBERS);
     expect(res.status).toBe(200);
     const emails = (res.body as Array<{ userEmail: string }>).map((member) => member.userEmail);
-    expect(emails).toContain("admin@kloqra.dev");
-    expect(emails).toContain("ops@kloqra.dev");
-    expect(emails).not.toContain("acme-admin@kloqra.dev");
-    expect(emails).not.toContain("meridian-admin@kloqra.dev");
+    expect(emails).toContain(SEED_DEMO_PERSONAS.tenantOwner);
+    expect(emails).toContain(SEED_DEMO_PERSONAS.tenantAdmin);
+    expect(emails).not.toContain(SEED_DEMO_PERSONAS.acmeWorkspaceAdmin);
+    expect(emails).not.toContain(SEED_DEMO_PERSONAS.meridianWorkspaceAdmin);
   });
 
   it("rejects workspace-only users from current tenant route", async () => {
@@ -183,9 +188,9 @@ describe("Tenants E2E", () => {
   it("allows organization admin to update tenant profile", async () => {
     const res = await authedAgent(app, opsSession)
       .patch(ROUTES.TENANTS.CURRENT)
-      .send({ name: "Kloqra Demo Organization" });
+      .send({ name: SEED_TENANT.name });
     expect(res.status).toBe(200);
-    expect(res.body.name).toBe("Kloqra Demo Organization");
+    expect(res.body.name).toBe(SEED_TENANT.name);
   });
 
   it("allows organization admin to list workspace admins overview", async () => {

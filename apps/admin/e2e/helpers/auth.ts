@@ -1,10 +1,14 @@
 import type { Page } from "@playwright/test";
+import { SEED } from "../constants/seed";
 
-const ADMIN_EMAIL = "admin@kloqra.dev";
-const ADMIN_PASSWORD = "password123";
-const ACME_WORKSPACE_ADMIN_EMAIL = "acme-admin@kloqra.dev";
+const ADMIN_EMAIL = SEED.personas.tenantOwner.email;
+const ADMIN_PASSWORD = SEED.personas.tenantOwner.password;
+const ACME_WORKSPACE_ADMIN_EMAIL = SEED.personas.acmeAdmin.email;
 
-export async function completePostLoginSelection(page: Page, workspaceName = "Acme Corporation") {
+export async function completePostLoginSelection(
+  page: Page,
+  workspaceName = SEED.workspaces.acme.name
+) {
   // Wait a bit to see which page it lands on
   await page.waitForURL(/.*(select-context|select-workspace|dashboard|account)/, {
     timeout: 30_000
@@ -34,7 +38,7 @@ export async function loginAsAdmin(page: Page) {
   await completePostLoginSelection(page);
 }
 
-const ORG_ADMIN_EMAIL = "ops@kloqra.dev";
+const ORG_ADMIN_EMAIL = SEED.personas.tenantAdmin.email;
 
 export async function loginAsOrganizationAdmin(page: Page) {
   await page.goto("/login");

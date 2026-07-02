@@ -19,9 +19,14 @@ test.describe("Time Tracker", () => {
   });
 
   test("supports custom date range selection while keeping week sections", async ({ page }) => {
+    const currentYear = new Date().getFullYear();
+    const currentMonth = String(new Date().getMonth() + 1).padStart(2, "0");
+    const d1 = `${currentYear}-${currentMonth}-01`;
+    const d2 = `${currentYear}-${currentMonth}-14`;
+
     await page.getByRole("button", { name: "Date range" }).click();
-    await page.getByRole("button", { name: "2026-06-01" }).click();
-    await page.getByRole("button", { name: "2026-06-14" }).click();
+    await page.getByRole("button", { name: d1 }).click();
+    await page.getByRole("button", { name: d2 }).click();
     await page.getByRole("button", { name: "Apply" }).click();
     await expect(page.getByRole("combobox", { name: "Time period" })).toContainText("Custom range");
     await expect(page.getByText(/Week of/i).first()).toBeVisible();

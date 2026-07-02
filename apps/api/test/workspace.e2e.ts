@@ -73,17 +73,29 @@ describe("Workspace E2E", () => {
   });
 
   it("POST /workspaces rejects duplicate workspace names", async () => {
+    const prisma = app.get(PrismaService);
+    const existingWorkspace = await prisma.workspace.findFirst({
+      where: { tenantId: adminSession.tenantId }
+    });
+    const existingName = existingWorkspace!.name;
+
     const res = await authedAgent(app, adminSession)
       .post(ROUTES.WORKSPACES.CREATE)
-      .send({ name: "Acme Corporation" });
+      .send({ name: existingName });
     expect(res.status).toBe(409);
     expect(res.body.message).toBe("A workspace with this name already exists.");
   });
 
   it("POST /workspaces rejects duplicate workspace names case-insensitively", async () => {
+    const prisma = app.get(PrismaService);
+    const existingWorkspace = await prisma.workspace.findFirst({
+      where: { tenantId: adminSession.tenantId }
+    });
+    const existingName = existingWorkspace!.name;
+
     const res = await authedAgent(app, adminSession)
       .post(ROUTES.WORKSPACES.CREATE)
-      .send({ name: "acme corporation" });
+      .send({ name: existingName.toLowerCase() });
     expect(res.status).toBe(409);
     expect(res.body.message).toBe("A workspace with this name already exists.");
   });

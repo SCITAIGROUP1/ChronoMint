@@ -1,8 +1,9 @@
 import { test, expect, type Page } from "@playwright/test";
+import { SEED } from "./constants/seed";
 import { loginAsAdmin, completePostLoginSelection } from "./helpers/auth";
 
-const LEAD_EMAIL = "member@kloqra.dev";
-const LEAD_PASSWORD = "password123";
+const LEAD_EMAIL = SEED.personas.member.email;
+const LEAD_PASSWORD = SEED.personas.member.password;
 
 async function loginAsProjectLead(page: Page) {
   await page.goto("/login");
@@ -19,7 +20,7 @@ test.describe("Project lead admin access", () => {
     const page = await browser.newPage();
     await loginAsAdmin(page);
     await page.goto("/projects");
-    await page.getByRole("link", { name: "Client Portal Redesign" }).click();
+    await page.getByRole("link", { name: SEED.projects.acme.clientPortalRedesign.name }).click();
     await page.getByRole("link", { name: "Team", exact: true }).click();
     const sageRow = page.getByRole("row").filter({ hasText: LEAD_EMAIL });
     await sageRow.getByRole("combobox", { name: "Project role" }).click();

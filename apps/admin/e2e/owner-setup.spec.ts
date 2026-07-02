@@ -6,7 +6,7 @@ const PENDING_TENANT = {
   slug: "provisioned-org",
   status: "pending_setup",
   settings: {},
-  createdAt: "2026-06-24T12:00:00.000Z"
+  createdAt: new Date().toISOString()
 };
 
 test("provisioned owner sees organization setup form", async ({ page }) => {

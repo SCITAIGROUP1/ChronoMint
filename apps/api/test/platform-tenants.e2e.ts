@@ -3,6 +3,7 @@ import { type INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import cookieParser from "cookie-parser";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { SEED_TENANT } from "../prisma/seed-data";
 import { AppModule } from "../src/app.module";
 import { loginAs } from "./helpers/auth";
 import { loginAsPlatform, platformAuthedAgent } from "./helpers/platform-auth";
@@ -31,7 +32,7 @@ describe("Platform tenants E2E", () => {
     const res = await platformAuthedAgent(app, session).get("/platform/tenants");
     expect(res.status).toBe(200);
     expect(res.body.items.length).toBeGreaterThan(0);
-    const demo = res.body.items.find((item: { slug: string }) => item.slug === "kloqra-demo");
+    const demo = res.body.items.find((item: { slug: string }) => item.slug === SEED_TENANT.slug);
     expect(demo).toBeTruthy();
     expect(res.body.total).toBeGreaterThan(0);
   });
@@ -69,11 +70,11 @@ describe("Platform tenants E2E", () => {
     const session = await loginAsPlatform(app);
     const listRes = await platformAuthedAgent(app, session).get("/platform/tenants");
     const tenantId =
-      listRes.body.items.find((item: { slug: string }) => item.slug === "kloqra-demo")?.id ??
+      listRes.body.items.find((item: { slug: string }) => item.slug === SEED_TENANT.slug)?.id ??
       listRes.body.items[0].id;
     const detailRes = await platformAuthedAgent(app, session).get(`/platform/tenants/${tenantId}`);
     expect(detailRes.status).toBe(200);
-    expect(detailRes.body.slug).toBe("kloqra-demo");
+    expect(detailRes.body.slug).toBe(SEED_TENANT.slug);
     expect(detailRes.body.ownerEmail).toBeTruthy();
     expect(detailRes.body.subscription).toBeTruthy();
   });
