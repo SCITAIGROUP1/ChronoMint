@@ -1,0 +1,22 @@
+name: Sync to Kloqra
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  sync:
+    name: Sync main branch to Kloqra
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout ChronoMint
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Push to Kloqra
+        run: |
+          git remote add kloqra https://x-access-token:${{ secrets.KLOQRA_SYNC_TOKEN }}@github.com/SCITAIGROUP1/Kloqra.git
+          git push kloqra main --force
