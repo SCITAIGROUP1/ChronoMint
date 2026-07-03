@@ -5,7 +5,6 @@ import { ResponsiveLayoutShell, SidebarUserFooter, type SidebarNavItem } from "@
 import {
   bootstrapSession,
   BrandMark,
-  AdminContextBreadcrumb,
   canAccessAccountMode,
   canAccessAccountPath,
   canLoginToAdminApp,
@@ -191,7 +190,6 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             </Link>
           </div>
         ) : null}
-        <AdminContextBreadcrumb contextMode={isAccountMode ? "account" : "workspace"} />
         {children}
       </ResponsiveLayoutShell>
     </>
