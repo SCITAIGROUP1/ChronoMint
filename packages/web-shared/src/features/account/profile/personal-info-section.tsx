@@ -183,11 +183,7 @@ export function PersonalInfoSection({
         </div>
       </div>
       <div className="mt-6 flex gap-3">
-        <Button
-          type="button"
-          onClick={() => void handleSave()}
-          disabled={saving || !isDirty || (phone !== profile.phone && !isPhoneVerified)}
-        >
+        <Button type="button" onClick={() => void handleSave()} disabled={saving || !isDirty}>
           {saving ? "Saving…" : "Save Changes"}
         </Button>
       </div>
