@@ -75,15 +75,49 @@ export function ExportsPage() {
       .catch(() => {});
   }, [ws]);
 
+  const initialTaskIdRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     const qFrom = params.get("from");
     const qTo = params.get("to");
     const qScenario = params.get("scenario");
+    const qMode = params.get("mode");
+    const qProjectIds = params.get("projectId") || params.get("projectIds");
+    const qUserIds = params.get("userId") || params.get("userIds");
+    const qCategoryId = params.get("categoryId");
+    const qTaskId = params.get("taskId");
+
     if (qFrom) setFrom(qFrom);
     if (qTo) setTo(qTo);
     if (qScenario) setInitialScenarioId(qScenario as ExportScenarioId);
+    if (qMode === "custom" || qProjectIds || qUserIds || qCategoryId || qTaskId) {
+      setExportMode("custom");
+    }
+    if (qProjectIds) {
+      setProjectIds(
+        qProjectIds
+          .split(",")
+          .map((v) => v.trim())
+          .filter(Boolean)
+      );
+    }
+    if (qUserIds) {
+      setUserIds(
+        qUserIds
+          .split(",")
+          .map((v) => v.trim())
+          .filter(Boolean)
+      );
+    }
+    if (qCategoryId) {
+      setCategoryId(qCategoryId);
+    }
+    if (qTaskId) {
+      setTaskId(qTaskId);
+      initialTaskIdRef.current = qTaskId;
+    }
   }, []);
 
   useEffect(() => {
@@ -106,8 +140,22 @@ export function ExportsPage() {
     const filters: Record<string, string | string[]> = { projectId: projectIds };
     if (categoryId) filters.categoryId = categoryId;
     fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws, filters })
-      .then(setTasks)
-      .catch(() => setTasks([]));
+      .then((fetchedTasks) => {
+        setTasks(fetchedTasks);
+        if (initialTaskIdRef.current) {
+          if (!fetchedTasks.some((t) => t.id === initialTaskIdRef.current)) {
+            setTaskId("");
+          }
+          initialTaskIdRef.current = null;
+        }
+      })
+      .catch(() => {
+        setTasks([]);
+        if (initialTaskIdRef.current) {
+          setTaskId("");
+          initialTaskIdRef.current = null;
+        }
+      });
   }, [ws, projectIds, categoryId]);
 
   const [projectMembers, setProjectMembers] = useState<{ userId: string; userName: string }[]>([]);
@@ -150,6 +198,7 @@ export function ExportsPage() {
 
   useEffect(() => {
     if (!taskId) return;
+    if (initialTaskIdRef.current === taskId) return;
     if (!tasks.some((t) => t.id === taskId)) {
       setTaskId("");
     }

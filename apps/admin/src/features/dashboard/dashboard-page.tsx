@@ -42,7 +42,7 @@ import {
   api as sharedApi,
   localMidnightUtcInZone
 } from "@kloqra/web-shared";
-import { Clock, DollarSign, Download, Folder, LayoutGrid, Move, Users } from "lucide-react";
+import { Clock, DollarSign, Folder, LayoutGrid, Move, Users } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { WidthProvider, Responsive } from "react-grid-layout";
@@ -258,6 +258,27 @@ export function DashboardPage() {
     : teamMembers.find((m) => m.userId === userId);
 
   const selectedTask = tasks.find((t) => t.id === taskId);
+
+  const exportUrl = useMemo(() => {
+    const params = new URLSearchParams({
+      from: startDate,
+      to: endDate,
+      mode: "custom"
+    });
+    if (projectId && projectId.length > 0) {
+      params.set("projectId", projectId.join(","));
+    }
+    if (userId && userId.length > 0) {
+      params.set("userId", userId.join(","));
+    }
+    if (categoryId) {
+      params.set("categoryId", categoryId);
+    }
+    if (taskId) {
+      params.set("taskId", taskId);
+    }
+    return `/exports?${params.toString()}`;
+  }, [startDate, endDate, projectId, userId, categoryId, taskId]);
 
   const scopeLabel = selectedTask
     ? `${selectedTask.taskName} · ${selectedProject?.name ?? "1 project"}`
@@ -858,15 +879,13 @@ export function DashboardPage() {
         actions={
           <>
             <LivePresenceBadge />
-            <AppBarActionButton asChild>
-              <Link
-                href={`/exports?from=${encodeURIComponent(startDate)}&to=${encodeURIComponent(endDate)}&scenario=payroll`}
-                aria-label="Export this period"
-              >
-                <Download className="size-3.5 shrink-0" aria-hidden />
-                <span className="hidden @min-[960px]/shell:inline">Export period</span>
-              </Link>
-            </AppBarActionButton>
+            <Link
+              href={exportUrl}
+              className="text-sm font-medium text-primary hover:underline hover:text-primary/80 transition-colors self-center px-3"
+              aria-label="Export this period"
+            >
+              Export period
+            </Link>
             <AppBarActionButton
               active={isCatalogOpen}
               aria-label={isCatalogOpen ? "Closing catalog" : "Add widgets"}
