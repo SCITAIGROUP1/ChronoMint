@@ -20,7 +20,7 @@ test.describe("exports quick flow", () => {
     await expect(page.getByRole("heading", { name: "Dashboard", exact: true })).toBeVisible();
     await page.getByRole("link", { name: "Export this period" }).click();
     await expect(page).toHaveURL(/\/exports\?from=/);
-    await expect(page.getByText("Payroll & timesheets")).toBeVisible();
+    await expect(page.getByText("Period & filters")).toBeVisible();
   });
 
   test("exports page does not horizontally overflow on a 1366×768 laptop viewport", async ({

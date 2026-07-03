@@ -24,12 +24,7 @@ test.describe("Admin context picker", () => {
     const tenantNameRegex = new RegExp(SEED.tenant.name, "i");
     await page.getByRole("button", { name: tenantNameRegex }).click();
     await expect(page).toHaveURL(/\/account/, { timeout: 15_000 });
-    await expect(page.getByRole("navigation", { name: "Current context" })).toBeVisible();
-    await expect(
-      page.getByRole("navigation", { name: "Current context" }).getByText("Organization", {
-        exact: true
-      })
-    ).toBeVisible();
+    await expect(page.getByRole("button", { name: /Organization owner/i })).toBeVisible();
   });
 
   test("owner can choose workspace context from picker", async ({ page }) => {
@@ -42,9 +37,6 @@ test.describe("Admin context picker", () => {
     const acmeNameRegex = new RegExp(SEED.workspaces.acme.name, "i");
     await page.getByRole("button", { name: acmeNameRegex }).click();
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
-    await expect(page.getByRole("navigation", { name: "Current context" })).toBeVisible();
-    await expect(
-      page.getByRole("navigation", { name: "Current context" }).getByText("Owner · Workspace admin")
-    ).toBeVisible();
+    await expect(page.getByRole("button", { name: /Owner · Workspace admin/i })).toBeVisible();
   });
 });

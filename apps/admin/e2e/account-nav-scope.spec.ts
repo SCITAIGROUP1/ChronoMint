@@ -26,10 +26,7 @@ test.describe("Admin nav scope by role", () => {
     await expect(page.getByRole("link", { name: "Dashboard" }).first()).toBeVisible();
     await expect(page.getByRole("link", { name: "Subscription" })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Organization", exact: true })).toHaveCount(0);
-    await expect(page.getByRole("navigation", { name: "Current context" })).toBeVisible();
-    await expect(
-      page.getByRole("navigation", { name: "Current context" }).getByText("Owner · Workspace admin")
-    ).toBeVisible();
+    await expect(page.getByRole("button", { name: /Owner · Workspace admin/i })).toBeVisible();
 
     await openContextSwitcher(page);
     await expect(page.getByRole("option", { name: /organization.*owner/i })).toBeVisible();
@@ -45,12 +42,7 @@ test.describe("Admin nav scope by role", () => {
     await expect(page.getByRole("link", { name: "Overview" }).first()).toBeVisible();
     await expect(page.getByRole("link", { name: "Subscription" }).first()).toBeVisible();
     await expect(page.getByRole("link", { name: "Dashboard" })).toHaveCount(0);
-    await expect(page.getByRole("navigation", { name: "Current context" })).toBeVisible();
-    await expect(
-      page.getByRole("navigation", { name: "Current context" }).getByText("Organization", {
-        exact: true
-      })
-    ).toBeVisible();
+    await expect(page.getByRole("button", { name: /Organization owner/i })).toBeVisible();
 
     await openContextSwitcher(page);
     await expect(page.getByRole("option", { name: /organization.*owner/i })).toBeVisible();
