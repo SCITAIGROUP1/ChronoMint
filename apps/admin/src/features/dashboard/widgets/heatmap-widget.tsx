@@ -149,7 +149,7 @@ export function HeatmapWidget({
                 {/* 24 Cells */}
                 <div className="flex-1 flex gap-1">
                   {row.map((hours, hourIdx) => {
-                    const formattedHours = hours.toFixed(1);
+                    const formattedHours = hours.toFixed(2);
                     const title = `${DAYS[dayIdx]} ${hourIdx}:00 - ${hours > 0 ? formattedHours : 0} hrs`;
                     return (
                       <div

@@ -69,8 +69,8 @@ export function formatWeekSectionLabel(
 export function formatHoursCompact(sec: number): string {
   const hours = sec / 3600;
   if (hours === 0) return "0h";
-  const rounded = Math.round(hours * 10) / 10;
-  return Number.isInteger(rounded) ? `${rounded}h` : `${rounded}h`;
+  const rounded = Math.round(hours * 100) / 100;
+  return `${rounded}h`;
 }
 
 export function formatHoursDecimal(sec: number): string {

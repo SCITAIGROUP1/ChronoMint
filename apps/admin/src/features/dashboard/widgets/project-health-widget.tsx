@@ -102,7 +102,7 @@ export function ProjectHealthWidget({ report }: ProjectHealthWidgetProps) {
               <div className="grid grid-cols-3 gap-2 text-[10px] text-muted-foreground py-1">
                 <div>
                   <span className="block font-medium text-foreground">
-                    {project.totalHours.toFixed(1)} hrs
+                    {project.totalHours.toFixed(2)} hrs
                   </span>
                   <span>Logged Time</span>
                 </div>
@@ -136,7 +136,7 @@ export function ProjectHealthWidget({ report }: ProjectHealthWidgetProps) {
                   </div>
                   <div className="flex justify-between text-[9px] text-muted-foreground">
                     <span>{project.percentUsed}% consumed</span>
-                    <span>{(project.budgetHours - project.totalHours).toFixed(1)} hrs left</span>
+                    <span>{(project.budgetHours - project.totalHours).toFixed(2)} hrs left</span>
                   </div>
                 </div>
               )}

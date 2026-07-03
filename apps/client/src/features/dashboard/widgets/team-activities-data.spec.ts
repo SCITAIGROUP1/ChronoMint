@@ -20,7 +20,7 @@ describe("team-activities-data", () => {
 
   it("formats week hours", () => {
     expect(formatWeekHours(0)).toBe("0h");
-    expect(formatWeekHours(6.25)).toBe("6.3h");
+    expect(formatWeekHours(6.25)).toBe("6.25h");
   });
 
   it("formats member initials", () => {

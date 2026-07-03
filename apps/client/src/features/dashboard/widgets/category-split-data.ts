@@ -53,9 +53,9 @@ export function buildCategorySplitData(logs: TimeLogDto[], tasks: TaskDto[]): Ca
     .map(([id, val]) => ({ id, name: val.name, seconds: val.seconds }))
     .sort((a, b) => b.seconds - a.seconds);
 
-  const totalHours = totalSec / 3600;
+  const totalHours = Math.round((totalSec / 3600) * 100) / 100;
   const rows: CategorySplitRow[] = sorted.map((item, idx) => {
-    const hours = item.seconds / 3600;
+    const hours = Math.round((item.seconds / 3600) * 100) / 100;
     const percentage = totalHours > 0 ? Math.round((hours / totalHours) * 1000) / 10 : 0;
     const color = CATEGORY_SPLIT_PALETTE[idx % CATEGORY_SPLIT_PALETTE.length] || "hsl(215 16% 55%)";
 

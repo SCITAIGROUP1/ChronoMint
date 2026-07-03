@@ -12,7 +12,7 @@ export function formatDurationSec(sec: number): string {
 
 export function formatWeekHours(hours: number): string {
   if (hours === 0) return "0h";
-  const rounded = Math.round(hours * 10) / 10;
+  const rounded = Math.round(hours * 100) / 100;
   return `${rounded}h`;
 }
 

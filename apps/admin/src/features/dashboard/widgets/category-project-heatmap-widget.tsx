@@ -158,7 +158,7 @@ export function CategoryProjectHeatmapWidget({
                   }}
                   title={`${cat.categoryName} × ${proj.projectName}: ${hours.toFixed(2)}h`}
                 >
-                  {hours > 0 ? hours.toFixed(1) : ""}
+                  {hours > 0 ? hours.toFixed(2) : ""}
                 </div>
               );
             })}

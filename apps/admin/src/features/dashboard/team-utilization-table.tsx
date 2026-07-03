@@ -17,10 +17,10 @@ function UtilizationRow({ member }: { member: UtilizationMemberDto }) {
     <TableRow className="hover:bg-muted/30">
       <DataTableCell className="px-3 py-2 text-xs font-medium">{member.userName}</DataTableCell>
       <DataTableCell className="px-3 py-2 text-right font-mono text-xs">
-        {member.loggedHours.toFixed(1)}h
+        {member.loggedHours.toFixed(2)}h
       </DataTableCell>
       <DataTableCell className="px-3 py-2 text-right font-mono text-xs text-muted-foreground">
-        {member.billableHours.toFixed(1)}h
+        {member.billableHours.toFixed(2)}h
       </DataTableCell>
       <DataTableCell className="px-3 py-2 text-right font-mono text-xs font-bold">
         {member.utilizationPct}%
@@ -32,7 +32,7 @@ function UtilizationRow({ member }: { member: UtilizationMemberDto }) {
 export function TeamUtilizationTargetBadge({ data }: { data: UtilizationResponseDto }) {
   return (
     <span className="rounded-full border bg-muted px-2 py-0.5 text-[10px] font-medium">
-      Target: {data.targetHours.toFixed(1)} hrs ({data.expectedWeeklyHours}h/wk)
+      Target: {data.targetHours.toFixed(2)} hrs ({data.expectedWeeklyHours}h/wk)
     </span>
   );
 }

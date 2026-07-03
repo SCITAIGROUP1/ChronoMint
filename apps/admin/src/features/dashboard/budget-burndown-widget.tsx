@@ -219,7 +219,7 @@ export function BudgetBurnDownWidget({
           <div className="flex justify-between items-baseline">
             <div>
               <p className="text-2xl font-bold tracking-tight">
-                {totalLoggedHours.toFixed(1)}{" "}
+                {totalLoggedHours.toFixed(2)}{" "}
                 <span className="text-xs font-medium text-muted-foreground">
                   / {budgetHours} hrs
                 </span>
@@ -275,7 +275,7 @@ export function BudgetBurnDownWidget({
           <div className="flex justify-between items-baseline">
             <div>
               <p className="text-2xl font-bold tracking-tight">
-                {totalLoggedHours.toFixed(1)}{" "}
+                {totalLoggedHours.toFixed(2)}{" "}
                 <span className="text-sm font-medium text-muted-foreground">
                   / {budgetHours} hrs
                 </span>
@@ -328,7 +328,7 @@ export function BudgetBurnDownWidget({
                       <span className="truncate">{p.projectName}</span>
                     </span>
                     <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
-                      {p.totalLoggedHours.toFixed(1)} / {p.budgetHours} h ({pct}%)
+                      {p.totalLoggedHours.toFixed(2)} / {p.budgetHours} h ({pct}%)
                     </span>
                   </div>
                   <div className="w-full min-w-0 overflow-hidden rounded-full bg-muted/40 h-1.5">
@@ -365,7 +365,7 @@ export function BudgetBurnDownWidget({
                       {p.projectName}
                     </span>
                     <span className="text-muted-foreground font-mono">
-                      {p.totalLoggedHours.toFixed(1)} / {p.budgetHours} h ({pct}%)
+                      {p.totalLoggedHours.toFixed(2)} / {p.budgetHours} h ({pct}%)
                     </span>
                   </div>
                   <div className="w-full bg-muted/40 rounded-full h-1.5 overflow-hidden">

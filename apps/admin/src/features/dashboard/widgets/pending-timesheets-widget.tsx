@@ -141,7 +141,7 @@ export function PendingTimesheetsWidget({
                   </div>
                   <div className="text-right shrink-0">
                     <span className="text-xs font-extrabold text-primary font-mono block">
-                      {sheet.totalHours.toFixed(1)} hrs
+                      {sheet.totalHours.toFixed(2)} hrs
                     </span>
                     <span className="text-[9px] text-muted-foreground flex items-center gap-1 font-mono">
                       <Calendar className="size-2.5" />

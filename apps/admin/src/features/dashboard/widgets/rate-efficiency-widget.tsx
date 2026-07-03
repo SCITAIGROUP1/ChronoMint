@@ -56,7 +56,7 @@ export function RateEfficiencyWidget({ report }: RateEfficiencyWidgetProps) {
 
         return {
           name: p.projectName,
-          hours: Number(p.totalHours.toFixed(1)),
+          hours: Number(p.totalHours.toFixed(2)),
           revenue: Number(p.billableAmount.toFixed(0)),
           billablePct: pct,
           color

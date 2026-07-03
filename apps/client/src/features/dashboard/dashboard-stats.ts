@@ -42,7 +42,7 @@ export function computeTodayStats({
   return {
     totalSec,
     billableSec,
-    totalHours: Math.round((totalSec / 3600) * 10) / 10,
-    billableHours: Math.round((billableSec / 3600) * 10) / 10
+    totalHours: Math.round((totalSec / 3600) * 100) / 100,
+    billableHours: Math.round((billableSec / 3600) * 100) / 100
   };
 }

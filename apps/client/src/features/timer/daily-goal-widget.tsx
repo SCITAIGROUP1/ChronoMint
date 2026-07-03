@@ -55,7 +55,7 @@ export function DailyGoalWidget({ totalSeconds, cardless = false }: DailyGoalWid
   const percentage = Math.min(100, Math.round((totalSeconds / targetSeconds) * 100));
   const isGoalReached = totalSeconds >= targetSeconds;
 
-  const hoursLogged = (totalSeconds / 3600).toFixed(1);
+  const hoursLogged = (totalSeconds / 3600).toFixed(2);
 
   const size = 120;
   const strokeWidth = 8;
@@ -128,7 +128,7 @@ export function DailyGoalWidget({ totalSeconds, cardless = false }: DailyGoalWid
         <p className="text-xs text-muted-foreground leading-snug truncate-multiline">
           {isGoalReached
             ? "Goal reached! Keep up the good work!"
-            : `Need ${((targetSeconds - totalSeconds) / 3600).toFixed(1)} more hours today.`}
+            : `Need ${((targetSeconds - totalSeconds) / 3600).toFixed(2)} more hours today.`}
         </p>
         <div className="w-full bg-muted/40 rounded-full h-1.5 overflow-hidden">
           <div
