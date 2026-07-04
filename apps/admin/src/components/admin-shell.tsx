@@ -40,7 +40,11 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const isOwner = session?.tenantRole === "OWNER";
   const canManageOrg = canManageOrganization(session);
   const canUseAdminFeatures = canAccessAdminApp(session?.workspaceRole, session?.managedProjectIds);
-  const projectLeadOnly = isProjectLeadOnly(session?.workspaceRole, session?.managedProjectIds);
+  const projectLeadOnly = isProjectLeadOnly(
+    session?.workspaceRole,
+    session?.managedProjectIds,
+    session?.tenantRole
+  );
   const managedProjectCount = session?.managedProjectIds?.length ?? 0;
   const isAccountMode = resolveAdminShellMode(pathname, session) === "account";
   const canUsePersonalFeatures = Boolean(wsId);
@@ -128,6 +132,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const navSectionLabel = isAccountMode ? "Organization" : undefined;
   const navAriaLabel = isAccountMode ? "Organization navigation" : "Workspace navigation";
 
+  const settingsHref = isAccountMode ? "/account/settings" : "/settings";
+
   return (
     <>
       <GlobalSearchShell workspaceId={wsId} isOwner={isOwner} />
@@ -142,9 +148,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         shellToolbar={
           <ShellHeaderActions
             workspaceId={wsId}
-            profileHref="/profile"
-            settingsHref="/settings"
-            notificationsHref="/notifications"
+            profileHref={isAccountMode ? "/account/profile" : "/profile"}
+            settingsHref={settingsHref}
+            notificationsHref={isAccountMode ? "/account/notifications" : "/notifications"}
           />
         }
         workspaceSwitcher={(collapsed) => (
@@ -169,7 +175,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             <SidebarUserFooter
               collapsed={collapsed}
               userName={session.user.name ?? (projectLeadOnly ? "Project manager" : "Admin")}
-              profileHref="/profile"
+              profileHref={isAccountMode ? "/account/profile" : "/profile"}
               onLogout={() => {
                 void logoutSession(session.workspaceId).then(() => router.push("/login"));
               }}

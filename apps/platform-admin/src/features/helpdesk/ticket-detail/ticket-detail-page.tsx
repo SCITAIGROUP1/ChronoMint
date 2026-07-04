@@ -109,9 +109,8 @@ export function TicketDetailPage({ ticketId }: { ticketId: string }) {
   const isAssignedToMe = session?.user?.id === ticket.assignedToId;
 
   return (
-    <div className="flex flex-col h-full bg-background overflow-hidden relative">
+    <div className="space-y-6">
       <AppBar
-        className="mx-0 mb-0 px-6 lg:px-8 border-b"
         title={
           <div className="flex items-center gap-2">
             <Link
@@ -120,7 +119,7 @@ export function TicketDetailPage({ ticketId }: { ticketId: string }) {
             >
               <ArrowLeft className="h-4 w-4" />
             </Link>
-            <span className="truncate">{ticket.subject}</span>
+            <span className="truncate text-foreground font-semibold">{ticket.subject}</span>
           </div>
         }
         description={
@@ -194,31 +193,44 @@ export function TicketDetailPage({ ticketId }: { ticketId: string }) {
         }
       />
 
-      <div className="flex-1 flex min-h-0 relative overflow-hidden">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-4 items-start">
         {/* Main conversation thread */}
-        <div className="flex-1 flex flex-col min-w-0 border-r h-full overflow-hidden">
+        <div className="lg:col-span-3 border border-border bg-card rounded-xl shadow-sm flex flex-col h-[75vh] min-h-0">
           <ConversationThread ticket={ticket} onMessageSent={reloadTicket} />
         </div>
 
-        {/* Backdrop for mobile details sidebar */}
-        {showSidebar && (
-          <div
-            className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40 lg:hidden"
-            onClick={() => setShowSidebar(false)}
+        {/* Desktop sidebar — plain static grid column, NO transform / z-index so it
+            never creates a stacking context that would trap the notification popover */}
+        <div className="hidden lg:col-span-1 lg:flex lg:flex-col lg:h-[75vh] border border-border bg-card rounded-xl shadow-sm overflow-hidden">
+          <TicketSidebar
+            ticket={ticket}
+            onClose={() => setShowSidebar(false)}
+            onUpdate={updateTicket}
+            platformRole={session?.platformRole}
           />
-        )}
-
-        {/* Sidebar panel */}
-        <div
-          className={cn(
-            "w-80 flex-shrink-0 bg-muted/10 overflow-hidden lg:block lg:h-full lg:relative lg:translate-x-0 border-l lg:border-l-0",
-            // Mobile Overlay logic: slides in from right when showSidebar is true
-            "fixed inset-y-0 right-0 z-50 transition-transform duration-300 transform lg:transform-none bg-background",
-            showSidebar ? "translate-x-0" : "translate-x-full"
-          )}
-        >
-          <TicketSidebar ticket={ticket} onClose={() => setShowSidebar(false)} />
         </div>
+      </div>
+
+      {/* Mobile sidebar — rendered OUTSIDE the grid so its z-index/transform/fixed
+          positioning never interferes with the AppBar's popover portals */}
+      {showSidebar && (
+        <div
+          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40 lg:hidden"
+          onClick={() => setShowSidebar(false)}
+        />
+      )}
+      <div
+        className={cn(
+          "lg:hidden fixed inset-y-0 right-0 z-50 w-80 border-l border-border bg-card shadow-xl transition-transform duration-300",
+          showSidebar ? "translate-x-0" : "translate-x-full"
+        )}
+      >
+        <TicketSidebar
+          ticket={ticket}
+          onClose={() => setShowSidebar(false)}
+          onUpdate={updateTicket}
+          platformRole={session?.platformRole}
+        />
       </div>
     </div>
   );

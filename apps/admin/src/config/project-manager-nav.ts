@@ -19,7 +19,9 @@ export { canAccessAdminApp } from "@kloqra/web-shared";
 
 export function isProjectLeadOnly(
   workspaceRole: "ADMIN" | "MEMBER" | undefined,
-  ledProjectIds: string[] | undefined
+  ledProjectIds: string[] | undefined,
+  tenantRole?: string | null
 ): boolean {
+  if (tenantRole === "OWNER" || tenantRole === "ADMIN") return false;
   return workspaceRole === "MEMBER" && Boolean(ledProjectIds && ledProjectIds.length > 0);
 }

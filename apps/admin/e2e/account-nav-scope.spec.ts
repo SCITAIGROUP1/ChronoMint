@@ -63,7 +63,7 @@ test.describe("Admin nav scope by role", () => {
     await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Appearance" })).toBeVisible();
 
-    await page.goto("/profile");
+    await page.goto("/account/profile");
     await expect(page.getByRole("link", { name: "Kloqra Organization" }).first()).toBeVisible();
     await expect(page.getByRole("heading", { name: "Profile" })).toBeVisible();
     await expect(page.getByLabel(/display name|first name/i).first()).toBeVisible();

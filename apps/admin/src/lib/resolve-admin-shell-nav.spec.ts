@@ -10,13 +10,14 @@ describe("resolveAdminShellNav", () => {
   it("detects account mode paths", () => {
     expect(isAccountModePath("/account")).toBe(true);
     expect(isAccountModePath("/account/billing")).toBe(true);
-    expect(isAccountModePath("/profile", { tenantRole: "OWNER" })).toBe(true);
-    expect(isAccountModePath("/settings", { tenantRole: "ADMIN" })).toBe(true);
-    expect(isAccountModePath("/profile", { tenantRole: "MEMBER" as any })).toBe(false);
+    // Personal paths must NEVER trigger account mode — they are personal regardless of tenantRole.
+    expect(isAccountModePath("/profile")).toBe(false);
+    expect(isAccountModePath("/settings")).toBe(false);
+    expect(isAccountModePath("/profile")).toBe(false);
     expect(isAccountModePath("/dashboard")).toBe(false);
   });
 
-  it("keeps organization chrome on personal account routes for tenant operators", () => {
+  it("keeps workspace chrome on personal routes (/settings, /profile) for tenant operators", () => {
     const { mode, navItems } = resolveAdminShellNav({
       pathname: "/settings",
       projectLeadOnly: false,
@@ -26,9 +27,10 @@ describe("resolveAdminShellNav", () => {
       session: { tenantRole: "OWNER" }
     });
 
-    expect(mode).toBe("account");
-    expect(navItems.map((item) => item.href)).toContain("/account");
-    expect(navItems.some((item) => item.href === "/dashboard")).toBe(false);
+    // /settings is a personal path — shell must stay in workspace mode.
+    expect(mode).toBe("workspace");
+    expect(navItems.some((item) => item.href === "/dashboard")).toBe(true);
+    expect(navItems.some((item) => item.href === "/account")).toBe(false);
   });
 
   it("returns account nav only on account routes", () => {
@@ -50,7 +52,8 @@ describe("resolveAdminShellNav", () => {
       "/account/organization",
       "/account/members",
       "/account/billing",
-      "/account/data-privacy"
+      "/account/data-privacy",
+      "/account/settings"
     ]);
     expect(navItems.some((item) => item.href === "/dashboard")).toBe(false);
   });
@@ -68,7 +71,8 @@ describe("resolveAdminShellNav", () => {
     expect(navItems.map((item) => item.href)).toEqual([
       "/account/workspaces",
       "/account/workspace-admins",
-      "/account/organization"
+      "/account/organization",
+      "/account/settings"
     ]);
   });
 
@@ -84,7 +88,8 @@ describe("resolveAdminShellNav", () => {
 
     expect(mode).toBe("workspace");
     expect(resolveAdminShellMode("/dashboard")).toBe("workspace");
-    expect(resolveAdminShellMode("/settings", { tenantRole: "OWNER" })).toBe("account");
+    // /settings is a personal path — must stay workspace mode even for owners.
+    expect(resolveAdminShellMode("/settings", { tenantRole: "OWNER" })).toBe("workspace");
     expect(navItems.some((item) => item.href.startsWith("/account"))).toBe(false);
     expect(navItems.find((item) => item.href === "/approvals")?.badge).toBe(2);
     expect(navItems.find((item) => item.href === "/notifications")?.badge).toBe(1);
@@ -108,5 +113,22 @@ describe("resolveAdminShellNav", () => {
       "/time-tracker",
       "/notifications"
     ]);
+  });
+
+  it("returns full workspace nav for tenant admin even with member workspace role", () => {
+    const { mode, navItems } = resolveAdminShellNav({
+      pathname: "/dashboard",
+      projectLeadOnly: false,
+      workspaceNavItems: ADMIN_NAV_ITEMS,
+      pendingCount: 0,
+      notificationUnreadCount: 0,
+      session: { tenantRole: "ADMIN" }
+    });
+
+    expect(mode).toBe("workspace");
+    const hrefs = navItems.map((item) => item.href);
+    expect(hrefs).toContain("/team-management");
+    expect(hrefs).toContain("/project-managers");
+    expect(hrefs).toContain("/workspace");
   });
 });
