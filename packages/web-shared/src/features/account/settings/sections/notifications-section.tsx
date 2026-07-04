@@ -32,7 +32,7 @@ import { NotificationChannelRow } from "../notification-channel-row";
 import { SettingsCard } from "../settings-card";
 import { SettingsSaveBar } from "../settings-save-bar";
 
-type SettingsVariant = "member" | "admin";
+type SettingsVariant = "member" | "admin" | "workspace-admin";
 
 const MEMBER_ROWS: {
   key: MemberNotificationKey;
@@ -116,8 +116,8 @@ const ADMIN_ROWS: {
   },
   {
     key: "exportSchedule",
-    title: "Scheduled Exports",
-    description: "When a scheduled export completes or fails",
+    title: "Exports & Backups",
+    description: "When a scheduled export or organization data backup/import completes",
     icon: Download
   },
   {
@@ -168,7 +168,12 @@ export function NotificationsSection({
   }, [profile]);
 
   const isDirty = JSON.stringify(state) !== snapshot;
-  const rows = variant === "admin" ? ADMIN_ROWS : MEMBER_ROWS;
+  const rows =
+    variant === "admin"
+      ? ADMIN_ROWS
+      : variant === "workspace-admin"
+        ? [...MEMBER_ROWS, ...ADMIN_ROWS]
+        : MEMBER_ROWS;
 
   function updateKey(key: NotificationPreferenceKey, channels: NotificationChannels) {
     setState((prev) => ({ ...prev, [key]: channels }));

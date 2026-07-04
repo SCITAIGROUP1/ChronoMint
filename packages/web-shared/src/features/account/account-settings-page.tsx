@@ -52,6 +52,20 @@ export function AccountSettingsPage({
   const searchParams = useSearchParams();
   const activeSection = useMemo(() => parseSection(searchParams.get("section")), [searchParams]);
 
+  const session = useSessionStore((s) => s.session);
+  const isWorkspace = notificationsVariant === "member";
+
+  const effectiveVariant = useMemo(() => {
+    if (isWorkspace) {
+      const isWorkspaceAdminOrTenantAdmin =
+        session?.workspaceRole === "ADMIN" ||
+        session?.tenantRole === "OWNER" ||
+        session?.tenantRole === "ADMIN";
+      return isWorkspaceAdminOrTenantAdmin ? "workspace-admin" : "member";
+    }
+    return "admin";
+  }, [isWorkspace, session]);
+
   const isImpersonating = Boolean(useSessionStore((s) => s.session?.impersonatorId));
   const {
     profile,
@@ -111,7 +125,7 @@ export function AccountSettingsPage({
               <NotificationsSection
                 profile={profile}
                 onSavePreferences={updatePreferences}
-                variant={notificationsVariant}
+                variant={effectiveVariant}
               />
             ) : null}
             {activeSection === "security" ? (
@@ -130,7 +144,7 @@ export function AccountSettingsPage({
               <AccountPreferencesSection
                 profile={profile}
                 onSavePreferences={updatePreferences}
-                isAdminApp={notificationsVariant === "admin"}
+                isAdminApp={effectiveVariant === "admin"}
               />
             ) : null}
           </CrossfadePresence>
