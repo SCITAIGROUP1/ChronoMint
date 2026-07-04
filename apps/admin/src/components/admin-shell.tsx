@@ -148,9 +148,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         shellToolbar={
           <ShellHeaderActions
             workspaceId={wsId}
-            profileHref="/profile"
+            profileHref={isAccountMode ? "/account/profile" : "/profile"}
             settingsHref={settingsHref}
-            notificationsHref="/notifications"
+            notificationsHref={isAccountMode ? "/account/notifications" : "/notifications"}
           />
         }
         workspaceSwitcher={(collapsed) => (
@@ -175,7 +175,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             <SidebarUserFooter
               collapsed={collapsed}
               userName={session.user.name ?? (projectLeadOnly ? "Project manager" : "Admin")}
-              profileHref="/profile"
+              profileHref={isAccountMode ? "/account/profile" : "/profile"}
               onLogout={() => {
                 void logoutSession(session.workspaceId).then(() => router.push("/login"));
               }}
