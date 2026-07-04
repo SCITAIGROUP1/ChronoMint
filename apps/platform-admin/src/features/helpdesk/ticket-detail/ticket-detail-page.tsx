@@ -216,7 +216,12 @@ export function TicketDetailPage({ ticketId }: { ticketId: string }) {
             showSidebar ? "translate-x-0" : "translate-x-full"
           )}
         >
-          <TicketSidebar ticket={ticket} onClose={() => setShowSidebar(false)} />
+          <TicketSidebar
+            ticket={ticket}
+            onClose={() => setShowSidebar(false)}
+            onUpdate={updateTicket}
+            platformRole={session?.platformRole}
+          />
         </div>
       </div>
     </div>

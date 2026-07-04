@@ -1,5 +1,6 @@
-import { Button } from "@kloqra/ui";
+import { Button, SearchableSelect } from "@kloqra/ui";
 import { Clock, UserCircle2, Building, Tag, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import {
   TicketTypeBadge,
   PriorityDot,
@@ -7,8 +8,38 @@ import {
   TicketMetadataPanel
 } from "../shared/ticket-type-config";
 import type { TicketType } from "./ticket-detail-page";
+import { api } from "@/lib/api";
 
-export function TicketSidebar({ ticket, onClose }: { ticket: TicketType; onClose?: () => void }) {
+export interface StaffType {
+  id: string;
+  name: string;
+  role: "SUPERADMIN" | "SUPPORT";
+}
+
+export function TicketSidebar({
+  ticket,
+  onClose,
+  onUpdate,
+  platformRole
+}: {
+  ticket: TicketType;
+  onClose?: () => void;
+  onUpdate?: (fields: { assignedToId: string | null }) => Promise<void>;
+  platformRole?: string;
+}) {
+  const [staff, setStaff] = useState<StaffType[]>([]);
+  const [loadingStaff, setLoadingStaff] = useState(false);
+
+  useEffect(() => {
+    setLoadingStaff(true);
+    api<{ items: StaffType[] }>("/platform/staff?limit=100")
+      .then((res) => {
+        setStaff(res.items || []);
+      })
+      .catch(console.error)
+      .finally(() => setLoadingStaff(false));
+  }, []);
+
   const minutesLeft = ticket.firstResponseDue
     ? Math.max(0, Math.round((new Date(ticket.firstResponseDue).getTime() - Date.now()) / 60000))
     : null;
@@ -49,6 +80,32 @@ export function TicketSidebar({ ticket, onClose }: { ticket: TicketType; onClose
             <div className="flex justify-between items-center">
               <span className="text-muted-foreground">Priority</span>
               <PriorityDot priority={ticket.priority} />
+            </div>
+            <div className="flex justify-between items-center min-h-[2.5rem]">
+              <span className="text-muted-foreground">Assignee</span>
+              {platformRole === "SUPERADMIN" ? (
+                <div className="w-48">
+                  <SearchableSelect
+                    value={ticket.assignedToId || "UNASSIGNED"}
+                    onValueChange={(val) => {
+                      const id = val === "UNASSIGNED" ? null : val;
+                      if (onUpdate) {
+                        void onUpdate({ assignedToId: id });
+                      }
+                    }}
+                    options={[
+                      { value: "UNASSIGNED", label: "Unassigned" },
+                      ...staff.map((s) => ({ value: s.id, label: s.name }))
+                    ]}
+                    placeholder={loadingStaff ? "Loading staff…" : "Select assignee"}
+                    searchPlaceholder="Search support staff…"
+                    emptyMessage="No staff found."
+                    className="h-8 py-1 text-xs"
+                  />
+                </div>
+              ) : (
+                <span className="font-medium text-xs">{ticket.assignedToName || "Unassigned"}</span>
+              )}
             </div>
             <div className="flex justify-between items-center">
               <span className="text-muted-foreground">Queue</span>
