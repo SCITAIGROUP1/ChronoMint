@@ -52,7 +52,8 @@ describe("resolveAdminShellNav", () => {
       "/account/organization",
       "/account/members",
       "/account/billing",
-      "/account/data-privacy"
+      "/account/data-privacy",
+      "/account/settings"
     ]);
     expect(navItems.some((item) => item.href === "/dashboard")).toBe(false);
   });
@@ -70,7 +71,8 @@ describe("resolveAdminShellNav", () => {
     expect(navItems.map((item) => item.href)).toEqual([
       "/account/workspaces",
       "/account/workspace-admins",
-      "/account/organization"
+      "/account/organization",
+      "/account/settings"
     ]);
   });
 
@@ -111,5 +113,22 @@ describe("resolveAdminShellNav", () => {
       "/time-tracker",
       "/notifications"
     ]);
+  });
+
+  it("returns full workspace nav for tenant admin even with member workspace role", () => {
+    const { mode, navItems } = resolveAdminShellNav({
+      pathname: "/dashboard",
+      projectLeadOnly: false,
+      workspaceNavItems: ADMIN_NAV_ITEMS,
+      pendingCount: 0,
+      notificationUnreadCount: 0,
+      session: { tenantRole: "ADMIN" }
+    });
+
+    expect(mode).toBe("workspace");
+    const hrefs = navItems.map((item) => item.href);
+    expect(hrefs).toContain("/team-management");
+    expect(hrefs).toContain("/project-managers");
+    expect(hrefs).toContain("/workspace");
   });
 });

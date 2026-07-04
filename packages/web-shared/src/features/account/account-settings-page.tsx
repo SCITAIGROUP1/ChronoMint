@@ -44,27 +44,39 @@ function SettingsLoadingSkeleton() {
 }
 
 export function AccountSettingsPage({
-  notificationsVariant = "member"
+  notificationsVariant = "member",
+  basePath = "/settings"
 }: {
   notificationsVariant?: "member" | "admin";
+  /** Base URL for section navigation. Defaults to /settings. Pass /account/settings when used in org-mode context. */
+  basePath?: string;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const activeSection = useMemo(() => parseSection(searchParams.get("section")), [searchParams]);
 
+  const isOrgMode = basePath === "/account/settings";
+  const isAdminApp = notificationsVariant === "admin";
   const session = useSessionStore((s) => s.session);
-  const isWorkspace = notificationsVariant === "member";
 
   const effectiveVariant = useMemo(() => {
-    if (isWorkspace) {
-      const isWorkspaceAdminOrTenantAdmin =
-        session?.workspaceRole === "ADMIN" ||
-        session?.tenantRole === "OWNER" ||
-        session?.tenantRole === "ADMIN";
-      return isWorkspaceAdminOrTenantAdmin ? "workspace-admin" : "member";
+    if (isOrgMode) {
+      return "tenant-admin-org" as const;
     }
-    return "admin";
-  }, [isWorkspace, session]);
+    // Workspace Mode
+    const isOwnerOrAdmin = session?.tenantRole === "OWNER" || session?.tenantRole === "ADMIN";
+    const isWorkspaceAdmin = session?.workspaceRole === "ADMIN";
+    if (isWorkspaceAdmin || isOwnerOrAdmin) {
+      return "workspace-admin" as const;
+    }
+    const isProjectLead = Boolean(
+      session?.managedProjectIds && session.managedProjectIds.length > 0
+    );
+    if (isProjectLead) {
+      return "project-manager" as const;
+    }
+    return "member" as const;
+  }, [isOrgMode, session]);
 
   const isImpersonating = Boolean(useSessionStore((s) => s.session?.impersonatorId));
   const {
@@ -81,12 +93,19 @@ export function AccountSettingsPage({
     disable2fa
   } = useUserProfile();
 
-  const visibleNav = isImpersonating
-    ? NAV_ITEMS.filter((item) => item.id !== "security")
-    : NAV_ITEMS;
+  const visibleNav = useMemo(() => {
+    let items = NAV_ITEMS;
+    if (isOrgMode) {
+      items = items.filter((item) => item.id !== "time");
+    }
+    if (isImpersonating) {
+      items = items.filter((item) => item.id !== "security");
+    }
+    return items;
+  }, [isOrgMode, isImpersonating]);
 
   function handleSectionChange(section: SettingsSectionId) {
-    router.replace(`/settings?section=${section}`, { scroll: false });
+    router.replace(`${basePath}?section=${section}`, { scroll: false });
   }
 
   if (error || (!loading && !profile)) {
@@ -144,7 +163,7 @@ export function AccountSettingsPage({
               <AccountPreferencesSection
                 profile={profile}
                 onSavePreferences={updatePreferences}
-                isAdminApp={effectiveVariant === "admin"}
+                isAdminApp={isAdminApp}
               />
             ) : null}
           </CrossfadePresence>

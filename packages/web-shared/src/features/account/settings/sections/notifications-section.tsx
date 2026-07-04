@@ -26,13 +26,18 @@ import {
   Users
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { NotificationChannelRow } from "../notification-channel-row";
 import { SettingsCard } from "../settings-card";
 import { SettingsSaveBar } from "../settings-save-bar";
 
-type SettingsVariant = "member" | "admin" | "workspace-admin";
+type SettingsVariant =
+  | "member"
+  | "admin"
+  | "workspace-admin"
+  | "project-manager"
+  | "tenant-admin-org";
 
 const MEMBER_ROWS: {
   key: MemberNotificationKey;
@@ -168,12 +173,29 @@ export function NotificationsSection({
   }, [profile]);
 
   const isDirty = JSON.stringify(state) !== snapshot;
-  const rows =
-    variant === "admin"
-      ? ADMIN_ROWS
-      : variant === "workspace-admin"
-        ? [...MEMBER_ROWS, ...ADMIN_ROWS]
-        : MEMBER_ROWS;
+  const rows = useMemo(() => {
+    if (variant === "tenant-admin-org") {
+      return ADMIN_ROWS.filter(
+        (row) => row.key === "memberChanges" || row.key === "exportSchedule"
+      );
+    }
+    if (variant === "project-manager") {
+      const pmAdminRows = ADMIN_ROWS.filter(
+        (row) =>
+          row.key === "approvalRequest" ||
+          row.key === "budgetAlert" ||
+          row.key === "missingTimesheets"
+      );
+      return [...MEMBER_ROWS, ...pmAdminRows];
+    }
+    if (variant === "workspace-admin") {
+      return [...MEMBER_ROWS, ...ADMIN_ROWS];
+    }
+    if (variant === "admin") {
+      return ADMIN_ROWS;
+    }
+    return MEMBER_ROWS;
+  }, [variant]);
 
   function updateKey(key: NotificationPreferenceKey, channels: NotificationChannels) {
     setState((prev) => ({ ...prev, [key]: channels }));

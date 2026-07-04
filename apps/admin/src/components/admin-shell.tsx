@@ -40,7 +40,11 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const isOwner = session?.tenantRole === "OWNER";
   const canManageOrg = canManageOrganization(session);
   const canUseAdminFeatures = canAccessAdminApp(session?.workspaceRole, session?.managedProjectIds);
-  const projectLeadOnly = isProjectLeadOnly(session?.workspaceRole, session?.managedProjectIds);
+  const projectLeadOnly = isProjectLeadOnly(
+    session?.workspaceRole,
+    session?.managedProjectIds,
+    session?.tenantRole
+  );
   const managedProjectCount = session?.managedProjectIds?.length ?? 0;
   const isAccountMode = resolveAdminShellMode(pathname, session) === "account";
   const canUsePersonalFeatures = Boolean(wsId);
@@ -128,6 +132,17 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const navSectionLabel = isAccountMode ? "Organization" : undefined;
   const navAriaLabel = isAccountMode ? "Organization navigation" : "Workspace navigation";
 
+  const isWorkspaceAdminOrTenantAdmin =
+    session?.workspaceRole === "ADMIN" ||
+    session?.tenantRole === "OWNER" ||
+    session?.tenantRole === "ADMIN";
+
+  const settingsHref = isAccountMode
+    ? "/account/organization"
+    : isWorkspaceAdminOrTenantAdmin
+      ? "/workspace"
+      : "/settings";
+
   return (
     <>
       <GlobalSearchShell workspaceId={wsId} isOwner={isOwner} />
@@ -143,7 +158,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           <ShellHeaderActions
             workspaceId={wsId}
             profileHref="/profile"
-            settingsHref="/settings"
+            settingsHref={settingsHref}
             notificationsHref="/notifications"
           />
         }
