@@ -195,27 +195,13 @@ export function TicketDetailPage({ ticketId }: { ticketId: string }) {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-4 items-start">
         {/* Main conversation thread */}
-        <div className="lg:col-span-3 border border-border bg-card rounded-xl shadow-sm overflow-hidden flex flex-col h-[75vh]">
+        <div className="lg:col-span-3 border border-border bg-card rounded-xl shadow-sm flex flex-col h-[75vh] min-h-0">
           <ConversationThread ticket={ticket} onMessageSent={reloadTicket} />
         </div>
 
-        {/* Backdrop for mobile details sidebar */}
-        {showSidebar && (
-          <div
-            className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40 lg:hidden"
-            onClick={() => setShowSidebar(false)}
-          />
-        )}
-
-        {/* Sidebar panel */}
-        <div
-          className={cn(
-            "lg:col-span-1 border border-border bg-card rounded-xl shadow-sm overflow-hidden lg:flex lg:flex-col lg:h-[75vh] lg:translate-x-0",
-            // Mobile Overlay logic: slides in from right when showSidebar is true
-            "fixed inset-y-0 right-0 z-50 w-80 lg:w-auto lg:static transition-transform duration-300 transform lg:transform-none bg-background",
-            showSidebar ? "translate-x-0" : "translate-x-full"
-          )}
-        >
+        {/* Desktop sidebar — plain static grid column, NO transform / z-index so it
+            never creates a stacking context that would trap the notification popover */}
+        <div className="hidden lg:col-span-1 lg:flex lg:flex-col lg:h-[75vh] border border-border bg-card rounded-xl shadow-sm overflow-hidden">
           <TicketSidebar
             ticket={ticket}
             onClose={() => setShowSidebar(false)}
@@ -223,6 +209,28 @@ export function TicketDetailPage({ ticketId }: { ticketId: string }) {
             platformRole={session?.platformRole}
           />
         </div>
+      </div>
+
+      {/* Mobile sidebar — rendered OUTSIDE the grid so its z-index/transform/fixed
+          positioning never interferes with the AppBar's popover portals */}
+      {showSidebar && (
+        <div
+          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40 lg:hidden"
+          onClick={() => setShowSidebar(false)}
+        />
+      )}
+      <div
+        className={cn(
+          "lg:hidden fixed inset-y-0 right-0 z-50 w-80 border-l border-border bg-card shadow-xl transition-transform duration-300",
+          showSidebar ? "translate-x-0" : "translate-x-full"
+        )}
+      >
+        <TicketSidebar
+          ticket={ticket}
+          onClose={() => setShowSidebar(false)}
+          onUpdate={updateTicket}
+          platformRole={session?.platformRole}
+        />
       </div>
     </div>
   );
