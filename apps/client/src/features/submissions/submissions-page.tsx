@@ -309,6 +309,8 @@ export function SubmissionsPage() {
             projects={projects}
             onSubmitted={handleSubmitted}
             highlightedProjectId={deepLink.projectId}
+            workspaceId={ws}
+            timezone={timezone}
           />
         )}
       </LoadingCrossfade>

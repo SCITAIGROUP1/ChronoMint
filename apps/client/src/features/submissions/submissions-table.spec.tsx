@@ -23,7 +23,12 @@ const draftSubmission = {
 describe("SubmissionsTable", () => {
   it("renders table headers and submit action for draft rows", () => {
     const html = renderToStaticMarkup(
-      <SubmissionsTable submissions={[draftSubmission]} onSubmitted={() => {}} />
+      <SubmissionsTable
+        submissions={[draftSubmission]}
+        onSubmitted={() => {}}
+        workspaceId="ws-1"
+        timezone="UTC"
+      />
     );
 
     expect(html).toContain("Period");
