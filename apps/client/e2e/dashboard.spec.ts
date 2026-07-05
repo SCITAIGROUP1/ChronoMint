@@ -78,6 +78,13 @@ test.describe("Client dashboard", () => {
   });
 
   test("team activities widget shows member table columns", async ({ page }) => {
+    const teamActivitiesHeader = page.getByRole("heading", { name: "Team Activities" });
+    if (!(await teamActivitiesHeader.isVisible())) {
+      await page.getByRole("button", { name: "Add Widgets" }).click();
+      await page.getByText("Team Activities", { exact: true }).first().click();
+      await page.getByRole("button", { name: "Done Editing" }).click();
+    }
+
     await expect(page.getByRole("heading", { name: "Team Activities" })).toBeVisible();
 
     const widget = page

@@ -849,8 +849,8 @@ export function DashboardPage() {
             <div>
               <p className="font-semibold text-sm">Action needed on your timesheets</p>
               <p className="text-xs opacity-90">
-                You have {draftCount} timesheet {draftCount === 1 ? "period" : "periods"} ready for
-                submission or requiring correction.
+                You have {draftCount} timesheet {draftCount === 1 ? "submission" : "submissions"}{" "}
+                ready for submission or requiring correction.
               </p>
             </div>
           </div>

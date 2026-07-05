@@ -37,10 +37,18 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (pendingTour && pathname === "/timer") {
       setPendingTour(false);
-      const timer = setTimeout(() => {
-        setTourOpen(true);
-      }, 150);
-      return () => clearTimeout(timer);
+      let attempts = 0;
+      const checkAndStart = () => {
+        if (document.querySelector('[data-tour="nav-timer"]')) {
+          setTourOpen(true);
+        } else if (attempts < 30) {
+          attempts++;
+          setTimeout(checkAndStart, 100);
+        } else {
+          setTourOpen(true);
+        }
+      };
+      setTimeout(checkAndStart, 100);
     }
   }, [pendingTour, pathname]);
 
