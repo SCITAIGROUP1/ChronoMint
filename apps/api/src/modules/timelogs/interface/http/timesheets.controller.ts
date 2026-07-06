@@ -12,7 +12,8 @@ import {
   createAmendmentRequestSchema,
   reviewAmendmentSchema,
   approveTimesheetSchema,
-  rejectTimesheetSchema
+  rejectTimesheetSchema,
+  bulkReviewTimesheetSchema
 } from "@kloqra/contracts";
 import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
 import { z } from "zod";
@@ -129,6 +130,16 @@ export class TimesheetsController {
     return this.timesheets.listRejected(user.workspaceId, user.userId, user.role, query);
   }
 
+  @UseGuards(AdminOrProjectManagerGuard)
+  @Get(ROUTES.TIMESHEETS.LIST_ALL)
+  async listAll(
+    @CurrentUser() user: RequestUser,
+    @Query(new ZodValidationPipe(reviewedTimesheetQuerySchema))
+    query: z.infer<typeof reviewedTimesheetQuerySchema>
+  ) {
+    return this.timesheets.listAll(user.workspaceId, user.userId, user.role, query);
+  }
+
   @Roles("ADMIN")
   @Get(ROUTES.TIMESHEETS.LIST_MISSING)
   async listMissing(
@@ -202,5 +213,22 @@ export class TimesheetsController {
     @Body(new ZodValidationPipe(rejectTimesheetSchema)) body: z.infer<typeof rejectTimesheetSchema>
   ) {
     return this.timesheets.reject(user.workspaceId, id, user.userId, user.role, body.reviewNote);
+  }
+
+  @UseGuards(AdminOrProjectManagerGuard)
+  @Post(ROUTES.TIMESHEETS.BULK_REVIEW)
+  async bulkReview(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodValidationPipe(bulkReviewTimesheetSchema))
+    body: z.infer<typeof bulkReviewTimesheetSchema>
+  ) {
+    return this.timesheets.bulkReview(
+      user.workspaceId,
+      user.userId,
+      user.role,
+      body.ids,
+      body.action,
+      body.reviewNote
+    );
   }
 }

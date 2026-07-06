@@ -107,6 +107,8 @@ describe("contracts", () => {
     expect(ROUTES.TIMESHEETS.LIST_MISSING).toBe("/timesheets/missing");
     expect(ROUTES.TIMESHEETS.LIST_APPROVED).toBe("/timesheets/approved");
     expect(ROUTES.TIMESHEETS.LIST_REJECTED).toBe("/timesheets/rejected");
+    expect(ROUTES.TIMESHEETS.LIST_ALL).toBe("/timesheets/all");
+    expect(ROUTES.TIMESHEETS.BULK_REVIEW).toBe("/timesheets/bulk-review");
     expect(ROUTES.TIMESHEETS.REMIND).toBe("/timesheets/remind");
     expect(ROUTES.TIMESHEETS.LIST_AMENDMENTS).toBe("/timesheets/amendments/pending");
     expect(ROUTES.TIMESHEETS.CREATE_AMENDMENT(UUID)).toBe(`/timesheets/${UUID}/amendments`);

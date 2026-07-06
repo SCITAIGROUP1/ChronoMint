@@ -8,12 +8,15 @@ import {
   Card,
   LoadingCrossfade,
   MotionReveal,
-  SegmentedControl
+  SegmentedControl,
+  TablePagination
 } from "@kloqra/ui";
 import {
+  APPROVALS_TABLE_PAGE_SIZE,
   fetchListItems,
   parseMemberSubmissionsSearch,
   resolveMemberSubmissionsTab,
+  useClientTablePagination,
   WORKSPACE_DATA_STALE_EVENT,
   type MemberSubmissionsTab,
   type WorkspaceDataStaleDetail
@@ -222,6 +225,16 @@ export function SubmissionsPage() {
     });
   }, [tabFilteredSubmissions, projectFilter]);
 
+  const {
+    page,
+    setPage,
+    setLimit,
+    pageItems,
+    total: filteredTotal,
+    totalPages,
+    limit
+  } = useClientTablePagination(filteredSubmissions, APPROVALS_TABLE_PAGE_SIZE);
+
   const projectOptions = useMemo(() => {
     const map = new Map<string, string>();
     for (const row of periodFilteredSubmissions) {
@@ -292,26 +305,38 @@ export function SubmissionsPage() {
           projectOptions={projectOptions}
           onClearFilters={clearFilters}
           hasActiveFilters={hasActiveFilters}
-          resultCount={filteredSubmissions.length}
+          resultCount={filteredTotal}
         />
       </MotionReveal>
 
       <LoadingCrossfade loading={allLoading} loaderLabel="Loading submissions…">
-        {filteredSubmissions.length === 0 ? (
+        {filteredTotal === 0 ? (
           <Card className="border-dashed py-16 flex flex-col items-center justify-center text-center">
             <Check className="size-10 text-emerald-500 bg-emerald-500/10 p-2 rounded-full mb-3" />
             <p className="font-medium text-sm">{emptyCopy.title}</p>
             <p className="text-xs text-muted-foreground max-w-xs mt-1">{emptyCopy.detail}</p>
           </Card>
         ) : (
-          <SubmissionsTable
-            submissions={filteredSubmissions}
-            projects={projects}
-            onSubmitted={handleSubmitted}
-            highlightedProjectId={deepLink.projectId}
-            workspaceId={ws}
-            timezone={timezone}
-          />
+          <>
+            <SubmissionsTable
+              submissions={pageItems}
+              projects={projects}
+              onSubmitted={handleSubmitted}
+              highlightedProjectId={deepLink.projectId}
+              workspaceId={ws}
+              timezone={timezone}
+            />
+            <div className="mt-4">
+              <TablePagination
+                page={page}
+                totalPages={totalPages}
+                total={filteredTotal}
+                limit={limit}
+                onPageChange={setPage}
+                onLimitChange={setLimit}
+              />
+            </div>
+          </>
         )}
       </LoadingCrossfade>
     </div>

@@ -1,5 +1,7 @@
+import { BullModule } from "@nestjs/bullmq";
 import { Module } from "@nestjs/common";
 import { AccessModule } from "../../common/access/access.module";
+import { QUEUES } from "../../common/queues";
 import { RedisModule } from "../../common/redis/redis.module";
 import { AuthModule } from "../auth/auth.module";
 import { NotificationsModule } from "../notifications/notifications.module";
@@ -17,6 +19,10 @@ import { TimesheetsController } from "./interface/http/timesheets.controller";
 
 @Module({
   imports: [
+    BullModule.registerQueue({
+      name: QUEUES.TIMESHEET_BULK_REVIEW,
+      defaultJobOptions: { attempts: 1 }
+    }),
     AuthModule,
     AccessModule,
     ProjectsModule,

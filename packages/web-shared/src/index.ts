@@ -253,8 +253,12 @@ export { SettingsSaveBar } from "./features/account/settings/settings-save-bar";
 export {
   appendApprovalsFilterSearch,
   buildAdminApprovalsHref,
+  buildApprovalsCountQueryString,
   buildApprovalsFilterQueryString,
+  buildApprovalsListQueryString,
   buildMemberSubmissionsHref,
+  withApprovalsListPagination,
+  APPROVALS_TABLE_PAGE_SIZE,
   hasActiveApprovalsFilter,
   parseAdminApprovalsSearch,
   parseApprovalsFilterSearch,

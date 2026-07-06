@@ -1,5 +1,8 @@
 import type { TimesheetApprovalsFilterQuery } from "@kloqra/contracts";
 
+/** Default page size for approvals tables (smaller than generic tables so pagination is usable). */
+export const APPROVALS_TABLE_PAGE_SIZE = 10;
+
 export type MemberSubmissionsTab = "action" | "pending" | "approved" | "rejected" | "all";
 
 export type MemberSubmissionsDeepLink = {
@@ -10,7 +13,7 @@ export type MemberSubmissionsDeepLink = {
 };
 
 export type AdminApprovalsDeepLink = {
-  tab?: "review" | "missing" | "amendments" | "approved" | "rejected";
+  tab?: "review" | "missing" | "amendments" | "approved" | "rejected" | "all";
   periodId?: string;
   amendmentId?: string;
   batch?: string;
@@ -19,6 +22,8 @@ export type AdminApprovalsDeepLink = {
   from?: string;
   to?: string;
   sortOrder?: string;
+  page?: number;
+  limit?: number;
 };
 
 export function resolveMemberSubmissionsTab(
@@ -51,6 +56,8 @@ export function buildAdminApprovalsHref(params: AdminApprovalsDeepLink): string 
   if (params.from) search.set("from", params.from);
   if (params.to) search.set("to", params.to);
   if (params.sortOrder) search.set("sortOrder", params.sortOrder);
+  if (params.page) search.set("page", String(params.page));
+  if (params.limit) search.set("limit", String(params.limit));
   const q = search.toString();
   return q ? `/approvals?${q}` : "/approvals";
 }
@@ -80,13 +87,16 @@ export function parseMemberSubmissionsSearch(search: string): MemberSubmissionsD
 export function parseAdminApprovalsSearch(search: string): AdminApprovalsDeepLink {
   const params = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
   const tab = params.get("tab");
+  const pageRaw = params.get("page");
+  const limitRaw = params.get("limit");
   return {
     tab:
       tab === "review" ||
       tab === "missing" ||
       tab === "amendments" ||
       tab === "approved" ||
-      tab === "rejected"
+      tab === "rejected" ||
+      tab === "all"
         ? tab
         : undefined,
     periodId: params.get("periodId") ?? undefined,
@@ -96,7 +106,9 @@ export function parseAdminApprovalsSearch(search: string): AdminApprovalsDeepLin
     userId: params.get("userId") ?? undefined,
     from: params.get("from") ?? undefined,
     to: params.get("to") ?? undefined,
-    sortOrder: params.get("sortOrder") ?? undefined
+    sortOrder: params.get("sortOrder") ?? undefined,
+    page: pageRaw ? Number(pageRaw) : undefined,
+    limit: limitRaw ? Number(limitRaw) : undefined
   };
 }
 
@@ -119,7 +131,9 @@ export function parseApprovalsFilterSearch(search: string): TimesheetApprovalsFi
       : undefined,
     from: params.from,
     to: params.to,
-    sortOrder
+    sortOrder,
+    page: params.page,
+    limit: params.limit
   };
 }
 
@@ -127,9 +141,9 @@ export function appendApprovalsFilterSearch(
   params: URLSearchParams,
   filter: TimesheetApprovalsFilterQuery
 ): void {
-  for (const key of ["projectId", "userId", "from", "to", "sortOrder"] as const) {
+  for (const key of ["projectId", "userId", "from", "to", "sortOrder", "page", "limit"] as const) {
     const value = filter[key];
-    if (value) {
+    if (value !== undefined && value !== null && value !== "") {
       if (Array.isArray(value)) {
         if (value.length > 0) {
           params.set(key, value.join(","));
@@ -137,7 +151,7 @@ export function appendApprovalsFilterSearch(
           params.delete(key);
         }
       } else {
-        params.set(key, value);
+        params.set(key, String(value));
       }
     } else params.delete(key);
   }
@@ -147,6 +161,29 @@ export function buildApprovalsFilterQueryString(filter: TimesheetApprovalsFilter
   const params = new URLSearchParams();
   appendApprovalsFilterSearch(params, filter);
   return params.toString();
+}
+
+export function withApprovalsListPagination(
+  filter: TimesheetApprovalsFilterQuery,
+  overrides?: Pick<TimesheetApprovalsFilterQuery, "page" | "limit">
+): TimesheetApprovalsFilterQuery {
+  return {
+    ...filter,
+    page: filter.page ?? overrides?.page ?? 1,
+    limit: filter.limit ?? overrides?.limit ?? APPROVALS_TABLE_PAGE_SIZE
+  };
+}
+
+/** List fetches always include page + limit so server pagination is active. */
+export function buildApprovalsListQueryString(filter: TimesheetApprovalsFilterQuery): string {
+  return buildApprovalsFilterQueryString(withApprovalsListPagination(filter));
+}
+
+/** Count/badge fetches request one row and read `total` from the response meta. */
+export function buildApprovalsCountQueryString(filter: TimesheetApprovalsFilterQuery = {}): string {
+  return buildApprovalsFilterQueryString(
+    withApprovalsListPagination(filter, { page: 1, limit: 1 })
+  );
 }
 
 export function hasActiveApprovalsFilter(filter: TimesheetApprovalsFilterQuery): boolean {

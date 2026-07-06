@@ -1,3 +1,5 @@
+import { useClientTablePagination } from "@kloqra/web-shared";
+import { renderHook, act } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { filterSubmissionsByPeriodRange, filterSubmissionsByTab } from "./use-my-submissions";
 
@@ -43,5 +45,23 @@ describe("filterSubmissionsByTab", () => {
     ];
     expect(filterSubmissionsByPeriodRange(items, "2025-06-01", "2025-06-30")).toHaveLength(1);
     expect(filterSubmissionsByPeriodRange(items, "", "")).toHaveLength(2);
+  });
+});
+
+describe("submissions page pagination", () => {
+  it("pages filtered submissions client-side", () => {
+    const items = Array.from({ length: 15 }, (_, index) => ({
+      ...baseSubmission,
+      id: `period-${index}`,
+      status: "DRAFT" as const
+    }));
+    const filtered = filterSubmissionsByTab(items, "all");
+    const { result } = renderHook(() => useClientTablePagination(filtered, 10));
+
+    expect(result.current.total).toBe(15);
+    expect(result.current.pageItems).toHaveLength(10);
+
+    act(() => result.current.setPage(2));
+    expect(result.current.pageItems).toHaveLength(5);
   });
 });

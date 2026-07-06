@@ -1,7 +1,7 @@
 "use client";
 
 import { ROUTES, type TimesheetApprovalsFilterQuery } from "@kloqra/contracts";
-import { buildApprovalsFilterQueryString } from "@kloqra/web-shared";
+import { buildApprovalsCountQueryString, buildApprovalsListQueryString } from "@kloqra/web-shared";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
@@ -16,12 +16,16 @@ export function usePendingTimesheets(
   filters: TimesheetApprovalsFilterQuery,
   enabled = true
 ) {
-  const filterKey = buildApprovalsFilterQueryString(filters);
+  const filterKey = buildApprovalsListQueryString(filters);
   const listKey = usePendingTimesheetsListKey(workspaceId, filters);
-  const pending = usePendingTimesheetsStore(
-    (s) => s.byKey[listKey]?.items ?? EMPTY_PENDING_TIMESHEETS
-  );
-  const loading = usePendingTimesheetsStore((s) => s.byKey[listKey]?.loading ?? false);
+  const entry = usePendingTimesheetsStore((s) => s.byKey[listKey]);
+  const pending = entry?.items ?? EMPTY_PENDING_TIMESHEETS;
+  const loading = entry?.loading ?? false;
+  const total = entry?.total ?? 0;
+  const page = entry?.page ?? 1;
+  const limit = entry?.limit ?? 25;
+  const totalPages = entry?.totalPages ?? 0;
+
   const subscribe = usePendingTimesheetsStore((s) => s.subscribe);
   const fetchPending = usePendingTimesheetsStore((s) => s.fetchPending);
   const removeItem = usePendingTimesheetsStore((s) => s.removeItem);
@@ -64,21 +68,49 @@ export function usePendingTimesheets(
     [workspaceId, filterKey, removeItem]
   );
 
+  const handleBulkReview = useCallback(
+    async (ids: string[], action: "approve" | "reject", reviewNote = "") => {
+      if (!workspaceId) return;
+      if (ids.length === 0) return;
+      try {
+        await api(ROUTES.TIMESHEETS.BULK_REVIEW, {
+          method: "POST",
+          workspaceId,
+          body: JSON.stringify({ ids, action, reviewNote })
+        });
+        toast.success(
+          `Bulk review job for ${ids.length} timesheets enqueued. Updates will process in the background.`
+        );
+        for (const id of ids) {
+          removeItem(workspaceId, filterKey, id);
+        }
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Failed to trigger bulk review");
+      }
+    },
+    [workspaceId, filterKey, removeItem]
+  );
+
   return {
     pending,
     loading,
     actioningId,
+    total,
+    page,
+    limit,
+    totalPages,
     fetchPending: refreshPending,
     handleReview,
-    pendingCount: pending.length
+    handleBulkReview,
+    pendingCount: total
   };
 }
 
 export function usePendingTimesheetsBadgeCount(workspaceId: string, enabled = true) {
-  const filterKey = buildApprovalsFilterQueryString({});
-  const listKey = usePendingTimesheetsListKey(workspaceId, {});
+  const filterKey = buildApprovalsCountQueryString({});
+  const listKey = `${workspaceId}:${filterKey}`;
   const subscribe = usePendingTimesheetsStore((s) => s.subscribe);
-  const count = usePendingTimesheetsStore((s) => s.byKey[listKey]?.items.length ?? 0);
+  const count = usePendingTimesheetsStore((s) => s.byKey[listKey]?.total ?? 0);
 
   useEffect(() => {
     if (!enabled || !workspaceId) return;

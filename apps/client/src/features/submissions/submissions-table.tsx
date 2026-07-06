@@ -23,10 +23,11 @@ import {
   cn
 } from "@kloqra/ui";
 import { buildMemberTimesheetHrefFromSubmission } from "@kloqra/web-shared";
-import { ChevronDown, ChevronUp, Edit2, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
+import { TimeTrackerEntryActions } from "../time-tracker/time-tracker-entry-actions";
 import { TimeEntryDialog, draftFromLog, type TimeEntryDraft } from "../timesheet/time-entry-dialog";
 import { draftToIsoRange, canSaveTaskDraft } from "../timesheet/time-entry-draft";
 import { validateTimeEntryOverlap } from "../timesheet/validate-time-entry-overlap";
@@ -225,15 +226,25 @@ function SubmissionRowLogs({
                 key={log.id}
                 className="flex items-center justify-between gap-4 p-3 rounded-lg border border-border/50 bg-background/50 hover:bg-background/80 transition-colors"
               >
-                <div className="space-y-1 text-left">
-                  <p className="text-xs font-semibold text-foreground">
-                    {task?.taskName ?? "Task"}
-                  </p>
+                <div className="space-y-1.5 text-left min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <p className="text-xs font-semibold text-foreground">
+                      {task?.taskName ?? "Task"}
+                    </p>
+                    {log.isBillable ? (
+                      <span className="inline-flex rounded-full border border-primary/20 bg-primary/5 px-1.5 py-0 text-[9px] font-medium uppercase tracking-wide text-primary">
+                        Billable
+                      </span>
+                    ) : (
+                      <span className="inline-flex rounded-full border border-border/70 bg-muted/50 px-1.5 py-0 text-[9px] font-medium uppercase tracking-wide text-muted-foreground">
+                        Non-billable
+                      </span>
+                    )}
+                  </div>
                   <p className="text-[11px] text-muted-foreground">
                     {formatLogTimeRange(log.startTime, log.endTime, timezone)} ·{" "}
-                    {formatLogDuration(log.durationSec)} ·{" "}
-                    <span className="capitalize">
-                      {log.isBillable ? "billable" : "non-billable"}
+                    <span className="font-semibold tabular-nums text-foreground">
+                      {formatLogDuration(log.durationSec)}
                     </span>
                   </p>
                   {log.description && (
@@ -242,28 +253,14 @@ function SubmissionRowLogs({
                     </p>
                   )}
                 </div>
-                {!isLocked && (
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-7 text-xs px-2"
-                      onClick={() => openEdit(log)}
-                    >
-                      <Edit2 className="size-3 mr-1" />
-                      Edit
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-7 text-xs border-destructive/20 hover:bg-destructive/10 hover:text-destructive px-2"
-                      onClick={() => setConfirmDeleteLog(log)}
-                    >
-                      <Trash2 className="size-3 mr-1" />
-                      Delete
-                    </Button>
-                  </div>
-                )}
+                <div className="flex shrink-0 items-center">
+                  <TimeTrackerEntryActions
+                    log={log}
+                    locked={isLocked}
+                    onEdit={openEdit}
+                    onDelete={setConfirmDeleteLog}
+                  />
+                </div>
               </div>
             );
           })}
@@ -272,7 +269,7 @@ function SubmissionRowLogs({
 
       <TimeEntryDialog
         open={editingLog !== null}
-        title="Edit time entry"
+        title={isLocked ? "View time entry" : "Edit time entry"}
         draft={draft}
         projects={projects}
         tasks={tasks}
@@ -286,6 +283,7 @@ function SubmissionRowLogs({
         onDraftChange={setDraft}
         onSave={saveEntry}
         timezone={timezone}
+        readOnly={isLocked}
       />
 
       <ConfirmDialog

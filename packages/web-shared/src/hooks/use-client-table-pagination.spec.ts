@@ -13,4 +13,15 @@ describe("useClientTablePagination", () => {
     act(() => result.current.setPage(2));
     expect(result.current.pageItems[0]).toBe(11);
   });
+
+  it("resets to page 1 when page size changes", () => {
+    const items = Array.from({ length: 25 }, (_, i) => i + 1);
+    const { result } = renderHook(() => useClientTablePagination(items, 10));
+
+    act(() => result.current.setPage(2));
+    act(() => result.current.setLimit(25));
+
+    expect(result.current.page).toBe(1);
+    expect(result.current.pageItems).toHaveLength(25);
+  });
 });

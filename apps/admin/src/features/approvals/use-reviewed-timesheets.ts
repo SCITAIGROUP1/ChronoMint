@@ -6,7 +6,7 @@ import type {
   ReviewedTimesheetDto,
   TimesheetApprovalsFilterQuery
 } from "@kloqra/contracts";
-import { buildApprovalsFilterQueryString } from "@kloqra/web-shared";
+import { buildApprovalsListQueryString } from "@kloqra/web-shared";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useRegisterApprovalsRefresh } from "./use-approvals-refresh-registration";
@@ -20,8 +20,12 @@ export function useReviewedTimesheets(
 ) {
   const [items, setItems] = useState<ReviewedTimesheetDto[]>([]);
   const [loading, setLoading] = useState(false);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(25);
+  const [totalPages, setTotalPages] = useState(0);
 
-  const filterKey = buildApprovalsFilterQueryString(filters);
+  const filterKey = buildApprovalsListQueryString(filters);
   const route =
     status === "APPROVED" ? ROUTES.TIMESHEETS.LIST_APPROVED : ROUTES.TIMESHEETS.LIST_REJECTED;
 
@@ -32,6 +36,10 @@ export function useReviewedTimesheets(
       const path = filterKey ? `${route}?${filterKey}` : route;
       const res = await api<ListReviewedTimesheetsResponseDto>(path, { workspaceId });
       setItems(res.items ?? []);
+      setTotal(res.total ?? 0);
+      setPage(res.page ?? 1);
+      setLimit(res.limit ?? 25);
+      setTotalPages(res.totalPages ?? 0);
     } catch {
       toast.error(`Failed to load ${status === "APPROVED" ? "approved" : "rejected"} timesheets`);
       setItems([]);
@@ -48,5 +56,5 @@ export function useReviewedTimesheets(
 
   useRegisterApprovalsRefresh(refresh);
 
-  return { items, loading, refresh, count: items.length };
+  return { items, loading, refresh, total, page, limit, totalPages, count: items.length };
 }

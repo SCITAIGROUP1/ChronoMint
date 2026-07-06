@@ -1371,10 +1371,18 @@ async function seedTimesheetPeriods(
       if (!user) continue;
 
       for (let weeksAgo = 1; weeksAgo <= 8; weeksAgo++) {
-        const periodEnd = utcDay(weeksAgo * 7, 17);
-        const periodStart = new Date(periodEnd);
-        periodStart.setUTCDate(periodStart.getUTCDate() - 6);
-        periodStart.setUTCHours(9, 0, 0, 0);
+        const targetDate = new Date();
+        targetDate.setUTCHours(12, 0, 0, 0); // stable anchor
+        targetDate.setUTCDate(targetDate.getUTCDate() - weeksAgo * 7);
+        const day = targetDate.getUTCDay();
+        const diffToMonday = day === 0 ? -6 : 1 - day;
+        const periodStart = new Date(targetDate);
+        periodStart.setUTCDate(periodStart.getUTCDate() + diffToMonday);
+        periodStart.setUTCHours(0, 0, 0, 0);
+
+        const periodEnd = new Date(periodStart);
+        periodEnd.setUTCDate(periodEnd.getUTCDate() + 6);
+        periodEnd.setUTCHours(23, 59, 59, 999);
 
         const status =
           weeksAgo <= 2

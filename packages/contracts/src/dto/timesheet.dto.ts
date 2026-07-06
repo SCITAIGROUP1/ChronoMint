@@ -98,7 +98,9 @@ export const timesheetApprovalsFilterQuerySchema = z.object({
   userId: queryUuidArraySchema,
   from: z.string().optional(),
   to: z.string().optional(),
-  sortOrder: z.enum(["asc", "desc"]).optional()
+  sortOrder: z.enum(["asc", "desc"]).optional(),
+  page: z.coerce.number().int().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(1000).optional()
 });
 
 export const pendingTimesheetQuerySchema = timesheetApprovalsFilterQuerySchema;
@@ -177,27 +179,55 @@ export const listTimesheetSubmissionsResponseSchema = z.object({
 });
 
 export const reviewedTimesheetSchema = pendingTimesheetSchema.extend({
-  status: z.enum(["APPROVED", "REJECTED"]),
-  reviewNote: z.string().nullable(),
-  reviewedAt: isoDatetimeSchema,
+  status: timesheetPeriodStatusSchema,
+  reviewNote: z.string().nullable().optional(),
+  reviewedAt: isoDatetimeSchema.nullable().optional(),
   reviewedBy: uuidSchema.nullable().optional(),
   reviewedByName: z.string().nullable().optional()
 });
 
 export const listPendingTimesheetsResponseSchema = z.object({
-  items: z.array(pendingTimesheetSchema)
+  items: z.array(pendingTimesheetSchema),
+  page: z.number().int().min(1),
+  limit: z.number().int().min(1),
+  total: z.number().int().nonnegative(),
+  totalPages: z.number().int().nonnegative()
 });
 
 export const listReviewedTimesheetsResponseSchema = z.object({
-  items: z.array(reviewedTimesheetSchema)
+  items: z.array(reviewedTimesheetSchema),
+  page: z.number().int().min(1),
+  limit: z.number().int().min(1),
+  total: z.number().int().nonnegative(),
+  totalPages: z.number().int().nonnegative()
 });
 
 export const listMissingTimesheetsResponseSchema = z.object({
-  items: z.array(missingTimesheetSchema)
+  items: z.array(missingTimesheetSchema),
+  page: z.number().int().min(1),
+  limit: z.number().int().min(1),
+  total: z.number().int().nonnegative(),
+  totalPages: z.number().int().nonnegative()
 });
 
 export const listAmendmentRequestsResponseSchema = z.object({
-  items: z.array(timesheetAmendmentSchema)
+  items: z.array(timesheetAmendmentSchema),
+  page: z.number().int().min(1),
+  limit: z.number().int().min(1),
+  total: z.number().int().nonnegative(),
+  totalPages: z.number().int().nonnegative()
+});
+
+export const bulkReviewTimesheetSchema = z.object({
+  ids: z.array(uuidSchema).min(1, "At least one timesheet must be selected"),
+  action: z.enum(["approve", "reject"]),
+  reviewNote: z.string().trim().max(2000).optional()
+});
+
+export const bulkReviewResponseSchema = z.object({
+  jobId: z.string(),
+  status: z.string(),
+  enqueuedCount: z.number().int().nonnegative()
 });
 
 export type TimesheetPeriodStatus = z.infer<typeof timesheetPeriodStatusSchema>;
@@ -220,3 +250,5 @@ export type ListReviewedTimesheetsResponseDto = z.infer<
 >;
 export type ListMissingTimesheetsResponseDto = z.infer<typeof listMissingTimesheetsResponseSchema>;
 export type ListAmendmentRequestsResponseDto = z.infer<typeof listAmendmentRequestsResponseSchema>;
+export type BulkReviewTimesheetDto = z.infer<typeof bulkReviewTimesheetSchema>;
+export type BulkReviewResponseDto = z.infer<typeof bulkReviewResponseSchema>;

@@ -8,5 +8,6 @@ export const QUEUES = {
   HELPDESK_INGEST: "helpdesk-ingest-queue",
   HELPDESK_REPLY: "helpdesk-reply-queue",
   HELPDESK_SLA: "helpdesk-sla-queue",
-  HELPDESK_NOTIFY: "helpdesk-notify-queue"
+  HELPDESK_NOTIFY: "helpdesk-notify-queue",
+  TIMESHEET_BULK_REVIEW: "timesheet-bulk-review-queue"
 };

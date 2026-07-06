@@ -1,13 +1,14 @@
 "use client";
 
 import { DEFAULT_TABLE_PAGE_SIZE } from "@kloqra/contracts";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-export function useClientTablePagination<T>(items: T[], pageSize = DEFAULT_TABLE_PAGE_SIZE) {
+export function useClientTablePagination<T>(items: T[], initialPageSize = DEFAULT_TABLE_PAGE_SIZE) {
   const [page, setPage] = useState(1);
+  const [limit, setLimitState] = useState(initialPageSize);
 
   const total = items.length;
-  const totalPages = total === 0 ? 0 : Math.ceil(total / pageSize);
+  const totalPages = total === 0 ? 0 : Math.ceil(total / limit);
 
   useEffect(() => {
     setPage(1);
@@ -19,17 +20,23 @@ export function useClientTablePagination<T>(items: T[], pageSize = DEFAULT_TABLE
     }
   }, [page, totalPages]);
 
+  const setLimit = useCallback((nextLimit: number) => {
+    setPage(1);
+    setLimitState(nextLimit);
+  }, []);
+
   const pageItems = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    return items.slice(start, start + pageSize);
-  }, [items, page, pageSize]);
+    const start = (page - 1) * limit;
+    return items.slice(start, start + limit);
+  }, [items, page, limit]);
 
   return {
     page,
     setPage,
+    setLimit,
     pageItems,
     total,
     totalPages,
-    limit: pageSize
+    limit
   };
 }
