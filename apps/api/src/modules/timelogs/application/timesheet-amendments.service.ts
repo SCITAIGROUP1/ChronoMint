@@ -1,4 +1,4 @@
-import { ErrorCodes, formatTimesheetPeriodLabel } from "@kloqra/contracts";
+import { ErrorCodes, formatTimesheetPeriodLabel, buildPaginationMeta } from "@kloqra/contracts";
 import type { TimesheetAmendmentDto, TimesheetApprovalsFilterQuery } from "@kloqra/contracts";
 import { Injectable, HttpStatus, Logger } from "@nestjs/common";
 import { ProjectAccessService } from "../../../common/access/project-access.service";
@@ -176,17 +176,25 @@ export class TimesheetAmendmentsService {
           }
         : undefined;
 
+    const whereClause = {
+      workspaceId,
+      status: "PENDING" as const,
+      ...(filter.userId
+        ? Array.isArray(filter.userId)
+          ? { userId: { in: filter.userId } }
+          : { userId: filter.userId }
+        : {}),
+      ...(periodWhere ? { period: periodWhere } : {})
+    };
+
+    const total = await this.prisma.timesheetAmendmentRequest.count({ where: whereClause });
+
+    const page = filter.page ?? 1;
+    const limit = filter.limit ?? 25;
+    const skip = (page - 1) * limit;
+
     const rows = await this.prisma.timesheetAmendmentRequest.findMany({
-      where: {
-        workspaceId,
-        status: "PENDING",
-        ...(filter.userId
-          ? Array.isArray(filter.userId)
-            ? { userId: { in: filter.userId } }
-            : { userId: filter.userId }
-          : {}),
-        ...(periodWhere ? { period: periodWhere } : {})
-      },
+      where: whereClause,
       include: {
         user: { select: { name: true, email: true } },
         period: {
@@ -197,9 +205,17 @@ export class TimesheetAmendmentsService {
           }
         }
       },
-      orderBy: { createdAt: "desc" }
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      skip
     });
-    return { items: rows.map((row) => this.toDto(row)) };
+
+    const meta = buildPaginationMeta(total, page, limit);
+
+    return {
+      items: rows.map((row) => this.toDto(row)),
+      ...meta
+    };
   }
 
   async approve(

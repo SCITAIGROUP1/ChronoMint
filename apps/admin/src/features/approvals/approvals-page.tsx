@@ -2,10 +2,12 @@
 
 import {
   ROUTES,
+  resolveEffectiveTimezone,
   type MissingTimesheetDto,
   type PendingTimesheetDto,
   type ReviewedTimesheetDto,
-  type TimesheetAmendmentDto
+  type TimesheetAmendmentDto,
+  type UserProfileDto
 } from "@kloqra/contracts";
 import {
   AppBar,
@@ -24,6 +26,7 @@ import {
   TableBody,
   TableHeader,
   TableRow,
+  TablePagination,
   cn
 } from "@kloqra/ui";
 import { parseAdminApprovalsSearch, hasActiveApprovalsFilter } from "@kloqra/web-shared";
@@ -36,6 +39,7 @@ import { ApprovalsFiltersBar } from "./approvals-filters-bar";
 import { PendingTimesheetCard, PendingActivity } from "./pending-timesheet-card";
 import { RemindMemberDialog } from "./remind-member-dialog";
 import { ReviewedTimesheetCard } from "./reviewed-timesheet-card";
+import { useAllTimesheets } from "./use-all-timesheets";
 import { useApprovalsFilterOptions } from "./use-approvals-filter-options";
 import { useApprovalsFilters } from "./use-approvals-filters";
 import { useMissingTimesheets } from "./use-missing-timesheets";
@@ -45,9 +49,10 @@ import { useReviewedTimesheets } from "./use-reviewed-timesheets";
 import { api } from "@/lib/api";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
-type ApprovalsTab = "review" | "missing" | "amendments" | "approved" | "rejected";
+type ApprovalsTab = "review" | "missing" | "amendments" | "approved" | "rejected" | "all";
 
 const TAB_OPTIONS: { value: ApprovalsTab; label: string }[] = [
+  { value: "all", label: "All" },
   { value: "review", label: "Pending review" },
   { value: "missing", label: "Missing" },
   { value: "amendments", label: "Amendments" },
@@ -82,6 +87,11 @@ interface PendingRowProps {
   onSelectChange: (checked: boolean) => void;
   onApprove: () => void;
   onReject: () => void;
+  expanded: boolean;
+  onToggleExpand: () => void;
+  timezone?: string;
+  showStatusBadge?: boolean;
+  allTab?: boolean;
 }
 
 function PendingRow({
@@ -93,9 +103,13 @@ function PendingRow({
   actioning,
   onSelectChange,
   onApprove,
-  onReject
+  onReject,
+  expanded,
+  onToggleExpand,
+  timezone: _timezone,
+  showStatusBadge,
+  allTab
 }: PendingRowProps) {
-  const [expanded, setExpanded] = useState(false);
   return (
     <>
       <TableRow
@@ -118,7 +132,7 @@ function PendingRow({
             variant="ghost"
             size="sm"
             className="h-6 w-6 p-0"
-            onClick={() => setExpanded(!expanded)}
+            onClick={onToggleExpand}
           >
             {expanded ? (
               <ChevronUp className="size-4 text-muted-foreground" />
@@ -140,9 +154,22 @@ function PendingRow({
         <DataTableCell className="text-right font-mono font-medium whitespace-nowrap">
           {item.totalHours} hrs
         </DataTableCell>
+        {showStatusBadge && (
+          <DataTableCell className="text-left">
+            <Badge
+              variant="secondary"
+              className="bg-yellow-500/10 text-yellow-600 border border-yellow-500/20 font-mono text-[10px] uppercase"
+            >
+              Pending
+            </Badge>
+          </DataTableCell>
+        )}
         <DataTableCell className="text-xs text-muted-foreground text-left">
           {item.submittedAt ? new Date(item.submittedAt).toLocaleString() : "—"}
         </DataTableCell>
+        {allTab ? (
+          <DataTableCell className="text-xs text-muted-foreground text-left">—</DataTableCell>
+        ) : null}
         <DataTableCell
           className="max-w-[200px] truncate text-xs text-left"
           title={item.note ?? undefined}
@@ -157,6 +184,7 @@ function PendingRow({
               className="h-7 text-xs border-destructive/30 hover:bg-destructive/10 hover:text-destructive px-2"
               onClick={onReject}
               disabled={actioning || Boolean(item.amendmentPending)}
+              title="Reject timesheet and send back for correction"
             >
               <X className="size-3.5" />
             </Button>
@@ -165,6 +193,7 @@ function PendingRow({
               className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-2"
               onClick={onApprove}
               disabled={actioning || Boolean(item.amendmentPending)}
+              title="Approve timesheet"
             >
               <Check className="size-3.5 animate-in fade-in" />
             </Button>
@@ -173,7 +202,10 @@ function PendingRow({
       </TableRow>
       {expanded && (
         <TableRow className="bg-muted/5 hover:bg-muted/5">
-          <DataTableCell colSpan={9} className="p-0 border-t border-b border-border/40">
+          <DataTableCell
+            colSpan={showStatusBadge ? 11 : 9}
+            className="p-0 border-t border-b border-border/40"
+          >
             <div className="p-4 bg-muted/10 text-left">
               <PendingActivity item={item} workspaceId={workspaceId} />
             </div>
@@ -189,10 +221,24 @@ interface ReviewedRowProps {
   focused: boolean;
   workspaceId: string;
   rangeLabel: string;
+  expanded: boolean;
+  onToggleExpand: () => void;
+  timezone?: string;
+  showStatusBadge?: boolean;
+  allTab?: boolean;
 }
 
-function ReviewedRow({ item, focused, workspaceId, rangeLabel }: ReviewedRowProps) {
-  const [expanded, setExpanded] = useState(false);
+function ReviewedRow({
+  item,
+  focused,
+  workspaceId,
+  rangeLabel,
+  expanded,
+  onToggleExpand,
+  timezone: _timezone,
+  showStatusBadge,
+  allTab
+}: ReviewedRowProps) {
   return (
     <>
       <TableRow
@@ -200,13 +246,14 @@ function ReviewedRow({ item, focused, workspaceId, rangeLabel }: ReviewedRowProp
           focused && "bg-primary/5 ring-1 ring-inset ring-primary/30 animate-highlight-pulse"
         )}
       >
+        {showStatusBadge && <DataTableCell className="w-10" />}
         <DataTableCell className="w-8">
           <Button
             type="button"
             variant="ghost"
             size="sm"
             className="h-6 w-6 p-0"
-            onClick={() => setExpanded(!expanded)}
+            onClick={onToggleExpand}
           >
             {expanded ? (
               <ChevronUp className="size-4 text-muted-foreground" />
@@ -228,28 +275,82 @@ function ReviewedRow({ item, focused, workspaceId, rangeLabel }: ReviewedRowProp
         <DataTableCell className="text-right font-mono font-medium whitespace-nowrap">
           {item.totalHours} hrs
         </DataTableCell>
+        {showStatusBadge && (
+          <DataTableCell className="text-left">
+            {item.status === "APPROVED" ? (
+              <Badge
+                variant="secondary"
+                className="bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 font-mono text-[10px] uppercase"
+              >
+                Approved
+              </Badge>
+            ) : item.status === "REJECTED" ? (
+              <Badge
+                variant="secondary"
+                className="bg-rose-500/10 text-rose-600 border border-rose-500/20 font-mono text-[10px] uppercase"
+              >
+                Rejected
+              </Badge>
+            ) : (
+              <Badge
+                variant="secondary"
+                className="bg-blue-500/10 text-blue-600 border border-blue-500/20 font-mono text-[10px] uppercase"
+              >
+                {item.status}
+              </Badge>
+            )}
+          </DataTableCell>
+        )}
         <DataTableCell className="text-xs text-muted-foreground text-left">
           {item.reviewedAt ? new Date(item.reviewedAt).toLocaleString() : "—"}
         </DataTableCell>
-        <DataTableCell className="text-xs font-medium text-foreground text-left">
-          {item.reviewedByName ?? "—"}
-        </DataTableCell>
-        <DataTableCell
-          className="max-w-[150px] truncate text-xs text-left"
-          title={item.note ?? undefined}
-        >
-          {item.note ?? "—"}
-        </DataTableCell>
-        <DataTableCell
-          className="max-w-[200px] truncate text-xs text-left"
-          title={item.reviewNote ?? undefined}
-        >
-          {item.reviewNote ?? "—"}
-        </DataTableCell>
+        {allTab ? (
+          <>
+            <DataTableCell className="text-xs text-left">
+              <div className="font-medium text-foreground">{item.reviewedByName ?? "—"}</div>
+              {item.reviewNote ? (
+                <div
+                  className="max-w-[150px] truncate text-xs text-muted-foreground"
+                  title={item.reviewNote}
+                >
+                  {item.reviewNote}
+                </div>
+              ) : null}
+            </DataTableCell>
+            <DataTableCell
+              className="max-w-[150px] truncate text-xs text-left"
+              title={item.note ?? undefined}
+            >
+              {item.note ?? "—"}
+            </DataTableCell>
+            <DataTableCell />
+          </>
+        ) : (
+          <>
+            <DataTableCell className="text-xs font-medium text-foreground text-left">
+              {item.reviewedByName ?? "—"}
+            </DataTableCell>
+            <DataTableCell
+              className="max-w-[150px] truncate text-xs text-left"
+              title={item.note ?? undefined}
+            >
+              {item.note ?? "—"}
+            </DataTableCell>
+            <DataTableCell
+              className="max-w-[200px] truncate text-xs text-left"
+              title={item.reviewNote ?? undefined}
+            >
+              {item.reviewNote ?? "—"}
+            </DataTableCell>
+          </>
+        )}
       </TableRow>
       {expanded && (
         <TableRow className="bg-muted/5 hover:bg-muted/5">
-          <DataTableCell colSpan={9} className="p-0 border-t border-b border-border/40">
+          <DataTableCell
+            colSpan={showStatusBadge ? 11 : 9}
+            className="p-0 border-t border-b border-border/40"
+          >
             <div className="p-4 bg-muted/10 text-left">
               <PendingActivity item={item} workspaceId={workspaceId} />
             </div>
@@ -337,7 +438,7 @@ export function ApprovalsPage() {
   const searchParams = useSearchParams();
   const search = searchParams.toString();
   const deepLink = useMemo(() => parseAdminApprovalsSearch(search), [search]);
-  const tab: ApprovalsTab = deepLink.tab ?? "review";
+  const tab: ApprovalsTab = deepLink.tab ?? "all";
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
   const { filters, setFilters, clearFilters } = useApprovalsFilters();
   const {
@@ -364,6 +465,18 @@ export function ApprovalsPage() {
   };
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [expandedIds, setExpandedIds] = useState<string[]>([]);
+  const [timezone, setTimezone] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (!ws) return;
+    api<UserProfileDto>(ROUTES.USERS.ME, { workspaceId: ws })
+      .then((profile) => {
+        const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        setTimezone(resolveEffectiveTimezone(profile.preferences, browserTz));
+      })
+      .catch(() => {});
+  }, [ws]);
   const [bulkConfirmAction, setBulkConfirmAction] = useState<"approve" | "reject" | null>(null);
   const [bulkActioning, setBulkActioning] = useState(false);
   const [confirmActionId, setConfirmActionId] = useState<{
@@ -374,79 +487,95 @@ export function ApprovalsPage() {
     range: string;
   } | null>(null);
 
-  const { pending, loading, actioningId, handleReview, fetchPending } = usePendingTimesheets(
-    ws,
-    filters,
-    tab === "review"
-  );
+  const toggleExpand = useCallback((id: string) => {
+    setExpandedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }, []);
+
+  const {
+    pending,
+    loading,
+    actioningId,
+    handleReview,
+    handleBulkReview: triggerBulkReview,
+    fetchPending,
+    total: pendingTotal,
+    page: pendingPage,
+    limit: pendingLimit,
+    totalPages: pendingTotalPages
+  } = usePendingTimesheets(ws, filters, tab === "review");
 
   useEffect(() => {
     setSelectedIds([]);
+    setExpandedIds([]);
   }, [tab, ws]);
 
   const handleBulkReview = async (action: "approve" | "reject", comment: string) => {
     if (!ws || selectedIds.length === 0) return;
     setBulkActioning(true);
     try {
-      const results = await Promise.allSettled(
-        selectedIds.map(async (id) => {
-          const endpoint =
-            action === "approve" ? ROUTES.TIMESHEETS.APPROVE(id) : ROUTES.TIMESHEETS.REJECT(id);
-          await api(endpoint, {
-            method: "PATCH",
-            workspaceId: ws,
-            body: JSON.stringify({ reviewNote: comment || undefined })
-          });
-        })
-      );
-
-      const succeededCount = results.filter((r) => r.status === "fulfilled").length;
-      const failedCount = results.length - succeededCount;
-      if (succeededCount > 0) {
-        toast.success(
-          `Successfully ${action === "approve" ? "approved" : "rejected"} ${succeededCount} timesheet(s).`
-        );
-      }
-      if (failedCount > 0) {
-        toast.error(`Failed to ${action} ${failedCount} timesheet(s).`);
-      }
-
+      await triggerBulkReview(selectedIds, action, comment);
       setSelectedIds([]);
-      await fetchPending();
+      setExpandedIds([]);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to run bulk review");
     } finally {
       setBulkActioning(false);
     }
   };
+
   const {
     missing,
     loading: missingLoading,
-    refresh: refreshMissing
+    refresh: refreshMissing,
+    total: missingTotal,
+    page: missingPage,
+    limit: missingLimit,
+    totalPages: missingTotalPages
   } = useMissingTimesheets(ws, anchorDate, filters, tab === "missing");
+
   const {
     amendments,
     loading: amendmentsLoading,
     actioningId: amendmentActioningId,
-    handleReview: handleAmendmentReview
+    handleReview: handleAmendmentReview,
+    total: amendmentsTotal,
+    page: amendmentsPage,
+    limit: amendmentsLimit,
+    totalPages: amendmentsTotalPages
   } = usePendingAmendments(ws, filters, tab === "amendments");
-  const { items: approved, loading: approvedLoading } = useReviewedTimesheets(
-    ws,
-    "APPROVED",
-    filters,
-    tab === "approved"
-  );
-  const { items: rejected, loading: rejectedLoading } = useReviewedTimesheets(
-    ws,
-    "REJECTED",
-    filters,
-    tab === "rejected"
-  );
+
+  const {
+    items: approved,
+    loading: approvedLoading,
+    total: approvedTotal,
+    page: approvedPage,
+    limit: approvedLimit,
+    totalPages: approvedTotalPages
+  } = useReviewedTimesheets(ws, "APPROVED", filters, tab === "approved");
+
+  const {
+    items: rejected,
+    loading: rejectedLoading,
+    total: rejectedTotal,
+    page: rejectedPage,
+    limit: rejectedLimit,
+    totalPages: rejectedTotalPages
+  } = useReviewedTimesheets(ws, "REJECTED", filters, tab === "rejected");
+
+  const {
+    items: allSubmissions,
+    loading: allLoading,
+    total: allTotal,
+    page: allPage,
+    limit: allLimit,
+    totalPages: allTotalPages
+  } = useAllTimesheets(ws, filters, tab === "all");
 
   const setTab = useCallback(
     (next: ApprovalsTab) => {
       const params = new URLSearchParams(searchParams.toString());
       params.set("tab", next);
+      params.delete("page");
       router.replace(`/approvals?${params.toString()}`);
     },
     [router, searchParams]
@@ -481,21 +610,31 @@ export function ApprovalsPage() {
     }
   }
 
+  const handleApprovalsPageChange = useCallback(
+    (page: number) => setFilters({ ...filters, page }),
+    [filters, setFilters]
+  );
+
+  const handleApprovalsLimitChange = useCallback(
+    (limit: number) => setFilters({ ...filters, page: 1, limit }),
+    [filters, setFilters]
+  );
+
   const tabOptions = TAB_OPTIONS.map((opt) => {
-    if (opt.value === "review" && pending.length > 0) {
-      return { ...opt, label: `Pending review (${pending.length})` };
+    if (opt.value === "review" && pendingTotal > 0) {
+      return { ...opt, label: `Pending review (${pendingTotal})` };
     }
-    if (opt.value === "missing" && missing.length > 0) {
-      return { ...opt, label: `Missing (${missing.length})` };
+    if (opt.value === "missing" && missingTotal > 0) {
+      return { ...opt, label: `Missing (${missingTotal})` };
     }
-    if (opt.value === "amendments" && amendments.length > 0) {
-      return { ...opt, label: `Amendments (${amendments.length})` };
+    if (opt.value === "amendments" && amendmentsTotal > 0) {
+      return { ...opt, label: `Amendments (${amendmentsTotal})` };
     }
-    if (opt.value === "approved" && approved.length > 0) {
-      return { ...opt, label: `Approved (${approved.length})` };
+    if (opt.value === "approved" && approvedTotal > 0) {
+      return { ...opt, label: `Approved (${approvedTotal})` };
     }
-    if (opt.value === "rejected" && rejected.length > 0) {
-      return { ...opt, label: `Rejected (${rejected.length})` };
+    if (opt.value === "rejected" && rejectedTotal > 0) {
+      return { ...opt, label: `Rejected (${rejectedTotal})` };
     }
     return opt;
   });
@@ -524,16 +663,18 @@ export function ApprovalsPage() {
         onViewModeChange={tab !== "missing" ? handleViewModeChange : undefined}
         resultCount={
           tab === "review"
-            ? pending.length
+            ? pendingTotal
             : tab === "missing"
-              ? missing.length
+              ? missingTotal
               : tab === "amendments"
-                ? amendments.length
+                ? amendmentsTotal
                 : tab === "approved"
-                  ? approved.length
+                  ? approvedTotal
                   : tab === "rejected"
-                    ? rejected.length
-                    : undefined
+                    ? rejectedTotal
+                    : tab === "all"
+                      ? allTotal
+                      : undefined
         }
       />
 
@@ -563,16 +704,52 @@ export function ApprovalsPage() {
                         type="checkbox"
                         checked={pending.length > 0 && selectedIds.length === pending.length}
                         onChange={(e) => {
+                          const ids = pending.map((p) => p.id);
                           if (e.target.checked) {
-                            setSelectedIds(pending.map((p) => p.id));
+                            setSelectedIds(ids);
+                            setExpandedIds((prev) => [...new Set([...prev, ...ids])]);
                           } else {
                             setSelectedIds([]);
+                            setExpandedIds((prev) => prev.filter((id) => !ids.includes(id)));
                           }
                         }}
                         className="size-4 rounded border-gray-300 accent-emerald-600 cursor-pointer"
                       />
                     </DataTableHead>
-                    <DataTableHead className="w-8"></DataTableHead>
+                    <DataTableHead className="w-8">
+                      {pending.length > 0 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={() => {
+                            const pendingIds = pending.map((p) => p.id);
+                            const allPendingExpanded = pending.every((p) =>
+                              expandedIds.includes(p.id)
+                            );
+                            if (allPendingExpanded) {
+                              setExpandedIds((prev) =>
+                                prev.filter((id) => !pendingIds.includes(id))
+                              );
+                            } else {
+                              setExpandedIds((prev) => [...new Set([...prev, ...pendingIds])]);
+                            }
+                          }}
+                          title={
+                            pending.every((p) => expandedIds.includes(p.id))
+                              ? "Collapse all"
+                              : "Expand all"
+                          }
+                        >
+                          {pending.every((p) => expandedIds.includes(p.id)) ? (
+                            <ChevronUp className="size-4 text-muted-foreground" />
+                          ) : (
+                            <ChevronDown className="size-4 text-muted-foreground" />
+                          )}
+                        </Button>
+                      )}
+                    </DataTableHead>
                     <DataTableHead>Member</DataTableHead>
                     <DataTableHead>Project</DataTableHead>
                     <DataTableHead>Period</DataTableHead>
@@ -602,11 +779,16 @@ export function ApprovalsPage() {
                         workspaceId={ws}
                         rangeLabel={rangeLabel}
                         actioning={actioningId === item.id}
+                        expanded={expandedIds.includes(item.id)}
+                        onToggleExpand={() => toggleExpand(item.id)}
+                        timezone={timezone}
                         onSelectChange={(checked) => {
                           if (checked) {
                             setSelectedIds((prev) => [...prev, item.id]);
+                            setExpandedIds((prev) => [...new Set([...prev, item.id])]);
                           } else {
                             setSelectedIds((prev) => prev.filter((id) => id !== item.id));
+                            setExpandedIds((prev) => prev.filter((id) => id !== item.id));
                           }
                         }}
                         onApprove={() => {
@@ -660,6 +842,19 @@ export function ApprovalsPage() {
                 );
               }}
             />
+          )}
+          {pendingTotal > 0 && (
+            <div className="mt-4">
+              <TablePagination
+                page={pendingPage}
+                totalPages={pendingTotalPages}
+                total={pendingTotal}
+                limit={pendingLimit}
+                onPageChange={handleApprovalsPageChange}
+                onLimitChange={handleApprovalsLimitChange}
+                disabled={loading}
+              />
+            </div>
           )}
         </LoadingCrossfade>
       ) : tab === "missing" ? (
@@ -723,6 +918,19 @@ export function ApprovalsPage() {
                   })}
                 </TableBody>
               </Table>
+            </div>
+          )}
+          {missingTotal > 0 && (
+            <div className="mt-4">
+              <TablePagination
+                page={missingPage}
+                totalPages={missingTotalPages}
+                total={missingTotal}
+                limit={missingLimit}
+                onPageChange={handleApprovalsPageChange}
+                onLimitChange={handleApprovalsLimitChange}
+                disabled={missingLoading}
+              />
             </div>
           )}
         </LoadingCrossfade>
@@ -813,6 +1021,19 @@ export function ApprovalsPage() {
               }}
             />
           )}
+          {amendmentsTotal > 0 && (
+            <div className="mt-4">
+              <TablePagination
+                page={amendmentsPage}
+                totalPages={amendmentsTotalPages}
+                total={amendmentsTotal}
+                limit={amendmentsLimit}
+                onPageChange={handleApprovalsPageChange}
+                onLimitChange={handleApprovalsLimitChange}
+                disabled={amendmentsLoading}
+              />
+            </div>
+          )}
         </LoadingCrossfade>
       ) : tab === "approved" ? (
         <LoadingCrossfade loading={approvedLoading} loaderLabel="Loading approved timesheets…">
@@ -835,7 +1056,40 @@ export function ApprovalsPage() {
               <Table className="text-sm">
                 <TableHeader>
                   <DataTableHeaderRow>
-                    <DataTableHead className="w-8"></DataTableHead>
+                    <DataTableHead className="w-8">
+                      {approved.length > 0 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={() => {
+                            const approvedIds = approved.map((p) => p.id);
+                            const allApprovedExpanded = approved.every((p) =>
+                              expandedIds.includes(p.id)
+                            );
+                            if (allApprovedExpanded) {
+                              setExpandedIds((prev) =>
+                                prev.filter((id) => !approvedIds.includes(id))
+                              );
+                            } else {
+                              setExpandedIds((prev) => [...new Set([...prev, ...approvedIds])]);
+                            }
+                          }}
+                          title={
+                            approved.every((p) => expandedIds.includes(p.id))
+                              ? "Collapse all"
+                              : "Expand all"
+                          }
+                        >
+                          {approved.every((p) => expandedIds.includes(p.id)) ? (
+                            <ChevronUp className="size-4 text-muted-foreground" />
+                          ) : (
+                            <ChevronDown className="size-4 text-muted-foreground" />
+                          )}
+                        </Button>
+                      )}
+                    </DataTableHead>
                     <DataTableHead>Member</DataTableHead>
                     <DataTableHead>Project</DataTableHead>
                     <DataTableHead>Period</DataTableHead>
@@ -863,6 +1117,9 @@ export function ApprovalsPage() {
                         focused={focused}
                         workspaceId={ws}
                         rangeLabel={rangeLabel}
+                        expanded={expandedIds.includes(item.id)}
+                        onToggleExpand={() => toggleExpand(item.id)}
+                        timezone={timezone}
                       />
                     );
                   })}
@@ -881,8 +1138,21 @@ export function ApprovalsPage() {
               })}
             </div>
           )}
+          {approvedTotal > 0 && (
+            <div className="mt-4">
+              <TablePagination
+                page={approvedPage}
+                totalPages={approvedTotalPages}
+                total={approvedTotal}
+                limit={approvedLimit}
+                onPageChange={handleApprovalsPageChange}
+                onLimitChange={handleApprovalsLimitChange}
+                disabled={approvedLoading}
+              />
+            </div>
+          )}
         </LoadingCrossfade>
-      ) : (
+      ) : tab === "rejected" ? (
         <LoadingCrossfade loading={rejectedLoading} loaderLabel="Loading rejected timesheets…">
           {rejected.length === 0 ? (
             <Card className="border-dashed py-16 flex flex-col items-center justify-center text-center">
@@ -903,7 +1173,40 @@ export function ApprovalsPage() {
               <Table className="text-sm">
                 <TableHeader>
                   <DataTableHeaderRow>
-                    <DataTableHead className="w-8"></DataTableHead>
+                    <DataTableHead className="w-8">
+                      {rejected.length > 0 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={() => {
+                            const rejectedIds = rejected.map((p) => p.id);
+                            const allRejectedExpanded = rejected.every((p) =>
+                              expandedIds.includes(p.id)
+                            );
+                            if (allRejectedExpanded) {
+                              setExpandedIds((prev) =>
+                                prev.filter((id) => !rejectedIds.includes(id))
+                              );
+                            } else {
+                              setExpandedIds((prev) => [...new Set([...prev, ...rejectedIds])]);
+                            }
+                          }}
+                          title={
+                            rejected.every((p) => expandedIds.includes(p.id))
+                              ? "Collapse all"
+                              : "Expand all"
+                          }
+                        >
+                          {rejected.every((p) => expandedIds.includes(p.id)) ? (
+                            <ChevronUp className="size-4 text-muted-foreground" />
+                          ) : (
+                            <ChevronDown className="size-4 text-muted-foreground" />
+                          )}
+                        </Button>
+                      )}
+                    </DataTableHead>
                     <DataTableHead>Member</DataTableHead>
                     <DataTableHead>Project</DataTableHead>
                     <DataTableHead>Period</DataTableHead>
@@ -931,6 +1234,9 @@ export function ApprovalsPage() {
                         focused={focused}
                         workspaceId={ws}
                         rangeLabel={rangeLabel}
+                        expanded={expandedIds.includes(item.id)}
+                        onToggleExpand={() => toggleExpand(item.id)}
+                        timezone={timezone}
                       />
                     );
                   })}
@@ -949,8 +1255,232 @@ export function ApprovalsPage() {
               })}
             </div>
           )}
+          {rejectedTotal > 0 && (
+            <div className="mt-4">
+              <TablePagination
+                page={rejectedPage}
+                totalPages={rejectedTotalPages}
+                total={rejectedTotal}
+                limit={rejectedLimit}
+                onPageChange={handleApprovalsPageChange}
+                onLimitChange={handleApprovalsLimitChange}
+                disabled={rejectedLoading}
+              />
+            </div>
+          )}
         </LoadingCrossfade>
-      )}
+      ) : tab === "all" ? (
+        <LoadingCrossfade loading={allLoading} loaderLabel="Loading timesheet history…">
+          {allSubmissions.length === 0 ? (
+            <Card className="border-dashed py-16 flex flex-col items-center justify-center text-center">
+              <Check className="size-10 text-emerald-500 bg-emerald-500/10 p-2 rounded-full mb-3" />
+              <p className="font-medium text-sm">
+                {hasActiveApprovalsFilter(filters)
+                  ? "No matching timesheets"
+                  : "No timesheets submitted yet"}
+              </p>
+              <p className="text-xs text-muted-foreground max-w-xs mt-1">
+                {hasActiveApprovalsFilter(filters)
+                  ? "Try clearing filters or choose a different project, member, or date range."
+                  : "All timesheets will be visible in this tab once submitted or reviewed."}
+              </p>
+            </Card>
+          ) : viewMode === "table" ? (
+            <div className="rounded-lg border border-border/60 overflow-x-auto animate-fade-in">
+              <Table className="text-sm">
+                <TableHeader>
+                  <DataTableHeaderRow>
+                    <DataTableHead className="w-10">
+                      <input
+                        type="checkbox"
+                        checked={
+                          allSubmissions.filter((s) => s.status === "SUBMITTED").length > 0 &&
+                          allSubmissions
+                            .filter((s) => s.status === "SUBMITTED")
+                            .every((s) => selectedIds.includes(s.id))
+                        }
+                        onChange={(e) => {
+                          const subIds = allSubmissions
+                            .filter((s) => s.status === "SUBMITTED")
+                            .map((s) => s.id);
+                          if (e.target.checked) {
+                            setSelectedIds((prev) => [...new Set([...prev, ...subIds])]);
+                            setExpandedIds((prev) => [...new Set([...prev, ...subIds])]);
+                          } else {
+                            setSelectedIds((prev) => prev.filter((id) => !subIds.includes(id)));
+                            setExpandedIds((prev) => prev.filter((id) => !subIds.includes(id)));
+                          }
+                        }}
+                        className="size-4 rounded border-gray-300 accent-emerald-600 cursor-pointer"
+                      />
+                    </DataTableHead>
+                    <DataTableHead className="w-8">
+                      {allSubmissions.length > 0 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={() => {
+                            const ids = allSubmissions.map((p) => p.id);
+                            const allExpanded = allSubmissions.every((p) =>
+                              expandedIds.includes(p.id)
+                            );
+                            if (allExpanded) {
+                              setExpandedIds((prev) => prev.filter((id) => !ids.includes(id)));
+                            } else {
+                              setExpandedIds((prev) => [...new Set([...prev, ...ids])]);
+                            }
+                          }}
+                          title={
+                            allSubmissions.every((p) => expandedIds.includes(p.id))
+                              ? "Collapse all"
+                              : "Expand all"
+                          }
+                        >
+                          {allSubmissions.every((p) => expandedIds.includes(p.id)) ? (
+                            <ChevronUp className="size-4 text-muted-foreground" />
+                          ) : (
+                            <ChevronDown className="size-4 text-muted-foreground" />
+                          )}
+                        </Button>
+                      )}
+                    </DataTableHead>
+                    <DataTableHead>Member</DataTableHead>
+                    <DataTableHead>Project</DataTableHead>
+                    <DataTableHead>Period</DataTableHead>
+                    <DataTableHead className="text-right">Hours</DataTableHead>
+                    <DataTableHead>Status</DataTableHead>
+                    <DataTableHead>Submitted/Reviewed</DataTableHead>
+                    <DataTableHead>Reviewer/Note</DataTableHead>
+                    <DataTableHead>Notes</DataTableHead>
+                    <DataTableHead className="text-right">Actions</DataTableHead>
+                  </DataTableHeaderRow>
+                </TableHeader>
+                <TableBody>
+                  {allSubmissions.map((item) => {
+                    const focused = deepLink.periodId === item.id;
+                    const periodLabel =
+                      item.approvalPeriod === "daily"
+                        ? "Day"
+                        : item.approvalPeriod === "monthly"
+                          ? "Month"
+                          : "Week";
+                    const rangeLabel = `${periodLabel}: ${formatDateRangeLocal(item.periodStart, item.periodEnd)}`;
+                    const isSelected = selectedIds.includes(item.id);
+                    if (item.status === "SUBMITTED") {
+                      return (
+                        <PendingRow
+                          key={item.id}
+                          item={item}
+                          focused={focused}
+                          isSelected={isSelected}
+                          workspaceId={ws}
+                          rangeLabel={rangeLabel}
+                          actioning={actioningId === item.id}
+                          expanded={expandedIds.includes(item.id)}
+                          onToggleExpand={() => toggleExpand(item.id)}
+                          timezone={timezone}
+                          showStatusBadge
+                          allTab
+                          onSelectChange={(checked) => {
+                            if (checked) {
+                              setSelectedIds((prev) => [...prev, item.id]);
+                              setExpandedIds((prev) => [...new Set([...prev, item.id])]);
+                            } else {
+                              setSelectedIds((prev) => prev.filter((id) => id !== item.id));
+                              setExpandedIds((prev) => prev.filter((id) => id !== item.id));
+                            }
+                          }}
+                          onApprove={() => {
+                            setConfirmActionId({
+                              id: item.id,
+                              action: "approve",
+                              userName: item.userName,
+                              projectName: item.projectName,
+                              range: rangeLabel
+                            });
+                          }}
+                          onReject={() => {
+                            setConfirmActionId({
+                              id: item.id,
+                              action: "reject",
+                              userName: item.userName,
+                              projectName: item.projectName,
+                              range: rangeLabel
+                            });
+                          }}
+                        />
+                      );
+                    } else {
+                      return (
+                        <ReviewedRow
+                          key={item.id}
+                          item={item}
+                          focused={focused}
+                          workspaceId={ws}
+                          rangeLabel={rangeLabel}
+                          expanded={expandedIds.includes(item.id)}
+                          onToggleExpand={() => toggleExpand(item.id)}
+                          timezone={timezone}
+                          showStatusBadge
+                          allTab
+                        />
+                      );
+                    }
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2">
+              {allSubmissions.map((item) => {
+                const focused = deepLink.periodId === item.id;
+                if (item.status === "SUBMITTED") {
+                  return (
+                    <div key={item.id} ref={focused ? focusRef : undefined}>
+                      <PendingTimesheetCard
+                        item={item}
+                        workspaceId={ws}
+                        onReview={(action, note) => void handleReview(item.id, action, note)}
+                        actioning={actioningId === item.id}
+                        highlighted={focused}
+                        selected={selectedIds.includes(item.id)}
+                        onSelectChange={(checked) => {
+                          if (checked) {
+                            setSelectedIds((prev) => [...prev, item.id]);
+                          } else {
+                            setSelectedIds((prev) => prev.filter((id) => id !== item.id));
+                          }
+                        }}
+                      />
+                    </div>
+                  );
+                } else {
+                  return (
+                    <div key={item.id} ref={focused ? focusRef : undefined}>
+                      <ReviewedTimesheetCard item={item} workspaceId={ws} highlighted={focused} />
+                    </div>
+                  );
+                }
+              })}
+            </div>
+          )}
+          {allTotal > 0 && (
+            <div className="mt-4">
+              <TablePagination
+                page={allPage}
+                totalPages={allTotalPages}
+                total={allTotal}
+                limit={allLimit}
+                onPageChange={handleApprovalsPageChange}
+                onLimitChange={handleApprovalsLimitChange}
+                disabled={allLoading}
+              />
+            </div>
+          )}
+        </LoadingCrossfade>
+      ) : null}
 
       {selectedIds.length > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 bg-background/95 backdrop-blur border border-border shadow-lg px-6 py-3 rounded-full animate-in slide-in-from-bottom duration-200">

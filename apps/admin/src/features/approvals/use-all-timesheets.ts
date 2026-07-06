@@ -2,22 +2,22 @@
 
 import { ROUTES } from "@kloqra/contracts";
 import type {
-  ListMissingTimesheetsResponseDto,
-  MissingTimesheetDto,
+  ListReviewedTimesheetsResponseDto,
+  ReviewedTimesheetDto,
   TimesheetApprovalsFilterQuery
 } from "@kloqra/contracts";
 import { buildApprovalsListQueryString } from "@kloqra/web-shared";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { useRegisterApprovalsRefresh } from "./use-approvals-refresh-registration";
 import { api } from "@/lib/api";
 
-export function useMissingTimesheets(
+export function useAllTimesheets(
   workspaceId: string,
-  anchorDate: Date,
   filters: TimesheetApprovalsFilterQuery,
   enabled = true
 ) {
-  const [missing, setMissing] = useState<MissingTimesheetDto[]>([]);
+  const [items, setItems] = useState<ReviewedTimesheetDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -25,33 +25,26 @@ export function useMissingTimesheets(
   const [totalPages, setTotalPages] = useState(0);
 
   const filterKey = buildApprovalsListQueryString(filters);
+  const route = ROUTES.TIMESHEETS.LIST_ALL;
 
   const refresh = useCallback(async () => {
     if (!workspaceId) return;
     setLoading(true);
     try {
-      const params = new URLSearchParams({ date: anchorDate.toISOString() });
-      if (filterKey) {
-        for (const [key, value] of new URLSearchParams(filterKey)) {
-          params.set(key, value);
-        }
-      }
-      const res = await api<ListMissingTimesheetsResponseDto>(
-        `${ROUTES.TIMESHEETS.LIST_MISSING}?${params}`,
-        { workspaceId }
-      );
-      setMissing(res.items ?? []);
+      const path = filterKey ? `${route}?${filterKey}` : route;
+      const res = await api<ListReviewedTimesheetsResponseDto>(path, { workspaceId });
+      setItems(res.items ?? []);
       setTotal(res.total ?? 0);
       setPage(res.page ?? 1);
       setLimit(res.limit ?? 25);
       setTotalPages(res.totalPages ?? 0);
     } catch {
-      toast.error("Failed to load missing submissions");
-      setMissing([]);
+      toast.error("Failed to load timesheet history");
+      setItems([]);
     } finally {
       setLoading(false);
     }
-  }, [workspaceId, anchorDate, filterKey]);
+  }, [workspaceId, filterKey, route]);
 
   useEffect(() => {
     if (enabled && workspaceId) {
@@ -59,14 +52,7 @@ export function useMissingTimesheets(
     }
   }, [enabled, workspaceId, refresh]);
 
-  return {
-    missing,
-    loading,
-    refresh,
-    total,
-    page,
-    limit,
-    totalPages,
-    missingCount: missing.length
-  };
+  useRegisterApprovalsRefresh(refresh);
+
+  return { items, loading, refresh, total, page, limit, totalPages, count: items.length };
 }

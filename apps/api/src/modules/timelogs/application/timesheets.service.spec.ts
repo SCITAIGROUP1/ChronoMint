@@ -55,7 +55,8 @@ describe("TimesheetsService", () => {
         update: vi.fn(),
         updateMany: vi.fn(),
         findFirst: vi.fn(),
-        findMany: vi.fn().mockResolvedValue([])
+        findMany: vi.fn().mockResolvedValue([]),
+        count: vi.fn().mockResolvedValue(0)
       },
       timesheetAmendmentRequest: {
         findFirst: vi.fn().mockResolvedValue(null)
@@ -347,7 +348,13 @@ describe("TimesheetsService", () => {
   it("listPending returns items wrapper", async () => {
     mockPrisma.timesheetPeriod.findMany.mockResolvedValue([]);
     const result = await service.listPending(workspaceId, adminUserId, "ADMIN");
-    expect(result).toEqual({ items: [] });
+    expect(result).toEqual({
+      items: [],
+      page: 1,
+      limit: 25,
+      total: 0,
+      totalPages: 0
+    });
     expect(mockPrisma.timesheetPeriod.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ workspaceId, status: "SUBMITTED" })

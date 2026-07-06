@@ -153,14 +153,33 @@ function PendingActivity({
                     return (
                       <li
                         key={log.id}
-                        className="rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-xs leading-relaxed"
+                        className="rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-xs leading-relaxed space-y-1"
                       >
-                        <p className="font-medium">{task?.taskName ?? "Task"}</p>
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <p className="font-semibold text-foreground">
+                            {task?.taskName ?? "Task"}
+                          </p>
+                          {log.isBillable ? (
+                            <span className="inline-flex rounded-full border border-primary/20 bg-primary/5 px-1.5 py-0 text-[9px] font-medium uppercase tracking-wide text-primary">
+                              Billable
+                            </span>
+                          ) : (
+                            <span className="inline-flex rounded-full border border-border/70 bg-muted/50 px-1.5 py-0 text-[9px] font-medium uppercase tracking-wide text-muted-foreground">
+                              Non-billable
+                            </span>
+                          )}
+                        </div>
                         <p className="text-muted-foreground">
                           {formatEntryTimeRange(log.startTime, log.endTime, timezone)} ·{" "}
-                          {formatEntryDuration(log.durationSec)} ·{" "}
-                          {log.isBillable ? "billable" : "non-billable"}
+                          <span className="font-semibold tabular-nums text-foreground">
+                            {formatEntryDuration(log.durationSec)}
+                          </span>
                         </p>
+                        {log.description && (
+                          <p className="text-muted-foreground italic line-clamp-1">
+                            &quot;{log.description}&quot;
+                          </p>
+                        )}
                       </li>
                     );
                   })}

@@ -173,7 +173,9 @@ export const ROUTES = {
     APPROVE_AMENDMENT: (id: string) => `/timesheets/amendments/${id}/approve`,
     DENY_AMENDMENT: (id: string) => `/timesheets/amendments/${id}/deny`,
     APPROVE: (id: string) => `/timesheets/${id}/approve`,
-    REJECT: (id: string) => `/timesheets/${id}/reject`
+    REJECT: (id: string) => `/timesheets/${id}/reject`,
+    LIST_ALL: "/timesheets/all",
+    BULK_REVIEW: "/timesheets/bulk-review"
   },
   NOTIFICATIONS: {
     LIST: "/notifications",

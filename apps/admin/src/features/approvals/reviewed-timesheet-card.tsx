@@ -34,14 +34,16 @@ export function ReviewedTimesheetCard({
     item.cascadedCount && item.cascadedCount > 0
       ? `Part of batch submit (+${item.cascadedCount})`
       : null;
-  const reviewedLabel = new Date(item.reviewedAt).toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    ...(timezone ? { timeZone: timezone } : {})
-  });
+  const reviewedLabel = item.reviewedAt
+    ? new Date(item.reviewedAt).toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        ...(timezone ? { timeZone: timezone } : {})
+      })
+    : "—";
 
   return (
     <Card

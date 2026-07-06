@@ -2,10 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   buildAdminApprovalsHref,
   buildMemberSubmissionsHref,
+  buildApprovalsListQueryString,
+  buildApprovalsCountQueryString,
   hasActiveApprovalsFilter,
   parseAdminApprovalsSearch,
   parseMemberSubmissionsSearch,
-  resolveMemberSubmissionsTab
+  resolveMemberSubmissionsTab,
+  APPROVALS_TABLE_PAGE_SIZE
 } from "./submission-deep-link";
 
 describe("submission deep links", () => {
@@ -73,5 +76,15 @@ describe("submission deep links", () => {
   it("detects active filters", () => {
     expect(hasActiveApprovalsFilter({})).toBe(false);
     expect(hasActiveApprovalsFilter({ projectId: ["p1"] })).toBe(true);
+  });
+
+  it("builds list and count query strings with default pagination", () => {
+    expect(buildApprovalsListQueryString({})).toBe(`page=1&limit=${APPROVALS_TABLE_PAGE_SIZE}`);
+    expect(buildApprovalsListQueryString({ projectId: ["p1"], page: 2 })).toBe(
+      `projectId=p1&page=2&limit=${APPROVALS_TABLE_PAGE_SIZE}`
+    );
+    expect(buildApprovalsCountQueryString({ projectId: ["p1"] })).toBe(
+      "projectId=p1&page=1&limit=1"
+    );
   });
 });

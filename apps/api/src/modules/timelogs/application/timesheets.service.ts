@@ -1,4 +1,4 @@
-import { ErrorCodes, formatTimesheetPeriodLabel } from "@kloqra/contracts";
+import { ErrorCodes, formatTimesheetPeriodLabel, buildPaginationMeta } from "@kloqra/contracts";
 import type {
   MissingTimesheetDto,
   SubmitTimesheetResponseDto,
@@ -6,10 +6,14 @@ import type {
   TimesheetPeriodDto,
   TimesheetSubmitPreviewDto
 } from "@kloqra/contracts";
+import { InjectQueue } from "@nestjs/bullmq";
 import { Injectable, HttpStatus, Logger } from "@nestjs/common";
+import { Prisma, TimesheetStatus } from "@prisma/client";
+import { Queue } from "bullmq";
 import { ProjectAccessService } from "../../../common/access/project-access.service";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { QUEUES } from "../../../common/queues";
 import {
   getPeriodRange,
   parseWorkspaceSettingsFromRaw,
@@ -39,7 +43,8 @@ export class TimesheetsService {
   constructor(
     private prisma: PrismaService,
     private notificationsDispatch: NotificationsDispatchService,
-    private access: ProjectAccessService
+    private access: ProjectAccessService,
+    @InjectQueue(QUEUES.TIMESHEET_BULK_REVIEW) private readonly bulkReviewQueue: Queue
   ) {}
 
   private async amendmentPendingForPeriod(periodId: string | undefined): Promise<boolean> {
@@ -550,9 +555,18 @@ export class TimesheetsService {
     return this.listReviewed(workspaceId, "REJECTED", filter, userId, role);
   }
 
+  async listAll(
+    workspaceId: string,
+    userId: string,
+    role: "ADMIN" | "MEMBER",
+    filter: TimesheetApprovalsFilterQuery = {}
+  ) {
+    return this.listReviewed(workspaceId, undefined, filter, userId, role);
+  }
+
   private async listReviewed(
     workspaceId: string,
-    status: "SUBMITTED" | "APPROVED" | "REJECTED",
+    status?: "SUBMITTED" | "APPROVED" | "REJECTED",
     filter: TimesheetApprovalsFilterQuery = {},
     userId?: string,
     role?: "ADMIN" | "MEMBER"
@@ -562,23 +576,32 @@ export class TimesheetsService {
         ? await this.access.manageableProjectIds(workspaceId, userId, role)
         : undefined;
     const periodStartRange = buildPeriodStartRange(filter);
+
+    const whereClause: Prisma.TimesheetPeriodWhereInput = {
+      workspaceId,
+      ...(status ? { status } : { status: { not: TimesheetStatus.DRAFT } }),
+      ...(managedProjectIds ? { projectId: { in: managedProjectIds } } : {}),
+      ...(filter.projectId
+        ? Array.isArray(filter.projectId)
+          ? { projectId: { in: filter.projectId } }
+          : { projectId: filter.projectId }
+        : {}),
+      ...(filter.userId
+        ? Array.isArray(filter.userId)
+          ? { userId: { in: filter.userId } }
+          : { userId: filter.userId }
+        : {}),
+      ...(periodStartRange ? { periodStart: periodStartRange } : {})
+    };
+
+    const total = await this.prisma.timesheetPeriod.count({ where: whereClause });
+
+    const page = filter.page ?? 1;
+    const limit = filter.limit ?? 25;
+    const skip = (page - 1) * limit;
+
     const periods = await this.prisma.timesheetPeriod.findMany({
-      where: {
-        workspaceId,
-        status,
-        ...(managedProjectIds ? { projectId: { in: managedProjectIds } } : {}),
-        ...(filter.projectId
-          ? Array.isArray(filter.projectId)
-            ? { projectId: { in: filter.projectId } }
-            : { projectId: filter.projectId }
-          : {}),
-        ...(filter.userId
-          ? Array.isArray(filter.userId)
-            ? { userId: { in: filter.userId } }
-            : { userId: filter.userId }
-          : {}),
-        ...(periodStartRange ? { periodStart: periodStartRange } : {})
-      },
+      where: whereClause,
       include: {
         user: {
           select: {
@@ -596,7 +619,11 @@ export class TimesheetsService {
         }
       },
       orderBy:
-        status === "SUBMITTED" ? { submittedAt: filter.sortOrder ?? "asc" } : { reviewedAt: "desc" }
+        status === "SUBMITTED"
+          ? { submittedAt: filter.sortOrder ?? "asc" }
+          : { reviewedAt: "desc" },
+      take: limit,
+      skip
     });
 
     const batchCounts = new Map<string, number>();
@@ -608,7 +635,15 @@ export class TimesheetsService {
       }
     }
 
-    if (periods.length === 0) return { items: [] };
+    if (periods.length === 0) {
+      return {
+        items: [],
+        page,
+        limit,
+        total: 0,
+        totalPages: 0
+      };
+    }
 
     const reviewerIds = [...new Set(periods.map((p) => p.reviewedBy).filter(Boolean))] as string[];
     const reviewers = await this.prisma.user.findMany({
@@ -679,13 +714,16 @@ export class TimesheetsService {
         submittedAt: p.submittedAt?.toISOString() ?? null
       };
 
-      if (status === "SUBMITTED") {
-        return base;
+      if (status === "SUBMITTED" || p.status === "SUBMITTED") {
+        return {
+          ...base,
+          status: "SUBMITTED"
+        };
       }
 
       return {
         ...base,
-        status,
+        status: p.status as "APPROVED" | "REJECTED",
         reviewNote: p.reviewNote,
         reviewedAt: p.reviewedAt?.toISOString() ?? new Date(0).toISOString(),
         reviewedBy: p.reviewedBy,
@@ -693,7 +731,11 @@ export class TimesheetsService {
       };
     });
 
-    return { items };
+    const meta = buildPaginationMeta(total, page, limit);
+    return {
+      items,
+      ...meta
+    };
   }
 
   async listMissing(
@@ -795,7 +837,17 @@ export class TimesheetsService {
       }
     }
 
-    return { items };
+    const total = items.length;
+    const page = filter.page ?? 1;
+    const limit = filter.limit ?? 25;
+    const startIndex = (page - 1) * limit;
+    const paginatedItems = items.slice(startIndex, startIndex + limit);
+    const meta = buildPaginationMeta(total, page, limit);
+
+    return {
+      items: paginatedItems,
+      ...meta
+    };
   }
 
   async remindMember(
@@ -1127,5 +1179,33 @@ export class TimesheetsService {
     );
 
     return { ok: true as const };
+  }
+
+  async bulkReview(
+    workspaceId: string,
+    reviewerUserId: string,
+    reviewerRole: "ADMIN" | "MEMBER",
+    ids: string[],
+    action: "approve" | "reject",
+    reviewNote?: string
+  ) {
+    const job = await this.bulkReviewQueue.add(
+      "timesheetBulkReviewJob",
+      {
+        workspaceId,
+        reviewerUserId,
+        reviewerRole,
+        action,
+        reviewNote,
+        ids
+      },
+      { removeOnComplete: true, removeOnFail: false }
+    );
+
+    return {
+      jobId: String(job.id!),
+      status: "queued",
+      enqueuedCount: ids.length
+    };
   }
 }

@@ -6,7 +6,7 @@ import {
   type PendingTimesheetDto,
   type TimesheetApprovalsFilterQuery
 } from "@kloqra/contracts";
-import { buildApprovalsFilterQueryString } from "@kloqra/web-shared";
+import { buildApprovalsCountQueryString, buildApprovalsListQueryString } from "@kloqra/web-shared";
 import { create } from "zustand";
 import { api } from "@/lib/api";
 
@@ -17,6 +17,10 @@ type PendingEntry = {
   items: PendingTimesheetDto[];
   loading: boolean;
   error: boolean;
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
 };
 
 type PendingTimesheetsStoreState = {
@@ -41,6 +45,13 @@ function buildPendingPath(filterKey: string) {
     : ROUTES.TIMESHEETS.LIST_PENDING;
 }
 
+function shouldPollPendingApprovals(filterKey: string): boolean {
+  if (!filterKey) return true;
+  if (filterKey === buildApprovalsCountQueryString({})) return true;
+  const params = new URLSearchParams(filterKey);
+  return [...params.keys()].every((key) => key === "page" || key === "limit");
+}
+
 export const usePendingTimesheetsStore = create<PendingTimesheetsStoreState>((set, get) => ({
   byKey: {},
   refCounts: {},
@@ -56,7 +67,11 @@ export const usePendingTimesheetsStore = create<PendingTimesheetsStoreState>((se
         [key]: {
           items: state.byKey[key]?.items ?? [],
           loading: true,
-          error: false
+          error: false,
+          page: state.byKey[key]?.page ?? 1,
+          limit: state.byKey[key]?.limit ?? 25,
+          total: state.byKey[key]?.total ?? 0,
+          totalPages: state.byKey[key]?.totalPages ?? 0
         }
       }
     }));
@@ -67,14 +82,30 @@ export const usePendingTimesheetsStore = create<PendingTimesheetsStoreState>((se
       set((state) => ({
         byKey: {
           ...state.byKey,
-          [key]: { items: data.items ?? [], loading: false, error: false }
+          [key]: {
+            items: data.items ?? [],
+            loading: false,
+            error: false,
+            page: data.page ?? 1,
+            limit: data.limit ?? 25,
+            total: data.total ?? 0,
+            totalPages: data.totalPages ?? 0
+          }
         }
       }));
     } catch {
       set((state) => ({
         byKey: {
           ...state.byKey,
-          [key]: { items: [], loading: false, error: true }
+          [key]: {
+            items: [],
+            loading: false,
+            error: true,
+            page: 1,
+            limit: 25,
+            total: 0,
+            totalPages: 0
+          }
         }
       }));
     }
@@ -87,7 +118,7 @@ export const usePendingTimesheetsStore = create<PendingTimesheetsStoreState>((se
 
     void get().fetchPending(workspaceId, filterKey);
 
-    const shouldPoll = filterKey === "";
+    const shouldPoll = shouldPollPendingApprovals(filterKey);
     if (shouldPoll && !get().pollTimer) {
       const timer = setInterval(() => void get().fetchPending(workspaceId, filterKey), POLL_MS);
       set({ pollTimer: timer, pollKey: key });
@@ -116,10 +147,19 @@ export const usePendingTimesheetsStore = create<PendingTimesheetsStoreState>((se
     set((state) => {
       const entry = state.byKey[key];
       if (!entry) return state;
+      const nextItems = entry.items.filter((item) => item.id !== id);
+      const diff = entry.items.length - nextItems.length;
+      const nextTotal = Math.max(0, entry.total - diff);
+      const nextTotalPages = Math.ceil(nextTotal / entry.limit);
       return {
         byKey: {
           ...state.byKey,
-          [key]: { ...entry, items: entry.items.filter((item) => item.id !== id) }
+          [key]: {
+            ...entry,
+            items: nextItems,
+            total: nextTotal,
+            totalPages: nextTotalPages
+          }
         }
       };
     });
@@ -140,5 +180,5 @@ export function usePendingTimesheetsListKey(
   workspaceId: string,
   filters: TimesheetApprovalsFilterQuery
 ) {
-  return cacheKey(workspaceId, buildApprovalsFilterQueryString(filters));
+  return cacheKey(workspaceId, buildApprovalsListQueryString(filters));
 }

@@ -22,7 +22,8 @@ describe("TimesheetAmendmentsService", () => {
         create: vi.fn(),
         findMany: vi.fn().mockResolvedValue([]),
         updateMany: vi.fn(),
-        findUniqueOrThrow: vi.fn()
+        findUniqueOrThrow: vi.fn(),
+        count: vi.fn().mockResolvedValue(0)
       },
       $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn(mockPrisma))
     };
@@ -127,15 +128,16 @@ describe("TimesheetAmendmentsService", () => {
       userId: "user-target"
     });
 
-    expect(mockPrisma.timesheetAmendmentRequest.findMany).toHaveBeenCalledWith({
-      where: {
-        workspaceId: "workspace-target",
-        status: "PENDING",
-        userId: "user-target"
-      },
-      include: expect.any(Object),
-      orderBy: { createdAt: "desc" }
-    });
+    expect(mockPrisma.timesheetAmendmentRequest.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          workspaceId: "workspace-target",
+          status: "PENDING",
+          userId: "user-target"
+        },
+        orderBy: { createdAt: "desc" }
+      })
+    );
   });
 
   it("deny requires an admin note", async () => {
