@@ -195,7 +195,11 @@ export { useTenantOverview } from "./features/tenant/use-tenant-overview";
 export { useTenantAnalyticsSummary } from "./features/tenant/use-tenant-analytics-summary";
 export { useTenantMembers } from "./features/tenant/use-tenant-members";
 export { useTenantSubscription } from "./features/tenant/use-tenant-subscription";
-export { useTenantDataExport } from "./features/tenant/use-tenant-data-export";
+export {
+  isExportInProgress,
+  isStaleExportJob,
+  useTenantDataExport
+} from "./features/tenant/use-tenant-data-export";
 export { LegalFooterLinks, getLegalUrls } from "./components/legal-footer";
 export {
   useCreateCheckoutSession,

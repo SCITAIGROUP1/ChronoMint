@@ -32,7 +32,8 @@ import { getWorkspaceId } from "@/stores/session.store";
 
 export function AccountDataPrivacyPage() {
   const workspaceId = getWorkspaceId() ?? "";
-  const { job, loading, error, startExport, refreshJob, cancelExport } = useTenantDataExport();
+  const { job, loading, error, startExport, refreshJob, cancelExport, isExportInProgress } =
+    useTenantDataExport();
 
   // Import State
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -43,14 +44,14 @@ export function AccountDataPrivacyPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!job || job.status === "ready" || job.status === "failed") return;
+    if (!job || !isExportInProgress) return;
     const timer = window.setInterval(() => {
       void refreshJob(job.id);
     }, 2000);
     return () => {
       window.clearInterval(timer);
     };
-  }, [job, refreshJob]);
+  }, [job, isExportInProgress, refreshJob]);
 
   // Poll latest import job status
   useEffect(() => {
@@ -240,8 +241,18 @@ export function AccountDataPrivacyPage() {
               </div>
             )}
 
+            {job && job.status === "failed" && (
+              <div className="p-3.5 bg-destructive/10 text-destructive text-sm rounded-xl flex items-start gap-2.5 border border-destructive/20">
+                <AlertCircle className="size-4 shrink-0 mt-0.5" />
+                <p>
+                  {job.errorMessage ??
+                    "The previous export did not complete. You can start a new one."}
+                </p>
+              </div>
+            )}
+
             {/* Stepper progress if enqueued or running */}
-            {job && (job.status === "queued" || job.status === "running") && (
+            {job && isExportInProgress && (
               <div className="p-4 bg-muted/40 border border-border/50 rounded-2xl space-y-4 animate-in fade-in duration-300">
                 <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   <span>Export Progress</span>
@@ -340,11 +351,11 @@ export function AccountDataPrivacyPage() {
 
             <Button
               type="button"
-              disabled={loading || job?.status === "queued" || job?.status === "running"}
+              disabled={loading || isExportInProgress}
               onClick={() => void handleStartExport()}
               className="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-medium shadow-sm transition-all py-5 rounded-xl flex items-center justify-center gap-2"
             >
-              {loading || job?.status === "queued" || job?.status === "running" ? (
+              {loading || isExportInProgress ? (
                 <>
                   <RefreshCw className="size-4 animate-spin" />
                   Generating Export Package...
