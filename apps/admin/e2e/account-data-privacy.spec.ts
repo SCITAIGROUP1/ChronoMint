@@ -29,14 +29,14 @@ test("failed export shows error and allows retry", async ({ page }) => {
       body: JSON.stringify({
         ...exportJobBase,
         status: "failed",
-        errorMessage: "Failed to queue export task",
+        errorMessage: "EACCES: permission denied, mkdir '/app/.export-jobs'",
         createdAt: new Date().toISOString()
       })
     });
   });
 
   await page.goto("/account/data-privacy");
-  await expect(page.getByText(/Failed to queue export task/i)).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText(/EXPORT_STORAGE_DIR/i)).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole("button", { name: /Export all organization data/i })).toBeEnabled();
 });
 

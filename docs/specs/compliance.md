@@ -53,12 +53,13 @@
 
 ## Environment
 
-| Variable                             | Default | Purpose                                  |
-| ------------------------------------ | ------- | ---------------------------------------- |
-| `TENANT_DELETE_MIN_DAYS_AFTER_CHURN` | `30`    | Retention after churn before hard delete |
-| `NEXT_PUBLIC_LEGAL_TOS_URL`          | —       | Footer / signup link                     |
-| `NEXT_PUBLIC_LEGAL_PRIVACY_URL`      | —       | Footer / signup link                     |
-| `NEXT_PUBLIC_LEGAL_REFUND_URL`       | —       | Billing page link                        |
+| Variable                             | Default                                                      | Purpose                                  |
+| ------------------------------------ | ------------------------------------------------------------ | ---------------------------------------- |
+| `TENANT_DELETE_MIN_DAYS_AFTER_CHURN` | `30`                                                         | Retention after churn before hard delete |
+| `EXPORT_STORAGE_DIR`                 | `/tmp/export-jobs` on Railway/Vercel; `.export-jobs` locally | Writable directory for export ZIP files  |
+| `NEXT_PUBLIC_LEGAL_TOS_URL`          | —                                                            | Footer / signup link                     |
+| `NEXT_PUBLIC_LEGAL_PRIVACY_URL`      | —                                                            | Footer / signup link                     |
+| `NEXT_PUBLIC_LEGAL_REFUND_URL`       | —                                                            | Billing page link                        |
 
 ## Given / When / Then
 

@@ -30,6 +30,16 @@ import { api } from "@/lib/api";
 import { apiDownloadGet, saveDownloadResponse } from "@/lib/download";
 import { getWorkspaceId } from "@/stores/session.store";
 
+function formatExportFailureMessage(message: string | null | undefined): string {
+  if (!message) {
+    return "The previous export did not complete. You can start a new one.";
+  }
+  if (/EACCES|permission denied|\.export-jobs/i.test(message)) {
+    return "The export could not be saved on the server. Your administrator needs to set EXPORT_STORAGE_DIR to a writable path (for example /tmp/export-jobs on Railway).";
+  }
+  return message;
+}
+
 export function AccountDataPrivacyPage() {
   const workspaceId = getWorkspaceId() ?? "";
   const { job, loading, error, startExport, refreshJob, cancelExport, isExportInProgress } =
@@ -244,10 +254,7 @@ export function AccountDataPrivacyPage() {
             {job && job.status === "failed" && (
               <div className="p-3.5 bg-destructive/10 text-destructive text-sm rounded-xl flex items-start gap-2.5 border border-destructive/20">
                 <AlertCircle className="size-4 shrink-0 mt-0.5" />
-                <p>
-                  {job.errorMessage ??
-                    "The previous export did not complete. You can start a new one."}
-                </p>
+                <p>{formatExportFailureMessage(job.errorMessage)}</p>
               </div>
             )}
 
