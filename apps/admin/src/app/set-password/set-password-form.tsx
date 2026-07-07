@@ -14,9 +14,7 @@ import {
   canLoginToAdminApp,
   establishTenantSession,
   extractFieldErrorsFromMessage,
-  hasMultipleWorkspaces,
-  resolveAdminLandingPath,
-  resolveAdminOnboardingPath,
+  resolveAdminPostAuthPath,
   verifyEmailWithToken
 } from "@kloqra/web-shared";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -47,23 +45,7 @@ export function AdminSetPasswordForm() {
       throw new Error("Admin access required");
     }
     establishTenantSession(switched.session, switched.accessToken, res.refreshToken);
-
-    if (switched.session.requiresWorkspaceSetup) {
-      router.replace(await resolveAdminOnboardingPath(switched.session));
-      return;
-    }
-
-    try {
-      const multi = await hasMultipleWorkspaces(switched.session.workspaceId!, "ADMIN");
-      if (multi) {
-        router.replace("/select-workspace");
-        return;
-      }
-    } catch (err) {
-      console.error("Failed to check workspaces:", err);
-    }
-
-    router.replace(await resolveAdminLandingPath(switched.session, switched.session.workspaceId!));
+    router.replace(await resolveAdminPostAuthPath(switched.session));
   }
 
   async function complete2fa(e: React.FormEvent) {

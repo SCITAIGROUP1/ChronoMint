@@ -59,16 +59,32 @@ describe("countAdminContexts", () => {
     expect(countAdminContexts(ownerSession, workspaces.slice(0, 1))).toBe(2);
   });
 
-  it("counts only workspaces for non-owners", () => {
-    expect(countAdminContexts(opsSession, workspaces.slice(0, 3))).toBe(3);
+  it("counts organization context for tenant admins", () => {
+    expect(countAdminContexts(opsSession, workspaces.slice(0, 1))).toBe(2);
+  });
+
+  it("counts only workspaces for non-owners without tenant role", () => {
+    expect(
+      countAdminContexts({ workspaceRole: "ADMIN" } as AuthSessionDto, workspaces.slice(0, 3))
+    ).toBe(3);
   });
 });
 
 describe("shouldShowAdminContextPicker", () => {
-  it("shows picker when there are three or more contexts", () => {
+  it("shows picker for tenant operators with at least one workspace", () => {
+    expect(shouldShowAdminContextPicker(ownerSession, workspaces.slice(0, 1))).toBe(true);
+    expect(shouldShowAdminContextPicker(opsSession, workspaces.slice(0, 1))).toBe(true);
+  });
+
+  it("shows picker when there are three or more admin contexts for others", () => {
     expect(shouldShowAdminContextPicker(ownerSession, workspaces.slice(0, 2))).toBe(true);
-    expect(shouldShowAdminContextPicker(ownerSession, workspaces.slice(0, 1))).toBe(false);
     expect(shouldShowAdminContextPicker(opsSession, workspaces.slice(0, 3))).toBe(true);
+    expect(
+      shouldShowAdminContextPicker(
+        { workspaceRole: "ADMIN" } as AuthSessionDto,
+        workspaces.slice(0, 2)
+      )
+    ).toBe(false);
   });
 });
 

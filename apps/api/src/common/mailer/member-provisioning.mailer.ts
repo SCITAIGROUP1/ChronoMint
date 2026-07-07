@@ -1,4 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { adminClientOrigin } from "./admin-origin.util";
 import {
   renderBrandedEmailHtml,
   renderBrandedEmailText,
@@ -8,19 +9,33 @@ import { memberClientOrigin } from "./client-origin.util";
 import { buildInviteLoginUrl } from "./invite-login-url.util";
 import { MailerService, type SendMailResult } from "./mailer.service";
 
+export type WorkspaceInviteRole = "ADMIN" | "MEMBER";
+
 export type MemberCredentialsMailInput = {
   to: string;
   workspaceName: string;
   inviterName?: string;
   temporaryPassword: string;
   inviteHandoffToken: string;
+  role?: WorkspaceInviteRole;
 };
 
 export type WorkspaceAddedMailInput = {
   to: string;
   workspaceName: string;
   inviterName?: string;
+  role?: WorkspaceInviteRole;
 };
+
+function memberInvitePortal(role?: WorkspaceInviteRole): {
+  origin: string;
+  ctaLabel: string;
+} {
+  if (role === "ADMIN") {
+    return { origin: adminClientOrigin(), ctaLabel: "Sign in to Kloqra Admin" };
+  }
+  return { origin: memberClientOrigin(), ctaLabel: "Sign in to Kloqra" };
+}
 
 @Injectable()
 export class MemberProvisioningMailer {
@@ -33,7 +48,8 @@ export class MemberProvisioningMailer {
   }
 
   async sendNewMemberCredentials(input: MemberCredentialsMailInput): Promise<SendMailResult> {
-    const loginUrl = buildInviteLoginUrl(memberClientOrigin(), input.inviteHandoffToken);
+    const portal = memberInvitePortal(input.role);
+    const loginUrl = buildInviteLoginUrl(portal.origin, input.inviteHandoffToken);
     const intro = input.inviterName
       ? `${input.inviterName} added you to ${input.workspaceName}.`
       : `You've been added to ${input.workspaceName}.`;
@@ -43,7 +59,7 @@ export class MemberProvisioningMailer {
       preheader: "Your Kloqra sign-in details are inside.",
       body: `${intro}\n\nSign in with the credentials below. You will be asked to set a new password on first login.`,
       ctaHref: loginUrl,
-      ctaLabel: "Sign in to Kloqra",
+      ctaLabel: portal.ctaLabel,
       variant: "success" as const,
       details: [
         { label: "Email", value: input.to },
@@ -55,7 +71,11 @@ export class MemberProvisioningMailer {
 
     const result = await this.mailer.send({
       to: [input.to],
-      subject: subjectPrefix(`You've been added to ${input.workspaceName}`),
+      subject: subjectPrefix(
+        input.role === "ADMIN"
+          ? `Workspace admin access for ${input.workspaceName}`
+          : `You've been added to ${input.workspaceName}`
+      ),
       html: renderBrandedEmailHtml(layout),
       text: renderBrandedEmailText(layout)
     });
@@ -71,7 +91,8 @@ export class MemberProvisioningMailer {
   }
 
   async sendWorkspaceAdded(input: WorkspaceAddedMailInput): Promise<SendMailResult> {
-    const loginUrl = `${memberClientOrigin()}/login`;
+    const portal = memberInvitePortal(input.role);
+    const loginUrl = `${portal.origin}/login`;
     const intro = input.inviterName
       ? `${input.inviterName} added you to ${input.workspaceName}.`
       : `You've been added to ${input.workspaceName}.`;
@@ -81,14 +102,18 @@ export class MemberProvisioningMailer {
       preheader: "You can sign in with your existing Kloqra account.",
       body: `${intro}\n\nSign in with your existing Kloqra account to get started.`,
       ctaHref: loginUrl,
-      ctaLabel: "Sign in to Kloqra",
+      ctaLabel: portal.ctaLabel,
       variant: "success" as const,
       footer: "If you did not expect this email, contact your workspace admin."
     };
 
     return this.mailer.send({
       to: [input.to],
-      subject: subjectPrefix(`You've been added to ${input.workspaceName}`),
+      subject: subjectPrefix(
+        input.role === "ADMIN"
+          ? `Workspace admin access for ${input.workspaceName}`
+          : `You've been added to ${input.workspaceName}`
+      ),
       html: renderBrandedEmailHtml(layout),
       text: renderBrandedEmailText(layout)
     });

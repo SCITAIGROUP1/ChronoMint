@@ -11,6 +11,7 @@ import { api } from "../../api/client";
 import { formatAdminWorkspaceAccessLabel } from "../../auth/admin-access-label";
 import { filterAdminAccessibleWorkspaces } from "../../auth/admin-context";
 import { logoutSession } from "../../auth/logout";
+import { canManageOrganization } from "../../auth/organization-access";
 import { useSessionStore } from "../../stores/session.store";
 import { useTenantCurrent } from "../tenant/use-tenant-current";
 
@@ -57,7 +58,7 @@ export function AdminContextSelectForm({
   const [error, setError] = useState<string | null>(null);
 
   const next = searchParams.get("next");
-  const isOwner = session?.tenantRole === "OWNER";
+  const canPickOrganization = canManageOrganization(session);
   const orgName = tenant?.name ?? "Organization";
 
   const accessibleWorkspaces = useMemo(
@@ -79,7 +80,7 @@ export function AdminContextSelectForm({
       .then((list) => {
         const filtered = filterAdminAccessibleWorkspaces(list);
         setWorkspaces(list);
-        if (filtered.length === 0 && !isOwner) {
+        if (filtered.length === 0 && !canPickOrganization) {
           setError("No admin workspaces found.");
         }
       })
@@ -89,7 +90,7 @@ export function AdminContextSelectForm({
       .finally(() => {
         setLoading(false);
       });
-  }, [session, isOwner, router]);
+  }, [session, canPickOrganization, router]);
 
   async function handleSelectOrganization() {
     if (switchingId) return;
@@ -129,7 +130,7 @@ export function AdminContextSelectForm({
   }
 
   const isBusy = switchingId !== null;
-  const showLoading = loading || (isOwner && tenantLoading);
+  const showLoading = loading || (canPickOrganization && tenantLoading);
 
   return (
     <main className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-background p-4 sm:p-6 md:p-10">
@@ -182,7 +183,7 @@ export function AdminContextSelectForm({
             </div>
           ) : (
             <div className="space-y-6">
-              {isOwner ? (
+              {canPickOrganization ? (
                 <section className="space-y-3">
                   <p className="px-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
                     Organization
@@ -200,7 +201,9 @@ export function AdminContextSelectForm({
                       <p className="truncate text-sm font-semibold text-foreground group-hover:text-primary">
                         {orgName}
                       </p>
-                      <p className="mt-1 text-[11px] text-muted-foreground">Organization · Owner</p>
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        Organization · {session?.tenantRole === "OWNER" ? "Owner" : "Admin"}
+                      </p>
                     </div>
                     {switchingId === "organization" ? (
                       <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />

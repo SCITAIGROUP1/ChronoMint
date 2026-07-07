@@ -93,7 +93,8 @@ export class BulkInviteWorker extends WorkerHost {
               workspaceName: workspace.name,
               inviterName,
               temporaryPassword,
-              inviteHandoffToken: inviteHandoff.inviteHandoffToken
+              inviteHandoffToken: inviteHandoff.inviteHandoffToken,
+              role: memberDto.role
             }
           },
           { attempts: 3, backoff: { type: "exponential", delay: 5000 } }
@@ -106,7 +107,8 @@ export class BulkInviteWorker extends WorkerHost {
             payload: {
               to: email,
               workspaceName: workspace.name,
-              inviterName
+              inviterName,
+              role: memberDto.role
             }
           },
           { attempts: 3, backoff: { type: "exponential", delay: 5000 } }

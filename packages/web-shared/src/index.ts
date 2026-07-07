@@ -279,6 +279,7 @@ export {
 export { usePlatformNotificationSocket } from "./hooks/use-platform-notification-socket";
 export { resolveAdminLandingPath } from "./auth/resolve-admin-landing-path";
 export { resolveAdminOnboardingPath } from "./auth/resolve-admin-onboarding-path";
+export { resolveAdminPostAuthPath } from "./auth/resolve-admin-post-auth-path";
 export {
   isPendingWorkspaceSetup,
   isAllowedDuringWorkspaceSetup,

@@ -390,12 +390,14 @@ export class WorkspaceService {
             workspaceName: workspace.name,
             inviterName,
             temporaryPassword,
-            inviteHandoffToken: inviteHandoff.inviteHandoffToken
+            inviteHandoffToken: inviteHandoff.inviteHandoffToken,
+            role: dto.role
           })
         : this.memberMailer.sendWorkspaceAdded({
             to: email,
             workspaceName: workspace.name,
-            inviterName
+            inviterName,
+            role: dto.role
           })
     );
 
@@ -477,7 +479,8 @@ export class WorkspaceService {
         to: member.user.email,
         workspaceName: workspace.name,
         temporaryPassword,
-        inviteHandoffToken: inviteHandoff.inviteHandoffToken
+        inviteHandoffToken: inviteHandoff.inviteHandoffToken,
+        role: member.role as "ADMIN" | "MEMBER"
       })
     );
 

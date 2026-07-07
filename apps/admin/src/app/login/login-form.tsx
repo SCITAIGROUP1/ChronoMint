@@ -5,8 +5,7 @@ import type {
   AuthSessionDto,
   LoginRequires2faResponseDto,
   LoginRequiresPasswordChangeResponseDto,
-  LoginRequiresEmailVerificationResponseDto,
-  WorkspaceListItemDto
+  LoginRequiresEmailVerificationResponseDto
 } from "@kloqra/contracts";
 import { Button, Input, Label, PasswordInput } from "@kloqra/ui";
 import {
@@ -14,10 +13,8 @@ import {
   AuthShell,
   establishTenantSession,
   extractFieldErrorsFromMessage,
-  hasMultipleWorkspaces,
-  resolveAdminOnboardingPath,
-  shouldShowAdminContextPicker,
   orgLoginDescription,
+  resolveAdminPostAuthPath,
   useInviteHandoffLogin,
   useOrgLoginBranding
 } from "@kloqra/web-shared";
@@ -65,39 +62,7 @@ export function AdminLoginForm() {
   ) {
     const switched = await applyDefaultWorkspaceIfNeeded(res, res.accessToken);
     establishTenantSession(switched.session, switched.accessToken, res.refreshToken);
-
-    if (switched.session.requiresWorkspaceSetup) {
-      router.push(await resolveAdminOnboardingPath(switched.session));
-      return;
-    }
-
-    try {
-      const workspaces = await api<WorkspaceListItemDto[]>(ROUTES.WORKSPACES.LIST, {
-        workspaceId: switched.session.workspaceId
-      });
-
-      if (shouldShowAdminContextPicker(switched.session, workspaces)) {
-        router.push("/select-context");
-        return;
-      }
-
-      const multi = await hasMultipleWorkspaces(switched.session.workspaceId, {
-        filterAdminAccess: true
-      });
-      if (multi) {
-        router.push("/select-workspace");
-        return;
-      }
-    } catch (err) {
-      console.error("Failed to check workspaces:", err);
-    }
-
-    if (switched.session.tenantRole === "OWNER" || switched.session.tenantRole === "ADMIN") {
-      router.push(await resolveAdminOnboardingPath(switched.session));
-      return;
-    }
-
-    router.push("/dashboard");
+    router.push(await resolveAdminPostAuthPath(switched.session));
   }
 
   async function submit(e: React.FormEvent) {

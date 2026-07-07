@@ -28,15 +28,21 @@ export function countAdminContexts(
   session: Pick<AuthSessionDto, "tenantRole"> | null | undefined,
   workspaces: readonly AdminAccessibleWorkspace[]
 ): number {
-  const orgContext = session?.tenantRole === "OWNER" ? 1 : 0;
+  const orgContext = session?.tenantRole === "OWNER" || session?.tenantRole === "ADMIN" ? 1 : 0;
   return orgContext + filterAdminAccessibleWorkspaces(workspaces).length;
 }
 
+/** Tenant operators choose org vs workspace; others need 3+ admin contexts. */
 export function shouldShowAdminContextPicker(
   session: Pick<AuthSessionDto, "tenantRole"> | null | undefined,
   workspaces: readonly AdminAccessibleWorkspace[]
 ): boolean {
-  return countAdminContexts(session, workspaces) >= 3;
+  const accessible = filterAdminAccessibleWorkspaces(workspaces);
+  const canPickOrganization = session?.tenantRole === "OWNER" || session?.tenantRole === "ADMIN";
+  if (canPickOrganization && accessible.length >= 1) {
+    return true;
+  }
+  return accessible.length >= 3;
 }
 
 export function resolveAdminContextBreadcrumb(options: {

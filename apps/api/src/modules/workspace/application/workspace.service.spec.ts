@@ -148,7 +148,9 @@ describe("WorkspaceService", () => {
     );
 
     expect(mockPrisma.user.create).toHaveBeenCalled();
-    expect(mockMailer.sendNewMemberCredentials).toHaveBeenCalled();
+    expect(mockMailer.sendNewMemberCredentials).toHaveBeenCalledWith(
+      expect.objectContaining({ role: "MEMBER" })
+    );
     expect(result.userCreated).toBe(true);
     expect(result.emailSent).toBe(true);
     expect(result.member.userEmail).toBe("new@kloqra.dev");
@@ -194,6 +196,57 @@ describe("WorkspaceService", () => {
     expect(mockMailer.sendWorkspaceAdded).toHaveBeenCalled();
     expect(result.userCreated).toBe(false);
     expect(result.member.role).toBe("MEMBER");
+  });
+
+  it("invite sends workspace admin credentials with admin portal role", async () => {
+    mockPrisma.workspace.findUnique.mockResolvedValue({ id: workspaceId, name: "Kloqra" });
+    mockPrisma.user.findUnique.mockResolvedValueOnce(null);
+    mockPrisma.user.create.mockResolvedValue({
+      id: "u-admin",
+      email: "wsadmin@kloqra.dev",
+      name: "WS Admin"
+    });
+    mockPrisma.workspaceMember.findUnique.mockResolvedValue(null);
+    mockPrisma.workspaceMember.create.mockResolvedValue({
+      id: "m-admin",
+      workspaceId,
+      userId: "u-admin",
+      role: "ADMIN",
+      user: { name: "WS Admin", email: "wsadmin@kloqra.dev" }
+    });
+
+    await service.invite(
+      workspaceId,
+      { email: "wsadmin@kloqra.dev", role: "ADMIN", name: "WS Admin" },
+      inviterId
+    );
+
+    expect(mockMailer.sendNewMemberCredentials).toHaveBeenCalledWith(
+      expect.objectContaining({ role: "ADMIN" })
+    );
+  });
+
+  it("invite adds existing admin and sends admin-portal workspace-added email", async () => {
+    mockPrisma.workspace.findUnique.mockResolvedValue({ id: workspaceId, name: "Kloqra" });
+    mockPrisma.user.findUnique.mockResolvedValue({ id: "u-admin", email: "wsadmin@kloqra.dev" });
+    mockPrisma.workspaceMember.findUnique.mockResolvedValue(null);
+    mockPrisma.workspaceMember.create.mockResolvedValue({
+      id: "m-admin",
+      workspaceId,
+      userId: "u-admin",
+      role: "ADMIN",
+      user: { name: "WS Admin", email: "wsadmin@kloqra.dev" }
+    });
+
+    await service.invite(
+      workspaceId,
+      { email: "wsadmin@kloqra.dev", role: "ADMIN", name: "WS Admin" },
+      inviterId
+    );
+
+    expect(mockMailer.sendWorkspaceAdded).toHaveBeenCalledWith(
+      expect.objectContaining({ role: "ADMIN" })
+    );
   });
 
   it("resendMemberCredentials rotates password and sends email", async () => {
