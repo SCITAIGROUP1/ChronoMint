@@ -5,6 +5,7 @@ import { Toaster } from "sonner";
 import { Providers } from "@/components/providers";
 import { PwaInitializer } from "@/components/pwa-initializer";
 import { inter } from "@/lib/font";
+import "@/lib/register-session-boundary";
 import "./globals.css";
 
 export const metadata: Metadata = {

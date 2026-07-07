@@ -7,6 +7,7 @@ interface TimerState {
   isPaused: boolean;
   setActive: (t: ActiveTimerDto | null) => void;
   tick: () => void;
+  clear: () => void;
 }
 
 export function normalizeActiveTimer(t: ActiveTimerDto | null | undefined): ActiveTimerDto | null {
@@ -50,5 +51,6 @@ export const useTimerStore = create<TimerState>((set, get) => ({
     const { active } = get();
     if (!isActiveTimer(active) || active.isPaused) return;
     set({ elapsedSec: elapsedFromActive(active) });
-  }
+  },
+  clear: () => set({ active: null, elapsedSec: 0, isPaused: false })
 }));

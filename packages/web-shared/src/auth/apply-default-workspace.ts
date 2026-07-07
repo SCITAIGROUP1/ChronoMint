@@ -10,6 +10,9 @@ export async function applyDefaultWorkspaceIfNeeded(
   session: AuthSessionDto,
   accessToken: string
 ): Promise<{ session: AuthSessionDto; accessToken: string }> {
+  if (session.requiresWorkspaceSetup) {
+    return { session, accessToken };
+  }
   try {
     const defaultWorkspaceId = session.defaultWorkspaceId;
     if (!defaultWorkspaceId || defaultWorkspaceId === session.workspaceId) {

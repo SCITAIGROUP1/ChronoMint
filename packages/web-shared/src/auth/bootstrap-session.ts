@@ -67,7 +67,9 @@ export type BootstrapOptions = {
  */
 export async function bootstrapSession(options: BootstrapOptions = {}): Promise<BootstrapResult> {
   if (options.clearBeforeRefresh || options.handoffToken) {
-    useSessionStore.getState().clear();
+    useSessionStore.getState().clear({
+      boundaryReason: options.handoffToken ? "impersonation" : "login"
+    });
   }
 
   let token: string | null = null;

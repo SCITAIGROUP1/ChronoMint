@@ -1,7 +1,18 @@
 import { ROUTES } from "@kloqra/contracts";
 import { toast } from "sonner";
 import { create } from "zustand";
+import {
+  clearLegacyOfflineQueue,
+  clearOfflineQueueStorage,
+  readOfflineDeletions,
+  readOfflineLogs,
+  resolveOfflineQueueScope,
+  writeOfflineDeletions,
+  writeOfflineLogs,
+  type OfflineQueueScope
+} from "./offline-queue-storage";
 import { api } from "@/lib/api";
+import { useSessionStore } from "@/stores/session.store";
 
 export interface OfflineLog {
   tempId: string;
@@ -16,9 +27,11 @@ export interface OfflineLog {
 
 interface OfflineState {
   isOffline: boolean;
+  activeScope: OfflineQueueScope | null;
   offlineLogs: OfflineLog[];
-  offlineDeletions: string[]; // Server log IDs to delete on reconnect
+  offlineDeletions: string[];
   setOffline: (isOffline: boolean) => void;
+  hydrateForSession: () => void;
   addOfflineLog: (log: Omit<OfflineLog, "tempId" | "syncStatus">) => void;
   removeOfflineLog: (tempId: string) => void;
   deleteServerLogOffline: (id: string) => void;
@@ -30,75 +43,88 @@ interface OfflineState {
   syncQueue: (workspaceId: string) => Promise<void>;
 }
 
-const LOCAL_STORAGE_LOGS_KEY = "kloqra_offline_logs";
-const LOCAL_STORAGE_DELETIONS_KEY = "kloqra_offline_deletions";
-
-function getStoredLogs(): OfflineLog[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const val = localStorage.getItem(LOCAL_STORAGE_LOGS_KEY);
-    return val ? JSON.parse(val) : [];
-  } catch {
-    return [];
+function loadScopedQueue(scope: OfflineQueueScope | null): {
+  offlineLogs: OfflineLog[];
+  offlineDeletions: string[];
+} {
+  if (!scope) {
+    return { offlineLogs: [], offlineDeletions: [] };
   }
-}
-
-function getStoredDeletions(): string[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const val = localStorage.getItem(LOCAL_STORAGE_DELETIONS_KEY);
-    return val ? JSON.parse(val) : [];
-  } catch {
-    return [];
-  }
+  return {
+    offlineLogs: readOfflineLogs(scope),
+    offlineDeletions: readOfflineDeletions(scope)
+  };
 }
 
 export const useOfflineStore = create<OfflineState>((set, get) => ({
   isOffline: typeof navigator !== "undefined" ? !navigator.onLine : false,
-  offlineLogs: getStoredLogs(),
-  offlineDeletions: getStoredDeletions(),
+  activeScope: null,
+  offlineLogs: [],
+  offlineDeletions: [],
 
   setOffline: (isOffline) => set({ isOffline }),
 
+  hydrateForSession: () => {
+    clearLegacyOfflineQueue();
+    const scope = resolveOfflineQueueScope(useSessionStore.getState().session);
+    const loaded = loadScopedQueue(scope);
+    set({ activeScope: scope, ...loaded });
+  },
+
   addOfflineLog: (log) => {
+    const scope = get().activeScope ?? resolveOfflineQueueScope(useSessionStore.getState().session);
+    if (!scope?.workspaceId) {
+      toast.error("Select a workspace before saving offline entries.");
+      return;
+    }
     const newLog: OfflineLog = {
       ...log,
       tempId: `temp-${crypto.randomUUID()}`,
       syncStatus: "pending"
     };
     const updated = [...get().offlineLogs, newLog];
-    localStorage.setItem(LOCAL_STORAGE_LOGS_KEY, JSON.stringify(updated));
-    set({ offlineLogs: updated });
+    writeOfflineLogs(scope, updated);
+    set({ activeScope: scope, offlineLogs: updated });
     toast.info("Offline: Entry saved locally");
   },
 
   removeOfflineLog: (tempId) => {
+    const scope = get().activeScope;
+    if (!scope) return;
     const updated = get().offlineLogs.filter((x) => x.tempId !== tempId);
-    localStorage.setItem(LOCAL_STORAGE_LOGS_KEY, JSON.stringify(updated));
+    writeOfflineLogs(scope, updated);
     set({ offlineLogs: updated });
   },
 
   deleteServerLogOffline: (id) => {
+    const scope = get().activeScope;
+    if (!scope) return;
     const updated = [...get().offlineDeletions, id];
-    localStorage.setItem(LOCAL_STORAGE_DELETIONS_KEY, JSON.stringify(updated));
+    writeOfflineDeletions(scope, updated);
     set({ offlineDeletions: updated });
     toast.info("Offline: Deletion queued locally");
   },
 
   updateOfflineLog: (tempId, updates) => {
+    const scope = get().activeScope;
+    if (!scope) return;
     const updated = get().offlineLogs.map((x) => (x.tempId === tempId ? { ...x, ...updates } : x));
-    localStorage.setItem(LOCAL_STORAGE_LOGS_KEY, JSON.stringify(updated));
+    writeOfflineLogs(scope, updated);
     set({ offlineLogs: updated });
     toast.info("Offline: Entry updated locally");
   },
 
   clearQueue: () => {
-    localStorage.removeItem(LOCAL_STORAGE_LOGS_KEY);
-    localStorage.removeItem(LOCAL_STORAGE_DELETIONS_KEY);
-    set({ offlineLogs: [], offlineDeletions: [] });
+    const scope = get().activeScope;
+    clearOfflineQueueStorage(scope);
+    clearLegacyOfflineQueue();
+    set({ offlineLogs: [], offlineDeletions: [], activeScope: null });
   },
 
   syncQueue: async (workspaceId) => {
+    const scope = get().activeScope ?? resolveOfflineQueueScope(useSessionStore.getState().session);
+    if (!scope || scope.workspaceId !== workspaceId) return;
+
     const { offlineLogs, offlineDeletions } = get();
     if (offlineLogs.length === 0 && offlineDeletions.length === 0) return;
 
@@ -107,7 +133,6 @@ export const useOfflineStore = create<OfflineState>((set, get) => ({
     let successCount = 0;
     let failCount = 0;
 
-    // 1. Process deletions
     const remainingDeletions: string[] = [];
     for (const id of offlineDeletions) {
       try {
@@ -125,14 +150,12 @@ export const useOfflineStore = create<OfflineState>((set, get) => ({
         }
       }
     }
-    localStorage.setItem(LOCAL_STORAGE_DELETIONS_KEY, JSON.stringify(remainingDeletions));
+    writeOfflineDeletions(scope, remainingDeletions);
     set({ offlineDeletions: remainingDeletions });
 
-    // 2. Process creations
     const remainingLogs: OfflineLog[] = [];
     for (const log of offlineLogs) {
       try {
-        // Mark as syncing
         set((state) => ({
           offlineLogs: state.offlineLogs.map((x) =>
             x.tempId === log.tempId ? { ...x, syncStatus: "syncing" } : x
@@ -157,7 +180,7 @@ export const useOfflineStore = create<OfflineState>((set, get) => ({
         failCount++;
       }
     }
-    localStorage.setItem(LOCAL_STORAGE_LOGS_KEY, JSON.stringify(remainingLogs));
+    writeOfflineLogs(scope, remainingLogs);
     set({ offlineLogs: remainingLogs });
 
     if (failCount === 0) {

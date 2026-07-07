@@ -33,6 +33,7 @@ type PendingTimesheetsStoreState = {
   subscribe: (workspaceId: string, filterKey: string) => () => void;
   removeItem: (workspaceId: string, filterKey: string, id: string) => void;
   refreshWorkspace: (workspaceId: string) => void;
+  clear: () => void;
 };
 
 function cacheKey(workspaceId: string, filterKey: string) {
@@ -173,6 +174,12 @@ export const usePendingTimesheetsStore = create<PendingTimesheetsStoreState>((se
       const filterKey = key.slice(workspaceId.length + 1);
       void get().fetchPending(workspaceId, filterKey);
     }
+  },
+
+  clear: () => {
+    const timer = get().pollTimer;
+    if (timer) clearInterval(timer);
+    set({ byKey: {}, refCounts: {}, pollTimer: null, pollKey: null });
   }
 }));
 

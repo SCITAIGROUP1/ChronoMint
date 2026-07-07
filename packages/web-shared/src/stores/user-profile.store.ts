@@ -2,7 +2,6 @@
 
 import { ROUTES, type UserProfileDto } from "@kloqra/contracts";
 import { create } from "zustand";
-import { api } from "../api/client";
 import { profileApiOptions } from "../features/account/profile-cache-key";
 
 type ProfileEntry = {
@@ -16,6 +15,7 @@ type UserProfileStoreState = {
 
   refresh: (workspaceId: string) => Promise<UserProfileDto | null>;
   setProfile: (workspaceId: string, profile: UserProfileDto) => void;
+  removeKey: (workspaceId: string) => void;
   subscribe: (workspaceId: string) => () => void;
   clear: () => void;
 };
@@ -25,6 +25,16 @@ export const useUserProfileStore = create<UserProfileStoreState>((set, get) => (
   refCounts: {},
 
   clear: () => set({ byWorkspace: {}, refCounts: {} }),
+
+  removeKey: (workspaceId) => {
+    set((state) => {
+      const byWorkspace = { ...state.byWorkspace };
+      delete byWorkspace[workspaceId];
+      const refCounts = { ...state.refCounts };
+      delete refCounts[workspaceId];
+      return { byWorkspace, refCounts };
+    });
+  },
 
   refresh: async (workspaceId) => {
     if (!workspaceId) return null;
@@ -38,6 +48,7 @@ export const useUserProfileStore = create<UserProfileStoreState>((set, get) => (
       }
     }));
     try {
+      const { api } = await import("../api/client");
       const profile = await api<UserProfileDto>(ROUTES.USERS.ME, profileApiOptions(workspaceId));
       set((state) => ({
         byWorkspace: {

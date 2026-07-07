@@ -31,6 +31,7 @@ type NotificationsStoreState = {
   subscribeRecent: (workspaceId: string, limit: number) => () => void;
   applyNotificationPush: (payload: NotificationCreatedEvent) => void;
   setSocketConnected: (connected: boolean) => void;
+  removeWorkspace: (workspaceId: string) => void;
   clear: () => void;
 };
 
@@ -111,6 +112,27 @@ export const useNotificationsStore = create<NotificationsStoreState>((set, get) 
       unreadPollWorkspaceId: null,
       socketConnected: false
     });
+  },
+
+  removeWorkspace: (workspaceId) => {
+    set((state) => {
+      const unreadByWorkspace = { ...state.unreadByWorkspace };
+      delete unreadByWorkspace[workspaceId];
+      const unreadRefCounts = { ...state.unreadRefCounts };
+      delete unreadRefCounts[workspaceId];
+
+      const recentByWorkspace = { ...state.recentByWorkspace };
+      for (const key of Object.keys(recentByWorkspace)) {
+        if (key.startsWith(`${workspaceId}:`)) delete recentByWorkspace[key];
+      }
+      const recentRefCounts = { ...state.recentRefCounts };
+      for (const key of Object.keys(recentRefCounts)) {
+        if (key.startsWith(`${workspaceId}:`)) delete recentRefCounts[key];
+      }
+
+      return { unreadByWorkspace, unreadRefCounts, recentByWorkspace, recentRefCounts };
+    });
+    syncUnreadPoll(get, set);
   },
 
   setSocketConnected: (connected) => {

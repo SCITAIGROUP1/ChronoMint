@@ -1,24 +1,18 @@
-import { getAccessToken, getWorkspaceId, syncWorkspaceIdToStorage } from "../stores/session.store";
+import { getAccessToken, syncWorkspaceIdToStorage, useSessionStore } from "../stores/session.store";
 import { readWorkspaceIdFromToken } from "./jwt-payload";
 
 /**
- * Workspace sent as X-Workspace-Id must match the access token (API enforces this).
- * Prefer JWT claim; heal localStorage when it drifted (e.g. switch on another device).
+ * Active workspace for UI — JWT claim wins; session state when token has no workspace.
  */
 export function getEffectiveWorkspaceId(): string | null {
-  const token = getAccessToken();
-  const fromToken = readWorkspaceIdFromToken(token);
-  const fromStorage = getWorkspaceId();
-
-  if (fromToken && fromStorage && fromToken !== fromStorage) {
-    syncWorkspaceIdToStorage(fromToken);
-  }
-
-  return fromToken ?? fromStorage;
+  const fromToken = readWorkspaceIdFromToken(getAccessToken());
+  if (fromToken) return fromToken;
+  return useSessionStore.getState().session?.workspaceId ?? null;
 }
 
 /**
  * Workspace for API headers — JWT claim always wins over stale React state.
+ * Never falls back to localStorage when the token has no workspace (tenant onboarding).
  */
 export function resolveApiWorkspaceId(explicit?: string | null): string | null {
   const fromToken = readWorkspaceIdFromToken(getAccessToken());

@@ -36,6 +36,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { AmendmentRequestCard } from "./amendment-request-card";
 import { ApprovalsFiltersBar } from "./approvals-filters-bar";
+import { readApprovalsViewMode, writeApprovalsViewMode } from "./approvals-view-mode-storage";
 import { PendingTimesheetCard, PendingActivity } from "./pending-timesheet-card";
 import { RemindMemberDialog } from "./remind-member-dialog";
 import { ReviewedTimesheetCard } from "./reviewed-timesheet-card";
@@ -440,6 +441,7 @@ export function ApprovalsPage() {
   const deepLink = useMemo(() => parseAdminApprovalsSearch(search), [search]);
   const tab: ApprovalsTab = deepLink.tab ?? "all";
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
+  const userId = useSessionStore((s) => s.session?.user?.id);
   const { filters, setFilters, clearFilters } = useApprovalsFilters();
   const {
     projectOptions,
@@ -451,17 +453,18 @@ export function ApprovalsPage() {
   const [reminding, setReminding] = useState(false);
   const focusRef = useRef<HTMLDivElement>(null);
 
-  const [viewMode, setViewMode] = useState<"card" | "table">(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("kloqra_admin_approvals_view_mode");
-      if (saved === "card" || saved === "table") return saved;
-    }
-    return "card";
-  });
+  const [viewMode, setViewMode] = useState<"card" | "table">("card");
+
+  useEffect(() => {
+    if (!userId) return;
+    const saved = readApprovalsViewMode(userId);
+    if (saved) setViewMode(saved);
+  }, [userId]);
 
   const handleViewModeChange = (mode: "card" | "table") => {
     setViewMode(mode);
-    localStorage.setItem("kloqra_admin_approvals_view_mode", mode);
+    if (!userId) return;
+    writeApprovalsViewMode(userId, mode);
   };
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);

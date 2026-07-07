@@ -851,17 +851,7 @@ export class AuthService {
     workspaceId?: string,
     impersonatorId?: string
   ): Promise<AuthSessionDto | null> {
-    const membership = workspaceId
-      ? await this.db().workspaceMember.findUnique({
-          where: { workspaceId_userId: { workspaceId, userId } },
-          include: { user: true, workspace: true }
-        })
-      : await this.db().workspaceMember.findFirst({
-          where: { userId },
-          include: { user: true, workspace: true },
-          orderBy: { createdAt: "asc" }
-        });
-    if (!membership) {
+    if (!workspaceId?.trim()) {
       const user = await this.db().user.findUnique({
         where: { id: userId },
         include: { memberships: loginMembershipsInclude }
@@ -873,7 +863,12 @@ export class AuthService {
         return null;
       }
     }
-    if (!isWorkspaceMembershipActive(membership)) return null;
+
+    const membership = await this.db().workspaceMember.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId } },
+      include: { user: true, workspace: true }
+    });
+    if (!membership || !isWorkspaceMembershipActive(membership)) return null;
 
     let impersonatorName: string | undefined;
     if (impersonatorId) {

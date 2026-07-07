@@ -30,7 +30,7 @@ vi.mock("./jwt-payload", () => ({
   isAccessTokenExpired: (token: string | null) => token === "expired-token"
 }));
 
-describe("refresh-session bootstrap", () => {
+describe("bootstrapTokenSchedulerFromStorage", () => {
   beforeEach(() => {
     vi.resetModules();
     mockGetAccessToken.mockReset();
@@ -53,22 +53,25 @@ describe("refresh-session bootstrap", () => {
 
   it("schedules proactive refresh for a valid stored token on load", async () => {
     mockGetAccessToken.mockReturnValue("valid-token");
-    await import("./refresh-session");
+    const { bootstrapTokenSchedulerFromStorage } = await import("./refresh-session");
+    bootstrapTokenSchedulerFromStorage();
     expect(mockSchedule).toHaveBeenCalledWith("valid-token");
   });
 
   it("attempts refresh immediately when stored token is expired", async () => {
     mockGetAccessToken.mockReturnValue("expired-token");
-    await import("./refresh-session");
-    await Promise.resolve();
-    expect(fetch).toHaveBeenCalledWith(
-      "http://localhost:3001/auth/refresh",
-      expect.objectContaining({
-        method: "POST",
-        credentials: "include",
-        body: JSON.stringify({ refreshToken: "stored-refresh-token" })
-      })
-    );
-    expect(mockSetSession).toHaveBeenCalled();
+    const { bootstrapTokenSchedulerFromStorage } = await import("./refresh-session");
+    bootstrapTokenSchedulerFromStorage();
+    await vi.waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith(
+        "http://localhost:3001/auth/refresh",
+        expect.objectContaining({
+          method: "POST",
+          credentials: "include",
+          body: JSON.stringify({ refreshToken: "stored-refresh-token" })
+        })
+      );
+      expect(mockSetSession).toHaveBeenCalled();
+    });
   });
 });

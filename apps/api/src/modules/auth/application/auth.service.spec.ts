@@ -351,6 +351,37 @@ describe("AuthService unit tests", () => {
     });
   });
 
+  describe("refreshSession", () => {
+    it("returns tenant operator session when refresh token has no workspace", async () => {
+      mockPrisma.user = {
+        findUnique: vi.fn().mockResolvedValue({
+          id: "owner-1",
+          email: "owner@scit.com",
+          name: "Owner",
+          defaultHourlyRate: null,
+          memberships: []
+        })
+      };
+      mockPrisma.tenantMember = {
+        findUnique: vi.fn().mockResolvedValue({
+          tenantId: "tenant-1",
+          role: "OWNER",
+          isActive: true
+        })
+      };
+      mockPrisma.tenant = {
+        findUnique: vi.fn().mockResolvedValue({ status: "pending_setup" })
+      };
+      mockPrisma.workspaceMember.findFirst = vi.fn();
+
+      const result = await authService.refreshSession("owner-1", undefined);
+
+      expect(result?.requiresWorkspaceSetup).toBe(true);
+      expect(result?.workspaceId).toBeUndefined();
+      expect(mockPrisma.workspaceMember.findFirst).not.toHaveBeenCalled();
+    });
+  });
+
   describe("switchWorkspace", () => {
     it("rejects switching to a workspace in another tenant", async () => {
       mockPrisma.workspaceMember.findUnique = vi.fn().mockResolvedValue({

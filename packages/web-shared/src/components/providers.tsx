@@ -2,6 +2,8 @@
 
 import { ThemeProvider } from "next-themes";
 import type { ReactNode } from "react";
+import { useEffect } from "react";
+import { bootstrapTokenSchedulerFromStorage } from "../auth/refresh-session";
 import { themeStorageKey } from "../hooks/theme-storage";
 import { usePlatformSessionStore } from "../stores/platform-session.store";
 import { useSessionStore } from "../stores/session.store";
@@ -31,5 +33,9 @@ function SessionAwareThemeProvider({ children }: { children: ReactNode }) {
 }
 
 export function Providers({ children }: { children: ReactNode }) {
+  useEffect(() => {
+    bootstrapTokenSchedulerFromStorage();
+  }, []);
+
   return <SessionAwareThemeProvider>{children}</SessionAwareThemeProvider>;
 }

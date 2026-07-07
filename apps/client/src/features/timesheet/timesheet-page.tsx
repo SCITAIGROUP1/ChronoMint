@@ -27,6 +27,7 @@ import {
   api as sharedApi,
   buildMemberSubmissionsHref,
   parseMemberTimesheetSearch,
+  scopedStorageKey,
   WORKSPACE_DATA_STALE_EVENT,
   type WorkspaceDataStaleDetail
 } from "@kloqra/web-shared";
@@ -93,8 +94,24 @@ import { useTimesheetStore } from "@/stores/timesheet.store";
 
 type ViewMode = "day" | "week" | "month";
 
-const TIMESHEET_MOBILE_BANNER_KEY = "kloqra-timesheet-mobile-banner-dismissed";
-const TIMESHEET_MOBILE_VIEW_INIT_KEY = "kloqra-timesheet-mobile-view-init";
+const LEGACY_OVERLAY_KEY = "kloqra-show-occupancy-overlay";
+const LEGACY_MOBILE_BANNER_KEY = "kloqra-timesheet-mobile-banner-dismissed";
+const LEGACY_MOBILE_VIEW_INIT_KEY = "kloqra-timesheet-mobile-view-init";
+
+function timesheetSessionKey(userId: string, base: string): string {
+  const scope = process.env.NEXT_PUBLIC_AUTH_SCOPE?.trim() || "client";
+  return `kloqra:${scope}:${userId}:${base}`;
+}
+
+function migrateLegacySessionFlag(legacyKey: string, scopedKey: string): boolean {
+  if (sessionStorage.getItem(scopedKey) === "1") return true;
+  if (sessionStorage.getItem(legacyKey) === "1") {
+    sessionStorage.setItem(scopedKey, "1");
+    sessionStorage.removeItem(legacyKey);
+    return true;
+  }
+  return false;
+}
 
 function buildLogsQuery(from: Date, to: Date): string {
   const params = new URLSearchParams({
@@ -119,6 +136,7 @@ export function TimesheetPage() {
     [searchParams]
   );
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
+  const userId = useSessionStore((s) => s.session?.user?.id);
   const isImpersonating = useIsImpersonating();
   const [displayFormat, setDisplayFormat] = useState<TimesheetDisplayFormat | null>(null);
   const [weekStartPref, setWeekStartPref] = useState<"monday" | "sunday">("monday");
@@ -177,23 +195,41 @@ export function TimesheetPage() {
   const { active: activeTimer, elapsedSec: liveElapsedSec, setActive, tick } = useTimerStore();
 
   useEffect(() => {
-    const overlaySaved = localStorage.getItem("kloqra-show-occupancy-overlay");
-    if (overlaySaved === "false") {
-      setShowOccupancyOverlay(false);
+    if (!userId) return;
+    if (ws) {
+      const overlayKey = scopedStorageKey(
+        "show_occupancy_overlay",
+        { userId, workspaceId: ws },
+        true
+      );
+      const legacyOverlay = localStorage.getItem(LEGACY_OVERLAY_KEY);
+      if (legacyOverlay != null && localStorage.getItem(overlayKey) == null) {
+        localStorage.setItem(overlayKey, legacyOverlay);
+        localStorage.removeItem(LEGACY_OVERLAY_KEY);
+      }
+      const overlaySaved = localStorage.getItem(overlayKey) ?? legacyOverlay;
+      if (overlaySaved === "false") {
+        setShowOccupancyOverlay(false);
+      }
     }
-    setMobileBannerDismissed(sessionStorage.getItem(TIMESHEET_MOBILE_BANNER_KEY) === "1");
-  }, []);
+    const bannerKey = timesheetSessionKey(userId, "timesheet_mobile_banner_dismissed");
+    setMobileBannerDismissed(migrateLegacySessionFlag(LEGACY_MOBILE_BANNER_KEY, bannerKey));
+  }, [userId, ws]);
 
   useEffect(() => {
-    if (!isMobile) return;
+    if (!isMobile || !userId) return;
     if (deepLink.view) return;
-    if (sessionStorage.getItem(TIMESHEET_MOBILE_VIEW_INIT_KEY) === "1") return;
+    const viewInitKey = timesheetSessionKey(userId, "timesheet_mobile_view_init");
+    if (migrateLegacySessionFlag(LEGACY_MOBILE_VIEW_INIT_KEY, viewInitKey)) return;
     setView("day");
-    sessionStorage.setItem(TIMESHEET_MOBILE_VIEW_INIT_KEY, "1");
-  }, [isMobile, deepLink.view]);
+    sessionStorage.setItem(viewInitKey, "1");
+  }, [isMobile, deepLink.view, userId]);
 
   function dismissMobileBanner() {
-    sessionStorage.setItem(TIMESHEET_MOBILE_BANNER_KEY, "1");
+    if (!userId) return;
+    const bannerKey = timesheetSessionKey(userId, "timesheet_mobile_banner_dismissed");
+    sessionStorage.setItem(bannerKey, "1");
+    sessionStorage.removeItem(LEGACY_MOBILE_BANNER_KEY);
     setMobileBannerDismissed(true);
   }
 
@@ -228,10 +264,18 @@ export function TimesheetPage() {
   const toggleOccupancyOverlay = useCallback(() => {
     setShowOccupancyOverlay((prev) => {
       const next = !prev;
-      localStorage.setItem("kloqra-show-occupancy-overlay", String(next));
+      if (userId && ws) {
+        const overlayKey = scopedStorageKey(
+          "show_occupancy_overlay",
+          { userId, workspaceId: ws },
+          true
+        );
+        localStorage.setItem(overlayKey, String(next));
+        localStorage.removeItem(LEGACY_OVERLAY_KEY);
+      }
       return next;
     });
-  }, []);
+  }, [userId, ws]);
 
   const weekStart = useMemo(
     () => startOfWeekWithPreference(anchor, weekStartPref),

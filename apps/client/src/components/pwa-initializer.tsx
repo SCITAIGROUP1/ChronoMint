@@ -9,6 +9,11 @@ export function PwaInitializer() {
   const workspaceId = session?.workspaceId;
   const setOffline = useOfflineStore((s) => s.setOffline);
   const syncQueue = useOfflineStore((s) => s.syncQueue);
+  const hydrateForSession = useOfflineStore((s) => s.hydrateForSession);
+
+  useEffect(() => {
+    hydrateForSession();
+  }, [session?.user?.id, session?.workspaceId, session?.tenantId, hydrateForSession]);
 
   useEffect(() => {
     // 1. Service Worker Registration

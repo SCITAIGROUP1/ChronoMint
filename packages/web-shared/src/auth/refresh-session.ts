@@ -67,7 +67,7 @@ export async function tryRefreshSession(): Promise<string | null> {
 
 configureProactiveRefresh(() => tryRefreshSession());
 
-/** Resume proactive refresh after reload when a token is already in storage. */
+/** Resume proactive refresh after app mount when a token is already in storage. */
 export function bootstrapTokenSchedulerFromStorage(): void {
   if (typeof window === "undefined") return;
   const token = useSessionStore.getState().accessToken ?? getAccessToken();
@@ -77,8 +77,4 @@ export function bootstrapTokenSchedulerFromStorage(): void {
     return;
   }
   scheduleProactiveRefresh(token);
-}
-
-if (typeof window !== "undefined") {
-  bootstrapTokenSchedulerFromStorage();
 }

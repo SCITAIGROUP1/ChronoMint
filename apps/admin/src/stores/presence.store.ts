@@ -20,6 +20,7 @@ type PresenceStoreState = {
 
   refresh: (workspaceId: string) => Promise<void>;
   subscribe: (workspaceId: string) => () => void;
+  clear: () => void;
 };
 
 export const usePresenceStore = create<PresenceStoreState>((set, get) => ({
@@ -91,5 +92,11 @@ export const usePresenceStore = create<PresenceStoreState>((set, get) => ({
         set({ pollTimer: null, pollWorkspaceId: null });
       }
     };
+  },
+
+  clear: () => {
+    const timer = get().pollTimer;
+    if (timer) clearInterval(timer);
+    set({ byWorkspace: {}, refCounts: {}, pollTimer: null, pollWorkspaceId: null });
   }
 }));

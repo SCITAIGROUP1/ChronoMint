@@ -124,7 +124,7 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
     } catch {
       // Ignored
     } finally {
-      useSessionStore.getState().clear();
+      useSessionStore.getState().clear({ boundaryReason: "impersonation" });
       let adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL;
       if (!adminUrl) {
         if (typeof window !== "undefined") {

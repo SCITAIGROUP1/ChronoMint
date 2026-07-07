@@ -11,6 +11,7 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../../api/client";
 import { logoutSession } from "../../auth/logout";
+import { useSessionGeneration } from "../../hooks/use-session-generation";
 import { useSessionStore } from "../../stores/session.store";
 import { useUserProfileStore } from "../../stores/user-profile.store";
 import { profileApiOptions, useProfileCacheKey } from "./profile-cache-key";
@@ -31,11 +32,12 @@ export function useUserProfile() {
   const refresh = useUserProfileStore((s) => s.refresh);
   const setProfile = useUserProfileStore((s) => s.setProfile);
   const [error, setError] = useState<string | null>(null);
+  const sessionGeneration = useSessionGeneration();
 
   useEffect(() => {
     if (!cacheKey) return;
     return subscribe(cacheKey);
-  }, [cacheKey, subscribe]);
+  }, [cacheKey, subscribe, sessionGeneration]);
 
   const reload = useCallback(async () => {
     if (!cacheKey) return;

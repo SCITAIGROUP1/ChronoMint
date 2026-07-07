@@ -18,6 +18,7 @@ interface ProjectsState {
   setProjects: (p: ProjectDto[] | PaginatedResponse<ProjectDto>) => void;
   setTasks: (t: TaskDto[] | PaginatedResponse<TaskDto>) => void;
   setWorkspaces: (workspaces: WorkspaceWithRoleDto[]) => void;
+  clear: () => void;
 }
 
 export const useProjectsStore = create<ProjectsState>((set) => ({
@@ -29,5 +30,6 @@ export const useProjectsStore = create<ProjectsState>((set) => ({
   setWorkspaces: (workspaces) =>
     set({
       workspaceNamesById: Object.fromEntries(workspaces.map((w) => [w.id, w.name]))
-    })
+    }),
+  clear: () => set({ projects: [], tasks: [], workspaceNamesById: {} })
 }));

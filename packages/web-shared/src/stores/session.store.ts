@@ -1,6 +1,8 @@
 import type { AuthSessionDto } from "@kloqra/contracts";
 import { create } from "zustand";
 import { broadcastSessionUpdate, subscribeSessionUpdates } from "../auth/auth-channel";
+import { readWorkspaceIdFromToken } from "../auth/jwt-payload";
+import { applySessionBoundary, type SessionBoundaryReason } from "../auth/session-boundary";
 import { cancelProactiveRefresh, scheduleProactiveRefresh } from "../auth/token-scheduler";
 
 /** Per-app scope (e.g. `client` / `admin`) so tokens are not mixed on the same origin. */
@@ -32,50 +34,81 @@ function migrateLegacyStorage() {
   if (legacyWs) localStorage.removeItem("cm-workspace-id");
 }
 
+function persistSessionTokens(
+  session: AuthSessionDto,
+  accessToken: string,
+  refreshToken?: string
+): void {
+  if (typeof window === "undefined") return;
+  migrateLegacyStorage();
+  localStorage.setItem(tokenKey(), accessToken);
+  if (session.workspaceId) {
+    localStorage.setItem(workspaceKey(), session.workspaceId);
+  } else {
+    localStorage.removeItem(workspaceKey());
+  }
+  if (refreshToken) {
+    localStorage.setItem(refreshTokenKey(), refreshToken);
+  }
+}
+
+function clearPersistedTokens(): void {
+  if (typeof window === "undefined") return;
+  cancelProactiveRefresh();
+  localStorage.removeItem(tokenKey());
+  localStorage.removeItem(refreshTokenKey());
+  localStorage.removeItem(workspaceKey());
+  localStorage.removeItem("cm-access-token");
+  localStorage.removeItem("cm-workspace-id");
+}
+
 interface SessionState {
   session: AuthSessionDto | null;
   accessToken: string | null;
-  setSession: (session: AuthSessionDto, accessToken: string, refreshToken?: string) => void;
-  clear: () => void;
+  setSession: (
+    session: AuthSessionDto,
+    accessToken: string,
+    refreshToken?: string,
+    options?: { boundaryReason?: SessionBoundaryReason }
+  ) => void;
+  clear: (options?: { boundaryReason?: SessionBoundaryReason }) => void;
 }
 
-export const useSessionStore = create<SessionState>((set) => ({
+export const useSessionStore = create<SessionState>((set, get) => ({
   session: null,
   accessToken: null,
-  setSession: (session, accessToken, refreshToken) => {
+  setSession: (session, accessToken, refreshToken, options) => {
+    const prev = get().session;
+    applySessionBoundary({
+      prev,
+      next: session,
+      reason: options?.boundaryReason ?? "session_update"
+    });
+    persistSessionTokens(session, accessToken, refreshToken);
     if (typeof window !== "undefined") {
-      migrateLegacyStorage();
-      localStorage.setItem(tokenKey(), accessToken);
-      if (session.workspaceId) {
-        localStorage.setItem(workspaceKey(), session.workspaceId);
-      } else {
-        localStorage.removeItem(workspaceKey());
-      }
-      if (refreshToken) {
-        localStorage.setItem(refreshTokenKey(), refreshToken);
-      }
       broadcastSessionUpdate(session, accessToken);
       scheduleProactiveRefresh(accessToken);
     }
     set({ session, accessToken });
   },
-  clear: () => {
-    if (typeof window !== "undefined") {
-      cancelProactiveRefresh();
-      localStorage.removeItem(tokenKey());
-      localStorage.removeItem(refreshTokenKey());
-      localStorage.removeItem(workspaceKey());
-      localStorage.removeItem("cm-access-token");
-      localStorage.removeItem("cm-workspace-id");
-    }
+  clear: (options) => {
+    const prev = get().session;
+    applySessionBoundary({
+      prev,
+      next: null,
+      reason: options?.boundaryReason ?? "logout",
+      level: "full"
+    });
+    clearPersistedTokens();
     set({ session: null, accessToken: null });
   }
 }));
 
 export function getWorkspaceId(): string | null {
   if (typeof window === "undefined") return null;
-  migrateLegacyStorage();
-  return localStorage.getItem(workspaceKey());
+  const fromToken = readWorkspaceIdFromToken(getAccessToken());
+  if (fromToken) return fromToken;
+  return useSessionStore.getState().session?.workspaceId ?? null;
 }
 
 /** Align localStorage workspace with JWT after login or when another tab switched workspace. */
@@ -99,21 +132,19 @@ export function getRefreshToken(): string | null {
 
 /** Sync session from other tabs without re-broadcasting. */
 export function applySessionFromPeer(session: AuthSessionDto, accessToken: string): void {
+  const prev = useSessionStore.getState().session;
+  applySessionBoundary({ prev, next: session, reason: "peer_sync" });
+  persistSessionTokens(session, accessToken);
   if (typeof window !== "undefined") {
-    migrateLegacyStorage();
-    localStorage.setItem(tokenKey(), accessToken);
-    if (session.workspaceId) {
-      localStorage.setItem(workspaceKey(), session.workspaceId);
-    } else {
-      localStorage.removeItem(workspaceKey());
-    }
     scheduleProactiveRefresh(accessToken);
   }
   useSessionStore.setState({ session, accessToken });
 }
 
 if (typeof window !== "undefined") {
-  subscribeSessionUpdates((session, accessToken) => {
-    applySessionFromPeer(session, accessToken);
+  queueMicrotask(() => {
+    subscribeSessionUpdates((session, accessToken) => {
+      applySessionFromPeer(session, accessToken);
+    });
   });
 }

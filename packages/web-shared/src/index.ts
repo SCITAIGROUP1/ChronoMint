@@ -32,6 +32,28 @@ export {
   type BootstrapPlatformResult
 } from "./auth/bootstrap-platform-session";
 export { logoutSession } from "./auth/logout";
+export {
+  applySessionBoundary,
+  getSessionGeneration,
+  registerSessionBoundaryHandler,
+  SESSION_BOUNDARY_EVENT,
+  subscribeSessionGeneration,
+  type SessionBoundaryReason
+} from "./auth/session-boundary";
+export {
+  compareSessionIdentity,
+  getSessionIdentity,
+  type SessionIdentity
+} from "./auth/session-identity";
+export { useSessionGeneration } from "./hooks/use-session-generation";
+export {
+  readScopedJSON,
+  readScopedWithLegacyMigration,
+  removeScopedKey,
+  scopedStorageKey,
+  writeScopedJSON,
+  type ScopedStorageIdentity
+} from "./storage/scoped-storage";
 export { tryRefreshSession } from "./auth/refresh-session";
 export { isAccessTokenExpired } from "./auth/jwt-payload";
 export {

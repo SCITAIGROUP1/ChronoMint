@@ -5,14 +5,16 @@ import { isWorkspaceMismatchError, resolveApiWorkspaceId } from "../auth/workspa
 import { getPlatformAccessToken, usePlatformSessionStore } from "../stores/platform-session.store";
 import { getAccessToken, useSessionStore } from "../stores/session.store";
 import { getApiBase } from "./base";
+import { getInflightGetRequests } from "./inflight-requests";
 import { invalidateListItemsCache } from "./list-items-cache";
+export { clearInflightGetRequests } from "./inflight-requests";
 
 export { getApiBase } from "./base";
 
 const AUTH_SCOPE = process.env.NEXT_PUBLIC_AUTH_SCOPE?.trim() || "app";
 
 /** Coalesce concurrent identical GET requests (e.g. React Strict Mode double-mount). */
-const inflightGetRequests = new Map<string, Promise<unknown>>();
+const inflightGetRequests = getInflightGetRequests();
 
 function buildInflightGetKey(method: string, path: string, workspaceId?: string | null): string {
   return `${method}:${path}:${workspaceId ?? ""}`;
@@ -126,7 +128,7 @@ function handleSessionFailure(message: string): void {
   if (typeof window === "undefined") return;
   if (AUTH_SCOPE === "platform") return;
   if (isWorkspaceMismatchError(message)) {
-    useSessionStore.getState().clear();
+    useSessionStore.getState().clear({ boundaryReason: "auth_failure" });
     const loginPath = "/login";
     if (!window.location.pathname.startsWith(loginPath)) {
       window.location.assign(`${loginPath}?reason=workspace`);
@@ -139,7 +141,7 @@ function handleFatalAuthFailure(): void {
   if (AUTH_SCOPE === "platform") {
     usePlatformSessionStore.getState().clear();
   } else {
-    useSessionStore.getState().clear();
+    useSessionStore.getState().clear({ boundaryReason: "auth_failure" });
   }
   const loginPath = "/login";
   if (!window.location.pathname.startsWith(loginPath)) {

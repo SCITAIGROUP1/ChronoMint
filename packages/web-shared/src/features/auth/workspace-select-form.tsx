@@ -13,6 +13,7 @@ import {
   formatMemberPortalWorkspaceLabel
 } from "../../auth/admin-access-label";
 import { filterAdminAccessibleWorkspaces } from "../../auth/admin-context";
+import { logoutSession } from "../../auth/logout";
 import { useSessionStore } from "../../stores/session.store";
 import { fetchUserProfile } from "../../stores/user-profile.store";
 import { resolveStartupPath } from "../../utils/startup-page";
@@ -36,7 +37,6 @@ export function WorkspaceSelectForm({
   const searchParams = useSearchParams();
   const session = useSessionStore((s) => s.session);
   const setSession = useSessionStore((s) => s.setSession);
-  const clearSession = useSessionStore((s) => s.clear);
   const { tenant } = useTenantCurrent();
   const isOwner = session?.tenantRole === "OWNER";
 
@@ -125,12 +125,7 @@ export function WorkspaceSelectForm({
   }
 
   async function handleLogout() {
-    try {
-      await api(ROUTES.AUTH.LOGOUT, { method: "POST" });
-    } catch (err) {
-      console.error("Logout API call failed:", err);
-    }
-    clearSession();
+    await logoutSession(session?.workspaceId);
     window.location.assign("/login");
   }
 

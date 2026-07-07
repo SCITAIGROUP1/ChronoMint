@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { api } from "../../api/client";
 import { formatAdminWorkspaceAccessLabel } from "../../auth/admin-access-label";
 import { filterAdminAccessibleWorkspaces } from "../../auth/admin-context";
+import { logoutSession } from "../../auth/logout";
 import { useSessionStore } from "../../stores/session.store";
 import { useTenantCurrent } from "../tenant/use-tenant-current";
 
@@ -48,7 +49,6 @@ export function AdminContextSelectForm({
   const searchParams = useSearchParams();
   const session = useSessionStore((s) => s.session);
   const setSession = useSessionStore((s) => s.setSession);
-  const clearSession = useSessionStore((s) => s.clear);
   const { tenant, loading: tenantLoading } = useTenantCurrent();
 
   const [workspaces, setWorkspaces] = useState<WorkspaceListItemDto[]>([]);
@@ -124,12 +124,7 @@ export function AdminContextSelectForm({
   }
 
   async function handleLogout() {
-    try {
-      await api(ROUTES.AUTH.LOGOUT, { method: "POST" });
-    } catch (err) {
-      console.error("Logout API call failed:", err);
-    }
-    clearSession();
+    await logoutSession(session?.workspaceId);
     window.location.assign("/login");
   }
 

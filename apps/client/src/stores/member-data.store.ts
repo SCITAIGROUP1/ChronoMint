@@ -28,6 +28,7 @@ type MemberReportingStoreState = {
 
   refreshWeekSummary: (workspaceId: string) => Promise<void>;
   subscribeWeekSummary: (workspaceId: string) => () => void;
+  clear: () => void;
 };
 
 export const useMemberReportingStore = create<MemberReportingStoreState>((set, get) => ({
@@ -83,7 +84,9 @@ export const useMemberReportingStore = create<MemberReportingStoreState>((set, g
       }
       set({ weekSummaryRefCounts: nextRefCounts });
     };
-  }
+  },
+
+  clear: () => set({ weekSummaryByWorkspace: {}, weekSummaryRefCounts: {} })
 }));
 
 type ActiveTimerStoreState = {
@@ -91,6 +94,7 @@ type ActiveTimerStoreState = {
   initialized: Record<string, boolean>;
   refreshActive: (workspaceId: string) => Promise<void>;
   subscribeActive: (workspaceId: string) => () => void;
+  clear: () => void;
 };
 
 export const useActiveTimerSessionStore = create<ActiveTimerStoreState>((set, get) => ({
@@ -135,7 +139,9 @@ export const useActiveTimerSessionStore = create<ActiveTimerStoreState>((set, ge
       }
       set({ refCounts: nextRefCounts });
     };
-  }
+  },
+
+  clear: () => set({ refCounts: {}, initialized: {} })
 }));
 
 export const EMPTY_SUBMISSIONS: TimesheetPeriodDto[] = [];
@@ -147,6 +153,7 @@ type MySubmissionsStoreState = {
   fetchSubmissions: (workspaceId: string, queryKey: string, path: string) => Promise<void>;
   subscribe: (workspaceId: string, queryKey: string, path: string) => () => void;
   invalidate: (workspaceId: string) => void;
+  clear: () => void;
 };
 
 export const useMySubmissionsStore = create<MySubmissionsStoreState>((set, get) => ({
@@ -216,5 +223,7 @@ export const useMySubmissionsStore = create<MySubmissionsStoreState>((set, get) 
       }
       return { byKey: nextByKey, refCounts: nextRefCounts };
     });
-  }
+  },
+
+  clear: () => set({ byKey: {}, refCounts: {} })
 }));

@@ -3,11 +3,14 @@
 import { ROUTES } from "@kloqra/contracts";
 import type { TimeLogDto, ListTimeLogsResponseDto } from "@kloqra/contracts";
 import { Card, CardContent, CardHeader, CardTitle, Button, ProjectColorDot } from "@kloqra/ui";
+import { readScopedJSON, scopedStorageKey, writeScopedJSON } from "@kloqra/web-shared";
 import { Star, History, Pin, PinOff, Clock, TrendingUp } from "lucide-react";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { api } from "@/lib/api";
 import { useProjectsStore } from "@/stores/projects.store";
-import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
+import { useSessionStore } from "@/stores/session.store";
+
+const LEGACY_FAVORITES_KEY = "kloqra_favorites";
 
 export type QuickActionsProps = {
   onSelect: (projectId: string, taskId: string) => void;
@@ -41,7 +44,8 @@ export function QuickActions({
   filterProjectId,
   mode = "all"
 }: QuickActionsProps) {
-  const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
+  const session = useSessionStore((s) => s.session);
+  const ws = session?.workspaceId ?? "";
   const { projects, tasks } = useProjectsStore();
 
   const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
@@ -63,23 +67,31 @@ export function QuickActions({
     return recents.filter((r) => r.projectId === filterProjectId);
   }, [recents, filterProjectId]);
 
-  // Load favorites from localStorage
+  // Load favorites from scoped localStorage
   useEffect(() => {
+    const userId = session?.user?.id;
+    if (!userId) return;
     try {
-      const stored = localStorage.getItem("kloqra_favorites");
-      if (stored) {
-        setFavorites(JSON.parse(stored));
+      const key = scopedStorageKey("favorites", { userId });
+      const legacy = localStorage.getItem(LEGACY_FAVORITES_KEY);
+      if (legacy && !localStorage.getItem(key)) {
+        localStorage.setItem(key, legacy);
+        localStorage.removeItem(LEGACY_FAVORITES_KEY);
       }
+      const stored = readScopedJSON<FavoriteItem[]>(key);
+      if (stored) setFavorites(stored);
     } catch {
       // ignore
     }
-  }, []);
+  }, [session?.user?.id]);
 
-  // Save favorites to localStorage
   const saveFavorites = (items: FavoriteItem[]) => {
     setFavorites(items);
+    const userId = session?.user?.id;
+    if (!userId) return;
     try {
-      localStorage.setItem("kloqra_favorites", JSON.stringify(items));
+      writeScopedJSON(scopedStorageKey("favorites", { userId }), items);
+      localStorage.removeItem(LEGACY_FAVORITES_KEY);
     } catch {
       // ignore
     }
