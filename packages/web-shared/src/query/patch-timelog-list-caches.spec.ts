@@ -3,13 +3,15 @@ import type { TimeLogDto } from "@kloqra/contracts";
 import { describe, expect, it, beforeEach } from "vitest";
 import {
   removeTimelogFromListCaches,
+  timelogMatchesListQueryPath,
   upsertTimelogInListCaches
 } from "./patch-timelog-list-caches";
 import { getQueryClient, resetQueryClient } from "./query-client";
 import { timelogQueryKeys } from "./timelog-query-keys";
 
 const workspaceId = "00000000-0000-4000-8000-000000000099";
-const path = "/timelogs?from=2026-07-01&to=2026-07-08";
+const weekPath = "/timelogs?from=2026-07-06T00:00:00.000Z&to=2026-07-13T00:00:00.000Z";
+const otherWeekPath = "/timelogs?from=2026-07-13T00:00:00.000Z&to=2026-07-20T00:00:00.000Z";
 
 const logA: TimeLogDto = {
   id: "log-a",
@@ -30,6 +32,16 @@ const logB: TimeLogDto = {
   endTime: "2026-07-08T05:00:00.000Z"
 };
 
+describe("timelogMatchesListQueryPath", () => {
+  it("matches logs inside the query window", () => {
+    expect(timelogMatchesListQueryPath(logA, weekPath)).toBe(true);
+  });
+
+  it("skips logs outside the query window", () => {
+    expect(timelogMatchesListQueryPath(logA, otherWeekPath)).toBe(false);
+  });
+});
+
 describe("patchTimelogListCaches", () => {
   beforeEach(() => {
     resetQueryClient();
@@ -37,7 +49,7 @@ describe("patchTimelogListCaches", () => {
 
   it("upserts a new timelog into cached list queries", () => {
     const client = getQueryClient();
-    const key = timelogQueryKeys.list(workspaceId, path);
+    const key = timelogQueryKeys.list(workspaceId, weekPath);
     client.setQueryData(key, { items: [logA] });
 
     upsertTimelogInListCaches(workspaceId, logB);
@@ -47,7 +59,7 @@ describe("patchTimelogListCaches", () => {
 
   it("replaces an existing timelog in cached list queries", () => {
     const client = getQueryClient();
-    const key = timelogQueryKeys.list(workspaceId, path);
+    const key = timelogQueryKeys.list(workspaceId, weekPath);
     client.setQueryData(key, { items: [logA] });
 
     const updated = { ...logA, description: "updated" };
@@ -58,11 +70,52 @@ describe("patchTimelogListCaches", () => {
 
   it("removes a timelog from cached list queries", () => {
     const client = getQueryClient();
-    const key = timelogQueryKeys.list(workspaceId, path);
+    const key = timelogQueryKeys.list(workspaceId, weekPath);
     client.setQueryData(key, { items: [logA, logB] });
 
     removeTimelogFromListCaches(workspaceId, logA.id);
 
     expect(client.getQueryData(key)).toEqual({ items: [logB] });
+  });
+
+  it("updates every cached range for the workspace (cross-page sync)", () => {
+    const client = getQueryClient();
+    const timesheetKey = timelogQueryKeys.list(workspaceId, weekPath);
+    const dashboardKey = timelogQueryKeys.list(
+      workspaceId,
+      "/timelogs?from=2026-07-06T00:00:00.000Z&to=2026-07-13T23:59:59.999Z"
+    );
+    client.setQueryData(timesheetKey, { items: [logA] });
+    client.setQueryData(dashboardKey, { items: [logA] });
+
+    upsertTimelogInListCaches(workspaceId, logB);
+
+    expect(client.getQueryData(timesheetKey)).toEqual({ items: [logB, logA] });
+    expect(client.getQueryData(dashboardKey)).toEqual({ items: [logB, logA] });
+  });
+
+  it("does not add logs to queries outside their date window", () => {
+    const client = getQueryClient();
+    const inRangeKey = timelogQueryKeys.list(workspaceId, weekPath);
+    const outOfRangeKey = timelogQueryKeys.list(workspaceId, otherWeekPath);
+    client.setQueryData(inRangeKey, { items: [] });
+    client.setQueryData(outOfRangeKey, { items: [] });
+
+    upsertTimelogInListCaches(workspaceId, logA);
+
+    expect(client.getQueryData(inRangeKey)).toEqual({ items: [logA] });
+    expect(client.getQueryData(outOfRangeKey)).toEqual({ items: [] });
+  });
+
+  it("seeds in-flight list queries that are registered but not yet fetched", () => {
+    const client = getQueryClient();
+    const key = timelogQueryKeys.list(workspaceId, weekPath);
+    client
+      .getQueryCache()
+      .build(client, { queryKey: key, queryFn: () => Promise.resolve({ items: [] }) });
+
+    upsertTimelogInListCaches(workspaceId, logA);
+
+    expect(client.getQueryData(key)).toEqual({ items: [logA] });
   });
 });
