@@ -183,8 +183,10 @@ export { AppQueryProvider } from "./query/app-query-provider";
 export { resetQueryClient } from "./query/query-client";
 export { invalidateTimelogQueries } from "./query/invalidate-timelog-queries";
 export {
+  applyTimelogCachePatch,
   removeTimelogFromListCaches,
-  upsertTimelogInListCaches
+  upsertTimelogInListCaches,
+  type TimelogCachePatch
 } from "./query/patch-timelog-list-caches";
 export { timelogQueryKeys } from "./query/timelog-query-keys";
 export { useTimelogListQuery, useTimelogListAllQuery } from "./query/use-timelog-list-query";

@@ -34,7 +34,7 @@ test.describe("Timelog cross-page sync", () => {
     await expect(page.getByText(marker)).toBeVisible({ timeout: 20_000 });
   });
 
-  test("new entry on time tracker appears on timesheet without reload", async ({ page }) => {
+  test("new entry on time tracker appears without reload", async ({ page }) => {
     const marker = uniqueTimelogMarker("e2e-sync");
 
     await page.goto("/time-tracker");

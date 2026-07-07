@@ -2,6 +2,11 @@ import type { ListTimeLogsResponseDto, TimeLogDto } from "@kloqra/contracts";
 import { getQueryClient } from "./query-client";
 import { timelogQueryKeys } from "./timelog-query-keys";
 
+export type TimelogCachePatch =
+  | { type: "upsert"; log: TimeLogDto }
+  | { type: "upsertMany"; logs: TimeLogDto[] }
+  | { type: "remove"; logId: string };
+
 function patchListData(
   data: ListTimeLogsResponseDto | undefined,
   patch: (items: TimeLogDto[]) => TimeLogDto[]
@@ -37,5 +42,20 @@ export function removeTimelogFromListCaches(workspaceId: string, logId: string):
   for (const [key, data] of queries) {
     const next = patchListData(data, (items) => items.filter((item) => item.id !== logId));
     if (next) client.setQueryData(key, next);
+  }
+}
+
+export function applyTimelogCachePatch(workspaceId: string, patch: TimelogCachePatch): void {
+  switch (patch.type) {
+    case "upsert":
+      upsertTimelogInListCaches(workspaceId, patch.log);
+      return;
+    case "upsertMany":
+      for (const log of patch.logs) {
+        upsertTimelogInListCaches(workspaceId, log);
+      }
+      return;
+    case "remove":
+      removeTimelogFromListCaches(workspaceId, patch.logId);
   }
 }
