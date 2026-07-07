@@ -12,6 +12,7 @@ import {
   SetPasswordForm,
   applyDefaultWorkspaceIfNeeded,
   canLoginToAdminApp,
+  establishTenantSession,
   extractFieldErrorsFromMessage,
   hasMultipleWorkspaces,
   resolveAdminLandingPath,
@@ -20,7 +21,6 @@ import {
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { api } from "@/lib/api";
-import { useSessionStore } from "@/stores/session.store";
 
 type SetPasswordResponse =
   | (AuthSessionDto & { accessToken: string; refreshToken?: string })
@@ -30,7 +30,6 @@ type SetPasswordResponse =
 export function AdminSetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const setSession = useSessionStore((s) => s.setSession);
   const [pendingToken, setPendingToken] = useState(() => searchParams.get("token") ?? "");
   const [totpCode, setTotpCode] = useState("");
   const [needs2fa, setNeeds2fa] = useState(false);
@@ -44,7 +43,7 @@ export function AdminSetPasswordForm() {
     if (!canLoginToAdminApp(switched.session)) {
       throw new Error("Admin access required");
     }
-    setSession(switched.session, switched.accessToken, res.refreshToken);
+    establishTenantSession(switched.session, switched.accessToken, res.refreshToken);
 
     if (switched.session.requiresWorkspaceSetup) {
       router.push(await resolveAdminOnboardingPath(switched.session));

@@ -12,6 +12,7 @@ import { Button, Input, Label, PasswordInput } from "@kloqra/ui";
 import {
   applyDefaultWorkspaceIfNeeded,
   AuthShell,
+  establishTenantSession,
   extractFieldErrorsFromMessage,
   hasMultipleWorkspaces,
   resolveAdminOnboardingPath,
@@ -23,7 +24,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { api } from "@/lib/api";
-import { useSessionStore } from "@/stores/session.store";
 
 type LoginResponse =
   | (AuthSessionDto & { accessToken: string; refreshToken?: string })
@@ -33,7 +33,6 @@ type LoginResponse =
 
 export default function LoginPage() {
   const router = useRouter();
-  const setSession = useSessionStore((s) => s.setSession);
   const orgBranding = useOrgLoginBranding();
   const [email, setEmail] = useState("admin@kloqra.dev");
   const [password, setPassword] = useState("password123");
@@ -50,7 +49,7 @@ export default function LoginPage() {
     res: AuthSessionDto & { accessToken: string; refreshToken?: string }
   ) {
     const switched = await applyDefaultWorkspaceIfNeeded(res, res.accessToken);
-    setSession(switched.session, switched.accessToken, res.refreshToken);
+    establishTenantSession(switched.session, switched.accessToken, res.refreshToken);
 
     if (switched.session.requiresWorkspaceSetup) {
       router.push(await resolveAdminOnboardingPath(switched.session));

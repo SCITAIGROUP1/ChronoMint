@@ -28,6 +28,7 @@ type MemberReportingStoreState = {
 
   refreshWeekSummary: (workspaceId: string) => Promise<void>;
   subscribeWeekSummary: (workspaceId: string) => () => void;
+  removeWorkspace: (workspaceId: string) => void;
   clear: () => void;
 };
 
@@ -86,6 +87,16 @@ export const useMemberReportingStore = create<MemberReportingStoreState>((set, g
     };
   },
 
+  removeWorkspace: (workspaceId) => {
+    set((state) => {
+      const weekSummaryByWorkspace = { ...state.weekSummaryByWorkspace };
+      delete weekSummaryByWorkspace[workspaceId];
+      const weekSummaryRefCounts = { ...state.weekSummaryRefCounts };
+      delete weekSummaryRefCounts[workspaceId];
+      return { weekSummaryByWorkspace, weekSummaryRefCounts };
+    });
+  },
+
   clear: () => set({ weekSummaryByWorkspace: {}, weekSummaryRefCounts: {} })
 }));
 
@@ -94,6 +105,7 @@ type ActiveTimerStoreState = {
   initialized: Record<string, boolean>;
   refreshActive: (workspaceId: string) => Promise<void>;
   subscribeActive: (workspaceId: string) => () => void;
+  removeWorkspace: (workspaceId: string) => void;
   clear: () => void;
 };
 
@@ -139,6 +151,16 @@ export const useActiveTimerSessionStore = create<ActiveTimerStoreState>((set, ge
       }
       set({ refCounts: nextRefCounts });
     };
+  },
+
+  removeWorkspace: (workspaceId) => {
+    set((state) => {
+      const initialized = { ...state.initialized };
+      delete initialized[workspaceId];
+      const refCounts = { ...state.refCounts };
+      delete refCounts[workspaceId];
+      return { initialized, refCounts };
+    });
   },
 
   clear: () => set({ refCounts: {}, initialized: {} })

@@ -5,6 +5,7 @@ import { api } from "../api/client";
 import { getAccessToken, useSessionStore } from "../stores/session.store";
 import { canLoginToAdminApp } from "./admin-app-access";
 import { applyDefaultWorkspaceIfNeeded } from "./apply-default-workspace";
+import { establishTenantSession } from "./establish-tenant-session";
 import { isAccessTokenExpired } from "./jwt-payload";
 import { tryRefreshSession } from "./refresh-session";
 
@@ -29,7 +30,9 @@ async function performHandoffComplete(handoffToken: string): Promise<string | nu
     refreshToken?: string;
   };
   if (!body.accessToken) return null;
-  useSessionStore.getState().setSession(body, body.accessToken, body.refreshToken);
+  useSessionStore.getState().setSession(body, body.accessToken, body.refreshToken, {
+    boundaryReason: "impersonation"
+  });
   return body.accessToken;
 }
 
@@ -107,7 +110,7 @@ export async function bootstrapSession(options: BootstrapOptions = {}): Promise<
       return { ok: false };
     }
 
-    useSessionStore.getState().setSession(session, token);
+    establishTenantSession(session, token);
 
     const workspaces = session.workspaceId
       ? await api<WorkspaceWithRoleDto[]>(ROUTES.WORKSPACES.LIST, {

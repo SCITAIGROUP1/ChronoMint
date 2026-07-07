@@ -32,6 +32,8 @@ export interface WidgetLayoutState {
   restoreLayout: (workspaceId: string, layout: WidgetLayoutItem[]) => void;
   toggleWidget: (workspaceId: string, id: string) => Promise<void>;
   resetLayout: (workspaceId: string) => Promise<void>;
+  removeWorkspace: (workspaceId: string) => void;
+  clear: () => void;
 }
 
 type CreateWidgetLayoutStoreOptions = {
@@ -299,6 +301,31 @@ export function createWidgetLayoutStore(options: CreateWidgetLayoutStoreOptions)
           [workspaceId]: resetLayoutItems
         }
       }));
+    },
+
+    removeWorkspace: (workspaceId: string) => {
+      if (!workspaceId) return;
+      initializePromises.delete(workspaceId);
+      set((state) => {
+        const layoutsByWorkspace = { ...state.layoutsByWorkspace };
+        delete layoutsByWorkspace[workspaceId];
+        const loadingByWorkspace = { ...state.loadingByWorkspace };
+        delete loadingByWorkspace[workspaceId];
+        return {
+          layoutsByWorkspace,
+          loadingByWorkspace,
+          initialized: false
+        };
+      });
+    },
+
+    clear: () => {
+      initializePromises.clear();
+      set({
+        layoutsByWorkspace: {},
+        initialized: false,
+        loadingByWorkspace: {}
+      });
     }
   }));
 }

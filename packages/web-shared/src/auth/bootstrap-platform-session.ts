@@ -3,11 +3,14 @@ import type { PlatformSessionDto } from "@kloqra/contracts";
 import { getApiBase } from "../api/base";
 import { clearThemeHydration } from "../hooks/theme-preference-state";
 import { clearStoredThemePreference } from "../hooks/theme-storage";
+import { usePlatformNotificationsStore } from "../stores/platform-notifications-store";
 import {
   getPlatformAccessToken,
   getPlatformRefreshToken,
   usePlatformSessionStore
 } from "../stores/platform-session.store";
+import { usePlatformUserProfileStore } from "../stores/platform-user-profile.store";
+import { establishPlatformSession } from "./establish-tenant-session";
 import { isAccessTokenExpired } from "./jwt-payload";
 
 const AUTH_SCOPE = process.env.NEXT_PUBLIC_AUTH_SCOPE?.trim() || "platform";
@@ -66,7 +69,7 @@ export async function bootstrapPlatformSession(): Promise<BootstrapPlatformResul
 
   try {
     const session = await fetchPlatformMe(token);
-    usePlatformSessionStore.getState().setSession(session, token);
+    establishPlatformSession(session, token);
     return { ok: true, session };
   } catch {
     return { ok: false };
@@ -86,5 +89,7 @@ export async function logoutPlatformSession(): Promise<void> {
   }
   clearStoredThemePreference(userId);
   clearThemeHydration();
-  usePlatformSessionStore.getState().clear();
+  usePlatformNotificationsStore.getState().clear();
+  usePlatformUserProfileStore.getState().clear();
+  usePlatformSessionStore.getState().clear({ boundaryReason: "logout" });
 }

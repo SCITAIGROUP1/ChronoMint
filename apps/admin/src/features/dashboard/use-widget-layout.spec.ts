@@ -7,6 +7,8 @@ describe("useWidgetLayout", () => {
     expect(state.initialized).toBe(false);
     expect(typeof state.initialize).toBe("function");
     expect(typeof state.persistLayout).toBe("function");
-    expect(typeof state.updateLayout).toBe("function");
+    expect(typeof state.resetLayout).toBe("function");
+    expect(typeof state.clear).toBe("function");
+    expect(typeof state.removeWorkspace).toBe("function");
   });
 });

@@ -87,9 +87,11 @@ describe("bootstrapSession impersonation handoff", () => {
       })
     );
     expect(mockClear).toHaveBeenCalled();
-    expect(mockSetSession).toHaveBeenCalledWith(
+    expect(mockSetSession).toHaveBeenLastCalledWith(
       expect.objectContaining({ workspaceId: "ws-1" }),
-      "handoff-access"
+      "handoff-access",
+      undefined,
+      { boundaryReason: "login" }
     );
     expect(result).toEqual({
       ok: true,

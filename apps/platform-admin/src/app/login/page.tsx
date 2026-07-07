@@ -14,8 +14,8 @@ import type {
 import { Button, Input, Label, PasswordInput } from "@kloqra/ui";
 import {
   AuthShell,
-  extractFieldErrorsFromMessage,
-  usePlatformSessionStore
+  establishPlatformSession,
+  extractFieldErrorsFromMessage
 } from "@kloqra/web-shared";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -34,7 +34,6 @@ function LoginForm() {
     searchParams.get("reason") === "2fa-required"
       ? "Two-factor authentication is required for platform console access. Sign in to continue setup."
       : null;
-  const setSession = usePlatformSessionStore((s) => s.setSession);
   const [email, setEmail] = useState("platform@kloqra.dev");
   const [password, setPassword] = useState("password123");
   const [totpCode, setTotpCode] = useState("");
@@ -85,7 +84,7 @@ function LoginForm() {
         return;
       }
       const session = res as PlatformSessionWithTokenDto;
-      setSession(session, session.accessToken, session.refreshToken);
+      establishPlatformSession(session, session.accessToken, session.refreshToken);
       router.push("/tenants");
     } catch (err) {
       if (err instanceof Error) {

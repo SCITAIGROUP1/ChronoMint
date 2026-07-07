@@ -20,10 +20,11 @@ interface TicketListItemDto {
 interface HelpdeskStore {
   tickets: TicketListItemDto[];
   setTickets: (tickets: TicketListItemDto[]) => void;
-  // TODO: add filters and active ticket
+  clear: () => void;
 }
 
 export const useHelpdeskStore = create<HelpdeskStore>((set) => ({
   tickets: [],
-  setTickets: (tickets) => set({ tickets })
+  setTickets: (tickets) => set({ tickets }),
+  clear: () => set({ tickets: [] })
 }));

@@ -3,17 +3,16 @@
 import {
   VerifyEmailPageContent,
   canLoginToAdminApp,
+  establishTenantSession,
   hasMultipleWorkspaces,
   resolveAdminOnboardingPath
 } from "@kloqra/web-shared";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { useSessionStore } from "@/stores/session.store";
 
 function VerifyEmailContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const setSession = useSessionStore((s) => s.setSession);
   const token = searchParams.get("token") ?? undefined;
   const email = searchParams.get("email") ?? "";
 
@@ -26,7 +25,7 @@ function VerifyEmailContent() {
         if (!canLoginToAdminApp(session)) {
           throw new Error("Admin access required");
         }
-        setSession(session, accessToken, refreshToken);
+        establishTenantSession(session, accessToken, refreshToken);
         if (session.requiresWorkspaceSetup) {
           router.push(await resolveAdminOnboardingPath(session));
           return;

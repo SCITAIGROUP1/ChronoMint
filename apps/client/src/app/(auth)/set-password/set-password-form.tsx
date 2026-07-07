@@ -12,6 +12,7 @@ import {
   AuthShell,
   SetPasswordForm,
   applyDefaultWorkspaceIfNeeded,
+  establishTenantSession,
   extractFieldErrorsFromMessage,
   resolveStartupPath,
   hasMultipleWorkspaces
@@ -19,7 +20,6 @@ import {
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { api } from "@/lib/api";
-import { useSessionStore } from "@/stores/session.store";
 
 type SetPasswordResponse =
   | (AuthSessionDto & { accessToken: string; refreshToken?: string })
@@ -29,7 +29,6 @@ type SetPasswordResponse =
 export function SetPasswordPageForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const setSession = useSessionStore((s) => s.setSession);
   const [pendingToken, setPendingToken] = useState(() => searchParams.get("token") ?? "");
   const [totpCode, setTotpCode] = useState("");
   const [needs2fa, setNeeds2fa] = useState(false);
@@ -40,7 +39,7 @@ export function SetPasswordPageForm() {
     res: AuthSessionDto & { accessToken: string; refreshToken?: string }
   ) {
     const switched = await applyDefaultWorkspaceIfNeeded(res, res.accessToken);
-    setSession(switched.session, switched.accessToken, res.refreshToken);
+    establishTenantSession(switched.session, switched.accessToken, res.refreshToken);
     try {
       const multi = await hasMultipleWorkspaces(switched.session.workspaceId);
       if (multi) {

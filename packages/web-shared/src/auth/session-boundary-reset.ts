@@ -2,6 +2,7 @@ import { clearInflightGetRequests } from "../api/inflight-requests";
 import { invalidateListItemsCache } from "../api/list-items-cache";
 import { clearOrgSlugCookie } from "../features/auth/org-slug-cookie";
 import { clearThemeHydration } from "../hooks/theme-preference-state";
+import { clearSessionScopedBrowserStorage } from "../storage/session-storage-sweep";
 import { useNotificationsStore } from "../stores/notifications-store";
 import { useUserProfileStore } from "../stores/user-profile.store";
 import { useWorkspacesStore } from "../stores/workspaces.store";
@@ -35,6 +36,7 @@ export function applySharedBoundaryReset(
     useWorkspacesStore.getState().clear();
     clearThemeHydration();
     clearOrgSlugCookie();
+    clearSessionScopedBrowserStorage(prev);
     return;
   }
 

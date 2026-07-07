@@ -6,6 +6,7 @@ interface UiState {
   setSidebarOpen: (v: boolean) => void;
   showToast: (msg: string) => void;
   clearToast: () => void;
+  clear: () => void;
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -13,5 +14,6 @@ export const useUiStore = create<UiState>((set) => ({
   toast: null,
   setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
   showToast: (toast) => set({ toast }),
-  clearToast: () => set({ toast: null })
+  clearToast: () => set({ toast: null }),
+  clear: () => set({ sidebarOpen: true, toast: null })
 }));

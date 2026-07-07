@@ -2,7 +2,9 @@ import { tryRefreshPlatformSession } from "../auth/bootstrap-platform-session";
 import { isAccessTokenExpired } from "../auth/jwt-payload";
 import { tryRefreshSession } from "../auth/refresh-session";
 import { isWorkspaceMismatchError, resolveApiWorkspaceId } from "../auth/workspace-context";
+import { usePlatformNotificationsStore } from "../stores/platform-notifications-store";
 import { getPlatformAccessToken, usePlatformSessionStore } from "../stores/platform-session.store";
+import { usePlatformUserProfileStore } from "../stores/platform-user-profile.store";
 import { getAccessToken, useSessionStore } from "../stores/session.store";
 import { getApiBase } from "./base";
 import { getInflightGetRequests } from "./inflight-requests";
@@ -139,7 +141,9 @@ function handleSessionFailure(message: string): void {
 function handleFatalAuthFailure(): void {
   if (typeof window === "undefined") return;
   if (AUTH_SCOPE === "platform") {
-    usePlatformSessionStore.getState().clear();
+    usePlatformNotificationsStore.getState().clear();
+    usePlatformUserProfileStore.getState().clear();
+    usePlatformSessionStore.getState().clear({ boundaryReason: "auth_failure" });
   } else {
     useSessionStore.getState().clear({ boundaryReason: "auth_failure" });
   }
