@@ -12,6 +12,9 @@ import { timelogQueryKeys } from "./timelog-query-keys";
 const workspaceId = "00000000-0000-4000-8000-000000000099";
 const weekPath = "/timelogs?from=2026-07-06T00:00:00.000Z&to=2026-07-13T00:00:00.000Z";
 const otherWeekPath = "/timelogs?from=2026-07-13T00:00:00.000Z&to=2026-07-20T00:00:00.000Z";
+const submissionPath =
+  "/timelogs?userId=user-1&projectId=project-1&from=2026-07-06T00:00:00.000Z&to=2026-07-13T00:00:00.000Z";
+const allWeekPath = `all:${weekPath}`;
 
 const logA: TimeLogDto = {
   id: "log-a",
@@ -39,6 +42,29 @@ describe("timelogMatchesListQueryPath", () => {
 
   it("skips logs outside the query window", () => {
     expect(timelogMatchesListQueryPath(logA, otherWeekPath)).toBe(false);
+  });
+
+  it("matches userId and taskId filters when present", () => {
+    const filteredPath =
+      "/timelogs?userId=user-1&taskId=task-1&from=2026-07-06T00:00:00.000Z&to=2026-07-13T00:00:00.000Z";
+    expect(timelogMatchesListQueryPath(logA, filteredPath)).toBe(true);
+    expect(timelogMatchesListQueryPath({ ...logA, userId: "user-2" }, filteredPath)).toBe(false);
+    expect(timelogMatchesListQueryPath({ ...logA, taskId: "task-2" }, filteredPath)).toBe(false);
+  });
+
+  it("requires projectId context for submission-style queries", () => {
+    expect(timelogMatchesListQueryPath(logA, submissionPath)).toBe(false);
+    expect(timelogMatchesListQueryPath(logA, submissionPath, { projectId: "project-1" })).toBe(
+      true
+    );
+    expect(timelogMatchesListQueryPath(logA, submissionPath, { projectId: "project-2" })).toBe(
+      false
+    );
+  });
+
+  it("parses all-prefixed time tracker query paths", () => {
+    expect(timelogMatchesListQueryPath(logA, allWeekPath)).toBe(true);
+    expect(timelogMatchesListQueryPath(logA, `all:${otherWeekPath}`)).toBe(false);
   });
 });
 
@@ -105,6 +131,34 @@ describe("patchTimelogListCaches", () => {
 
     expect(client.getQueryData(inRangeKey)).toEqual({ items: [logA] });
     expect(client.getQueryData(outOfRangeKey)).toEqual({ items: [] });
+  });
+
+  it("removes moved logs from the previous date window", () => {
+    const client = getQueryClient();
+    const oldWeekKey = timelogQueryKeys.list(workspaceId, weekPath);
+    const newWeekKey = timelogQueryKeys.list(workspaceId, otherWeekPath);
+    client.setQueryData(oldWeekKey, { items: [logA] });
+    client.setQueryData(newWeekKey, { items: [] });
+
+    const moved = {
+      ...logA,
+      startTime: "2026-07-15T02:00:00.000Z",
+      endTime: "2026-07-15T03:00:00.000Z"
+    };
+    upsertTimelogInListCaches(workspaceId, moved);
+
+    expect(client.getQueryData(oldWeekKey)).toEqual({ items: [] });
+    expect(client.getQueryData(newWeekKey)).toEqual({ items: [moved] });
+  });
+
+  it("patches all-prefixed time tracker list caches", () => {
+    const client = getQueryClient();
+    const key = timelogQueryKeys.list(workspaceId, allWeekPath);
+    client.setQueryData(key, { items: [] });
+
+    upsertTimelogInListCaches(workspaceId, logA);
+
+    expect(client.getQueryData(key)).toEqual({ items: [logA] });
   });
 
   it("seeds in-flight list queries that are registered but not yet fetched", () => {

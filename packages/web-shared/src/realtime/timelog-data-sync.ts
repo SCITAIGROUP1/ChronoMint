@@ -37,6 +37,13 @@ export async function commitTimelogMutation(
 
   if (cachePatch) {
     applyTimelogCachePatch(workspaceId, cachePatch);
+    if (localRefresh) {
+      await localRefresh();
+    }
+    await getQueryClient().invalidateQueries({
+      queryKey: timelogQueryKeys.workspace(workspaceId),
+      refetchType: "none"
+    });
     invalidateWorkspaceData(workspaceId, TIMELOG_DERIVED_INVALIDATE_SCOPES);
     return;
   }

@@ -69,15 +69,21 @@ describe("timelog-data-sync", () => {
     expect(invalidateWorkspaceData).toHaveBeenCalledWith(workspaceId, TIMELOG_INVALIDATE_SCOPES);
   });
 
-  it("patches cache and only invalidates derived stores when mutation returns a log", async () => {
+  it("patches cache, runs local refresh, marks queries stale, and invalidates derived stores", async () => {
     const localRefresh = vi.fn().mockResolvedValue(undefined);
     const patch = { type: "upsert" as const, log: sampleLog };
+    const client = getQueryClient();
+    const invalidateSpy = vi.spyOn(client, "invalidateQueries");
 
     await commitTimelogMutation(workspaceId, localRefresh, patch);
 
     expect(applyTimelogCachePatch).toHaveBeenCalledOnce();
     expect(applyTimelogCachePatch).toHaveBeenCalledWith(workspaceId, patch);
-    expect(localRefresh).not.toHaveBeenCalled();
+    expect(localRefresh).toHaveBeenCalled();
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ["timelogs", workspaceId],
+      refetchType: "none"
+    });
     expect(invalidateTimelogQueries).not.toHaveBeenCalled();
     expect(invalidateWorkspaceData).toHaveBeenCalledWith(
       workspaceId,
