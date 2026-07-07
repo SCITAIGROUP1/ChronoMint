@@ -85,7 +85,8 @@ describe("TimerService", () => {
       assertTaskPeriodEditable: vi.fn().mockResolvedValue(undefined)
     };
     mockTimelogs = {
-      assertNoOverlap: vi.fn().mockResolvedValue(undefined)
+      assertNoOverlap: vi.fn().mockResolvedValue(undefined),
+      publishTimelogsStale: vi.fn().mockResolvedValue(undefined)
     };
     mockSubscriptions = {
       assertSubscriptionAllowsWrites: vi.fn().mockResolvedValue(undefined)
@@ -203,6 +204,7 @@ describe("TimerService", () => {
       expect.any(Date),
       expect.any(Date)
     );
+    expect(mockTimelogs.publishTimelogsStale).toHaveBeenCalledWith(workspaceId, userId);
   });
 
   it("throws TIMER_NOT_ACTIVE when stopping with no timer", async () => {
