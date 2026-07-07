@@ -10,7 +10,7 @@ vi.mock("../api/inflight-requests", () => ({
 }));
 
 vi.mock("../query/invalidate-timelog-queries", () => ({
-  invalidateTimelogQueries: vi.fn()
+  invalidateTimelogQueries: vi.fn().mockResolvedValue(undefined)
 }));
 
 vi.mock("./workspace-data-sync", () => ({
@@ -24,8 +24,8 @@ describe("timelog-data-sync", () => {
     vi.clearAllMocks();
   });
 
-  it("invalidates inflight requests, query cache, and workspace scopes", () => {
-    invalidateTimelogData(workspaceId);
+  it("invalidates inflight requests, query cache, and workspace scopes", async () => {
+    await invalidateTimelogData(workspaceId);
 
     expect(clearInflightGetRequestsForPath).toHaveBeenCalledWith("/timelogs");
     expect(invalidateTimelogQueries).toHaveBeenCalledWith(workspaceId);

@@ -10,9 +10,9 @@ function clearTimelogInflightRequests(): void {
 }
 
 /** Broadcast timelog stale to every mounted view (timesheet, tracker, dashboard, timer). */
-export function invalidateTimelogData(workspaceId: string): void {
+export async function invalidateTimelogData(workspaceId: string): Promise<void> {
   clearTimelogInflightRequests();
-  invalidateTimelogQueries(workspaceId);
+  await invalidateTimelogQueries(workspaceId);
   invalidateWorkspaceData(workspaceId, TIMELOG_INVALIDATE_SCOPES);
 }
 
@@ -25,5 +25,5 @@ export async function commitTimelogMutation(
   if (localRefresh) {
     await localRefresh();
   }
-  invalidateTimelogData(workspaceId);
+  await invalidateTimelogData(workspaceId);
 }

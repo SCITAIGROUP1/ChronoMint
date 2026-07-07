@@ -26,6 +26,7 @@ import { computeTimeTrackerStats } from "./time-tracker-stats";
 import { TimeTrackerToolbar } from "./time-tracker-toolbar";
 import { AdminTimeTrackerWeekList, formatVisibleWeeksSummary } from "./time-tracker-week-list";
 import { useTimeTrackerLogs } from "./use-time-tracker-logs";
+import { useTimelogRefreshRegistration } from "@/hooks/use-timelog-refresh-registration";
 import { api } from "@/lib/api";
 import { colorForTask } from "@/lib/project-color-styles";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
@@ -130,7 +131,16 @@ export function AdminTimeTrackerPage() {
     ]
   );
 
-  const { logs, loading: logsLoading, error: logsError } = useTimeTrackerLogs(ws, serverFilters);
+  const {
+    logs,
+    loading: logsLoading,
+    error: logsError,
+    refresh
+  } = useTimeTrackerLogs(ws, serverFilters);
+
+  useTimelogRefreshRegistration(() => {
+    void refresh();
+  });
 
   const [weeksPerPage, setWeeksPerPage] = useState(1);
   const [page, setPage] = useState(1);

@@ -15,7 +15,7 @@ export function useTimelogQuerySync() {
       if (!detail?.scopes.includes("timelogs") && !detail?.scopes.includes("timesheet")) {
         return;
       }
-      invalidateTimelogQueries(detail.workspaceId);
+      void invalidateTimelogQueries(detail.workspaceId);
     };
 
     window.addEventListener(WORKSPACE_DATA_STALE_EVENT, onStale);

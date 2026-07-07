@@ -6,12 +6,26 @@ const workspaceId = "22222222-2222-4222-8222-222222222222";
 
 const mocks = vi.hoisted(() => ({
   refreshWorkspace: vi.fn(),
-  triggerApprovalsRefresh: vi.fn()
+  triggerApprovalsRefresh: vi.fn(),
+  triggerTimelogRefresh: vi.fn(),
+  clearInflightGetRequestsForPath: vi.fn()
 }));
 
 vi.mock("@/lib/approvals-refresh-registry", () => ({
   triggerApprovalsRefresh: mocks.triggerApprovalsRefresh
 }));
+
+vi.mock("@/lib/timelog-refresh-registry", () => ({
+  triggerTimelogRefresh: mocks.triggerTimelogRefresh
+}));
+
+vi.mock("@kloqra/web-shared", async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...(actual as object),
+    clearInflightGetRequestsForPath: mocks.clearInflightGetRequestsForPath
+  };
+});
 
 vi.mock("@/stores/pending-timesheets.store", () => ({
   usePendingTimesheetsStore: {
@@ -52,5 +66,19 @@ describe("useAdminWorkspaceDataSync", () => {
 
     expect(mocks.refreshWorkspace).not.toHaveBeenCalled();
     expect(mocks.triggerApprovalsRefresh).not.toHaveBeenCalled();
+  });
+
+  it("refreshes timelog-backed views when timelog scopes are stale", async () => {
+    const { WORKSPACE_DATA_STALE_EVENT } = await import("@kloqra/web-shared");
+
+    renderHook(() => useAdminWorkspaceDataSync(workspaceId));
+    window.dispatchEvent(
+      new CustomEvent(WORKSPACE_DATA_STALE_EVENT, {
+        detail: { workspaceId, scopes: ["timelogs"] }
+      })
+    );
+
+    expect(mocks.clearInflightGetRequestsForPath).toHaveBeenCalledWith("/timelogs");
+    expect(mocks.triggerTimelogRefresh).toHaveBeenCalled();
   });
 });

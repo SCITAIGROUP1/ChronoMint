@@ -65,7 +65,13 @@ export {
   isWorkspaceMismatchError,
   resolveApiWorkspaceId
 } from "./auth/workspace-context";
-export { api, getApiBase, publicFetch, ApiRequestError } from "./api/client";
+export {
+  api,
+  getApiBase,
+  publicFetch,
+  ApiRequestError,
+  clearInflightGetRequestsForPath
+} from "./api/client";
 export {
   COMPACT_LAPTOP_SHELL_MAX,
   COMPACT_LAPTOP_SHELL_MIN,

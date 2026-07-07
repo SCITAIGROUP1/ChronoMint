@@ -195,7 +195,7 @@ export const useOfflineStore = create<OfflineState>((set, get) => ({
     }
 
     if (successCount > 0) {
-      invalidateTimelogData(workspaceId);
+      void invalidateTimelogData(workspaceId);
     }
   }
 }));

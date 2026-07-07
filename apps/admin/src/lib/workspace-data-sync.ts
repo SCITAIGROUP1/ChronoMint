@@ -1,8 +1,13 @@
 "use client";
 
-import { WORKSPACE_DATA_STALE_EVENT, type WorkspaceDataStaleDetail } from "@kloqra/web-shared";
+import {
+  WORKSPACE_DATA_STALE_EVENT,
+  clearInflightGetRequestsForPath,
+  type WorkspaceDataStaleDetail
+} from "@kloqra/web-shared";
 import { useEffect } from "react";
 import { triggerApprovalsRefresh } from "@/lib/approvals-refresh-registry";
+import { triggerTimelogRefresh } from "@/lib/timelog-refresh-registry";
 import { usePendingTimesheetsStore } from "@/stores/pending-timesheets.store";
 
 export function useAdminWorkspaceDataSync(workspaceId: string) {
@@ -16,6 +21,10 @@ export function useAdminWorkspaceDataSync(workspaceId: string) {
       if (detail.scopes.includes("pending_approvals")) {
         usePendingTimesheetsStore.getState().refreshWorkspace(workspaceId);
         triggerApprovalsRefresh();
+      }
+      if (detail.scopes.includes("timelogs") || detail.scopes.includes("timesheet")) {
+        clearInflightGetRequestsForPath("/timelogs");
+        triggerTimelogRefresh();
       }
     };
 
