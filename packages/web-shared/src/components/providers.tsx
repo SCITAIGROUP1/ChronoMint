@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { useEffect } from "react";
 import { useBfCacheSessionReconcile } from "../auth/bfcache-session-reconcile";
 import { bootstrapTokenSchedulerFromStorage } from "../auth/refresh-session";
+import { initCrossTabSessionReconcile } from "../auth/session-token-reconcile";
 import { themeStorageKey } from "../hooks/theme-storage";
 import { usePlatformSessionStore } from "../stores/platform-session.store";
 import { useSessionStore } from "../stores/session.store";
@@ -38,6 +39,7 @@ export function Providers({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     bootstrapTokenSchedulerFromStorage();
+    return initCrossTabSessionReconcile();
   }, []);
 
   return <SessionAwareThemeProvider>{children}</SessionAwareThemeProvider>;

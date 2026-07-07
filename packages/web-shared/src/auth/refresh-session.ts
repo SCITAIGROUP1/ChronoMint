@@ -82,6 +82,12 @@ async function performRefresh(): Promise<string | null> {
       return null;
     }
     if (!shouldApplyRefreshSession(body)) {
+      if (body.user?.id) {
+        useSessionStore.getState().setSession(body, body.accessToken, body.refreshToken, {
+          boundaryReason: "peer_sync"
+        });
+        return body.accessToken;
+      }
       return null;
     }
     useSessionStore.getState().setSession(body, body.accessToken, body.refreshToken);

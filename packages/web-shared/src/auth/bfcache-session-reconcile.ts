@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { readUserIdFromToken } from "../auth/jwt-payload";
+import { syncSessionFromStoredToken } from "../auth/session-token-reconcile";
 import { getAccessToken, useSessionStore } from "../stores/session.store";
 
 /**
@@ -18,8 +19,12 @@ export function useBfCacheSessionReconcile(): void {
       if (!session || !tokenUserId) return;
       if (session.user.id === tokenUserId) return;
 
-      useSessionStore.getState().clear({ boundaryReason: "auth_failure" });
-      window.location.reload();
+      void syncSessionFromStoredToken().then((ok) => {
+        if (!ok) {
+          useSessionStore.getState().clear({ boundaryReason: "auth_failure" });
+          window.location.reload();
+        }
+      });
     };
 
     window.addEventListener("pageshow", onPageShow);

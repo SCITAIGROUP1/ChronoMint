@@ -90,7 +90,7 @@ describe("bootstrapTokenSchedulerFromStorage", () => {
     });
   });
 
-  it("does not apply refresh when the signed-in user changed during the request", async () => {
+  it("adopts refresh when another user signed in on a shared tab", async () => {
     mockGetAccessToken.mockReturnValue("valid-token");
     mockGetState.mockReturnValue({
       accessToken: "valid-token",
@@ -111,8 +111,13 @@ describe("bootstrapTokenSchedulerFromStorage", () => {
 
     const { tryRefreshSession } = await import("./refresh-session");
     const token = await tryRefreshSession();
-    expect(token).toBeNull();
-    expect(mockSetSession).not.toHaveBeenCalled();
+    expect(token).toBe("fresh-token");
+    expect(mockSetSession).toHaveBeenCalledWith(
+      expect.objectContaining({ user: { id: "user-a" } }),
+      "fresh-token",
+      undefined,
+      { boundaryReason: "peer_sync" }
+    );
   });
 
   it("drops stale refresh results after invalidateAuthRefresh", async () => {

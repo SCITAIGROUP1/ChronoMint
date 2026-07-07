@@ -91,7 +91,7 @@ describe("bootstrapSession impersonation handoff", () => {
       expect.objectContaining({ workspaceId: "ws-1" }),
       "handoff-access",
       undefined,
-      { boundaryReason: "login" }
+      { boundaryReason: "session_update" }
     );
     expect(result).toEqual({
       ok: true,

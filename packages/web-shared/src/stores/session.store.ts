@@ -153,6 +153,10 @@ export function applySessionFromPeer(session: AuthSessionDto, accessToken: strin
 let applyingPeerSessionClear = false;
 
 function clearSessionFromPeer(): void {
+  if (getAccessToken()) {
+    void import("../auth/session-token-reconcile").then((m) => m.syncSessionFromStoredToken());
+    return;
+  }
   applyingPeerSessionClear = true;
   useSessionStore.getState().clear({ boundaryReason: "peer_sync" });
   applyingPeerSessionClear = false;

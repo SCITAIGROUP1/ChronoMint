@@ -5,7 +5,6 @@ import { api } from "../api/client";
 import { getAccessToken, useSessionStore } from "../stores/session.store";
 import { canLoginToAdminApp } from "./admin-app-access";
 import { applyDefaultWorkspaceIfNeeded } from "./apply-default-workspace";
-import { establishTenantSession } from "./establish-tenant-session";
 import { isAccessTokenExpired } from "./jwt-payload";
 import { tryRefreshSession } from "./refresh-session";
 
@@ -110,7 +109,9 @@ export async function bootstrapSession(options: BootstrapOptions = {}): Promise<
       return { ok: false };
     }
 
-    establishTenantSession(session, token);
+    useSessionStore.getState().setSession(session, token, undefined, {
+      boundaryReason: "session_update"
+    });
 
     const workspaces = session.workspaceId
       ? await api<WorkspaceWithRoleDto[]>(ROUTES.WORKSPACES.LIST, {
