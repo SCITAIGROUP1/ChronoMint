@@ -6,7 +6,7 @@ import { SubmissionsTable } from "./submissions-table";
 vi.mock("@kloqra/web-shared", async (importOriginal) => {
   const actual = await importOriginal();
   return {
-    ...actual,
+    ...(actual as Record<string, unknown>),
     useTimelogListQuery: () => ({
       data: { items: [] },
       refetch: vi.fn(),
