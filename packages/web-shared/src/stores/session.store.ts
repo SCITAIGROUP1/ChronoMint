@@ -46,7 +46,11 @@ export const useSessionStore = create<SessionState>((set) => ({
     if (typeof window !== "undefined") {
       migrateLegacyStorage();
       localStorage.setItem(tokenKey(), accessToken);
-      localStorage.setItem(workspaceKey(), session.workspaceId);
+      if (session.workspaceId) {
+        localStorage.setItem(workspaceKey(), session.workspaceId);
+      } else {
+        localStorage.removeItem(workspaceKey());
+      }
       if (refreshToken) {
         localStorage.setItem(refreshTokenKey(), refreshToken);
       }
@@ -98,7 +102,11 @@ export function applySessionFromPeer(session: AuthSessionDto, accessToken: strin
   if (typeof window !== "undefined") {
     migrateLegacyStorage();
     localStorage.setItem(tokenKey(), accessToken);
-    localStorage.setItem(workspaceKey(), session.workspaceId);
+    if (session.workspaceId) {
+      localStorage.setItem(workspaceKey(), session.workspaceId);
+    } else {
+      localStorage.removeItem(workspaceKey());
+    }
     scheduleProactiveRefresh(accessToken);
   }
   useSessionStore.setState({ session, accessToken });

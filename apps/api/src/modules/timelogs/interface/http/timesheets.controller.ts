@@ -17,8 +17,11 @@ import {
 } from "@kloqra/contracts";
 import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
 import { z } from "zod";
-import { CurrentUser, RequestUser } from "../../../../common/decorators/current-user.decorator";
 import { Roles } from "../../../../common/decorators/roles.decorator";
+import {
+  WorkspaceUser,
+  type WorkspaceRequestUser
+} from "../../../../common/decorators/workspace-user.decorator";
 import { AdminOrProjectManagerGuard } from "../../../../common/guards/admin-or-project-manager.guard";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../../../common/guards/roles.guard";
@@ -36,7 +39,7 @@ export class TimesheetsController {
 
   @Get(ROUTES.TIMESHEETS.MY_STATUS)
   async getStatus(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Query(new ZodValidationPipe(timesheetStatusQuerySchema))
     query: z.infer<typeof timesheetStatusQuerySchema>
   ) {
@@ -46,7 +49,7 @@ export class TimesheetsController {
 
   @Get(ROUTES.TIMESHEETS.MY_SUBMISSIONS)
   async listSubmissions(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Query(new ZodValidationPipe(timesheetSubmissionsQuerySchema))
     query: z.infer<typeof timesheetSubmissionsQuerySchema>
   ) {
@@ -62,7 +65,7 @@ export class TimesheetsController {
 
   @Get(ROUTES.TIMESHEETS.SUBMIT_PREVIEW)
   async getSubmitPreview(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Query(new ZodValidationPipe(timesheetSubmitPreviewQuerySchema))
     query: z.infer<typeof timesheetSubmitPreviewQuerySchema>
   ) {
@@ -77,7 +80,7 @@ export class TimesheetsController {
 
   @Post(ROUTES.TIMESHEETS.SUBMIT)
   async submit(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Body(new ZodValidationPipe(submitTimesheetSchema)) body: z.infer<typeof submitTimesheetSchema>
   ) {
     return this.timesheets.submit(
@@ -92,7 +95,7 @@ export class TimesheetsController {
 
   @Post(ROUTES.TIMESHEETS.CREATE_AMENDMENT(":periodId"))
   async createAmendment(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Param("periodId") periodId: string,
     @Body(new ZodValidationPipe(createAmendmentRequestSchema))
     body: z.infer<typeof createAmendmentRequestSchema>
@@ -103,7 +106,7 @@ export class TimesheetsController {
   @UseGuards(AdminOrProjectManagerGuard)
   @Get(ROUTES.TIMESHEETS.LIST_PENDING)
   async listPending(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Query(new ZodValidationPipe(pendingTimesheetQuerySchema))
     query: z.infer<typeof pendingTimesheetQuerySchema>
   ) {
@@ -113,7 +116,7 @@ export class TimesheetsController {
   @UseGuards(AdminOrProjectManagerGuard)
   @Get(ROUTES.TIMESHEETS.LIST_APPROVED)
   async listApproved(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Query(new ZodValidationPipe(reviewedTimesheetQuerySchema))
     query: z.infer<typeof reviewedTimesheetQuerySchema>
   ) {
@@ -123,7 +126,7 @@ export class TimesheetsController {
   @UseGuards(AdminOrProjectManagerGuard)
   @Get(ROUTES.TIMESHEETS.LIST_REJECTED)
   async listRejected(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Query(new ZodValidationPipe(reviewedTimesheetQuerySchema))
     query: z.infer<typeof reviewedTimesheetQuerySchema>
   ) {
@@ -133,7 +136,7 @@ export class TimesheetsController {
   @UseGuards(AdminOrProjectManagerGuard)
   @Get(ROUTES.TIMESHEETS.LIST_ALL)
   async listAll(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Query(new ZodValidationPipe(reviewedTimesheetQuerySchema))
     query: z.infer<typeof reviewedTimesheetQuerySchema>
   ) {
@@ -143,7 +146,7 @@ export class TimesheetsController {
   @Roles("ADMIN")
   @Get(ROUTES.TIMESHEETS.LIST_MISSING)
   async listMissing(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Query(new ZodValidationPipe(missingTimesheetQuerySchema))
     query: z.infer<typeof missingTimesheetQuerySchema>
   ) {
@@ -155,7 +158,7 @@ export class TimesheetsController {
   @Roles("ADMIN")
   @Post(ROUTES.TIMESHEETS.REMIND)
   async remind(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Body(new ZodValidationPipe(remindTimesheetSchema)) body: z.infer<typeof remindTimesheetSchema>
   ) {
     return this.timesheets.remindMember(
@@ -171,7 +174,7 @@ export class TimesheetsController {
   @UseGuards(AdminOrProjectManagerGuard)
   @Get(ROUTES.TIMESHEETS.LIST_AMENDMENTS)
   async listAmendments(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Query(new ZodValidationPipe(amendmentListQuerySchema))
     query: z.infer<typeof amendmentListQuerySchema>
   ) {
@@ -180,14 +183,14 @@ export class TimesheetsController {
 
   @UseGuards(AdminOrProjectManagerGuard)
   @Patch(ROUTES.TIMESHEETS.APPROVE_AMENDMENT(":id"))
-  async approveAmendment(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+  async approveAmendment(@WorkspaceUser() user: WorkspaceRequestUser, @Param("id") id: string) {
     return this.amendments.approve(user.workspaceId, id, user.userId, user.role);
   }
 
   @UseGuards(AdminOrProjectManagerGuard)
   @Patch(ROUTES.TIMESHEETS.DENY_AMENDMENT(":id"))
   async denyAmendment(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Param("id") id: string,
     @Body(new ZodValidationPipe(reviewAmendmentSchema)) body: z.infer<typeof reviewAmendmentSchema>
   ) {
@@ -197,7 +200,7 @@ export class TimesheetsController {
   @UseGuards(AdminOrProjectManagerGuard)
   @Patch(ROUTES.TIMESHEETS.APPROVE(":id"))
   async approve(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Param("id") id: string,
     @Body(new ZodValidationPipe(approveTimesheetSchema))
     body: z.infer<typeof approveTimesheetSchema>
@@ -208,7 +211,7 @@ export class TimesheetsController {
   @UseGuards(AdminOrProjectManagerGuard)
   @Patch(ROUTES.TIMESHEETS.REJECT(":id"))
   async reject(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Param("id") id: string,
     @Body(new ZodValidationPipe(rejectTimesheetSchema)) body: z.infer<typeof rejectTimesheetSchema>
   ) {
@@ -218,7 +221,7 @@ export class TimesheetsController {
   @UseGuards(AdminOrProjectManagerGuard)
   @Post(ROUTES.TIMESHEETS.BULK_REVIEW)
   async bulkReview(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Body(new ZodValidationPipe(bulkReviewTimesheetSchema))
     body: z.infer<typeof bulkReviewTimesheetSchema>
   ) {

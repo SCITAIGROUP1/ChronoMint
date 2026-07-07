@@ -45,6 +45,11 @@ import {
   CurrentUser,
   type RequestUser
 } from "../../../../common/decorators/current-user.decorator";
+import { TenantScoped } from "../../../../common/decorators/tenant-scoped.decorator";
+import {
+  WorkspaceUser,
+  type WorkspaceRequestUser
+} from "../../../../common/decorators/workspace-user.decorator";
 import { DomainException } from "../../../../common/errors/domain.exception";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { SessionAuthGuard } from "../../../../common/guards/session-auth.guard";
@@ -302,15 +307,23 @@ export class AuthController {
     if (!session) return { error: "No workspace" };
 
     const tokenScope = scope === "client" || scope === "admin" ? scope : undefined;
-    const access = this.auth.signAccessToken(
-      session.user.id,
-      session.workspaceId,
-      session.workspaceRole,
-      session.tenantId,
-      session.impersonatorId,
-      tokenScope,
-      family
-    );
+    const access = session.workspaceId
+      ? this.auth.signAccessToken(
+          session.user.id,
+          session.tenantId,
+          { workspaceId: session.workspaceId, role: session.workspaceRole! },
+          session.impersonatorId,
+          tokenScope,
+          family
+        )
+      : this.auth.signAccessToken(
+          session.user.id,
+          session.tenantId,
+          { tenantRole: session.tenantRole! },
+          session.impersonatorId,
+          tokenScope,
+          family
+        );
     const cookieOpts = getCookieOpts();
     res.cookie(accessCookieName(scope), access, {
       ...cookieOpts,
@@ -329,6 +342,7 @@ export class AuthController {
     };
   }
 
+  @TenantScoped()
   @UseGuards(JwtAuthGuard)
   @Post(ROUTES.AUTH.SWITCH_WORKSPACE)
   async switchWorkspace(
@@ -356,6 +370,7 @@ export class AuthController {
     return { ...enrichedSession, ...tokens };
   }
 
+  @TenantScoped()
   @SkipThrottle()
   @UseGuards(SessionAuthGuard)
   @Get(ROUTES.AUTH.ME)
@@ -388,12 +403,13 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Post(ROUTES.AUTH.IMPERSONATE)
   async impersonate(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Body(new ZodValidationPipe(impersonateSchema)) body: { userId: string },
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response
   ) {
-    if (user.role !== "ADMIN") {
+    const workspaceUser = user;
+    if (workspaceUser.role !== "ADMIN") {
       throw new DomainException(
         ErrorCodes.FORBIDDEN,
         "Only workspace administrators can view as another member",
@@ -402,7 +418,11 @@ export class AuthController {
     }
 
     const { session, handoffToken, accessToken, refreshToken } =
-      await this.auth.createImpersonationHandoff(user.userId, user.workspaceId, body.userId);
+      await this.auth.createImpersonationHandoff(
+        workspaceUser.userId,
+        workspaceUser.workspaceId,
+        body.userId
+      );
 
     const clientScope = "client" as const;
     const cookieOpts = getCookieOpts();
@@ -502,33 +522,37 @@ export class AuthController {
   private async setCookies(
     req: Request,
     res: Response,
-    session: {
-      user: { id: string };
-      tenantId: string;
-      workspaceId: string;
-      workspaceRole: "ADMIN" | "MEMBER";
-    },
+    session: AuthSessionDto,
     impersonatorId?: string
   ): Promise<{ accessToken: string; refreshToken: string }> {
     const scope = requireProductionAuthScope(req);
     const tokenScope = scope === "client" || scope === "admin" ? scope : undefined;
+    const workspaceId = session.workspaceId;
     const issued = await this.auth.signAndStoreRefreshToken(
       session.user.id,
-      session.workspaceId,
+      workspaceId ?? null,
       undefined,
       impersonatorId,
       this.sessionMetaFromRequest(req),
       tokenScope
     );
-    const access = this.auth.signAccessToken(
-      session.user.id,
-      session.workspaceId,
-      session.workspaceRole,
-      session.tenantId,
-      impersonatorId,
-      tokenScope,
-      issued.family
-    );
+    const access = session.workspaceId
+      ? this.auth.signAccessToken(
+          session.user.id,
+          session.tenantId,
+          { workspaceId: session.workspaceId, role: session.workspaceRole! },
+          impersonatorId,
+          tokenScope,
+          issued.family
+        )
+      : this.auth.signAccessToken(
+          session.user.id,
+          session.tenantId,
+          { tenantRole: session.tenantRole! },
+          impersonatorId,
+          tokenScope,
+          issued.family
+        );
     const cookieOpts = getCookieOpts();
     res.cookie(accessCookieName(scope), access, {
       ...cookieOpts,

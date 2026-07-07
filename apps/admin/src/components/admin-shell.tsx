@@ -16,6 +16,7 @@ import {
   useNotificationUnreadCount,
   useTenantSubscription,
   useUserProfile,
+  resolveWorkspaceSetupRedirect,
   WorkspaceSwitcher
 } from "@kloqra/web-shared";
 import Link from "next/link";
@@ -72,6 +73,11 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (session) {
+      const setupRedirect = resolveWorkspaceSetupRedirect(pathname, session);
+      if (setupRedirect) {
+        router.replace(setupRedirect);
+        return;
+      }
       if (!canLoginToAdminApp(session)) {
         router.replace("/select-workspace");
         return;

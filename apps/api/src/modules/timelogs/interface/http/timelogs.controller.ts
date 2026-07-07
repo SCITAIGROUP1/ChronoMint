@@ -18,11 +18,11 @@ import {
   Query,
   UseGuards
 } from "@nestjs/common";
-import {
-  CurrentUser,
-  type RequestUser
-} from "../../../../common/decorators/current-user.decorator";
 import { Roles } from "../../../../common/decorators/roles.decorator";
+import {
+  WorkspaceUser,
+  type WorkspaceRequestUser
+} from "../../../../common/decorators/workspace-user.decorator";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../../../common/guards/roles.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
@@ -39,7 +39,7 @@ export class TimelogsController {
 
   @Get(ROUTES.TIMELOGS.LIST)
   list(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Query(new ZodValidationPipe(listTimeLogsQuerySchema)) query: unknown
   ) {
     return this.timelogs.list(
@@ -53,7 +53,7 @@ export class TimelogsController {
 
   @Get(ROUTES.TIMELOGS.OCCUPANCY)
   occupancy(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Query(new ZodValidationPipe(listTimeLogOccupancyQuerySchema)) query: unknown
   ) {
     return this.timelogs.listOccupancy(
@@ -64,21 +64,21 @@ export class TimelogsController {
   }
 
   @Get(ROUTES.TIMELOGS.AUDIT_EVENTS(":id"))
-  auditEvents(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+  auditEvents(@WorkspaceUser() user: WorkspaceRequestUser, @Param("id") id: string) {
     return this.audit.listForTimeLog(user.workspaceId, user.userId, user.role, id);
   }
 
   @Roles("ADMIN")
   @Get(ROUTES.TIMELOGS.AUDIT_EVENTS_WORKSPACE)
   workspaceAuditEvents(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Query() query: { from: string; to: string; entryUserId?: string }
   ) {
     return this.audit.listForWorkspace(user.workspaceId, query);
   }
 
   @Get(ROUTES.TIMELOGS.YESTERDAY_SUMMARY)
-  async yesterdaySummary(@CurrentUser() user: RequestUser) {
+  async yesterdaySummary(@WorkspaceUser() user: WorkspaceRequestUser) {
     const now = new Date();
     const yesterdayStart = new Date(now);
     yesterdayStart.setDate(yesterdayStart.getDate() - 1);
@@ -96,7 +96,7 @@ export class TimelogsController {
 
   @Post(ROUTES.TIMELOGS.CREATE)
   create(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Body(new ZodValidationPipe(createTimeLogSchema)) body: unknown
   ) {
     return this.timelogs.create(
@@ -109,7 +109,7 @@ export class TimelogsController {
 
   @Post(ROUTES.TIMELOGS.CREATE_BATCH)
   createBatch(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Body(new ZodValidationPipe(createBatchTimeLogsSchema)) body: unknown
   ) {
     return this.timelogs.createBatch(
@@ -122,7 +122,7 @@ export class TimelogsController {
 
   @Patch(ROUTES.TIMELOGS.BY_ID(":id"))
   update(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Param("id") id: string,
     @Body(new ZodValidationPipe(updateTimeLogSchema)) body: unknown
   ) {
@@ -136,7 +136,7 @@ export class TimelogsController {
   }
 
   @Delete(ROUTES.TIMELOGS.BY_ID(":id"))
-  remove(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+  remove(@WorkspaceUser() user: WorkspaceRequestUser, @Param("id") id: string) {
     return this.timelogs.remove(user.workspaceId, user.userId, user.role, id);
   }
 }

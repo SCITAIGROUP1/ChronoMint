@@ -14,6 +14,7 @@ import {
   type RequestUser
 } from "../../../../common/decorators/current-user.decorator";
 import { TenantRoles } from "../../../../common/decorators/tenant-roles.decorator";
+import { TenantScoped } from "../../../../common/decorators/tenant-scoped.decorator";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { TenantRolesGuard } from "../../../../common/guards/tenant-roles.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
@@ -21,6 +22,7 @@ import { BILLING_RECEIPT_MAX_BYTES } from "../../application/billing-receipt-sto
 import { SubscriptionSalesInquiryService } from "../../application/subscription-sales-inquiry.service";
 
 @Controller()
+@TenantScoped()
 @UseGuards(JwtAuthGuard, TenantRolesGuard)
 export class SubscriptionSalesInquiryController {
   constructor(private salesInquiries: SubscriptionSalesInquiryService) {}

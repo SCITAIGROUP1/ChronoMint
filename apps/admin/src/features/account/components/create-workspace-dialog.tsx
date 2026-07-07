@@ -1,8 +1,11 @@
+"use client";
+
 import { ROUTES, ErrorCodes } from "@kloqra/contracts";
-import type { WorkspaceWithRoleDto } from "@kloqra/contracts";
+import type { AuthSessionWithTokenDto, WorkspaceWithRoleDto } from "@kloqra/contracts";
 import { AppModal, Button, Input, Label } from "@kloqra/ui";
-import { ApiRequestError } from "@kloqra/web-shared";
+import { ApiRequestError, resolveAdminLandingPath } from "@kloqra/web-shared";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { validateCreateWorkspaceForm } from "../create-workspace-validation";
@@ -14,20 +17,30 @@ type CreateWorkspaceDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreated?: (workspace: WorkspaceWithRoleDto) => void;
+  /** First-workspace onboarding — dialog cannot be dismissed until a workspace exists. */
+  requiredSetup?: boolean;
 };
 
 export function CreateWorkspaceDialog({
   open,
   onOpenChange,
-  onCreated
+  onCreated,
+  requiredSetup = false
 }: CreateWorkspaceDialogProps) {
+  const router = useRouter();
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
+  const setSession = useSessionStore((s) => s.setSession);
   const setWorkspaces = useWorkspacesStore((s) => s.setWorkspaces);
   const workspaces = useWorkspacesStore((s) => s.workspaces);
   const [name, setName] = useState("");
   const [fieldErrors, setFieldErrors] = useState<{ name?: string }>({});
   const [loading, setLoading] = useState(false);
   const [limitExceeded, setLimitExceeded] = useState(false);
+
+  function handleOpenChange(nextOpen: boolean) {
+    if (requiredSetup && !nextOpen) return;
+    onOpenChange(nextOpen);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -40,9 +53,25 @@ export function CreateWorkspaceDialog({
     try {
       const created = await api<WorkspaceWithRoleDto>(ROUTES.TENANTS.WORKSPACES, {
         method: "POST",
-        workspaceId: ws,
+        ...(ws ? { workspaceId: ws } : {}),
         body: JSON.stringify({ name: name.trim() })
       });
+
+      if (requiredSetup || useSessionStore.getState().session?.requiresWorkspaceSetup) {
+        const switched = await api<AuthSessionWithTokenDto>(ROUTES.AUTH.SWITCH_WORKSPACE, {
+          method: "POST",
+          body: JSON.stringify({ workspaceId: created.id })
+        });
+        setSession(switched, switched.accessToken);
+        setWorkspaces([created]);
+        toast.success(`Workspace "${created.name}" created`);
+        setName("");
+        onOpenChange(false);
+        onCreated?.(created);
+        router.push(await resolveAdminLandingPath(switched, switched.workspaceId!));
+        return;
+      }
+
       setWorkspaces([...workspaces, created]);
       toast.success(`Workspace "${created.name}" created`);
       setName("");
@@ -63,14 +92,20 @@ export function CreateWorkspaceDialog({
   return (
     <AppModal
       open={open}
-      onOpenChange={onOpenChange}
-      title="Create workspace"
-      description="Add a new workspace to your organization."
+      onOpenChange={handleOpenChange}
+      title={requiredSetup ? "Create your first workspace" : "Create workspace"}
+      description={
+        requiredSetup
+          ? "Your organization needs at least one workspace before you can continue."
+          : "Add a new workspace to your organization."
+      }
       footer={
         <>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
+          {!requiredSetup ? (
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+          ) : null}
           <Button type="submit" form="create-tenant-workspace-form" disabled={loading}>
             {loading ? "Creating…" : "Create workspace"}
           </Button>

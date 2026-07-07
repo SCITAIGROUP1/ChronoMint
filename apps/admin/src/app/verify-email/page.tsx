@@ -4,7 +4,7 @@ import {
   VerifyEmailPageContent,
   canLoginToAdminApp,
   hasMultipleWorkspaces,
-  resolveAdminLandingPath
+  resolveAdminOnboardingPath
 } from "@kloqra/web-shared";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
@@ -27,13 +27,17 @@ function VerifyEmailContent() {
           throw new Error("Admin access required");
         }
         setSession(session, accessToken, refreshToken);
-        const multi = await hasMultipleWorkspaces(session.workspaceId, "ADMIN");
+        if (session.requiresWorkspaceSetup) {
+          router.push(await resolveAdminOnboardingPath(session));
+          return;
+        }
+        const multi = await hasMultipleWorkspaces(session.workspaceId!, "ADMIN");
         if (multi) {
           router.push("/select-workspace");
           return;
         }
         if (session.tenantRole === "OWNER" || session.tenantRole === "ADMIN") {
-          router.push(await resolveAdminLandingPath(session, session.workspaceId));
+          router.push(await resolveAdminOnboardingPath(session));
           return;
         }
         router.push("/dashboard");

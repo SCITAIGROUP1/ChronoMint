@@ -6,11 +6,11 @@ import {
   ROUTES
 } from "@kloqra/contracts";
 import { Body, Controller, Get, Post, Query, UseGuards } from "@nestjs/common";
-import {
-  CurrentUser,
-  type RequestUser
-} from "../../../../common/decorators/current-user.decorator";
 import { Roles } from "../../../../common/decorators/roles.decorator";
+import {
+  WorkspaceUser,
+  type WorkspaceRequestUser
+} from "../../../../common/decorators/workspace-user.decorator";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../../../common/guards/roles.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
@@ -24,7 +24,7 @@ export class BillingController {
   @Roles("ADMIN")
   @Get(ROUTES.BILLING.RATES)
   listRates(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Query(new ZodValidationPipe(listHourlyRatesQuerySchema)) query: ListHourlyRatesQuery
   ) {
     return this.billing.listRates(user.workspaceId, query);
@@ -33,7 +33,7 @@ export class BillingController {
   @Roles("ADMIN")
   @Post(ROUTES.BILLING.RATES)
   createRate(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Body(new ZodValidationPipe(createHourlyRateSchema)) body: unknown
   ) {
     return this.billing.createRate(
@@ -45,7 +45,7 @@ export class BillingController {
   @Roles("ADMIN")
   @Get(ROUTES.BILLING.SUMMARY)
   summary(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Query(new ZodValidationPipe(reportQuerySchema)) query: unknown
   ) {
     return this.billing.summary(

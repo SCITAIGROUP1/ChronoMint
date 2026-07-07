@@ -23,11 +23,11 @@ import {
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import type { Response } from "express";
-import {
-  CurrentUser,
-  type RequestUser
-} from "../../../../common/decorators/current-user.decorator";
 import { Roles } from "../../../../common/decorators/roles.decorator";
+import {
+  WorkspaceUser,
+  type WorkspaceRequestUser
+} from "../../../../common/decorators/workspace-user.decorator";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../../../common/guards/roles.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
@@ -40,7 +40,7 @@ export class CategoriesController {
 
   @Get(ROUTES.CATEGORIES.LIST)
   list(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Query(new ZodValidationPipe(listCategoriesQuerySchema)) query: ListCategoriesQuery
   ) {
     return this.categories.list(user.workspaceId, query);
@@ -49,7 +49,7 @@ export class CategoriesController {
   @Roles("ADMIN")
   @Post(ROUTES.CATEGORIES.CREATE)
   create(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Body(new ZodValidationPipe(createCategorySchema)) body: unknown
   ) {
     return this.categories.create(
@@ -60,7 +60,10 @@ export class CategoriesController {
 
   @Roles("ADMIN")
   @Get(ROUTES.CATEGORIES.BULK_TEMPLATE)
-  async getBulkCategoryTemplate(@CurrentUser() _user: RequestUser, @Res() res: Response) {
+  async getBulkCategoryTemplate(
+    @WorkspaceUser() _user: WorkspaceRequestUser,
+    @Res() res: Response
+  ) {
     await this.categories.generateBulkCategoryTemplate(res);
   }
 
@@ -69,7 +72,7 @@ export class CategoriesController {
   @UseInterceptors(FileInterceptor("file", { limits: { fileSize: 2 * 1024 * 1024 } }))
   async bulkCategoryUpload(
     @UploadedFile() file: { buffer: Buffer } | undefined,
-    @CurrentUser() user: RequestUser
+    @WorkspaceUser() user: WorkspaceRequestUser
   ) {
     if (!file) throw new Error("No file uploaded");
 
@@ -80,7 +83,7 @@ export class CategoriesController {
   @Roles("ADMIN")
   @Post(ROUTES.CATEGORIES.BULK)
   bulkCategoryImport(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Body(new ZodValidationPipe(bulkCategoryImportSchema))
     body: { categories: BulkCategoryImportItemDto[] }
   ) {
@@ -90,7 +93,7 @@ export class CategoriesController {
   @Roles("ADMIN")
   @Patch(ROUTES.CATEGORIES.BY_ID(":id"))
   update(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Param("id") id: string,
     @Body(new ZodValidationPipe(updateCategorySchema)) body: unknown
   ) {
@@ -103,7 +106,7 @@ export class CategoriesController {
 
   @Roles("ADMIN")
   @Delete(ROUTES.CATEGORIES.BY_ID(":id"))
-  remove(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+  remove(@WorkspaceUser() user: WorkspaceRequestUser, @Param("id") id: string) {
     return this.categories.remove(user.workspaceId, id);
   }
 }

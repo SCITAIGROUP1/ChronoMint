@@ -77,15 +77,21 @@ describe("AuthService unit tests", () => {
     it("throws an error if JWT_ACCESS_SECRET is not set", () => {
       delete process.env.JWT_ACCESS_SECRET;
       expect(() =>
-        authService.signAccessToken("user-1", "workspace-1", "ADMIN", "tenant-1")
+        authService.signAccessToken("user-1", "tenant-1", {
+          workspaceId: "workspace-1",
+          role: "ADMIN"
+        })
       ).toThrow("JWT_ACCESS_SECRET is not set on the API service");
     });
 
-    it("signs a token correctly if JWT_ACCESS_SECRET is set", () => {
+    it("signs a workspace token correctly if JWT_ACCESS_SECRET is set", () => {
       process.env.JWT_ACCESS_SECRET = "my-secret-key-32-chars-long-or-more";
       process.env.JWT_ACCESS_EXPIRES = "10m";
 
-      const token = authService.signAccessToken("user-1", "workspace-1", "MEMBER", "tenant-1");
+      const token = authService.signAccessToken("user-1", "tenant-1", {
+        workspaceId: "workspace-1",
+        role: "MEMBER"
+      });
 
       expect(token).toBe("mocked-token");
       expect(mockJwt.sign).toHaveBeenCalledWith(
@@ -98,6 +104,21 @@ describe("AuthService unit tests", () => {
           typ: "access"
         },
         { secret: "my-secret-key-32-chars-long-or-more", expiresIn: "10m" }
+      );
+    });
+
+    it("signs a tenant-operator token without workspace claims", () => {
+      process.env.JWT_ACCESS_SECRET = "my-secret-key-32-chars-long-or-more";
+      authService.signAccessToken("user-1", "tenant-1", { tenantRole: "OWNER" });
+      expect(mockJwt.sign).toHaveBeenCalledWith(
+        {
+          sub: "user-1",
+          userId: "user-1",
+          tenantId: "tenant-1",
+          tenantRole: "OWNER",
+          typ: "access"
+        },
+        expect.any(Object)
       );
     });
   });
@@ -196,7 +217,52 @@ describe("AuthService unit tests", () => {
       );
     });
 
-    it("rejects login when all memberships are deactivated", async () => {
+    it("returns tenant-operator session when owner has no workspace membership", async () => {
+      vi.mocked(bcrypt.compare).mockResolvedValue(true as never);
+
+      mockPrisma.user = {
+        findUnique: vi.fn().mockResolvedValue({
+          id: "user-1",
+          email: "owner@scit.com",
+          name: "SCIT Owner",
+          firstName: "SCIT",
+          lastName: "Owner",
+          passwordHash: "hash",
+          mustChangePassword: false,
+          emailVerifiedAt: new Date("2025-01-01"),
+          totpEnabledAt: null,
+          totpSecret: null,
+          defaultHourlyRate: null,
+          memberships: []
+        })
+      };
+      mockPrisma.tenant = {
+        findUnique: vi.fn().mockResolvedValue({ status: "pending_setup" })
+      };
+      mockPrisma.tenantMember = {
+        findUnique: vi.fn().mockResolvedValue({
+          tenantId: "tenant-1",
+          role: "OWNER",
+          isActive: true
+        })
+      };
+
+      const result = await authService.login({
+        email: "owner@scit.com",
+        password: "password123"
+      });
+
+      if ("requires2fa" in result || "requiresPasswordChange" in result) {
+        expect.fail("expected session");
+      }
+
+      expect(result.tenantId).toBe("tenant-1");
+      expect(result.tenantRole).toBe("OWNER");
+      expect(result.requiresWorkspaceSetup).toBe(true);
+      expect(result.workspaceId).toBeUndefined();
+    });
+
+    it("rejects login when user has no workspace or tenant operator membership", async () => {
       vi.mocked(bcrypt.compare).mockResolvedValue(true as never);
 
       mockPrisma.user = {
@@ -210,6 +276,9 @@ describe("AuthService unit tests", () => {
           totpSecret: null,
           memberships: []
         })
+      };
+      mockPrisma.tenantMember = {
+        findUnique: vi.fn().mockResolvedValue(null)
       };
 
       await expect(

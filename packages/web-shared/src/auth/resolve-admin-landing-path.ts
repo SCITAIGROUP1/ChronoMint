@@ -9,7 +9,9 @@ export async function resolveAdminLandingPath(
 ): Promise<string> {
   if (session.tenantRole === "OWNER") {
     try {
-      const tenant = await api<TenantDto>(ROUTES.TENANTS.CURRENT, { workspaceId });
+      const tenant = await api<TenantDto>(ROUTES.TENANTS.CURRENT, {
+        ...(workspaceId ? { workspaceId } : {})
+      });
       if (tenant.status === "pending_setup") {
         return "/account/organization";
       }
@@ -21,7 +23,9 @@ export async function resolveAdminLandingPath(
 
   if (session.tenantRole === "ADMIN") {
     try {
-      const tenant = await api<TenantDto>(ROUTES.TENANTS.CURRENT, { workspaceId });
+      const tenant = await api<TenantDto>(ROUTES.TENANTS.CURRENT, {
+        ...(workspaceId ? { workspaceId } : {})
+      });
       if (tenant.status === "pending_setup") {
         return "/account/organization";
       }

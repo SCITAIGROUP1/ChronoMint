@@ -2,19 +2,19 @@ import type { AuthSessionDto } from "@kloqra/contracts";
 
 /** Organization owner or organization admin (tenant ADMIN). */
 export function canManageOrganization(
-  session: Pick<AuthSessionDto, "tenantRole"> | null | undefined
+  session: Partial<Pick<AuthSessionDto, "tenantRole">> | null | undefined
 ): boolean {
   return session?.tenantRole === "OWNER" || session?.tenantRole === "ADMIN";
 }
 
 export function isOrganizationOwner(
-  session: Pick<AuthSessionDto, "tenantRole"> | null | undefined
+  session: Partial<Pick<AuthSessionDto, "tenantRole">> | null | undefined
 ): boolean {
   return session?.tenantRole === "OWNER";
 }
 
 export function canAccessAccountMode(
-  session: Pick<AuthSessionDto, "tenantRole"> | null | undefined
+  session: Partial<Pick<AuthSessionDto, "tenantRole">> | null | undefined
 ): boolean {
   return canManageOrganization(session);
 }
@@ -38,10 +38,22 @@ export function isOwnerOnlyAccountPath(pathname: string): boolean {
 }
 
 export function canAccessAccountPath(
-  session: Pick<AuthSessionDto, "tenantRole"> | null | undefined,
+  session:
+    | Partial<Pick<AuthSessionDto, "tenantRole" | "requiresWorkspaceSetup">>
+    | null
+    | undefined,
   pathname: string
 ): boolean {
   if (!canAccessAccountMode(session)) return false;
+  if (session?.requiresWorkspaceSetup) {
+    return (
+      pathname === "/account/organization" ||
+      pathname.startsWith("/account/workspaces") ||
+      pathname === "/account/profile" ||
+      pathname === "/account/settings" ||
+      pathname === "/account/notifications"
+    );
+  }
   if (isPersonalAccountPath(pathname)) return true;
   if (isOrganizationOwner(session)) return true;
   return !isOwnerOnlyAccountPath(pathname);

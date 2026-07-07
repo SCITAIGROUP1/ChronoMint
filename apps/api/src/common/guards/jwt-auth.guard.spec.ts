@@ -1,12 +1,15 @@
 import { ForbiddenException, HttpStatus, UnauthorizedException } from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { AuthRevocationService } from "../auth/auth-revocation.service";
 import { JwtTokenService } from "../auth/jwt-token.service";
+import { TENANT_SCOPED_KEY } from "../decorators/tenant-scoped.decorator";
 import { PrismaService } from "../prisma/prisma.service";
 import { JwtAuthGuard } from "./jwt-auth.guard";
 
 describe("JwtAuthGuard", () => {
   let guard: JwtAuthGuard;
+  let reflector: { getAllAndOverride: ReturnType<typeof vi.fn> };
   let jwtTokens: {
     isTokenExpired: ReturnType<typeof vi.fn>;
     verifyAccessToken: ReturnType<typeof vi.fn>;
@@ -29,16 +32,20 @@ describe("JwtAuthGuard", () => {
       }
     };
     projectAccess = { managedProjectIds: vi.fn().mockResolvedValue([]) };
+    reflector = { getAllAndOverride: vi.fn().mockReturnValue(false) };
     guard = new JwtAuthGuard(
       jwtTokens as unknown as JwtTokenService,
       authRevocation as unknown as AuthRevocationService,
       prisma as unknown as PrismaService,
-      projectAccess as never
+      projectAccess as never,
+      reflector as unknown as Reflector
     );
   });
 
   function contextWithReq(req: Record<string, unknown>) {
     return {
+      getHandler: () => ({}),
+      getClass: () => ({}),
       switchToHttp: () => ({
         getRequest: () => req
       })
@@ -147,6 +154,43 @@ describe("JwtAuthGuard", () => {
     await expect(guard.canActivate(contextWithReq(req) as never)).rejects.toThrow(
       ForbiddenException
     );
+    expect(prisma.workspace.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("requires workspace on non-tenant-scoped routes", async () => {
+    jwtTokens.isTokenExpired.mockReturnValue(false);
+    jwtTokens.verifyAccessToken.mockReturnValue({
+      sub: "u1",
+      tenantId: "t1",
+      tenantRole: "OWNER"
+    });
+    reflector.getAllAndOverride.mockReturnValue(false);
+    const req = {
+      headers: { authorization: "Bearer valid", "x-auth-scope": "admin" },
+      cookies: {}
+    };
+    await expect(guard.canActivate(contextWithReq(req) as never)).rejects.toMatchObject({
+      response: { code: "WORKSPACE_REQUIRED" }
+    });
+  });
+
+  it("allows tenant-scoped routes without workspace", async () => {
+    jwtTokens.isTokenExpired.mockReturnValue(false);
+    jwtTokens.verifyAccessToken.mockReturnValue({
+      sub: "u1",
+      tenantId: "t1",
+      tenantRole: "OWNER"
+    });
+    jwtTokens.toRequestUser.mockReturnValue({
+      userId: "u1",
+      tenantId: "t1"
+    });
+    reflector.getAllAndOverride.mockImplementation((key: string) => key === TENANT_SCOPED_KEY);
+    const req = {
+      headers: { authorization: "Bearer valid", "x-auth-scope": "admin" },
+      cookies: {}
+    };
+    await expect(guard.canActivate(contextWithReq(req) as never)).resolves.toBe(true);
     expect(prisma.workspace.findUnique).not.toHaveBeenCalled();
   });
 });

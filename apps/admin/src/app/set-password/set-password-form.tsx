@@ -14,7 +14,8 @@ import {
   canLoginToAdminApp,
   extractFieldErrorsFromMessage,
   hasMultipleWorkspaces,
-  resolveAdminLandingPath
+  resolveAdminLandingPath,
+  resolveAdminOnboardingPath
 } from "@kloqra/web-shared";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
@@ -45,8 +46,13 @@ export function AdminSetPasswordForm() {
     }
     setSession(switched.session, switched.accessToken, res.refreshToken);
 
+    if (switched.session.requiresWorkspaceSetup) {
+      router.push(await resolveAdminOnboardingPath(switched.session));
+      return;
+    }
+
     try {
-      const multi = await hasMultipleWorkspaces(switched.session.workspaceId, "ADMIN");
+      const multi = await hasMultipleWorkspaces(switched.session.workspaceId!, "ADMIN");
       if (multi) {
         router.push("/select-workspace");
         return;
@@ -55,7 +61,7 @@ export function AdminSetPasswordForm() {
       console.error("Failed to check workspaces:", err);
     }
 
-    router.push(await resolveAdminLandingPath(switched.session, switched.session.workspaceId));
+    router.push(await resolveAdminLandingPath(switched.session, switched.session.workspaceId!));
   }
 
   async function complete2fa(e: React.FormEvent) {

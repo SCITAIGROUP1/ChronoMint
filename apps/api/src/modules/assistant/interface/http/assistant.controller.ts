@@ -2,9 +2,9 @@ import { assistantChatRequestSchema, ROUTES } from "@kloqra/contracts";
 import { Body, Controller, Post, Req, UseGuards } from "@nestjs/common";
 import type { Request } from "express";
 import {
-  CurrentUser,
-  type RequestUser
-} from "../../../../common/decorators/current-user.decorator";
+  WorkspaceUser,
+  type WorkspaceRequestUser
+} from "../../../../common/decorators/workspace-user.decorator";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
 import { AssistantProxyService } from "../../application/assistant-proxy.service";
@@ -20,7 +20,7 @@ export class AssistantController {
 
   @Post(ROUTES.ASSISTANT.CHAT)
   async chat(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Body(new ZodValidationPipe(assistantChatRequestSchema)) body: unknown,
     @Req() req: Request
   ) {

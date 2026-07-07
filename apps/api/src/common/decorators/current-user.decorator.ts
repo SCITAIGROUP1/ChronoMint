@@ -3,8 +3,8 @@ import { createParamDecorator, type ExecutionContext } from "@nestjs/common";
 export interface RequestUser {
   userId: string;
   tenantId: string;
-  workspaceId: string;
-  role: "ADMIN" | "MEMBER";
+  workspaceId?: string;
+  role?: "ADMIN" | "MEMBER";
   managedProjectIds?: string[];
   impersonatorId?: string;
 }

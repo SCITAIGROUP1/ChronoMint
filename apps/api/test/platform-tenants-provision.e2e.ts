@@ -11,8 +11,10 @@ import { loginAsPlatform, platformAuthedAgent } from "./helpers/platform-auth";
 describe("Platform tenant provision E2E", () => {
   let app: INestApplication;
   const ownerEmail = `f15-owner-${Date.now()}@example.com`;
+  const ownerWithoutWorkspaceEmail = `f15-owner-nows-${Date.now()}@example.com`;
   let temporaryPassword: string;
   let tenantId: string;
+  let noWorkspaceTemporaryPassword: string;
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
@@ -86,6 +88,45 @@ describe("Platform tenant provision E2E", () => {
 
     expect(patchRes.status).toBe(200);
     expect(patchRes.body.status).toBe("active");
+  });
+
+  it("superadmin provisions tenant without first workspace", async () => {
+    const platform = await loginAsPlatform(app);
+    const createRes = await platformAuthedAgent(app, platform).post(ROUTES.PLATFORM.TENANTS).send({
+      organizationName: "F15 No Workspace Org",
+      ownerEmail: ownerWithoutWorkspaceEmail,
+      ownerName: "F15 Owner No WS",
+      planId: PLAN_IDS[PLAN_SLUGS.PILOT],
+      subscriptionStatus: "trial"
+    });
+
+    expect(createRes.status).toBe(201);
+    expect(createRes.body.tenant.status).toBe("pending_setup");
+    noWorkspaceTemporaryPassword = createRes.body.temporaryPassword;
+  });
+
+  it("owner without workspace can set password and receive tenant-operator session", async () => {
+    const loginRes = await request(app.getHttpServer())
+      .post(ROUTES.AUTH.LOGIN)
+      .set("X-Auth-Scope", "admin")
+      .send({ email: ownerWithoutWorkspaceEmail, password: noWorkspaceTemporaryPassword });
+
+    expect(loginRes.status).toBe(201);
+    expect(loginRes.body.requiresPasswordChange).toBe(true);
+
+    const setPasswordRes = await request(app.getHttpServer())
+      .post(ROUTES.AUTH.SET_PASSWORD)
+      .set("X-Auth-Scope", "admin")
+      .send({
+        pendingToken: loginRes.body.pendingToken,
+        newPassword: "NewPassword123!"
+      });
+
+    expect(setPasswordRes.status).toBe(201);
+    expect(setPasswordRes.body.tenantRole).toBe("OWNER");
+    expect(setPasswordRes.body.requiresWorkspaceSetup).toBe(true);
+    expect(setPasswordRes.body.workspaceId).toBeUndefined();
+    expect(setPasswordRes.body.accessToken).toBeTruthy();
   });
 
   it("rejects provision when owner email already belongs to a tenant (D08)", async () => {

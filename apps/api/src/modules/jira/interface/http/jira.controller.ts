@@ -8,11 +8,11 @@ import {
   type VerifyWorkspaceJiraDto
 } from "@kloqra/contracts";
 import { Body, Controller, Get, Patch, Post, UseGuards } from "@nestjs/common";
-import {
-  CurrentUser,
-  type RequestUser
-} from "../../../../common/decorators/current-user.decorator";
 import { Roles } from "../../../../common/decorators/roles.decorator";
+import {
+  WorkspaceUser,
+  type WorkspaceRequestUser
+} from "../../../../common/decorators/workspace-user.decorator";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../../../common/guards/roles.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
@@ -24,13 +24,13 @@ export class JiraController {
   constructor(private jira: JiraService) {}
 
   @Get(ROUTES.JIRA.MY_ISSUES)
-  getMyIssues(@CurrentUser() user: RequestUser) {
+  getMyIssues(@WorkspaceUser() user: WorkspaceRequestUser) {
     return this.jira.getMyIssues(user.userId, user.workspaceId);
   }
 
   @Patch(ROUTES.JIRA.CREDENTIALS)
   updateCredentials(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Body(new ZodValidationPipe(updateJiraCredentialsSchema)) body: unknown
   ) {
     return this.jira.updateCredentials(user.userId, body as UpdateJiraCredentialsDto);
@@ -39,7 +39,7 @@ export class JiraController {
   @Roles("ADMIN")
   @Post(ROUTES.JIRA.VERIFY)
   verifyWorkspaceCredentials(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Body(new ZodValidationPipe(verifyWorkspaceJiraSchema)) body: unknown
   ) {
     return this.jira.verifyWorkspaceCredentials(user.workspaceId, body as VerifyWorkspaceJiraDto);
@@ -47,7 +47,7 @@ export class JiraController {
 
   @Post(ROUTES.JIRA.VERIFY_USER)
   verifyUserEmail(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Body(new ZodValidationPipe(verifyUserJiraSchema)) body: unknown
   ) {
     return this.jira.verifyUserEmail(user.workspaceId, body as VerifyUserJiraDto);

@@ -31,13 +31,15 @@ export const authTokensSchema = z.object({
   expiresIn: z.number()
 });
 
-export const authSessionSchema = z.object({
+const authSessionCoreSchema = z.object({
   user: authUserSchema,
   tenantId: uuidSchema,
   tenantRole: tenantMemberRoleSchema.optional(),
-  workspaceId: uuidSchema,
+  workspaceId: uuidSchema.optional(),
   workspaceName: z.string().min(1).max(120).optional(),
-  workspaceRole: workspaceRoleSchema,
+  workspaceRole: workspaceRoleSchema.optional(),
+  /** Tenant owner/admin with no workspace yet — must create one before workspace ops. */
+  requiresWorkspaceSetup: z.literal(true).optional(),
   /** Preferred workspace from user preferences — avoids bootstrap GET /users/me. */
   defaultWorkspaceId: uuidSchema.optional(),
   /** Project IDs where user is team_members.role = PROJECT_MANAGER (MEMBER workspace role only; not in JWT). */
@@ -46,10 +48,45 @@ export const authSessionSchema = z.object({
   impersonatorName: z.string().optional()
 });
 
-export const authSessionWithTokenSchema = authSessionSchema.extend({
-  accessToken: z.string(),
-  refreshToken: z.string().optional()
-});
+function refineAuthSession<T extends z.ZodTypeAny>(schema: T) {
+  return schema.superRefine((data, ctx) => {
+    const session = data as z.infer<typeof authSessionCoreSchema>;
+    if (session.workspaceId && !session.workspaceRole) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "workspaceRole is required when workspaceId is set",
+        path: ["workspaceRole"]
+      });
+    }
+    if (!session.workspaceId && !session.requiresWorkspaceSetup) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "workspaceId or requiresWorkspaceSetup is required",
+        path: ["workspaceId"]
+      });
+    }
+    if (
+      session.requiresWorkspaceSetup &&
+      session.tenantRole !== "OWNER" &&
+      session.tenantRole !== "ADMIN"
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "requiresWorkspaceSetup requires tenant owner or admin role",
+        path: ["requiresWorkspaceSetup"]
+      });
+    }
+  });
+}
+
+export const authSessionSchema = refineAuthSession(authSessionCoreSchema);
+
+export const authSessionWithTokenSchema = refineAuthSession(
+  authSessionCoreSchema.extend({
+    accessToken: z.string(),
+    refreshToken: z.string().optional()
+  })
+);
 
 export const refreshSessionSchema = z.object({
   refreshToken: z.string().min(1).optional()
@@ -59,9 +96,11 @@ export const impersonateSchema = z.object({
   userId: uuidSchema
 });
 
-export const impersonateHandoffResponseSchema = authSessionSchema.extend({
-  handoffToken: z.string().min(1)
-});
+export const impersonateHandoffResponseSchema = refineAuthSession(
+  authSessionCoreSchema.extend({
+    handoffToken: z.string().min(1)
+  })
+);
 
 export const completeImpersonationSchema = z.object({
   handoffToken: z.string().min(1)

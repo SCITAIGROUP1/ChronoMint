@@ -8,7 +8,7 @@ function hasProjectLeadAccess(managedProjectIds?: string[] | null): boolean {
 /** Workspace operators (admin app workspace mode). */
 export function canAccessAdminApp(
   workspaceRole: "ADMIN" | "MEMBER" | undefined,
-  managedProjectIds: string[] | undefined
+  managedProjectIds?: string[] | null
 ): boolean {
   if (workspaceRole === "ADMIN") return true;
   return hasProjectLeadAccess(managedProjectIds);
@@ -17,11 +17,17 @@ export function canAccessAdminApp(
 /** Anyone allowed to authenticate into the admin app (workspace ops or organization mode). */
 export function canLoginToAdminApp(
   session:
-    | Pick<AuthSessionDto, "workspaceRole" | "tenantRole" | "managedProjectIds">
+    | Partial<
+        Pick<
+          AuthSessionDto,
+          "workspaceRole" | "tenantRole" | "managedProjectIds" | "requiresWorkspaceSetup"
+        >
+      >
     | null
     | undefined
 ): boolean {
   if (!session) return false;
+  if (session.requiresWorkspaceSetup && canAccessAccountMode(session)) return true;
   if (canAccessAdminApp(session.workspaceRole, session.managedProjectIds)) return true;
   return canAccessAccountMode(session);
 }

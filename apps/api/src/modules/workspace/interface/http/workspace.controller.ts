@@ -29,11 +29,11 @@ import {
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import type { Response } from "express";
-import {
-  CurrentUser,
-  type RequestUser
-} from "../../../../common/decorators/current-user.decorator";
 import { Roles } from "../../../../common/decorators/roles.decorator";
+import {
+  WorkspaceUser,
+  type WorkspaceRequestUser
+} from "../../../../common/decorators/workspace-user.decorator";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../../../common/guards/roles.guard";
 import { WorkspaceMatchGuard } from "../../../../common/guards/workspace-match.guard";
@@ -56,13 +56,13 @@ export class WorkspaceController {
   @Post(ROUTES.WORKSPACES.CREATE)
   create(
     @Body(new ZodValidationPipe(createWorkspaceSchema)) body: unknown,
-    @CurrentUser() _user: RequestUser
+    @WorkspaceUser() _user: WorkspaceRequestUser
   ) {
     return this.workspace.create(_user.userId, body as Parameters<WorkspaceService["create"]>[1]);
   }
 
   @Get(ROUTES.WORKSPACES.LIST)
-  list(@CurrentUser() _user: RequestUser) {
+  list(@WorkspaceUser() _user: WorkspaceRequestUser) {
     return this.workspace.listForUser(_user.userId);
   }
 
@@ -71,7 +71,7 @@ export class WorkspaceController {
   membersOverview(
     @Param("id") id: string,
     @Query(new ZodValidationPipe(teamMembersOverviewQuerySchema)) query: TeamMembersOverviewQuery,
-    @CurrentUser() _user: RequestUser
+    @WorkspaceUser() _user: WorkspaceRequestUser
   ) {
     return this.overviewService.getOverview(id, query);
   }
@@ -82,13 +82,13 @@ export class WorkspaceController {
     @Param("id") id: string,
     @Query(new ZodValidationPipe(projectManagersOverviewQuerySchema))
     query: ProjectManagersOverviewQuery,
-    @CurrentUser() _user: RequestUser
+    @WorkspaceUser() _user: WorkspaceRequestUser
   ) {
     return this.projectManagersOverviewService.getOverview(id, query);
   }
 
   @Get(ROUTES.WORKSPACES.MEMBERS(":id"))
-  members(@Param("id") id: string, @CurrentUser() _user: RequestUser) {
+  members(@Param("id") id: string, @WorkspaceUser() _user: WorkspaceRequestUser) {
     return this.workspace.listMembers(id);
   }
 
@@ -96,7 +96,7 @@ export class WorkspaceController {
   teamActivities(
     @Param("id") id: string,
     @Query(new ZodValidationPipe(teamActivitiesQuerySchema)) query: TeamActivitiesQuery,
-    @CurrentUser() _user: RequestUser
+    @WorkspaceUser() _user: WorkspaceRequestUser
   ) {
     return this.teamActivitiesService.getTeamActivities(id, query);
   }
@@ -107,7 +107,7 @@ export class WorkspaceController {
     @Param("id") id: string,
     @Param("memberId") memberId: string,
     @Body(new ZodValidationPipe(updateWorkspaceMemberSchema)) body: unknown,
-    @CurrentUser() _user: RequestUser
+    @WorkspaceUser() _user: WorkspaceRequestUser
   ) {
     return this.workspace.updateMember(
       id,
@@ -122,7 +122,7 @@ export class WorkspaceController {
   removeMember(
     @Param("id") id: string,
     @Param("memberId") memberId: string,
-    @CurrentUser() _user: RequestUser
+    @WorkspaceUser() _user: WorkspaceRequestUser
   ) {
     return this.workspace.removeMember(id, memberId, _user.userId);
   }
@@ -132,7 +132,7 @@ export class WorkspaceController {
   invite(
     @Param("id") id: string,
     @Body(new ZodValidationPipe(inviteMemberSchema)) body: unknown,
-    @CurrentUser() _user: RequestUser
+    @WorkspaceUser() _user: WorkspaceRequestUser
   ) {
     return this.workspace.invite(
       id,
@@ -145,7 +145,7 @@ export class WorkspaceController {
   @Get(ROUTES.WORKSPACES.BULK_MEMBERS_TEMPLATE(":id"))
   async getBulkInviteTemplate(
     @Param("id") id: string,
-    @CurrentUser() _user: RequestUser,
+    @WorkspaceUser() _user: WorkspaceRequestUser,
     @Res() res: Response
   ) {
     await this.workspace.generateBulkInviteTemplate(res);
@@ -157,7 +157,7 @@ export class WorkspaceController {
   async bulkInviteUpload(
     @Param("id") id: string,
     @UploadedFile() file: any,
-    @CurrentUser() _user: RequestUser
+    @WorkspaceUser() _user: WorkspaceRequestUser
   ) {
     if (!file) throw new Error("No file uploaded");
 
@@ -170,7 +170,7 @@ export class WorkspaceController {
   async bulkInvite(
     @Param("id") id: string,
     @Body(new ZodValidationPipe(bulkInviteMemberSchema)) body: { members: InviteMemberDto[] },
-    @CurrentUser() _user: RequestUser
+    @WorkspaceUser() _user: WorkspaceRequestUser
   ) {
     return this.workspace.bulkInvite(id, body.members, _user.userId);
   }
@@ -180,14 +180,14 @@ export class WorkspaceController {
   resendCredentials(
     @Param("id") id: string,
     @Param("memberId") memberId: string,
-    @CurrentUser() _user: RequestUser
+    @WorkspaceUser() _user: WorkspaceRequestUser
   ) {
     return this.workspace.resendMemberCredentials(id, memberId);
   }
 
   @Roles("ADMIN")
   @Get(ROUTES.WORKSPACES.BY_ID(":id"))
-  getById(@Param("id") id: string, @CurrentUser() _user: RequestUser) {
+  getById(@Param("id") id: string, @WorkspaceUser() _user: WorkspaceRequestUser) {
     return this.workspace.getById(id);
   }
 
@@ -196,7 +196,7 @@ export class WorkspaceController {
   update(
     @Param("id") id: string,
     @Body(new ZodValidationPipe(updateWorkspaceSchema)) body: any,
-    @CurrentUser() _user: RequestUser
+    @WorkspaceUser() _user: WorkspaceRequestUser
   ) {
     return this.workspace.update(id, body);
   }

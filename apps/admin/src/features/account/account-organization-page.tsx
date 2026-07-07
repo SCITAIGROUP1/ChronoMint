@@ -15,9 +15,11 @@ import {
 import { CopyableValue, useTenantCurrent, useUpdateTenantCurrent } from "@kloqra/web-shared";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useSessionStore } from "@/stores/session.store";
 
 export function AccountOrganizationPage() {
   const router = useRouter();
+  const requiresWorkspaceSetup = useSessionStore((s) => s.session?.requiresWorkspaceSetup);
   const { tenant, loading, error, reload } = useTenantCurrent();
   const { updateTenantCurrent, saving, error: saveError } = useUpdateTenantCurrent();
   const [name, setName] = useState("");
@@ -52,7 +54,7 @@ export function AccountOrganizationPage() {
       const updated = await updateTenantCurrent({ name: name.trim(), slug: slug.trim() });
       await reload();
       if (updated.status === "active") {
-        router.push("/account");
+        router.push(requiresWorkspaceSetup ? "/account/workspaces?setup=required" : "/account");
       }
     } catch {
       setFormError("Could not save organization profile.");

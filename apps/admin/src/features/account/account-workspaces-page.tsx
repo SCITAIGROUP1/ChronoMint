@@ -13,6 +13,7 @@ import {
 } from "@kloqra/ui";
 import { canManageOrganization } from "@kloqra/web-shared";
 import { Plus, UserPlus } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { CreateWorkspaceDialog } from "./components/create-workspace-dialog";
 import { WorkspaceAdminAssignDialog } from "./components/workspace-admin-assign-dialog";
@@ -21,18 +22,26 @@ import { useSessionStore } from "@/stores/session.store";
 import { useWorkspacesStore } from "@/stores/workspaces.store";
 
 export function AccountWorkspacesPage() {
+  const searchParams = useSearchParams();
   const session = useSessionStore((s) => s.session);
   const workspaces = useWorkspacesStore((s) => s.workspaces);
   const canManage = canManageOrganization(session);
+  const setupRequired =
+    session?.requiresWorkspaceSetup === true || searchParams.get("setup") === "required";
   const [createOpen, setCreateOpen] = useState(false);
   const [assignTarget, setAssignTarget] = useState<{ id: string; name: string } | null>(null);
 
   const { admins, setLimit } = useWorkspaceAdminsOverview();
 
-  // Load a large enough limit to get all admins across workspaces
   useEffect(() => {
     setLimit(1000);
   }, [setLimit]);
+
+  useEffect(() => {
+    if (setupRequired && workspaces.length === 0 && canManage) {
+      setCreateOpen(true);
+    }
+  }, [setupRequired, workspaces.length, canManage]);
 
   const adminsByWorkspace = useMemo(() => {
     const map = new Map<string, Array<{ name: string; email: string }>>();
@@ -49,7 +58,11 @@ export function AccountWorkspacesPage() {
     <div className="space-y-6">
       <AppBar
         title="Workspaces"
-        description="Create workspaces and assign admins per workspace."
+        description={
+          setupRequired
+            ? "Create your first workspace to start using Kloqra."
+            : "Create workspaces and assign admins per workspace."
+        }
         actions={
           canManage ? (
             <Button type="button" onClick={() => setCreateOpen(true)}>
@@ -110,7 +123,11 @@ export function AccountWorkspacesPage() {
           </TableBody>
         </Table>
       </DataTableCard>
-      <CreateWorkspaceDialog open={createOpen} onOpenChange={setCreateOpen} />
+      <CreateWorkspaceDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        requiredSetup={setupRequired}
+      />
       {assignTarget ? (
         <WorkspaceAdminAssignDialog
           workspaceId={assignTarget.id}

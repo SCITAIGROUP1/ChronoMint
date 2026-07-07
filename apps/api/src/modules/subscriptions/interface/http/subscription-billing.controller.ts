@@ -12,6 +12,7 @@ import {
   type RequestUser
 } from "../../../../common/decorators/current-user.decorator";
 import { TenantRoles } from "../../../../common/decorators/tenant-roles.decorator";
+import { TenantScoped } from "../../../../common/decorators/tenant-scoped.decorator";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { TenantRolesGuard } from "../../../../common/guards/tenant-roles.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
@@ -20,6 +21,7 @@ import { SubscriptionBillingService } from "../../application/subscription-billi
 import { SubscriptionsService } from "../../application/subscriptions.service";
 
 @Controller()
+@TenantScoped()
 @UseGuards(JwtAuthGuard, TenantRolesGuard)
 export class SubscriptionBillingController {
   constructor(

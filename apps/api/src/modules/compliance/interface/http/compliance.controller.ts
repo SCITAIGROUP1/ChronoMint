@@ -19,6 +19,7 @@ import {
   type RequestUser
 } from "../../../../common/decorators/current-user.decorator";
 import { TenantRoles } from "../../../../common/decorators/tenant-roles.decorator";
+import { TenantScoped } from "../../../../common/decorators/tenant-scoped.decorator";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { TenantRolesGuard } from "../../../../common/guards/tenant-roles.guard";
 import { RedisService } from "../../../../common/redis/redis.service";
@@ -26,6 +27,7 @@ import { TenantDataExportService } from "../../application/tenant-data-export.se
 import { TenantDataImportService } from "../../application/tenant-data-import.service";
 
 @Controller()
+@TenantScoped()
 @UseGuards(JwtAuthGuard, TenantRolesGuard)
 export class ComplianceController {
   constructor(

@@ -23,11 +23,11 @@ import {
   Query,
   UseGuards
 } from "@nestjs/common";
-import {
-  CurrentUser,
-  type RequestUser
-} from "../../../../common/decorators/current-user.decorator";
 import { Roles } from "../../../../common/decorators/roles.decorator";
+import {
+  WorkspaceUser,
+  type WorkspaceRequestUser
+} from "../../../../common/decorators/workspace-user.decorator";
 import { AdminOrProjectManagerGuard } from "../../../../common/guards/admin-or-project-manager.guard";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../../../common/guards/roles.guard";
@@ -41,7 +41,7 @@ export class ProjectsController {
 
   @Get(ROUTES.PROJECTS.LIST)
   list(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Query(new ZodValidationPipe(listProjectsQuerySchema)) query: ListProjectsQuery,
     @Headers("x-auth-scope") authScope?: string
   ) {
@@ -54,21 +54,21 @@ export class ProjectsController {
   @Roles("ADMIN")
   @Post(ROUTES.PROJECTS.CREATE)
   create(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Body(new ZodValidationPipe(createProjectSchema)) body: unknown
   ) {
     return this.projects.create(user.workspaceId, body as Parameters<ProjectsService["create"]>[1]);
   }
 
   @Get(ROUTES.PROJECTS.BY_ID(":id"))
-  get(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+  get(@WorkspaceUser() user: WorkspaceRequestUser, @Param("id") id: string) {
     return this.projects.get(user.workspaceId, user.userId, user.role, id);
   }
 
   @Roles("ADMIN")
   @Patch(ROUTES.PROJECTS.BY_ID(":id"))
   update(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Param("id") id: string,
     @Body(new ZodValidationPipe(updateProjectSchema)) body: unknown
   ) {
@@ -81,14 +81,14 @@ export class ProjectsController {
 
   @Roles("ADMIN")
   @Delete(ROUTES.PROJECTS.BY_ID(":id"))
-  remove(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+  remove(@WorkspaceUser() user: WorkspaceRequestUser, @Param("id") id: string) {
     return this.projects.remove(user.workspaceId, id);
   }
 
   @UseGuards(AdminOrProjectManagerGuard)
   @Get(ROUTES.PROJECTS.TEAM(":id"))
   getTeam(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Param("id") id: string,
     @Query(new ZodValidationPipe(listProjectTeamQuerySchema)) query: ListProjectTeamQuery
   ) {
@@ -97,7 +97,7 @@ export class ProjectsController {
 
   @Get(ROUTES.PROJECTS.TEAM_ROSTER(":id"))
   getMemberTeamRoster(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Param("id") id: string,
     @Query(new ZodValidationPipe(listProjectTeamQuerySchema)) query: ListProjectTeamQuery
   ) {
@@ -107,7 +107,7 @@ export class ProjectsController {
   @UseGuards(AdminOrProjectManagerGuard)
   @Post(ROUTES.PROJECTS.TEAM_MEMBERS(":id"))
   addTeamMember(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Param("id") id: string,
     @Body(new ZodValidationPipe(addTeamMemberSchema)) body: unknown
   ) {
@@ -123,7 +123,7 @@ export class ProjectsController {
   @UseGuards(AdminOrProjectManagerGuard)
   @Patch(ROUTES.PROJECTS.TEAM_MEMBER(":projectId", ":memberId"))
   updateTeamMember(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Param("projectId") projectId: string,
     @Param("memberId") memberId: string,
     @Body(new ZodValidationPipe(updateTeamMemberSchema)) body: UpdateTeamMemberDto
@@ -141,7 +141,7 @@ export class ProjectsController {
   @UseGuards(AdminOrProjectManagerGuard)
   @Delete(ROUTES.PROJECTS.TEAM_MEMBER(":projectId", ":memberId"))
   removeTeamMember(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Param("projectId") projectId: string,
     @Param("memberId") memberId: string
   ) {
@@ -157,7 +157,7 @@ export class ProjectsController {
   @UseGuards(AdminOrProjectManagerGuard)
   @Post(ROUTES.PROJECTS.TEAM_INVITES(":id"))
   createTeamInvite(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Param("id") id: string,
     @Body(new ZodValidationPipe(createTeamInviteSchema)) body: unknown
   ) {

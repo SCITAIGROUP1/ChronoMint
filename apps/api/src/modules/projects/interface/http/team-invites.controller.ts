@@ -1,9 +1,9 @@
 import { ROUTES } from "@kloqra/contracts";
 import { Controller, Get, Param, Post, UseGuards } from "@nestjs/common";
 import {
-  CurrentUser,
-  type RequestUser
-} from "../../../../common/decorators/current-user.decorator";
+  WorkspaceUser,
+  type WorkspaceRequestUser
+} from "../../../../common/decorators/workspace-user.decorator";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { ProjectsService } from "../../application/projects.service";
 
@@ -18,7 +18,7 @@ export class TeamInvitesController {
 
   @UseGuards(JwtAuthGuard)
   @Post(ROUTES.TEAM_INVITES.ACCEPT(":token"))
-  accept(@Param("token") token: string, @CurrentUser() user: RequestUser) {
+  accept(@Param("token") token: string, @WorkspaceUser() user: WorkspaceRequestUser) {
     return this.projects.acceptInviteForUser(token, user.userId);
   }
 }

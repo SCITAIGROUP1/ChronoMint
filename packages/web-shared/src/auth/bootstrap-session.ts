@@ -107,9 +107,11 @@ export async function bootstrapSession(options: BootstrapOptions = {}): Promise<
 
     useSessionStore.getState().setSession(session, token);
 
-    const workspaces = await api<WorkspaceWithRoleDto[]>(ROUTES.WORKSPACES.LIST, {
-      workspaceId: session.workspaceId
-    });
+    const workspaces = session.workspaceId
+      ? await api<WorkspaceWithRoleDto[]>(ROUTES.WORKSPACES.LIST, {
+          workspaceId: session.workspaceId
+        })
+      : [];
 
     return { ok: true, session, workspaces };
   } catch {

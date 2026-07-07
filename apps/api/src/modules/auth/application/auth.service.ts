@@ -196,11 +196,7 @@ export class AuthService {
 
     const membership = user.memberships[0];
     if (!membership) {
-      throw new DomainException(
-        ErrorCodes.NOT_FOUND,
-        "No workspace membership",
-        HttpStatus.NOT_FOUND
-      );
+      return this.resolveAuthSessionForUser(user);
     }
     return this.buildSessionFromMembership({
       workspaceId: membership.workspaceId,
@@ -242,11 +238,18 @@ export class AuthService {
 
     const membership = user.memberships[0];
     if (!membership) {
-      throw new DomainException(
-        ErrorCodes.NOT_FOUND,
-        "No workspace membership",
-        HttpStatus.NOT_FOUND
-      );
+      if (!user.emailVerifiedAt) {
+        return { requiresEmailVerification: true, email: user.email };
+      }
+
+      if (user.totpEnabledAt && user.totpSecret) {
+        return {
+          requires2fa: true,
+          pendingToken: this.signPending2faToken(userId)
+        };
+      }
+
+      return this.resolveAuthSessionForUser(user);
     }
 
     if (!user.emailVerifiedAt) {
@@ -523,11 +526,14 @@ export class AuthService {
 
     const membership = verifiedUser.memberships[0];
     if (!membership) {
-      throw new DomainException(
-        ErrorCodes.NOT_FOUND,
-        "No workspace membership",
-        HttpStatus.NOT_FOUND
-      );
+      if (verifiedUser.totpEnabledAt && verifiedUser.totpSecret) {
+        return {
+          requires2fa: true,
+          pendingToken: this.signPending2faToken(verifiedUser.id)
+        };
+      }
+
+      return this.resolveAuthSessionForUser(verifiedUser);
     }
 
     if (verifiedUser.totpEnabledAt && verifiedUser.totpSecret) {
@@ -592,9 +598,8 @@ export class AuthService {
 
   signAccessToken(
     userId: string,
-    workspaceId: string,
-    role: "ADMIN" | "MEMBER",
     tenantId: string,
+    context: { workspaceId: string; role: "ADMIN" | "MEMBER" } | { tenantRole: "OWNER" | "ADMIN" },
     impersonatorId?: string,
     scope?: "client" | "admin",
     family?: string
@@ -603,20 +608,20 @@ export class AuthService {
     if (!secret) {
       throw new Error("JWT_ACCESS_SECRET is not set on the API service");
     }
-    return this.jwt.sign(
-      {
-        sub: userId,
-        userId,
-        workspaceId,
-        tenantId,
-        role,
-        typ: "access",
-        ...(family ? { family } : {}),
-        ...(scope ? { scope } : {}),
-        ...(impersonatorId ? { impersonatorId } : {})
-      },
-      { secret, expiresIn: process.env.JWT_ACCESS_EXPIRES ?? "15m" }
-    );
+    const base = {
+      sub: userId,
+      userId,
+      tenantId,
+      typ: "access" as const,
+      ...(family ? { family } : {}),
+      ...(scope ? { scope } : {}),
+      ...(impersonatorId ? { impersonatorId } : {})
+    };
+    const payload =
+      "workspaceId" in context
+        ? { ...base, workspaceId: context.workspaceId, role: context.role }
+        : { ...base, tenantRole: context.tenantRole };
+    return this.jwt.sign(payload, { secret, expiresIn: process.env.JWT_ACCESS_EXPIRES ?? "15m" });
   }
 
   /**
@@ -625,7 +630,7 @@ export class AuthService {
    */
   async signAndStoreRefreshToken(
     userId: string,
-    workspaceId: string,
+    workspaceId: string | null | undefined,
     family?: string,
     impersonatorId?: string,
     sessionMeta?: { userAgent?: string; ipAddress?: string },
@@ -638,7 +643,7 @@ export class AuthService {
     const raw = this.jwt.sign(
       {
         sub: userId,
-        workspaceId,
+        ...(workspaceId ? { workspaceId } : {}),
         family: tokenFamily,
         jti: randomUUID(),
         typ: "refresh",
@@ -655,7 +660,7 @@ export class AuthService {
     await this.prisma.refreshToken.create({
       data: {
         userId,
-        workspaceId,
+        workspaceId: workspaceId ?? null,
         tokenHash: hashToken(raw),
         family: tokenFamily,
         expiresAt,
@@ -761,7 +766,7 @@ export class AuthService {
         if (active && uaMatch) {
           const session = await this.refreshSession(
             stored.userId,
-            stored.workspaceId,
+            stored.workspaceId ?? undefined,
             impersonatorId
           );
           return { session, newRefreshToken: null, family: family ?? stored.family };
@@ -791,7 +796,11 @@ export class AuthService {
     }
 
     // Build session
-    const session = await this.refreshSession(stored.userId, stored.workspaceId, impersonatorId);
+    const session = await this.refreshSession(
+      stored.userId,
+      stored.workspaceId ?? undefined,
+      impersonatorId
+    );
     if (!session) return { session: null, newRefreshToken: null };
 
     // Issue rotated token in same family
@@ -852,7 +861,18 @@ export class AuthService {
           include: { user: true, workspace: true },
           orderBy: { createdAt: "asc" }
         });
-    if (!membership) return null;
+    if (!membership) {
+      const user = await this.db().user.findUnique({
+        where: { id: userId },
+        include: { memberships: loginMembershipsInclude }
+      });
+      if (!user) return null;
+      try {
+        return await this.resolveAuthSessionForUser(user, impersonatorId);
+      } catch {
+        return null;
+      }
+    }
     if (!isWorkspaceMembershipActive(membership)) return null;
 
     let impersonatorName: string | undefined;
@@ -866,9 +886,17 @@ export class AuthService {
 
   async getMe(
     userId: string,
-    workspaceId: string,
+    workspaceId?: string,
     impersonatorId?: string
   ): Promise<AuthSessionDto> {
+    if (!workspaceId?.trim()) {
+      const dbUser = await this.db().user.findUniqueOrThrow({
+        where: { id: userId },
+        include: { memberships: loginMembershipsInclude }
+      });
+      return this.resolveAuthSessionForUser(dbUser, impersonatorId);
+    }
+
     const dbUser = await this.db().user.findUniqueOrThrow({ where: { id: userId } });
     const workspace = await this.db().workspace.findUniqueOrThrow({
       where: { id: workspaceId }
@@ -896,6 +924,101 @@ export class AuthService {
       impersonatorId,
       impersonatorName
     );
+  }
+
+  private async resolveAuthSessionForUser(
+    user: {
+      id: string;
+      email: string;
+      name: string;
+      firstName?: string | null;
+      lastName?: string | null;
+      defaultHourlyRate: { toNumber(): number } | null;
+      preferences?: unknown;
+      memberships: Array<{
+        workspaceId: string;
+        role: string;
+        workspace: { name: string; tenantId: string };
+      }>;
+    },
+    impersonatorId?: string,
+    impersonatorName?: string
+  ): Promise<AuthSessionDto> {
+    const membership = user.memberships[0];
+    if (membership) {
+      return this.buildSessionFromMembership(
+        {
+          workspaceId: membership.workspaceId,
+          role: membership.role,
+          workspace: membership.workspace,
+          user
+        },
+        impersonatorId,
+        impersonatorName
+      );
+    }
+
+    const tenantMember = await this.prisma.tenantMember.findUnique({
+      where: { userId: user.id },
+      select: { tenantId: true, role: true, isActive: true }
+    });
+    if (
+      !tenantMember?.isActive ||
+      (tenantMember.role !== "OWNER" && tenantMember.role !== "ADMIN")
+    ) {
+      throw new DomainException(
+        ErrorCodes.NOT_FOUND,
+        "No workspace membership",
+        HttpStatus.NOT_FOUND
+      );
+    }
+
+    await assertTenantAllowsOperations(this.prisma, tenantMember.tenantId);
+    return this.buildTenantOperatorSession(
+      user,
+      tenantMember.tenantId,
+      tenantMember.role as "OWNER" | "ADMIN",
+      impersonatorId,
+      impersonatorName
+    );
+  }
+
+  private buildTenantOperatorSession(
+    user: {
+      id: string;
+      email: string;
+      name: string;
+      firstName?: string | null;
+      lastName?: string | null;
+      defaultHourlyRate: { toNumber(): number } | null;
+      preferences?: unknown;
+    },
+    tenantId: string,
+    tenantRole: "OWNER" | "ADMIN",
+    impersonatorId?: string,
+    impersonatorName?: string
+  ): AuthSessionDto {
+    const names = user.firstName
+      ? { firstName: user.firstName, lastName: user.lastName ?? "" }
+      : splitDisplayName(user.name);
+    const preferences = parseUserPreferences(user.preferences);
+    return {
+      user: {
+        id: user.id,
+        name: user.name,
+        firstName: names.firstName,
+        lastName: names.lastName,
+        defaultHourlyRate: user.defaultHourlyRate?.toNumber() ?? null
+      },
+      tenantId,
+      tenantRole,
+      requiresWorkspaceSetup: true,
+      ...(preferences.defaultWorkspaceId
+        ? { defaultWorkspaceId: preferences.defaultWorkspaceId }
+        : {}),
+      impersonatorId,
+      impersonatorName
+    };
   }
 
   private async buildSessionFromMembership(
@@ -1031,9 +1154,11 @@ export class AuthService {
 
     const accessToken = this.signAccessToken(
       targetMembership.userId,
-      targetMembership.workspaceId,
-      targetMembership.role as "ADMIN" | "MEMBER",
       session.tenantId,
+      {
+        workspaceId: targetMembership.workspaceId,
+        role: targetMembership.role as "ADMIN" | "MEMBER"
+      },
       adminUser.id,
       "client",
       issued.family

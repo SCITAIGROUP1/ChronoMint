@@ -14,7 +14,7 @@ import {
   AuthShell,
   extractFieldErrorsFromMessage,
   hasMultipleWorkspaces,
-  resolveAdminLandingPath,
+  resolveAdminOnboardingPath,
   shouldShowAdminContextPicker,
   orgLoginDescription,
   useOrgLoginBranding
@@ -52,6 +52,11 @@ export default function LoginPage() {
     const switched = await applyDefaultWorkspaceIfNeeded(res, res.accessToken);
     setSession(switched.session, switched.accessToken, res.refreshToken);
 
+    if (switched.session.requiresWorkspaceSetup) {
+      router.push(await resolveAdminOnboardingPath(switched.session));
+      return;
+    }
+
     try {
       const workspaces = await api<WorkspaceListItemDto[]>(ROUTES.WORKSPACES.LIST, {
         workspaceId: switched.session.workspaceId
@@ -74,7 +79,7 @@ export default function LoginPage() {
     }
 
     if (switched.session.tenantRole === "OWNER" || switched.session.tenantRole === "ADMIN") {
-      router.push(await resolveAdminLandingPath(switched.session, switched.session.workspaceId));
+      router.push(await resolveAdminOnboardingPath(switched.session));
       return;
     }
 

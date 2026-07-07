@@ -9,9 +9,9 @@ import {
 } from "@kloqra/contracts";
 import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
 import {
-  CurrentUser,
-  type RequestUser
-} from "../../../../common/decorators/current-user.decorator";
+  WorkspaceUser,
+  type WorkspaceRequestUser
+} from "../../../../common/decorators/workspace-user.decorator";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
 import { NotificationsService } from "../../application/notifications.service";
@@ -23,20 +23,20 @@ export class NotificationsController {
 
   @Get(ROUTES.NOTIFICATIONS.LIST)
   list(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Query(new ZodValidationPipe(listNotificationsQuerySchema)) query: ListNotificationsQuery
   ) {
     return this.notifications.list(user.userId, user.workspaceId, query);
   }
 
   @Get(ROUTES.NOTIFICATIONS.UNREAD_COUNT)
-  unreadCount(@CurrentUser() user: RequestUser) {
+  unreadCount(@WorkspaceUser() user: WorkspaceRequestUser) {
     return this.notifications.unreadCount(user.userId, user.workspaceId);
   }
 
   @Patch(ROUTES.NOTIFICATIONS.BY_ID(":id"))
   updateRead(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Param("id") id: string,
     @Body(new ZodValidationPipe(updateNotificationReadSchema)) body: UpdateNotificationReadDto
   ) {
@@ -45,7 +45,7 @@ export class NotificationsController {
 
   @Post(ROUTES.NOTIFICATIONS.MARK_ALL_READ)
   markAllRead(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Body(new ZodValidationPipe(markAllNotificationsReadSchema)) body: MarkAllNotificationsReadDto
   ) {
     return this.notifications.markAllRead(user.userId, user.workspaceId, body);

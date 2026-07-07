@@ -33,6 +33,7 @@ import {
   type RequestUser
 } from "../../../../common/decorators/current-user.decorator";
 import { TenantRoles } from "../../../../common/decorators/tenant-roles.decorator";
+import { TenantScoped } from "../../../../common/decorators/tenant-scoped.decorator";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { TenantRolesGuard } from "../../../../common/guards/tenant-roles.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
@@ -45,6 +46,7 @@ import { TenantWorkspaceAdminsOverviewService } from "../../application/tenant-w
 import { TenantsService } from "../../application/tenants.service";
 
 @Controller()
+@TenantScoped()
 @UseGuards(JwtAuthGuard, TenantRolesGuard)
 export class TenantsController {
   constructor(

@@ -24,8 +24,9 @@ export interface VerifiedAccessPayload {
   sub: string;
   userId: string;
   tenantId: string;
-  workspaceId: string;
-  role: "ADMIN" | "MEMBER";
+  workspaceId?: string;
+  role?: "ADMIN" | "MEMBER";
+  tenantRole?: "OWNER" | "ADMIN";
   impersonatorId?: string;
   scope?: "client" | "admin";
   family?: string;
@@ -109,7 +110,28 @@ export class JwtTokenService {
     const tenantId = typeof payload.tenantId === "string" ? payload.tenantId : undefined;
     const workspaceId = typeof payload.workspaceId === "string" ? payload.workspaceId : undefined;
     const role = payload.role;
-    if (!sub || !tenantId || !workspaceId || (role !== "ADMIN" && role !== "MEMBER")) {
+    const tenantRole = payload.tenantRole;
+    const hasWorkspace = Boolean(workspaceId);
+    const hasTenantRole = tenantRole === "OWNER" || tenantRole === "ADMIN";
+    const hasWorkspaceRole = role === "ADMIN" || role === "MEMBER";
+
+    if (!sub || !tenantId) {
+      throw new UnauthorizedException({
+        code: ErrorCodes.UNAUTHORIZED,
+        message: "Invalid token claims",
+        details: { reason: "missing_claims" as AuthTokenFailureReason }
+      });
+    }
+
+    if (hasWorkspace) {
+      if (!hasWorkspaceRole) {
+        throw new UnauthorizedException({
+          code: ErrorCodes.UNAUTHORIZED,
+          message: "Invalid token claims",
+          details: { reason: "missing_claims" as AuthTokenFailureReason }
+        });
+      }
+    } else if (!hasTenantRole) {
       throw new UnauthorizedException({
         code: ErrorCodes.UNAUTHORIZED,
         message: "Invalid token claims",
@@ -135,19 +157,20 @@ export class JwtTokenService {
       userId: typeof payload.userId === "string" ? payload.userId : sub,
       tenantId,
       workspaceId,
-      role,
+      role: hasWorkspaceRole ? role : undefined,
+      tenantRole: hasTenantRole ? (tenantRole as "OWNER" | "ADMIN") : undefined,
       impersonatorId,
       scope: scope === "client" || scope === "admin" ? scope : undefined,
       family
     };
   }
 
-  toRequestUser(payload: VerifiedAccessPayload, workspaceId: string): RequestUser {
+  toRequestUser(payload: VerifiedAccessPayload, workspaceId?: string): RequestUser {
     return {
       userId: payload.sub,
       tenantId: payload.tenantId,
-      workspaceId,
-      role: payload.role,
+      ...(workspaceId ? { workspaceId } : {}),
+      ...(payload.role ? { role: payload.role } : {}),
       impersonatorId: payload.impersonatorId
     };
   }

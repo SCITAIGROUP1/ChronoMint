@@ -1,9 +1,9 @@
 import { startTimerSchema, stopTimerSchema, ROUTES } from "@kloqra/contracts";
 import { Body, Controller, Get, Post, UseGuards } from "@nestjs/common";
 import {
-  CurrentUser,
-  type RequestUser
-} from "../../../../common/decorators/current-user.decorator";
+  WorkspaceUser,
+  type WorkspaceRequestUser
+} from "../../../../common/decorators/workspace-user.decorator";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
 import { TimerService } from "../../application/timer.service";
@@ -15,7 +15,7 @@ export class TimerController {
 
   @Post(ROUTES.TIMER.START)
   start(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Body(new ZodValidationPipe(startTimerSchema)) body: unknown
   ) {
     return this.timer.start(
@@ -28,7 +28,7 @@ export class TimerController {
 
   @Post(ROUTES.TIMER.STOP)
   stop(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Body(new ZodValidationPipe(stopTimerSchema)) body: unknown
   ) {
     return this.timer.stop(
@@ -40,27 +40,27 @@ export class TimerController {
   }
 
   @Get(ROUTES.TIMER.ACTIVE)
-  active(@CurrentUser() user: RequestUser) {
+  active(@WorkspaceUser() user: WorkspaceRequestUser) {
     return this.timer.active(user.workspaceId, user.userId);
   }
 
   @Post(ROUTES.TIMER.PAUSE)
-  pause(@CurrentUser() user: RequestUser) {
+  pause(@WorkspaceUser() user: WorkspaceRequestUser) {
     return this.timer.pause(user.workspaceId, user.userId);
   }
 
   @Post(ROUTES.TIMER.RESUME)
-  resume(@CurrentUser() user: RequestUser) {
+  resume(@WorkspaceUser() user: WorkspaceRequestUser) {
     return this.timer.resume(user.workspaceId, user.userId);
   }
 
   @Post(ROUTES.TIMER.DISCARD)
-  discard(@CurrentUser() user: RequestUser) {
+  discard(@WorkspaceUser() user: WorkspaceRequestUser) {
     return this.timer.discard(user.workspaceId, user.userId);
   }
 
   @Get(ROUTES.TIMER.ACTIVE_COUNT)
-  activeCount(@CurrentUser() user: RequestUser) {
+  activeCount(@WorkspaceUser() user: WorkspaceRequestUser) {
     return this.timer.activeCount(user.workspaceId);
   }
 }

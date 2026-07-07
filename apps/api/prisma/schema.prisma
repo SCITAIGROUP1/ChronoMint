@@ -651,7 +651,7 @@ model WidgetShare {
 model RefreshToken {
   id          String    @id @default(uuid())
   userId      String    @map("user_id")
-  workspaceId String    @map("workspace_id")
+  workspaceId String?   @map("workspace_id")
   tokenHash   String    @unique @map("token_hash")  // SHA-256 of the raw JWT
   family      String    // Random family ID — rotating every refresh; used for replay detection
   userAgent   String?   @map("user_agent")

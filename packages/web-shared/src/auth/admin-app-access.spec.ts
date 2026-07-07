@@ -43,6 +43,15 @@ describe("canLoginToAdminApp", () => {
     ).toBe(true);
   });
 
+  it("allows tenant owner during workspace setup", () => {
+    expect(
+      canLoginToAdminApp({
+        tenantRole: "OWNER",
+        requiresWorkspaceSetup: true
+      })
+    ).toBe(true);
+  });
+
   it("denies plain workspace member", () => {
     expect(canLoginToAdminApp({ workspaceRole: "MEMBER", tenantRole: undefined })).toBe(false);
   });

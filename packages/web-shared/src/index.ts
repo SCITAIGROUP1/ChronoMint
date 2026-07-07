@@ -252,6 +252,12 @@ export {
 } from "./hooks/use-platform-notifications";
 export { usePlatformNotificationSocket } from "./hooks/use-platform-notification-socket";
 export { resolveAdminLandingPath } from "./auth/resolve-admin-landing-path";
+export { resolveAdminOnboardingPath } from "./auth/resolve-admin-onboarding-path";
+export {
+  isPendingWorkspaceSetup,
+  isAllowedDuringWorkspaceSetup,
+  resolveWorkspaceSetupRedirect
+} from "./auth/tenant-onboarding";
 export { SettingsCard } from "./features/account/settings/settings-card";
 export { SettingsSaveBar } from "./features/account/settings/settings-save-bar";
 export {

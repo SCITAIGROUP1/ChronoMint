@@ -7,11 +7,11 @@ import {
   type UpdateReportingApiKeyDto
 } from "@kloqra/contracts";
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
-import {
-  CurrentUser,
-  type RequestUser
-} from "../../../../common/decorators/current-user.decorator";
 import { Roles } from "../../../../common/decorators/roles.decorator";
+import {
+  WorkspaceUser,
+  type WorkspaceRequestUser
+} from "../../../../common/decorators/workspace-user.decorator";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../../../common/guards/roles.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
@@ -24,7 +24,7 @@ export class ReportingApiKeysController {
 
   @Roles("ADMIN")
   @Get(ROUTES.REPORTING_API_KEYS.LIST)
-  async list(@CurrentUser() user: RequestUser) {
+  async list(@WorkspaceUser() user: WorkspaceRequestUser) {
     const items = await this.credentials.list(user.workspaceId, user.tenantId);
     return reportingApiKeyListSchema.parse({ items });
   }
@@ -32,7 +32,7 @@ export class ReportingApiKeysController {
   @Roles("ADMIN")
   @Post(ROUTES.REPORTING_API_KEYS.CREATE)
   create(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Body(new ZodValidationPipe(createReportingApiKeySchema)) body: CreateReportingApiKeyDto
   ) {
     return this.credentials.create(user.workspaceId, user.tenantId, body);
@@ -41,7 +41,7 @@ export class ReportingApiKeysController {
   @Roles("ADMIN")
   @Patch(ROUTES.REPORTING_API_KEYS.BY_ID(":id"))
   update(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Param("id") id: string,
     @Body(new ZodValidationPipe(updateReportingApiKeySchema)) body: UpdateReportingApiKeyDto
   ) {
@@ -50,7 +50,7 @@ export class ReportingApiKeysController {
 
   @Roles("ADMIN")
   @Delete(ROUTES.REPORTING_API_KEYS.BY_ID(":id"))
-  async revoke(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+  async revoke(@WorkspaceUser() user: WorkspaceRequestUser, @Param("id") id: string) {
     await this.credentials.revoke(user.workspaceId, user.tenantId, id);
     return { ok: true };
   }

@@ -9,11 +9,11 @@ import {
 } from "@kloqra/contracts";
 import { Controller, Get, Post, Query, Param, Body, UseGuards, HttpCode } from "@nestjs/common";
 import { ProjectAccessService } from "../../../../common/access/project-access.service";
-import {
-  CurrentUser,
-  type RequestUser
-} from "../../../../common/decorators/current-user.decorator";
 import { Roles } from "../../../../common/decorators/roles.decorator";
+import {
+  WorkspaceUser,
+  type WorkspaceRequestUser
+} from "../../../../common/decorators/workspace-user.decorator";
 import { AdminOrProjectManagerGuard } from "../../../../common/guards/admin-or-project-manager.guard";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../../../common/guards/roles.guard";
@@ -30,7 +30,7 @@ export class ReportingController {
     private access: ProjectAccessService
   ) {}
 
-  private async allowedProjectIds(user: RequestUser): Promise<string[] | undefined> {
+  private async allowedProjectIds(user: WorkspaceRequestUser): Promise<string[] | undefined> {
     if (user.role === "ADMIN") return undefined;
     return this.access.manageableProjectIds(user.workspaceId, user.userId, user.role);
   }
@@ -39,7 +39,7 @@ export class ReportingController {
   @Roles("ADMIN", "MEMBER")
   @Get(ROUTES.REPORTING.DASHBOARD)
   async dashboard(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Query(new ZodValidationPipe(reportQuerySchema)) query: unknown
   ) {
     const projectIds = await this.allowedProjectIds(user);
@@ -54,7 +54,7 @@ export class ReportingController {
   @Roles("ADMIN", "MEMBER")
   @Get(ROUTES.REPORTING.UTILIZATION)
   async utilization(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Query(new ZodValidationPipe(utilizationQuerySchema)) query: UtilizationQueryDto
   ) {
     const projectIds = await this.allowedProjectIds(user);
@@ -64,7 +64,7 @@ export class ReportingController {
   @UseGuards(AdminOrProjectManagerGuard)
   @Roles("ADMIN", "MEMBER")
   @Get(ROUTES.REPORTING.BUDGET(":id"))
-  async budgetBurnDown(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+  async budgetBurnDown(@WorkspaceUser() user: WorkspaceRequestUser, @Param("id") id: string) {
     await this.access.assertCanManageProject(user.workspaceId, user.userId, user.role, id);
     return this.reporting.budgetBurnDown(user.workspaceId, id);
   }
@@ -73,7 +73,7 @@ export class ReportingController {
   @Roles("ADMIN", "MEMBER")
   @Get(ROUTES.REPORTING.HEATMAP)
   async heatmap(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Query(new ZodValidationPipe(reportQuerySchema)) query: unknown
   ) {
     const projectIds = await this.allowedProjectIds(user);
@@ -88,7 +88,7 @@ export class ReportingController {
   @Roles("ADMIN", "MEMBER")
   @Get(ROUTES.REPORTING.CATEGORIES_HEATMAP)
   async categoriesHeatmap(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Query(new ZodValidationPipe(reportQuerySchema)) query: unknown
   ) {
     const projectIds = await this.allowedProjectIds(user);
@@ -103,7 +103,7 @@ export class ReportingController {
   @Roles("ADMIN", "MEMBER")
   @Get(ROUTES.REPORTING.TASKS)
   async tasks(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Query(new ZodValidationPipe(reportQuerySchema)) query: unknown
   ) {
     const projectIds = await this.allowedProjectIds(user);
@@ -117,7 +117,7 @@ export class ReportingController {
   @Roles("ADMIN", "MEMBER")
   @Get(ROUTES.REPORTING.PROJECT_SUMMARY(":projectId"))
   projectSummary(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Param("projectId") projectId: string,
     @Query(new ZodValidationPipe(projectSummaryQuerySchema)) query: unknown
   ) {
@@ -133,7 +133,7 @@ export class ReportingController {
   @Roles("ADMIN", "MEMBER")
   @Get(ROUTES.REPORTING.ME)
   myWeek(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Query(new ZodValidationPipe(myWeekQuerySchema)) query: unknown
   ) {
     return this.reporting.myWeekSummary(
@@ -147,7 +147,7 @@ export class ReportingController {
   @HttpCode(200)
   @Post(ROUTES.REPORTING.WIDGET_SHARES)
   createWidgetShare(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Body(new ZodValidationPipe(createWidgetShareSchema)) body: unknown
   ) {
     const rawAdmin = process.env.PUBLIC_ADMIN_URL ?? process.env.ADMIN_PUBLIC_URL;

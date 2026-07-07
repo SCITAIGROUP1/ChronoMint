@@ -7,11 +7,13 @@ import {
   Injectable,
   UnauthorizedException
 } from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
 import { ProjectAccessService } from "../access/project-access.service";
 import { AuthRevocationService } from "../auth/auth-revocation.service";
 import { accessCookieName, getAuthScope } from "../auth/auth-scope";
 import { JwtTokenService } from "../auth/jwt-token.service";
 import { resolveWorkspaceId } from "../auth/resolve-workspace-id";
+import { TENANT_SCOPED_KEY } from "../decorators/tenant-scoped.decorator";
 import { PrismaService } from "../prisma/prisma.service";
 import { assertJwtWorkspaceTenant } from "../tenant/tenant-context";
 
@@ -21,7 +23,8 @@ export class JwtAuthGuard implements CanActivate {
     private jwtTokens: JwtTokenService,
     private authRevocation: AuthRevocationService,
     private prisma: PrismaService,
-    private projectAccess: ProjectAccessService
+    private projectAccess: ProjectAccessService,
+    private reflector: Reflector
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -64,9 +67,23 @@ export class JwtAuthGuard implements CanActivate {
       const headerWs = req.headers["x-workspace-id"];
       const headerValue = Array.isArray(headerWs) ? headerWs[0] : headerWs;
       const workspaceId = resolveWorkspaceId(payload.workspaceId, headerValue);
-      await assertJwtWorkspaceTenant(this.prisma, payload.tenantId, workspaceId);
+      const tenantScoped = this.reflector.getAllAndOverride<boolean>(TENANT_SCOPED_KEY, [
+        context.getHandler(),
+        context.getClass()
+      ]);
+
+      if (!tenantScoped && !workspaceId) {
+        throw new UnauthorizedException({
+          code: ErrorCodes.WORKSPACE_REQUIRED,
+          message: "Workspace required"
+        });
+      }
+
+      if (workspaceId) {
+        await assertJwtWorkspaceTenant(this.prisma, payload.tenantId, workspaceId);
+      }
       const requestUser = this.jwtTokens.toRequestUser(payload, workspaceId);
-      if (requestUser.role === "MEMBER") {
+      if (requestUser.role === "MEMBER" && workspaceId) {
         requestUser.managedProjectIds = await this.projectAccess.managedProjectIds(
           workspaceId,
           requestUser.userId

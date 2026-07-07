@@ -27,11 +27,11 @@ import {
 } from "@nestjs/common";
 import { type Response } from "express";
 import { ProjectAccessService } from "../../../../common/access/project-access.service";
-import {
-  CurrentUser,
-  type RequestUser
-} from "../../../../common/decorators/current-user.decorator";
 import { Roles } from "../../../../common/decorators/roles.decorator";
+import {
+  WorkspaceUser,
+  type WorkspaceRequestUser
+} from "../../../../common/decorators/workspace-user.decorator";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../../../common/guards/roles.guard";
 import { sendAttachment } from "../../../../common/http/attachment.util";
@@ -59,7 +59,7 @@ export class ExportController {
   @Roles("ADMIN")
   @Post(ROUTES.EXPORT.GENERATE)
   async generatePost(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Body(new ZodValidationPipe(exportBodySchema)) body: unknown,
     @Res() res: Response
   ) {
@@ -73,7 +73,7 @@ export class ExportController {
   @Roles("ADMIN")
   @Post(ROUTES.EXPORT.INVOICE)
   async generateInvoice(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Body(new ZodValidationPipe(generateInvoiceSchema)) body: GenerateInvoiceDto,
     @Res() res: Response
   ) {
@@ -88,7 +88,7 @@ export class ExportController {
   @Roles("ADMIN")
   @Post(ROUTES.EXPORT.JOBS)
   async createJob(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Body(new ZodValidationPipe(createExportJobSchema)) body: unknown
   ) {
     return this.exportJobs.create(
@@ -100,20 +100,20 @@ export class ExportController {
 
   @Roles("ADMIN")
   @Get(ROUTES.EXPORT.JOBS)
-  async listJobs(@CurrentUser() user: RequestUser) {
+  async listJobs(@WorkspaceUser() user: WorkspaceRequestUser) {
     return this.exportJobs.list(user.workspaceId);
   }
 
   @Roles("ADMIN")
   @Get(ROUTES.EXPORT.JOB(":id"))
-  async getJob(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+  async getJob(@WorkspaceUser() user: WorkspaceRequestUser, @Param("id") id: string) {
     return this.exportJobs.get(user.workspaceId, id);
   }
 
   @Roles("ADMIN")
   @Get(ROUTES.EXPORT.JOB_DOWNLOAD(":id"))
   async downloadJob(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Param("id") id: string,
     @Res() res: Response
   ) {
@@ -125,7 +125,7 @@ export class ExportController {
   @HttpCode(200)
   @Post(ROUTES.EXPORT.PREVIEW)
   async preview(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Body(new ZodValidationPipe(exportPreviewBodySchema)) body: unknown
   ) {
     return this.exportService.preview(
@@ -136,14 +136,14 @@ export class ExportController {
 
   @Roles("ADMIN")
   @Get(ROUTES.EXPORT.PRESETS)
-  async listPresets(@CurrentUser() user: RequestUser) {
+  async listPresets(@WorkspaceUser() user: WorkspaceRequestUser) {
     return this.exportPresets.list(user.workspaceId);
   }
 
   @Roles("ADMIN")
   @Post(ROUTES.EXPORT.PRESETS)
   async createPreset(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Body(new ZodValidationPipe(createExportPresetSchema)) body: unknown
   ) {
     return this.exportPresets.create(
@@ -154,21 +154,21 @@ export class ExportController {
 
   @Roles("ADMIN")
   @Delete(ROUTES.EXPORT.PRESET(":id"))
-  async deletePreset(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+  async deletePreset(@WorkspaceUser() user: WorkspaceRequestUser, @Param("id") id: string) {
     await this.exportPresets.remove(user.workspaceId, id);
     return { ok: true };
   }
 
   @Roles("ADMIN")
   @Get(ROUTES.EXPORT.SCHEDULES)
-  async listSchedules(@CurrentUser() user: RequestUser) {
+  async listSchedules(@WorkspaceUser() user: WorkspaceRequestUser) {
     return this.exportSchedules.list(user.workspaceId);
   }
 
   @Roles("ADMIN")
   @Post(ROUTES.EXPORT.SCHEDULES)
   async createSchedule(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Body(new ZodValidationPipe(createExportScheduleSchema)) body: unknown
   ) {
     return this.exportSchedules.create(
@@ -180,7 +180,7 @@ export class ExportController {
   @Roles("ADMIN")
   @Patch(ROUTES.EXPORT.SCHEDULE(":id"))
   async updateSchedule(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Param("id") id: string,
     @Body(new ZodValidationPipe(updateExportScheduleSchema)) body: unknown
   ) {
@@ -193,7 +193,7 @@ export class ExportController {
 
   @Roles("ADMIN")
   @Delete(ROUTES.EXPORT.SCHEDULE(":id"))
-  async deleteSchedule(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+  async deleteSchedule(@WorkspaceUser() user: WorkspaceRequestUser, @Param("id") id: string) {
     await this.exportSchedules.remove(user.workspaceId, id);
     return { ok: true };
   }
@@ -202,7 +202,7 @@ export class ExportController {
   @HttpCode(200)
   @Post(ROUTES.EXPORT.SHARES)
   async createShare(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Body(new ZodValidationPipe(createReportShareSchema)) body: unknown
   ) {
     const rawAdmin = process.env.PUBLIC_ADMIN_URL ?? process.env.ADMIN_PUBLIC_URL;
@@ -227,7 +227,7 @@ export class ExportController {
   @Roles("ADMIN", "MEMBER")
   @Post(ROUTES.EXPORT.ME)
   async generateMember(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Body(new ZodValidationPipe(memberExportBodySchema)) body: unknown,
     @Res() res: Response
   ) {
@@ -247,7 +247,7 @@ export class ExportController {
   @Roles("ADMIN")
   @Get(ROUTES.EXPORT.GENERATE)
   async generateGet(
-    @CurrentUser() user: RequestUser,
+    @WorkspaceUser() user: WorkspaceRequestUser,
     @Query(new ZodValidationPipe(exportQuerySchema)) query: unknown,
     @Res() res: Response
   ) {
