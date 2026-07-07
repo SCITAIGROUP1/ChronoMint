@@ -41,6 +41,7 @@ describe("timelog-data-sync", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetQueryClient();
+    vi.useRealTimers();
   });
 
   it("invalidates inflight requests, query cache, and workspace scopes", async () => {
@@ -51,7 +52,7 @@ describe("timelog-data-sync", () => {
     expect(invalidateWorkspaceData).toHaveBeenCalledWith(workspaceId, ["timelogs", "timesheet"]);
   });
 
-  it("runs local refresh before broadcasting stale", async () => {
+  it("runs local refresh before broadcasting stale when no cache patch", async () => {
     const localRefresh = vi.fn().mockResolvedValue(undefined);
     const client = getQueryClient();
     const cancelSpy = vi.spyOn(client, "cancelQueries");
@@ -64,13 +65,32 @@ describe("timelog-data-sync", () => {
     expect(invalidateWorkspaceData).toHaveBeenCalledWith(workspaceId, ["timelogs", "timesheet"]);
   });
 
-  it("applies cache patch before local refresh", async () => {
+  it("skips eager local refresh and re-applies cache patch after invalidation", async () => {
     const localRefresh = vi.fn().mockResolvedValue(undefined);
     const patch = { type: "upsert" as const, log: sampleLog };
 
     await commitTimelogMutation(workspaceId, localRefresh, patch);
 
-    expect(applyTimelogCachePatch).toHaveBeenCalledWith(workspaceId, patch);
-    expect(localRefresh).toHaveBeenCalled();
+    expect(localRefresh).not.toHaveBeenCalled();
+    expect(applyTimelogCachePatch).toHaveBeenCalledTimes(3);
+    expect(applyTimelogCachePatch).toHaveBeenNthCalledWith(1, workspaceId, patch);
+    expect(applyTimelogCachePatch).toHaveBeenNthCalledWith(2, workspaceId, patch);
+    expect(applyTimelogCachePatch).toHaveBeenNthCalledWith(3, workspaceId, patch);
+    expect(invalidateTimelogQueries).toHaveBeenCalledWith(workspaceId);
+    expect(invalidateWorkspaceData).toHaveBeenCalledWith(workspaceId, ["timelogs", "timesheet"]);
+  });
+
+  it("schedules deferred cache patch reapply after workspace broadcast", async () => {
+    vi.useFakeTimers();
+    const patch = { type: "upsert" as const, log: sampleLog };
+
+    const commit = commitTimelogMutation(workspaceId, undefined, patch);
+    await commit;
+
+    expect(applyTimelogCachePatch).toHaveBeenCalledTimes(3);
+
+    await vi.runAllTimersAsync();
+    expect(applyTimelogCachePatch.mock.calls.length).toBeGreaterThanOrEqual(5);
+    expect(applyTimelogCachePatch).toHaveBeenLastCalledWith(workspaceId, patch);
   });
 });

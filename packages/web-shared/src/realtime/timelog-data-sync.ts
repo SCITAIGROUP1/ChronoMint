@@ -12,6 +12,21 @@ function clearTimelogInflightRequests(): void {
   clearInflightGetRequestsForPath("/timelogs");
 }
 
+function reapplyCachePatch(workspaceId: string, cachePatch: TimelogCachePatch): void {
+  applyTimelogCachePatch(workspaceId, cachePatch);
+}
+
+/**
+ * Socket + workspace stale handlers fire additional timelog invalidations after a save.
+ * Re-apply the mutation result so a briefly-stale list refetch cannot win over the POST body.
+ */
+function scheduleCachePatchReapply(workspaceId: string, cachePatch: TimelogCachePatch): void {
+  if (typeof window === "undefined") return;
+  queueMicrotask(() => reapplyCachePatch(workspaceId, cachePatch));
+  window.setTimeout(() => reapplyCachePatch(workspaceId, cachePatch), 0);
+  window.setTimeout(() => reapplyCachePatch(workspaceId, cachePatch), 100);
+}
+
 /** Broadcast timelog stale to every mounted view (timesheet, tracker, dashboard, timer). */
 export async function invalidateTimelogData(workspaceId: string): Promise<void> {
   clearTimelogInflightRequests();
@@ -27,11 +42,26 @@ export async function commitTimelogMutation(
 ): Promise<void> {
   clearTimelogInflightRequests();
   await getQueryClient().cancelQueries({ queryKey: timelogQueryKeys.workspace(workspaceId) });
+
   if (cachePatch) {
-    applyTimelogCachePatch(workspaceId, cachePatch);
+    reapplyCachePatch(workspaceId, cachePatch);
   }
-  if (localRefresh) {
+
+  // When we have the POST/PATCH response, trust the cache patch first. An eager refetch here
+  // races socket-driven invalidations and can overwrite the new entry with a stale list.
+  if (localRefresh && !cachePatch) {
     await localRefresh();
   }
-  await invalidateTimelogData(workspaceId);
+
+  await invalidateTimelogQueries(workspaceId);
+
+  if (cachePatch) {
+    reapplyCachePatch(workspaceId, cachePatch);
+  }
+
+  invalidateWorkspaceData(workspaceId, TIMELOG_INVALIDATE_SCOPES);
+
+  if (cachePatch) {
+    scheduleCachePatchReapply(workspaceId, cachePatch);
+  }
 }
