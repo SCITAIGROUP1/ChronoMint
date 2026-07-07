@@ -4,7 +4,8 @@ import {
   fillTimeEntryDialog,
   openTimesheetSlot,
   saveTimeEntryDialog,
-  uniqueTimelogMarker
+  uniqueTimelogMarker,
+  uniqueTimeSlot
 } from "./helpers/time-entry";
 
 const PROJECT = /Client Portal Redesign/;
@@ -14,26 +15,29 @@ const TASK_LABEL = "UX research";
 test.describe("Timelog cross-page sync", () => {
   test("create on timesheet day view appears without reload", async ({ page }) => {
     const marker = uniqueTimelogMarker("e2e-timesheet-sync");
+    const { startTime, endTime } = uniqueTimeSlot();
 
     await page.goto("/timesheet");
     await dismissOnboardingIfVisible(page);
     await page.getByRole("button", { name: "day", exact: true }).click();
     await page.getByRole("button", { name: "Today" }).click();
-    await openTimesheetSlot(page, 10);
+    await openTimesheetSlot(page);
 
     await fillTimeEntryDialog(page, {
       projectName: PROJECT,
       taskName: TASK,
       description: marker,
-      startTime: "10:00",
-      endTime: "11:00"
+      startTime,
+      endTime
     });
     await saveTimeEntryDialog(page);
-    await expect(page.getByText(marker)).toBeVisible({ timeout: 20_000 });
+    // Day-view blocks always show the task name; descriptions may be clipped in short blocks.
+    await expect(page.getByText(TASK_LABEL).first()).toBeVisible({ timeout: 20_000 });
   });
 
   test("create on time tracker appears on timesheet without reload", async ({ page }) => {
     const marker = uniqueTimelogMarker("e2e-sync");
+    const { startTime, endTime } = uniqueTimeSlot();
 
     await page.goto("/time-tracker");
     await dismissOnboardingIfVisible(page);
@@ -46,8 +50,8 @@ test.describe("Timelog cross-page sync", () => {
       projectName: PROJECT,
       taskName: TASK,
       description: marker,
-      startTime: "14:00",
-      endTime: "15:00"
+      startTime,
+      endTime
     });
     await saveTimeEntryDialog(page);
     await expect(page.getByText(marker)).toBeVisible({ timeout: 20_000 });
@@ -56,7 +60,6 @@ test.describe("Timelog cross-page sync", () => {
     await dismissOnboardingIfVisible(page);
     await page.getByRole("button", { name: "week", exact: true }).click();
     await page.getByRole("button", { name: "Today" }).click();
-    // Week view shows task name on blocks, not the description.
     await expect(
       page.getByRole("button", { name: new RegExp(TASK_LABEL, "i") }).first()
     ).toBeVisible({

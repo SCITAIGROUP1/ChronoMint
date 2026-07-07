@@ -8,33 +8,42 @@ export type TimeEntryDialogOptions = {
   endTime?: string;
 };
 
+/** Matches empty calendar slot labels ("10 AM", "10:30 AM", "14:00", etc.). */
+const TIME_SLOT_LABEL = /^\d{1,2}(:\d{2})?\s*(AM|PM)?$/i;
+
 async function selectComboboxOption(page: Page, label: string, option: RegExp | string) {
   await page.getByRole("combobox", { name: label }).click();
   await page.getByRole("option", { name: option }).click();
 }
 
-/** Click an open timesheet slot (locale-aware: "10 AM", "10:00 AM", etc.). */
-export async function openTimesheetSlot(page: Page, hour: number, minute = 0) {
-  const hour12 = hour % 12 || 12;
-  const meridiem = hour < 12 ? "AM" : "PM";
-  const minutePart = minute === 0 ? "(\\s*:00)?" : `\\s*:${String(minute).padStart(2, "0")}`;
-  const patterns = [
-    new RegExp(`^${hour}${minutePart}\\s*(AM|PM)?$`, "i"),
-    new RegExp(`^${hour12}${minutePart}\\s*${meridiem}$`, "i")
-  ];
+/** Click the first open empty timesheet slot; opens the "Log time" dialog with prefilled times. */
+export async function openTimesheetSlot(page: Page) {
+  const dayColumn = page.locator("[data-day-column]").first();
+  await dayColumn.waitFor({ state: "visible" });
 
-  for (const pattern of patterns) {
-    const slot = page.getByRole("button", { name: pattern }).first();
-    if ((await slot.count()) > 0) {
-      await slot.click();
+  const slots = dayColumn.locator("button[aria-label]");
+  const count = await slots.count();
+
+  // Prefer later hours (less overlap from seed/e2e) and iterate backward.
+  for (let i = count - 1; i >= 0; i--) {
+    const slot = slots.nth(i);
+    const label = (await slot.getAttribute("aria-label"))?.trim() ?? "";
+    if (!TIME_SLOT_LABEL.test(label)) continue;
+    if ((await slot.getAttribute("aria-disabled")) === "true") continue;
+
+    try {
+      await slot.scrollIntoViewIfNeeded();
+      await slot.click({ timeout: 3_000 });
       await expect(page.getByRole("heading", { name: "Log time" })).toBeVisible({
-        timeout: 10_000
+        timeout: 3_000
       });
       return;
+    } catch {
+      await page.keyboard.press("Escape").catch(() => {});
     }
   }
 
-  throw new Error(`No open timesheet slot found for ${hour}:${String(minute).padStart(2, "0")}`);
+  throw new Error("No open timesheet slot found");
 }
 
 export async function fillTimeEntryDialog(page: Page, options: TimeEntryDialogOptions) {
@@ -63,4 +72,13 @@ export async function saveTimeEntryChanges(page: Page) {
 
 export function uniqueTimelogMarker(prefix: string): string {
   return `${prefix}-${Date.now()}`;
+}
+
+let timeSlotSeq = 0;
+
+/** Pick a morning slot unlikely to collide with seed data or prior e2e runs. */
+export function uniqueTimeSlot(): { startTime: string; endTime: string } {
+  const hour = 4 + ((Math.floor(Date.now() / 1000) + timeSlotSeq++) % 10);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return { startTime: `${pad(hour)}:10`, endTime: `${pad(hour)}:40` };
 }
