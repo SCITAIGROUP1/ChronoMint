@@ -1,12 +1,7 @@
 "use client";
 
-import { ROUTES, resolveEffectiveTimezone } from "@kloqra/contracts";
-import type {
-  ActiveTimerDto,
-  AutoStoppedTimerDto,
-  TimeLogDto,
-  UserProfileDto
-} from "@kloqra/contracts";
+import { ROUTES } from "@kloqra/contracts";
+import type { TimeLogDto, UserProfileDto } from "@kloqra/contracts";
 import {
   AppBar,
   Button,
@@ -20,15 +15,18 @@ import {
 import {
   api as sharedApi,
   buildMemberSubmissionsHref,
-  invalidateTimelogData,
+  logStartDateKey,
   parseMemberTimesheetSearch,
   scopedStorageKey,
+  SUBMISSIONS_LOOKBACK_WEEKS,
+  useDisplayPreferences,
+  useMySubmissionsLookbackQuery,
+  usePreferenceTodayDateKey,
   useTimelogListQuery,
   useTimelogMutations,
   useTimelogOccupancyQuery,
   useEntryCatalogQueries,
-  useTimesheetSubmissionStatusQuery,
-  useWorkspaceStaleRefetch
+  useTimesheetSubmissionStatusQuery
 } from "@kloqra/web-shared";
 import { Clock, Eye, EyeOff, Lock, X } from "lucide-react";
 import Link from "next/link";
@@ -52,7 +50,8 @@ import {
   occupancyConflictLabel,
   rangeOccupiedElsewhere,
   slotIndexFromTime,
-  slotIntervalForIndex
+  slotIntervalForIndex,
+  toDateKeyInZone
 } from "./calendar-utils";
 import {
   formatDayRangeLabel,
@@ -70,19 +69,16 @@ import {
 } from "./time-entry-draft";
 import { TimeEntryDialog, TimesheetCalendar, TimesheetMonth } from "./timesheet-lazy";
 import { validateTimeEntryOverlap } from "./validate-time-entry-overlap";
-import {
-  countActionableSubmissions,
-  useMySubmissions
-} from "@/features/submissions/use-my-submissions";
+import { countActionableSubmissions } from "@/features/submissions/use-my-submissions";
 import {
   isTimeEntryInactive,
   isTimeEntryLocked,
   LOCKED_ENTRY_MESSAGE
 } from "@/features/time-tracker/entry-approval-status";
+import { useActiveTimerSession } from "@/hooks/use-active-timer-session";
 import { useIsImpersonating } from "@/hooks/use-is-impersonating";
 import { useJiraIssues } from "@/hooks/use-jira-issues";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import { api } from "@/lib/api";
 import { colorForTask } from "@/lib/project-color-styles";
 import { formatTaskLabel } from "@/lib/project-labels";
 import { useProjectsStore } from "@/stores/projects.store";
@@ -90,6 +86,10 @@ import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 import { isActiveTimer, useTimerStore } from "@/stores/timer.store";
 
 type ViewMode = "day" | "week" | "month";
+
+function browserTimezone(): string {
+  return typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC";
+}
 
 const LEGACY_OVERLAY_KEY = "kloqra-show-occupancy-overlay";
 const LEGACY_MOBILE_BANNER_KEY = "kloqra-timesheet-mobile-banner-dismissed";
@@ -127,27 +127,35 @@ export function TimesheetPage() {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
   const userId = useSessionStore((s) => s.session?.user?.id);
   const isImpersonating = useIsImpersonating();
+  const displayPrefs = useDisplayPreferences();
   const [displayFormat, setDisplayFormat] = useState<TimesheetDisplayFormat | null>(null);
   const [weekStartPref, setWeekStartPref] = useState<"monday" | "sunday">("monday");
+  const [jiraConnected, setJiraConnected] = useState(false);
+
+  useEffect(() => {
+    setWeekStartPref(displayPrefs.weekStart);
+    setDisplayFormat({
+      timezone: displayPrefs.timezone,
+      dateFormat: displayPrefs.dateFormat,
+      timeFormat: displayPrefs.timeFormat
+    });
+  }, [
+    displayPrefs.timezone,
+    displayPrefs.weekStart,
+    displayPrefs.dateFormat,
+    displayPrefs.timeFormat
+  ]);
 
   useEffect(() => {
     if (!ws) return;
     sharedApi<UserProfileDto>(ROUTES.USERS.ME, { workspaceId: ws })
       .then((profile) => {
-        const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        const timezone = resolveEffectiveTimezone(profile.preferences, browserTz);
-        setWeekStartPref(profile.preferences.weekStart ?? "monday");
-        setDisplayFormat({
-          timezone,
-          dateFormat: profile.effectiveDateFormat,
-          timeFormat: profile.effectiveTimeFormat
-        });
         setJiraConnected(profile.jiraConnected ?? false);
       })
       .catch(() => {});
   }, [ws]);
 
-  const timezone = displayFormat?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const timezone = displayFormat?.timezone ?? displayPrefs.timezone;
 
   const catalog = useEntryCatalogQueries(ws, { enabled: Boolean(ws) });
   const projects = catalog.projects;
@@ -163,14 +171,20 @@ export function TimesheetPage() {
       const parsed = new Date(deepLink.date);
       if (!Number.isNaN(parsed.getTime())) return startOfDay(parsed);
     }
-    return startOfDay(new Date());
+    return todayInZone(browserTimezone());
   });
-  const { submissions: submissionNavItems } = useMySubmissions(ws, anchor, "assigned", Boolean(ws));
-  const actionableSubmissionCount = useMemo(
-    () => countActionableSubmissions(submissionNavItems),
-    [submissionNavItems]
+  const anchorDateKey = usePreferenceTodayDateKey();
+  const { data: lookbackSubmissions = [] } = useMySubmissionsLookbackQuery(
+    ws,
+    anchorDateKey,
+    SUBMISSIONS_LOOKBACK_WEEKS,
+    "assigned",
+    Boolean(ws)
   );
-  const [jiraConnected, setJiraConnected] = useState(false);
+  const actionableSubmissionCount = useMemo(
+    () => countActionableSubmissions(lookbackSubmissions),
+    [lookbackSubmissions]
+  );
   const { issues: jiraIssues } = useJiraIssues(jiraConnected);
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -181,7 +195,7 @@ export function TimesheetPage() {
   const [confirmDeleteLog, setConfirmDeleteLog] = useState<TimeLogDto | null>(null);
 
   const [showOccupancyOverlay, setShowOccupancyOverlay] = useState(true);
-  const { active: activeTimer, elapsedSec: liveElapsedSec, setActive, tick } = useTimerStore();
+  const { active: activeTimer, elapsedSec: liveElapsedSec, tick } = useTimerStore();
 
   useEffect(() => {
     if (!userId) return;
@@ -222,29 +236,7 @@ export function TimesheetPage() {
     setMobileBannerDismissed(true);
   }
 
-  const fetchActiveTimer = useCallback(async () => {
-    if (!ws) return;
-    try {
-      const res = await api<ActiveTimerDto | AutoStoppedTimerDto | null>(ROUTES.TIMER.ACTIVE, {
-        workspaceId: ws
-      });
-      if (res && "autostopped" in res && res.autostopped) {
-        setActive(null);
-        void invalidateTimelogData(ws);
-        return;
-      }
-      setActive(res as ActiveTimerDto | null);
-    } catch {
-      setActive(null);
-    }
-  }, [ws, setActive]);
-
-  useEffect(() => {
-    if (!ws) return;
-    void fetchActiveTimer();
-    const poll = setInterval(() => void fetchActiveTimer(), 30_000);
-    return () => clearInterval(poll);
-  }, [ws, fetchActiveTimer]);
+  useActiveTimerSession(ws, Boolean(ws));
 
   useEffect(() => {
     const id = setInterval(tick, 1000);
@@ -339,16 +331,12 @@ export function TimesheetPage() {
 
   const {
     data: logsData,
-    refetch: refetchLogs,
     isLoading: logsQueryLoading,
-    error: logsQueryError
+    error: logsQueryError,
+    refetch: refetchLogs
   } = useTimelogListQuery(ws, logsPath, Boolean(ws && visibleRange));
 
-  const {
-    data: occupancy = [],
-    isLoading: occupancyLoading,
-    refetch: refetchOccupancy
-  } = useTimelogOccupancyQuery(
+  const { data: occupancy = [] } = useTimelogOccupancyQuery(
     ws,
     visibleRange?.from.toISOString(),
     visibleRange?.to.toISOString(),
@@ -356,20 +344,22 @@ export function TimesheetPage() {
   );
 
   const logs = logsData?.items ?? [];
-  const calendarLoading = logsQueryLoading || occupancyLoading || catalog.isLoading;
+  // Occupancy refetches after saves — do not hide the calendar; list patch/refetch owns entries.
+  const calendarLoading = logsQueryLoading || catalog.isLoading;
 
   const submissionDates = useMemo(() => {
-    const dates = new Set<string>([anchor.toISOString()]);
+    const dates = new Set<string>([toDateKeyInZone(anchor, timezone)]);
     for (const log of logs) {
-      dates.add(log.startTime);
+      dates.add(logStartDateKey(log, timezone));
     }
     return [...dates];
-  }, [anchor, logs]);
+  }, [anchor, logs, timezone]);
 
-  const { submissionByKey, refetch: refreshSubmissions } = useTimesheetSubmissionStatusQuery(
+  const { submissionByKey } = useTimesheetSubmissionStatusQuery(
     ws,
     submissionDates,
-    Boolean(ws)
+    Boolean(ws),
+    timezone
   );
 
   const isEntryInactive = useCallback(
@@ -432,10 +422,6 @@ export function TimesheetPage() {
     [tasks, projects]
   );
 
-  const refreshLogs = useCallback(async () => {
-    await refetchLogs();
-  }, [refetchLogs]);
-
   useEffect(() => {
     if (!logsQueryError) return;
     toast.error(
@@ -443,29 +429,13 @@ export function TimesheetPage() {
     );
   }, [logsQueryError]);
 
-  const refreshTimelogSurface = useCallback(async () => {
-    await Promise.all([refreshLogs(), refetchOccupancy()]);
-  }, [refreshLogs, refetchOccupancy]);
-
-  const timelogMutations = useTimelogMutations(ws, { onLocalRefresh: refreshTimelogSurface });
-
-  useWorkspaceStaleRefetch(
-    ws,
-    ["timelogs"],
-    () => {
-      void refreshTimelogSurface();
+  // Patch the mounted list cache path, then refetch that query once (no global storm).
+  const timelogMutations = useTimelogMutations(ws, {
+    onLocalRefresh: async () => {
+      await refetchLogs();
     },
-    Boolean(ws)
-  );
-
-  useWorkspaceStaleRefetch(
-    ws,
-    ["submissions", "timesheet"],
-    () => {
-      void refreshSubmissions();
-    },
-    Boolean(ws)
-  );
+    listPaths: [logsPath]
+  });
 
   const overlapConflictMessage = useCallback(
     (conflict: { workspaceName: string; label: string; startTime: string; endTime: string }) => {

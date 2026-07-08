@@ -30,11 +30,13 @@ vi.mock("../api/base", () => ({
 }));
 
 describe("api client auth refresh", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.resetModules();
     mockGetAccessToken.mockReset();
     mockTryRefresh.mockReset();
     mockTryRefresh.mockResolvedValue("fresh-token");
+    const { clearInflightGetRequests } = await import("./inflight-requests");
+    clearInflightGetRequests();
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -45,7 +47,9 @@ describe("api client auth refresh", () => {
     );
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    const { clearInflightGetRequests } = await import("./inflight-requests");
+    clearInflightGetRequests();
     vi.unstubAllGlobals();
   });
 
@@ -72,6 +76,42 @@ describe("api client auth refresh", () => {
     const p2 = api("/projects?page=1&limit=100", { workspaceId: "ws-1" });
     await Promise.all([p1, p2]);
     expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not abort shared GET fetch when one caller AbortSignal fires", async () => {
+    mockGetAccessToken.mockReturnValue("fresh-token");
+    let resolveFetch!: (value: unknown) => void;
+    const fetchPromise = new Promise((resolve) => {
+      resolveFetch = resolve;
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(() => fetchPromise)
+    );
+
+    const { api } = await import("./client");
+    const controller = new AbortController();
+    const abortedCall = api("/timesheets/pending?page=1&limit=1", {
+      workspaceId: "ws-1",
+      signal: controller.signal
+    });
+    const survivor = api("/timesheets/pending?page=1&limit=1", { workspaceId: "ws-1" });
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch).toHaveBeenCalledWith(
+      "http://localhost:3001/timesheets/pending?page=1&limit=1",
+      expect.not.objectContaining({ signal: controller.signal })
+    );
+
+    controller.abort();
+    await expect(abortedCall).rejects.toMatchObject({ name: "AbortError" });
+
+    resolveFetch({
+      ok: true,
+      headers: { get: () => "application/json" },
+      json: async () => ({ items: [], total: 0 })
+    });
+    await expect(survivor).resolves.toEqual({ items: [], total: 0 });
   });
 
   it("normalizes validation errors into user-friendly field messages", async () => {

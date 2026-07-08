@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { applyDashboardPeriodPreset, matchDashboardPeriodPreset } from "./dashboard-period-presets";
+import {
+  addCalendarDaysToDateKey,
+  applyDashboardPeriodPreset,
+  dayBoundsInZone,
+  matchDashboardPeriodPreset,
+  nextLocalMidnightUtcInZone
+} from "./dashboard-period-presets";
 
 describe("dashboard-period-presets", () => {
   beforeEach(() => {
@@ -50,5 +56,19 @@ describe("dashboard-period-presets", () => {
     expect(
       matchDashboardPeriodPreset("2026-06-05", "2026-06-10", ["week", "month"], "UTC")
     ).toBeNull();
+  });
+
+  it("shifts YYYY-MM-DD by civil calendar days", () => {
+    expect(addCalendarDaysToDateKey("2026-07-08", 1)).toBe("2026-07-09");
+    expect(addCalendarDaysToDateKey("2026-07-31", 1)).toBe("2026-08-01");
+  });
+
+  it("uses next local midnight as exclusive day end (DST-safe)", () => {
+    const { dayStart, dayEnd } = dayBoundsInZone("2026-07-08", "Asia/Colombo");
+    expect(dayStart.toISOString()).toBe("2026-07-07T18:30:00.000Z");
+    expect(dayEnd.toISOString()).toBe("2026-07-08T18:30:00.000Z");
+    expect(nextLocalMidnightUtcInZone("2026-07-08", "Asia/Colombo").toISOString()).toBe(
+      "2026-07-08T18:30:00.000Z"
+    );
   });
 });

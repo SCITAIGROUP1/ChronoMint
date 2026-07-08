@@ -1,46 +1,35 @@
-import { NotificationType } from "@kloqra/contracts";
-import { describe, expect, it } from "vitest";
-import { scopesForNotificationType } from "./workspace-data-sync.js";
+import { beforeEach, describe, expect, it } from "vitest";
+import {
+  clearLocalTimelogMutationEchoGuards,
+  noteLocalTimelogMutation,
+  shouldSuppressLocalTimelogMutationEcho
+} from "./workspace-data-sync";
 
-describe("scopesForNotificationType", () => {
-  it("maps timesheet approval to submissions, timesheet, and timelog scopes", () => {
-    expect(scopesForNotificationType(NotificationType.TIMESHEET_APPROVED)).toEqual([
-      "submissions",
-      "timesheet",
-      "timelogs"
-    ]);
+describe("local timelog mutation echo suppression", () => {
+  const workspaceId = "ws-1";
+
+  beforeEach(() => {
+    clearLocalTimelogMutationEchoGuards();
   });
 
-  it("maps submitted timesheet to admin pending approvals", () => {
-    expect(scopesForNotificationType(NotificationType.TIMESHEET_SUBMITTED)).toEqual([
-      "pending_approvals"
-    ]);
+  it("suppresses timelog-derived socket echoes after noteLocalTimelogMutation", () => {
+    noteLocalTimelogMutation(workspaceId);
+    expect(shouldSuppressLocalTimelogMutationEcho(workspaceId, ["timelogs", "timesheet"])).toBe(
+      true
+    );
+    expect(shouldSuppressLocalTimelogMutationEcho(workspaceId, ["submissions"])).toBe(true);
   });
 
-  it("maps project assignment to projects and tasks scopes", () => {
-    expect(scopesForNotificationType(NotificationType.PROJECT_ASSIGNMENT)).toEqual([
-      "projects",
-      "tasks"
-    ]);
+  it("does not suppress project/approval scopes even during the echo window", () => {
+    noteLocalTimelogMutation(workspaceId);
+    expect(shouldSuppressLocalTimelogMutationEcho(workspaceId, ["timelogs", "projects"])).toBe(
+      false
+    );
+    expect(shouldSuppressLocalTimelogMutationEcho(workspaceId, ["pending_approvals"])).toBe(false);
   });
 
-  it("maps task assignment to projects and tasks scopes", () => {
-    expect(scopesForNotificationType(NotificationType.TASK_ASSIGNMENT)).toEqual([
-      "projects",
-      "tasks"
-    ]);
-  });
-
-  it("returns empty for unrelated types", () => {
-    expect(scopesForNotificationType(NotificationType.EXPORT_SCHEDULE)).toEqual([]);
-  });
-
-  it("maps approval settings changes to submissions, timesheet, timelogs, and projects", () => {
-    expect(scopesForNotificationType(NotificationType.TIMESHEET_STATUS)).toEqual([
-      "submissions",
-      "timesheet",
-      "timelogs",
-      "projects"
-    ]);
+  it("does not suppress other workspaces", () => {
+    noteLocalTimelogMutation(workspaceId);
+    expect(shouldSuppressLocalTimelogMutationEcho("ws-other", ["timelogs"])).toBe(false);
   });
 });

@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { validateCreateWorkspaceForm } from "../create-workspace-validation";
+import { toWorkspaceListItem } from "./to-workspace-list-item";
 import { api } from "@/lib/api";
 import { getWorkspaceId, useSessionStore } from "@/stores/session.store";
 import { useWorkspacesStore } from "@/stores/workspaces.store";
@@ -63,7 +64,7 @@ export function CreateWorkspaceDialog({
           body: JSON.stringify({ workspaceId: created.id })
         });
         setSession(switched, switched.accessToken);
-        setWorkspaces([created]);
+        setWorkspaces([toWorkspaceListItem(created)]);
         toast.success(`Workspace "${created.name}" created`);
         setName("");
         onOpenChange(false);
@@ -72,7 +73,7 @@ export function CreateWorkspaceDialog({
         return;
       }
 
-      setWorkspaces([...workspaces, created]);
+      setWorkspaces([...workspaces, toWorkspaceListItem(created)]);
       toast.success(`Workspace "${created.name}" created`);
       setName("");
       onOpenChange(false);

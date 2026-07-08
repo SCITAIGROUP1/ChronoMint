@@ -7,7 +7,6 @@ import {
   scopedStorageKey,
   useEntryCatalogQueries,
   useTimelogListQuery,
-  useWorkspaceStaleRefetch,
   writeScopedJSON
 } from "@kloqra/web-shared";
 import { Star, History, Pin, PinOff, Clock, TrendingUp } from "lucide-react";
@@ -83,7 +82,7 @@ export function QuickActions({
     return `/timelogs?${params.toString()}`;
   }, []);
 
-  const { data: recentLogsData, refetch: refetchRecentLogs } = useTimelogListQuery(
+  const { data: recentLogsData } = useTimelogListQuery(
     ws,
     recentsPath,
     Boolean(ws && projects.length > 0 && tasks.length > 0)
@@ -168,16 +167,6 @@ export function QuickActions({
   useEffect(() => {
     void fetchYesterday();
   }, [fetchYesterday]);
-
-  useWorkspaceStaleRefetch(
-    ws,
-    ["timelogs", "timesheet"],
-    () => {
-      void refetchRecentLogs();
-      void fetchYesterday();
-    },
-    Boolean(ws)
-  );
 
   const toggleFavorite = () => {
     if (!currentProjectId || !currentTaskId) return;

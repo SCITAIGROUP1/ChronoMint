@@ -11,7 +11,8 @@ import {
 } from "../realtime/notification-socket-manager";
 import {
   invalidateWorkspaceData,
-  scopesForNotificationType
+  scopesForNotificationType,
+  shouldSuppressLocalTimelogMutationEcho
 } from "../realtime/workspace-data-sync";
 import { useNotificationsStore } from "../stores/notifications-store";
 import { getAccessToken } from "../stores/session.store";
@@ -34,6 +35,10 @@ export function useNotificationSocket(workspaceId: string, enabled = true) {
     });
 
     const unsubStale = subscribeWorkspaceDataStale((payload) => {
+      // This tab already patched + confirmed after local CRUD — skip the API's echo.
+      if (shouldSuppressLocalTimelogMutationEcho(payload.workspaceId, payload.scopes)) {
+        return;
+      }
       invalidateWorkspaceData(payload.workspaceId, payload.scopes);
     });
 
@@ -41,11 +46,13 @@ export function useNotificationSocket(workspaceId: string, enabled = true) {
       const connected = state === "connected";
       setSocketConnected(connected);
       if (connected && workspaceId) {
-        const userId = readUserIdFromToken(getAccessToken());
-        if (userId) {
-          void refreshUnread(userId, workspaceId);
-        }
+        // First connect: badge/dropdown already subscribed unread. Refresh only on
+        // reconnect (and invalidate workspace data) to avoid duplicate unread-count GETs.
         if (hadConnectedRef.current) {
+          const userId = readUserIdFromToken(getAccessToken());
+          if (userId) {
+            void refreshUnread(userId, workspaceId);
+          }
           invalidateWorkspaceData(workspaceId, [
             "submissions",
             "timesheet",

@@ -1,11 +1,14 @@
 "use client";
 
-import { ROUTES, resolveEffectiveTimezone } from "@kloqra/contracts";
-import type { TeamMembersOverviewDto, UserProfileDto } from "@kloqra/contracts";
+import { ROUTES } from "@kloqra/contracts";
+import type { TeamMembersOverviewDto } from "@kloqra/contracts";
 import { AppBar } from "@kloqra/ui";
-import { api as sharedApi, fetchProjectTeam, useEntryCatalogQueries } from "@kloqra/web-shared";
+import {
+  fetchProjectTeam,
+  useEntryCatalogQueries,
+  useWorkspaceOperationalSettings
+} from "@kloqra/web-shared";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { TimesheetDisplayFormat } from "./display-format";
 import { groupLogsByWeek } from "./group-logs-by-week";
 import type { BillabilityFilter } from "./time-tracker-filters-panel";
 import {
@@ -25,28 +28,13 @@ import { api } from "@/lib/api";
 import { colorForTask } from "@/lib/project-color-styles";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
+function browserTimezone(): string {
+  return typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC";
+}
+
 export function AdminTimeTrackerPage() {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
-  const [displayFormat, setDisplayFormat] = useState<TimesheetDisplayFormat | null>(null);
-  const [weekStartPref, setWeekStartPref] = useState<"monday" | "sunday">("monday");
-
-  useEffect(() => {
-    if (!ws) return;
-    sharedApi<UserProfileDto>(ROUTES.USERS.ME, { workspaceId: ws })
-      .then((profile) => {
-        const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        const timezone = resolveEffectiveTimezone(profile.preferences, browserTz);
-        setWeekStartPref(profile.preferences.weekStart ?? "monday");
-        setDisplayFormat({
-          timezone,
-          dateFormat: profile.effectiveDateFormat,
-          timeFormat: profile.effectiveTimeFormat
-        });
-      })
-      .catch(() => {});
-  }, [ws]);
-
-  const timezone = displayFormat?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const { timezone, weekStart: weekStartPref } = useWorkspaceOperationalSettings(ws, Boolean(ws));
 
   const catalog = useEntryCatalogQueries(ws, { enabled: Boolean(ws) });
   const tasks = catalog.tasks;
@@ -57,9 +45,11 @@ export function AdminTimeTrackerPage() {
 
   const [period, setPeriod] = useState<TimeTrackerPeriodSelection>("this_week");
   const [rangeFrom, setRangeFrom] = useState(
-    () => inclusiveDateKeysFromPeriod("this_week", "UTC").from
+    () => inclusiveDateKeysFromPeriod("this_week", browserTimezone()).from
   );
-  const [rangeTo, setRangeTo] = useState(() => inclusiveDateKeysFromPeriod("this_week", "UTC").to);
+  const [rangeTo, setRangeTo] = useState(
+    () => inclusiveDateKeysFromPeriod("this_week", browserTimezone()).to
+  );
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [projectFilter, setProjectFilter] = useState<string[]>([]);

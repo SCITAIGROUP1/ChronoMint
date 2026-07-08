@@ -176,6 +176,34 @@ function shouldAttemptRefresh(status: number, body: ApiErrorBody): boolean {
   return true;
 }
 
+/**
+ * Reject this caller's promise when `signal` aborts, without canceling the
+ * underlying work. Required for GET inflight dedupe: React Query aborting one
+ * subscriber must not abort fetch for another subscriber (or the sole next remount).
+ */
+function withCallerAbortGuard<T>(promise: Promise<T>, signal?: AbortSignal | null): Promise<T> {
+  if (!signal) return promise;
+  if (signal.aborted) {
+    return Promise.reject(new DOMException("The operation was aborted.", "AbortError"));
+  }
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => {
+      reject(new DOMException("The operation was aborted.", "AbortError"));
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(value);
+      },
+      (err) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(err);
+      }
+    );
+  });
+}
+
 export async function api<T>(path: string, options: ApiOptions = {}): Promise<T> {
   const method = (options.method ?? "GET").toUpperCase();
   const ws = resolveApiWorkspaceId(options.workspaceId);
@@ -185,18 +213,23 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
 
   if (dedupeKey) {
     const inflight = inflightGetRequests.get(dedupeKey);
-    if (inflight) return inflight as Promise<T>;
+    if (inflight) {
+      return withCallerAbortGuard(inflight as Promise<T>, options.signal);
+    }
   }
 
-  const requestPromise = executeApiRequest<T>(path, options, method, ws);
+  // Deduped GETs must not attach the caller's AbortSignal to fetch — that would
+  // cancel shared network work when React Query remounts/aborts one subscriber.
+  const requestPromise = executeApiRequest<T>(path, options, method, ws, Boolean(dedupeKey));
 
   if (dedupeKey) {
     inflightGetRequests.set(dedupeKey, requestPromise);
-    try {
-      return await requestPromise;
-    } finally {
-      inflightGetRequests.delete(dedupeKey);
-    }
+    void requestPromise.finally(() => {
+      if (inflightGetRequests.get(dedupeKey) === requestPromise) {
+        inflightGetRequests.delete(dedupeKey);
+      }
+    });
+    return withCallerAbortGuard(requestPromise, options.signal);
   }
 
   return requestPromise;
@@ -206,7 +239,8 @@ async function executeApiRequest<T>(
   path: string,
   options: ApiOptions,
   method: string,
-  ws: string | null | undefined
+  ws: string | null | undefined,
+  isolateCallerAbortSignal = false
 ): Promise<T> {
   const headers: Record<string, string> = {
     "X-Auth-Scope": AUTH_SCOPE,
@@ -233,8 +267,10 @@ async function executeApiRequest<T>(
     headers.Authorization = `Bearer ${token}`;
   }
 
+  const { signal: callerSignal, ...fetchInit } = options;
   const res = await fetch(`${getApiBase()}${path}`, {
-    ...options,
+    ...fetchInit,
+    ...(isolateCallerAbortSignal ? {} : callerSignal ? { signal: callerSignal } : {}),
     headers,
     credentials: "include"
   });

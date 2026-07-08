@@ -13,6 +13,7 @@ import { filterAdminAccessibleWorkspaces } from "../../auth/admin-context";
 import { logoutSession } from "../../auth/logout";
 import { canManageOrganization } from "../../auth/organization-access";
 import { useSessionStore } from "../../stores/session.store";
+import { useWorkspacesStore } from "../../stores/workspaces.store";
 import { useTenantCurrent } from "../tenant/use-tenant-current";
 
 export type AdminContextSelectFormProps = {
@@ -51,9 +52,10 @@ export function AdminContextSelectForm({
   const session = useSessionStore((s) => s.session);
   const setSession = useSessionStore((s) => s.setSession);
   const { tenant, loading: tenantLoading } = useTenantCurrent();
+  const workspaces = useWorkspacesStore((s) => s.workspaces);
+  const setWorkspaces = useWorkspacesStore((s) => s.setWorkspaces);
 
-  const [workspaces, setWorkspaces] = useState<WorkspaceListItemDto[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(workspaces.length === 0);
   const [switchingId, setSwitchingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -69,6 +71,15 @@ export function AdminContextSelectForm({
   useEffect(() => {
     if (!session) {
       router.push("/login");
+      return;
+    }
+
+    if (workspaces.length > 0) {
+      const filtered = filterAdminAccessibleWorkspaces(workspaces);
+      if (filtered.length === 0 && !canPickOrganization) {
+        setError("No admin workspaces found.");
+      }
+      setLoading(false);
       return;
     }
 
@@ -90,7 +101,7 @@ export function AdminContextSelectForm({
       .finally(() => {
         setLoading(false);
       });
-  }, [session, canPickOrganization, router]);
+  }, [session, canPickOrganization, router, workspaces, setWorkspaces]);
 
   async function handleSelectOrganization() {
     if (switchingId) return;

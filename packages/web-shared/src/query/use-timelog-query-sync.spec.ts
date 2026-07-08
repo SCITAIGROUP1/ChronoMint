@@ -21,21 +21,11 @@ describe("useTimelogQuerySync", () => {
     vi.clearAllMocks();
   });
 
-  it("refetches timelog queries when timelogs scope is stale", () => {
+  it("is a no-op — shell useWorkspaceQuerySync owns stale → query invalidation", () => {
     renderHook(() => useTimelogQuerySync());
     window.dispatchEvent(
       new CustomEvent(WORKSPACE_DATA_STALE_EVENT, {
         detail: { workspaceId, scopes: ["timelogs"] }
-      })
-    );
-    expect(mocks.invalidateTimelogQueries).toHaveBeenCalledWith(workspaceId);
-  });
-
-  it("does not refetch timelog queries for timesheet-only stale events", () => {
-    renderHook(() => useTimelogQuerySync());
-    window.dispatchEvent(
-      new CustomEvent(WORKSPACE_DATA_STALE_EVENT, {
-        detail: { workspaceId, scopes: ["timesheet"] }
       })
     );
     expect(mocks.invalidateTimelogQueries).not.toHaveBeenCalled();

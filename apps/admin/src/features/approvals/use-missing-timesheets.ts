@@ -12,14 +12,14 @@ import { useRegisterApprovalsRefresh } from "./use-approvals-refresh-registratio
 
 export function useMissingTimesheets(
   workspaceId: string,
-  anchorDate: Date,
+  anchorDateKey: string,
   filters: TimesheetApprovalsFilterQuery,
   enabled = true
 ) {
   const filterKey = buildApprovalsListQueryString(filters);
   const { data, isLoading, refetch } = useMissingTimesheetsQuery(
     workspaceId,
-    anchorDate,
+    anchorDateKey,
     filterKey,
     enabled
   );

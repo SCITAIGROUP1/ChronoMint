@@ -1,6 +1,7 @@
 import type { AuthSessionDto, TenantDto } from "@kloqra/contracts";
 import { ROUTES } from "@kloqra/contracts";
 import { api } from "../api/client";
+import { seedTenantCurrentCache } from "../stores/tenant-current.store";
 import { defaultAccountLandingPath } from "./organization-access";
 
 export async function resolveAdminLandingPath(
@@ -12,6 +13,7 @@ export async function resolveAdminLandingPath(
       const tenant = await api<TenantDto>(ROUTES.TENANTS.CURRENT, {
         ...(workspaceId ? { workspaceId } : {})
       });
+      seedTenantCurrentCache(tenant, workspaceId);
       if (tenant.status === "pending_setup") {
         return "/account/organization";
       }
@@ -26,6 +28,7 @@ export async function resolveAdminLandingPath(
       const tenant = await api<TenantDto>(ROUTES.TENANTS.CURRENT, {
         ...(workspaceId ? { workspaceId } : {})
       });
+      seedTenantCurrentCache(tenant, workspaceId);
       if (tenant.status === "pending_setup") {
         return "/account/organization";
       }

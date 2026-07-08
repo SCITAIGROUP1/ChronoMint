@@ -61,4 +61,26 @@ describe("computeTodayStats", () => {
     expect(stats.totalHours).toBe(1);
     expect(stats.billableHours).toBe(0.5);
   });
+
+  it("attributes overnight duration fully to the start day (no midnight clip)", () => {
+    // Wed Jul 8 20:30 → Thu Jul 9 01:30 Asia/Colombo = 5h on Wed only
+    const overnight = log({
+      startTime: "2026-07-08T15:00:00.000Z",
+      endTime: "2026-07-08T20:00:00.000Z",
+      durationSec: 18_000,
+      isBillable: true
+    });
+    const wed = computeTodayStats({
+      timezone: "Asia/Colombo",
+      todayDateKey: "2026-07-08",
+      logs: [overnight]
+    });
+    const thu = computeTodayStats({
+      timezone: "Asia/Colombo",
+      todayDateKey: "2026-07-09",
+      logs: [overnight]
+    });
+    expect(wed.totalHours).toBe(5);
+    expect(thu.totalHours).toBe(0);
+  });
 });

@@ -1,7 +1,7 @@
 "use client";
 
-import { isShareableWidgetId, ROUTES, resolveEffectiveTimezone } from "@kloqra/contracts";
-import type { DashboardReportDto, TeamMemberDto, UserProfileDto } from "@kloqra/contracts";
+import { isShareableWidgetId, ROUTES } from "@kloqra/contracts";
+import type { DashboardReportDto, TeamMemberDto } from "@kloqra/contracts";
 import {
   AppBar,
   AppBarActionButton,
@@ -33,8 +33,8 @@ import {
   type DashboardPeriodSelection,
   useEntryCatalogQueries,
   useTasksListQuery,
-  api as sharedApi,
-  localMidnightUtcInZone
+  localMidnightUtcInZone,
+  useWorkspaceOperationalSettings
 } from "@kloqra/web-shared";
 import { Clock, DollarSign, Folder, LayoutGrid, Move, Users } from "lucide-react";
 import Link from "next/link";
@@ -146,34 +146,15 @@ function formatMoney(n: number) {
 export function DashboardPage() {
   const session = useSessionStore((s) => s.session);
   const ws = getEffectiveWorkspaceId() ?? session?.workspaceId ?? "";
-  const [displayFormat, setDisplayFormat] = useState<any>(null);
-
-  useEffect(() => {
-    if (!ws) return;
-    sharedApi<UserProfileDto>(ROUTES.USERS.ME, { workspaceId: ws })
-      .then((profile) => {
-        const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        const timezoneVal = resolveEffectiveTimezone(profile.preferences, browserTz);
-        setDisplayFormat({
-          timezone: timezoneVal,
-          dateFormat: profile.effectiveDateFormat,
-          timeFormat: profile.effectiveTimeFormat
-        });
-      })
-      .catch(() => {});
-  }, [ws]);
-
-  const timezone = displayFormat?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const { timezone } = useWorkspaceOperationalSettings(ws, Boolean(ws));
 
   const [range, setRange] = useState<DashboardPeriodSelection>("week");
-  const [startDate, setStartDate] = useState<string>(() => {
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-    return applyDashboardPeriodPreset("week", tz).from;
-  });
-  const [endDate, setEndDate] = useState<string>(() => {
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-    return applyDashboardPeriodPreset("week", tz).to;
-  });
+  const [startDate, setStartDate] = useState<string>(
+    () => applyDashboardPeriodPreset("week", timezone).from
+  );
+  const [endDate, setEndDate] = useState<string>(
+    () => applyDashboardPeriodPreset("week", timezone).to
+  );
   const [projectId, setProjectId] = useState<string[]>([]);
   const [userId, setUserId] = useState<string[]>([]);
   const [categoryId, setCategoryId] = useState("");

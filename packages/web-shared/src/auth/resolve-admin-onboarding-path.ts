@@ -1,6 +1,7 @@
-import type { AuthSessionDto } from "@kloqra/contracts";
+import type { AuthSessionDto, TenantDto } from "@kloqra/contracts";
 import { ROUTES } from "@kloqra/contracts";
 import { api } from "../api/client";
+import { seedTenantCurrentCache } from "../stores/tenant-current.store";
 import { resolveAdminLandingPath } from "./resolve-admin-landing-path";
 import { isPendingWorkspaceSetup } from "./tenant-onboarding";
 
@@ -12,7 +13,8 @@ export async function resolveAdminOnboardingPath(session: AuthSessionDto): Promi
 
   if (session.tenantRole === "OWNER" || session.tenantRole === "ADMIN") {
     try {
-      const tenant = await api<{ status: string }>(ROUTES.TENANTS.CURRENT);
+      const tenant = await api<TenantDto>(ROUTES.TENANTS.CURRENT);
+      seedTenantCurrentCache(tenant);
       if (tenant.status === "pending_setup") {
         return "/account/organization";
       }

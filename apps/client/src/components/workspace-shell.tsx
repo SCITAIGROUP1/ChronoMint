@@ -1,7 +1,7 @@
 "use client";
 
 import { BRAND_NAME, ROUTES } from "@kloqra/contracts";
-import type { WorkspaceWithRoleDto } from "@kloqra/contracts";
+import type { WorkspaceListItemDto } from "@kloqra/contracts";
 import { Button, ResponsiveLayoutShell, SidebarUserFooter, type SidebarNavItem } from "@kloqra/ui";
 import {
   bootstrapSession,
@@ -9,8 +9,11 @@ import {
   logoutSession,
   SessionGenerationBoundary,
   ShellHeaderActions,
+  SUBMISSIONS_LOOKBACK_WEEKS,
+  useMySubmissionsLookbackQuery,
   useNotificationSocket,
   useNotificationUnreadCount,
+  usePreferenceTodayDateKey,
   WorkspaceSwitcher
 } from "@kloqra/web-shared";
 import {
@@ -23,11 +26,11 @@ import {
   Timer as TimerIcon
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { AssistantProvider, useAssistant } from "@/features/assistant/assistant-provider";
 import { AssistantWidget } from "@/features/assistant/assistant-widget";
 import { OnboardingProvider, useOnboarding } from "@/features/onboarding/onboarding-provider";
-import { useMySubmissionsBadgeCount } from "@/features/submissions/use-my-submissions";
+import { countActionableSubmissions } from "@/features/submissions/use-my-submissions";
 import { api } from "@/lib/api";
 import { useClientWorkspaceDataSync } from "@/lib/workspace-data-sync";
 import { useProjectsStore } from "@/stores/projects.store";
@@ -51,28 +54,43 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
   const { openAssistant } = useAssistant();
   const router = useRouter();
   const session = useSessionStore((s) => s.session);
-  const [anchorDate] = useState(() => new Date());
   const wsId = session?.workspaceId ?? "";
+  const anchorDateKey = usePreferenceTodayDateKey();
   useNotificationSocket(wsId, Boolean(wsId));
   useClientWorkspaceDataSync(wsId);
-  const actionableCount = useMySubmissionsBadgeCount(wsId, anchorDate, "assigned", Boolean(wsId));
+  const { data: badgeSubmissions = [] } = useMySubmissionsLookbackQuery(
+    wsId,
+    anchorDateKey,
+    SUBMISSIONS_LOOKBACK_WEEKS,
+    "assigned",
+    Boolean(wsId)
+  );
+  const actionableCount = useMemo(
+    () => countActionableSubmissions(badgeSubmissions),
+    [badgeSubmissions]
+  );
   const { count: notificationUnreadCount } = useNotificationUnreadCount(wsId, Boolean(wsId));
   const setWorkspaceNames = useProjectsStore((s) => s.setWorkspaces);
   const setWorkspaces = useWorkspacesStore((s) => s.setWorkspaces);
+  const ensureWorkspacesLoaded = useWorkspacesStore((s) => s.ensureLoaded);
   const workspaces = useWorkspacesStore((s) => s.workspaces);
 
   useEffect(() => {
     if (session) {
-      if (workspaces.length === 0) {
-        api<WorkspaceWithRoleDto[]>(ROUTES.WORKSPACES.LIST, {
+      if (workspaces.length > 0) {
+        // Login / bootstrap already seeded the list — sync names without refetching.
+        setWorkspaceNames(workspaces);
+        return;
+      }
+      void ensureWorkspacesLoaded(() =>
+        api<WorkspaceListItemDto[]>(ROUTES.WORKSPACES.LIST, {
           workspaceId: session.workspaceId
         })
-          .then((list) => {
-            setWorkspaces(list);
-            setWorkspaceNames(list);
-          })
-          .catch(() => {});
-      }
+      )
+        .then((list) => {
+          setWorkspaceNames(list);
+        })
+        .catch(() => {});
       return;
     }
 
@@ -115,7 +133,14 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
         sessionStorage.removeItem(IMPERSONATION_HANDOFF_KEY);
         router.replace("/login");
       });
-  }, [session, setWorkspaces, setWorkspaceNames, router, workspaces.length]);
+  }, [
+    session,
+    setWorkspaces,
+    setWorkspaceNames,
+    ensureWorkspacesLoaded,
+    router,
+    workspaces.length
+  ]);
 
   async function handleStopImpersonation() {
     try {

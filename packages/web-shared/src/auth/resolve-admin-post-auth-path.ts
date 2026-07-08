@@ -1,8 +1,8 @@
 import { ROUTES, type AuthSessionDto, type WorkspaceListItemDto } from "@kloqra/contracts";
 import { api } from "../api/client";
-import { shouldShowAdminContextPicker } from "./admin-context";
+import { useWorkspacesStore } from "../stores/workspaces.store";
+import { shouldShowAdminContextPicker, filterAdminAccessibleWorkspaces } from "./admin-context";
 import { resolveAdminOnboardingPath } from "./resolve-admin-onboarding-path";
-import { hasMultipleWorkspaces } from "./workspace-check";
 
 /** Resolve where to send an admin user immediately after authentication. */
 export async function resolveAdminPostAuthPath(session: AuthSessionDto): Promise<string> {
@@ -14,13 +14,14 @@ export async function resolveAdminPostAuthPath(session: AuthSessionDto): Promise
     const workspaces = await api<WorkspaceListItemDto[]>(ROUTES.WORKSPACES.LIST, {
       workspaceId: session.workspaceId
     });
+    // Seed shared store so shell / switcher / select-context skip duplicate list fetches.
+    useWorkspacesStore.getState().setWorkspaces(workspaces);
+
     if (shouldShowAdminContextPicker(session, workspaces)) {
       return "/select-context";
     }
-    const multi = await hasMultipleWorkspaces(session.workspaceId!, {
-      filterAdminAccess: true
-    });
-    if (multi) {
+    const accessible = filterAdminAccessibleWorkspaces(workspaces);
+    if (accessible.length > 1) {
       return "/select-workspace";
     }
   } catch {

@@ -1,3 +1,10 @@
+import {
+  countLogsForDateKey,
+  dayBoundsInZone,
+  sumDurationSecForDateKey,
+  sumDurationSecForDateKeyWithTimer
+} from "@kloqra/web-shared";
+
 export const SLOT_MINUTES = 30;
 export const CALENDAR_START_HOUR = 0;
 export const CALENDAR_END_HOUR = 24;
@@ -295,10 +302,7 @@ export function dayBoundsFromDateKey(
   dateKey: string,
   timezone: string = "UTC"
 ): { dayStart: Date; dayEnd: Date } {
-  const [y, m, d] = dateKey.split("-").map(Number);
-  const dayStart = localMidnightUtcInZone(y, m, d, timezone);
-  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
-  return { dayStart, dayEnd };
+  return dayBoundsInZone(dateKey, timezone);
 }
 
 export function clipLogToDay(
@@ -337,7 +341,14 @@ export function blockStyle(
 ): { top: string; height: string; display?: string } {
   const total = getVisibleMinutes();
   const topMin = Math.max(0, minutesFromCalendarStart(start, timezone));
-  const endMin = Math.min(total, minutesFromCalendarStart(end, timezone));
+  let endMin = minutesFromCalendarStart(end, timezone);
+  // Exclusive local midnight (00:00 after `start`) is end-of-day (24:00), not top of day.
+  // Without this, an entry ending at dayEnd (e.g. 20:00–24:00) gets height 0 and disappears
+  // while day totals still count its full duration.
+  if (end.getTime() > start.getTime() && endMin === 0) {
+    endMin = total;
+  }
+  endMin = Math.min(total, endMin);
   if (endMin <= topMin) {
     return { top: "0%", height: "0%", display: "none" };
   }
@@ -668,16 +679,17 @@ export function pointerYToTime(
   return new Date(guess.getTime() - offsetMs);
 }
 
+/**
+ * Day total for headers / month cells — shared start-day attribution
+ * (`@kloqra/web-shared` timelog-day-attribution). Overnight entries count fully
+ * on preference-TZ start day; calendar blocks may still clip visually.
+ */
 export function totalSecondsOnDay(
-  logs: { startTime: string; endTime: string }[],
+  logs: { startTime: string; endTime: string; durationSec?: number }[],
   day: Date,
   timezone: string = "UTC"
 ): number {
-  return logs.reduce((sum, log) => {
-    const clip = clipLogToDay(log, day, timezone);
-    if (!clip) return sum;
-    return sum + (clip.end.getTime() - clip.start.getTime()) / 1000;
-  }, 0);
+  return sumDurationSecForDateKey(logs, calendarDateKey(day, timezone), timezone);
 }
 
 export type DayHeaderTimerState = {
@@ -688,29 +700,30 @@ export type DayHeaderTimerState = {
 };
 
 export function resolveDayHeaderTotalSeconds(
-  logs: { startTime: string; endTime: string }[],
+  logs: { startTime: string; endTime: string; durationSec?: number }[],
   day: Date,
   timezone: string = "UTC",
   activeTimer?: DayHeaderTimerState | null
 ): number {
-  let total = totalSecondsOnDay(logs, day, timezone);
-
-  if (!activeTimer) return total;
-
-  const timerStart = new Date(activeTimer.startedAt);
-  const elapsed = activeTimer.liveElapsedSec ?? activeTimer.elapsedSec;
-  const timerEnd = activeTimer.isPaused
-    ? new Date(timerStart.getTime() + elapsed * 1000)
-    : new Date();
-  const clip = clipLogToDay(
-    { startTime: timerStart.toISOString(), endTime: timerEnd.toISOString() },
-    day,
-    timezone
+  return sumDurationSecForDateKeyWithTimer(
+    logs,
+    calendarDateKey(day, timezone),
+    timezone,
+    activeTimer
+      ? {
+          startedAt: activeTimer.startedAt,
+          elapsedSec: activeTimer.elapsedSec,
+          liveElapsedSec: activeTimer.liveElapsedSec
+        }
+      : null
   );
+}
 
-  if (clip) {
-    total += (clip.end.getTime() - clip.start.getTime()) / 1000;
-  }
-
-  return total;
+/** Finished entries attributed to the day's preference-TZ start day (not visual clips). */
+export function countLogsOnDay(
+  logs: { startTime: string; endTime?: string; durationSec?: number }[],
+  day: Date,
+  timezone: string = "UTC"
+): number {
+  return countLogsForDateKey(logs, calendarDateKey(day, timezone), timezone);
 }

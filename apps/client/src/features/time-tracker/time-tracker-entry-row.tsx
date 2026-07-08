@@ -2,7 +2,7 @@
 
 import type { ProjectDto, TaskDto, TimeLogDto, TimesheetPeriodDto } from "@kloqra/contracts";
 import { ProjectColorDot, TableCell, TableRow } from "@kloqra/ui";
-import { toDateKeyInZone } from "../timesheet/calendar-utils";
+import { logStartDateKey } from "@kloqra/web-shared";
 import { formatEntryShortDate } from "../timesheet/display-format";
 import { resolveEntryApprovalStatus } from "./entry-approval-status";
 import { formatHoursCompact } from "./group-logs-by-week";
@@ -81,5 +81,5 @@ export function TimeTrackerEntryRow({
 }
 
 export function entryDateKey(log: TimeLogDto, timezone: string): string {
-  return toDateKeyInZone(new Date(log.startTime), timezone);
+  return logStartDateKey(log, timezone);
 }

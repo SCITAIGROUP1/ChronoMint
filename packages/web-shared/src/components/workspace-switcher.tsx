@@ -1,7 +1,7 @@
 "use client";
 
 import { ROUTES } from "@kloqra/contracts";
-import type { AuthSessionWithTokenDto, WorkspaceWithRoleDto } from "@kloqra/contracts";
+import type { AuthSessionWithTokenDto, WorkspaceListItemDto } from "@kloqra/contracts";
 import { cn, Input, Spinner } from "@kloqra/ui";
 import { Building2, Check, ChevronDown, ChevronUp, Plus, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -23,6 +23,7 @@ import {
   formatTenantRoleLabel
 } from "../auth/admin-access-label";
 import type { AdminContextMode } from "../auth/admin-context";
+import { isPendingWorkspaceSetup } from "../auth/tenant-onboarding";
 import { useTenantCurrent } from "../features/tenant/use-tenant-current";
 import { getWorkspaceId, useSessionStore } from "../stores/session.store";
 import { useWorkspacesStore } from "../stores/workspaces.store";
@@ -51,9 +52,9 @@ export type WorkspaceSwitcherProps = {
 export { formatAdminWorkspaceAccessLabel, formatWorkspaceRole } from "../auth/admin-access-label";
 
 export function filterWorkspacesByQuery(
-  workspaces: WorkspaceWithRoleDto[],
+  workspaces: WorkspaceListItemDto[],
   query: string
-): WorkspaceWithRoleDto[] {
+): WorkspaceListItemDto[] {
   const normalized = query.trim().toLowerCase();
   if (!normalized) return workspaces;
   return workspaces.filter((workspace) => workspace.name.toLowerCase().includes(normalized));
@@ -100,7 +101,7 @@ export function WorkspaceSwitcher({
   const setSession = useSessionStore((s) => s.setSession);
   const workspaces = useWorkspacesStore((s) => s.workspaces);
   const setWorkspaces = useWorkspacesStore((s) => s.setWorkspaces);
-  const { tenant } = useTenantCurrent();
+  const ensureWorkspacesLoaded = useWorkspacesStore((s) => s.ensureLoaded);
   const [switching, setSwitching] = useState(false);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -108,6 +109,10 @@ export function WorkspaceSwitcher({
 
   const unifiedContext = Boolean(organizationHref && contextMode);
   const isAccountContext = unifiedContext && contextMode === "account";
+  // Member portal never needs org profile; only org context mode does.
+  const { tenant } = useTenantCurrent({
+    enabled: Boolean(unifiedContext) && !memberPortal
+  });
 
   const visible = filterAdminAccess
     ? workspaces.filter(
@@ -127,7 +132,7 @@ export function WorkspaceSwitcher({
   const sectionLabel = isAccountContext ? "Organization" : "Workspace";
   const triggerTitle = isAccountContext ? orgName : (currentWorkspace?.name ?? "Select workspace");
   function workspaceAccessLabel(
-    workspaceRole: WorkspaceWithRoleDto["role"],
+    workspaceRole: WorkspaceListItemDto["role"],
     managedProjectIds?: string[]
   ): string {
     if (memberPortal) return formatMemberPortalWorkspaceLabel();
@@ -146,10 +151,11 @@ export function WorkspaceSwitcher({
 
   useEffect(() => {
     if (!session || workspaces.length > 0) return;
-    api<WorkspaceWithRoleDto[]>(ROUTES.WORKSPACES.LIST, { workspaceId: currentId })
-      .then(setWorkspaces)
-      .catch(() => {});
-  }, [session, workspaces.length, currentId, setWorkspaces]);
+    if (isPendingWorkspaceSetup(session) || !session.workspaceId) return;
+    void ensureWorkspacesLoaded(() =>
+      api<WorkspaceListItemDto[]>(ROUTES.WORKSPACES.LIST, { workspaceId: currentId })
+    ).catch(() => {});
+  }, [session, workspaces.length, currentId, ensureWorkspacesLoaded]);
 
   useEffect(() => {
     if (!open) return;
@@ -229,7 +235,7 @@ export function WorkspaceSwitcher({
       }
       setSession(res, res.accessToken, res.refreshToken);
       onAfterSwitch?.();
-      const list = await api<WorkspaceWithRoleDto[]>(ROUTES.WORKSPACES.LIST, {
+      const list = await api<WorkspaceListItemDto[]>(ROUTES.WORKSPACES.LIST, {
         workspaceId: nextId
       });
       setWorkspaces(list);

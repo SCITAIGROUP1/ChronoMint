@@ -1,8 +1,9 @@
 import { ROUTES } from "@kloqra/contracts";
-import type { AuthSessionDto, WorkspaceWithRoleDto } from "@kloqra/contracts";
+import type { AuthSessionDto, WorkspaceListItemDto } from "@kloqra/contracts";
 import { getApiBase } from "../api/base";
 import { api } from "../api/client";
 import { getAccessToken, useSessionStore } from "../stores/session.store";
+import { useWorkspacesStore } from "../stores/workspaces.store";
 import { canLoginToAdminApp } from "./admin-app-access";
 import { applyDefaultWorkspaceIfNeeded } from "./apply-default-workspace";
 import { isAccessTokenExpired, readUserIdFromToken } from "./jwt-payload";
@@ -48,7 +49,7 @@ async function completeImpersonationHandoff(handoffToken: string): Promise<strin
 }
 
 export type BootstrapResult =
-  | { ok: true; session: AuthSessionDto; workspaces: WorkspaceWithRoleDto[] }
+  | { ok: true; session: AuthSessionDto; workspaces: WorkspaceListItemDto[] }
   | { ok: false };
 
 export type BootstrapOptions = {
@@ -150,11 +151,19 @@ export async function bootstrapSession(options: BootstrapOptions = {}): Promise<
       boundaryReason: "session_update"
     });
 
+    const seeded = useWorkspacesStore.getState().workspaces;
+    if (seeded.length > 0) {
+      return { ok: true, session, workspaces: seeded };
+    }
+
     const workspaces = session.workspaceId
-      ? await api<WorkspaceWithRoleDto[]>(ROUTES.WORKSPACES.LIST, {
+      ? await api<WorkspaceListItemDto[]>(ROUTES.WORKSPACES.LIST, {
           workspaceId: session.workspaceId
         })
       : [];
+    if (workspaces.length > 0) {
+      useWorkspacesStore.getState().setWorkspaces(workspaces);
+    }
 
     return { ok: true, session, workspaces };
   } catch {

@@ -142,6 +142,8 @@ export { useWorkspacesStore } from "./stores/workspaces.store";
 export { toDateInputValue } from "./utils/date-input";
 export { resolveStartupPath } from "./utils/startup-page";
 export { useDisplayPreferences } from "./hooks/use-display-preferences";
+export { usePreferenceTodayDateKey } from "./hooks/use-preference-today-date-key";
+export { useWorkspaceOperationalSettings } from "./hooks/use-workspace-operational-settings";
 export { usePaginatedList } from "./hooks/use-paginated-list";
 export { useRefetchOnWindowFocus } from "./hooks/use-refetch-on-window-focus";
 export { useWorkspaceStaleRefetch } from "./hooks/use-workspace-stale-refetch";
@@ -169,8 +171,10 @@ export {
   WORKSPACE_DATA_STALE_EVENT,
   dispatchWorkspaceDataStale,
   invalidateWorkspaceData,
+  noteLocalTimelogMutation,
   registerWorkspaceDataInvalidation,
   scopesForNotificationType,
+  shouldSuppressLocalTimelogMutationEcho,
   type WorkspaceDataStaleDetail
 } from "./realtime/workspace-data-sync";
 export {
@@ -205,9 +209,12 @@ export { useWorkspaceMembersQuery } from "./query/use-workspace-members-query";
 export { useWorkspaceRemoteQuery } from "./query/use-workspace-remote-query";
 export { useMySubmissionsQuery, useWeekSummaryQuery } from "./query/use-member-reporting-queries";
 export { approvalsQueryKeys } from "./query/approvals-query-keys";
+export { normalizeSubmissionDateKey } from "./query/submission-date-key";
 export {
   buildPendingApprovalsPath,
+  buildSubmissionsLookbackQueryKey,
   mapApprovalsQueryData,
+  SUBMISSIONS_LOOKBACK_WEEKS,
   useAllTimesheetsQuery,
   useMissingTimesheetsQuery,
   useMySubmissionsLookbackQuery,
@@ -240,11 +247,24 @@ export {
   applyDashboardPeriodPreset,
   matchDashboardPeriodPreset,
   localMidnightUtcInZone,
+  nextLocalMidnightUtcInZone,
+  dayBoundsInZone,
+  addCalendarDaysToDateKey,
   todayInZone,
   toDateKeyInZone,
   getTimezoneOffsetMs,
   type DashboardPeriodPreset
 } from "./utils/dashboard-period-presets";
+export { submissionPeriodEndDateKey } from "./utils/submission-period-range";
+export {
+  logStartDateKey,
+  resolveLogDurationSec,
+  sumDurationSecForDateKey,
+  sumDurationSecForDateKeyWithTimer,
+  countLogsForDateKey,
+  type DurationLogLike,
+  type ActiveTimerOnStartDay
+} from "./utils/timelog-day-attribution";
 export {
   ReportScopeFilters,
   type ReportScopeFilterValues,

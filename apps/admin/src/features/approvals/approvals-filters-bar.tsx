@@ -27,6 +27,7 @@ export type ApprovalsFiltersBarProps = {
   showSort?: boolean;
   viewMode?: "card" | "table";
   onViewModeChange?: (mode: "card" | "table") => void;
+  weekStartsOn?: 0 | 1;
 };
 
 function FilterFieldLabel({ children }: { children: React.ReactNode }) {
@@ -47,7 +48,8 @@ export function ApprovalsFiltersBar({
   resultCount,
   showSort = false,
   viewMode,
-  onViewModeChange
+  onViewModeChange,
+  weekStartsOn = 1
 }: ApprovalsFiltersBarProps) {
   const active = hasActiveApprovalsFilter(filters);
 
@@ -96,7 +98,7 @@ export function ApprovalsFiltersBar({
             onChange={(from, to) =>
               onChange({ ...filters, from: from || undefined, to: to || undefined })
             }
-            weekStartsOn={1}
+            weekStartsOn={weekStartsOn}
             ariaLabel="Filter by period start date"
             className="w-full"
             numberOfMonths={2}

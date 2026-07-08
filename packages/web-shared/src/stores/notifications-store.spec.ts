@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { notificationRecentKey, notificationUnreadKey } from "./notification-cache-key";
 import { useNotificationsStore } from "./notifications-store.js";
 
@@ -6,7 +6,28 @@ const USER_A = "11111111-1111-4111-8111-111111111111";
 const USER_B = "33333333-3333-4333-8333-333333333333";
 const WORKSPACE_ID = "22222222-2222-4222-8222-222222222222";
 
-describe("useNotificationsStore applyNotificationPush", () => {
+const { apiMock } = vi.hoisted(() => ({
+  apiMock: vi.fn()
+}));
+
+vi.mock("../api/client", () => ({
+  api: (...args: unknown[]) => apiMock(...args)
+}));
+
+describe("useNotificationsStore", () => {
+  beforeEach(() => {
+    apiMock.mockReset();
+    useNotificationsStore.setState({
+      unreadByWorkspace: {},
+      recentByWorkspace: {},
+      unreadRefCounts: {},
+      recentRefCounts: {},
+      unreadPollTimer: null,
+      unreadPollWorkspaceId: null,
+      socketConnected: false
+    });
+  });
+
   it("updates unread count and prepends to recent items", () => {
     const unreadKey = notificationUnreadKey(USER_A, WORKSPACE_ID);
     const recentKey = notificationRecentKey(USER_A, WORKSPACE_ID, 8);
@@ -14,12 +35,7 @@ describe("useNotificationsStore applyNotificationPush", () => {
       unreadByWorkspace: { [unreadKey]: { count: 0, loading: false } },
       recentByWorkspace: {
         [recentKey]: { items: [], loading: false, limit: 8 }
-      },
-      unreadRefCounts: {},
-      recentRefCounts: {},
-      unreadPollTimer: null,
-      unreadPollWorkspaceId: null,
-      socketConnected: false
+      }
     });
 
     localStorage.setItem(
@@ -56,18 +72,32 @@ describe("useNotificationsStore applyNotificationPush", () => {
       unreadByWorkspace: {
         [userAUnread]: { count: 2, loading: false },
         [userBUnread]: { count: 5, loading: false }
-      },
-      recentByWorkspace: {},
-      unreadRefCounts: {},
-      recentRefCounts: {},
-      unreadPollTimer: null,
-      unreadPollWorkspaceId: null,
-      socketConnected: false
+      }
     });
 
     useNotificationsStore.getState().removeWorkspace(WORKSPACE_ID);
 
     expect(useNotificationsStore.getState().unreadByWorkspace[userAUnread]).toBeUndefined();
     expect(useNotificationsStore.getState().unreadByWorkspace[userBUnread]).toBeUndefined();
+  });
+
+  it("coalesces concurrent unread refresh calls into one API request", async () => {
+    let resolve!: (value: { count: number }) => void;
+    apiMock.mockImplementation(
+      () =>
+        new Promise((r) => {
+          resolve = r;
+        })
+    );
+
+    const p1 = useNotificationsStore.getState().refreshUnread(USER_A, WORKSPACE_ID);
+    const p2 = useNotificationsStore.getState().refreshUnread(USER_A, WORKSPACE_ID);
+
+    expect(apiMock).toHaveBeenCalledTimes(1);
+    resolve({ count: 4 });
+    await Promise.all([p1, p2]);
+
+    const unreadKey = notificationUnreadKey(USER_A, WORKSPACE_ID);
+    expect(useNotificationsStore.getState().unreadByWorkspace[unreadKey]?.count).toBe(4);
   });
 });

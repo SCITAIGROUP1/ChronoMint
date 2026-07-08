@@ -38,8 +38,8 @@ export function useMySubmissionsQuery(
         (res) => res.items ?? []
       ),
     enabled: queryEnabled,
-    staleTime: 0,
-    refetchOnMount: "always"
+    staleTime: 60_000,
+    refetchOnMount: true
   });
 }
 

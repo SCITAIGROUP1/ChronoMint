@@ -2,14 +2,17 @@
 
 import {
   ROUTES,
-  resolveEffectiveTimezone,
   type ExportPresetDto,
   type ExportPreviewBodyDto,
   type ExportPreviewResponseDto,
-  type UserProfileDto,
   type WorkspaceMemberDto
 } from "@kloqra/contracts";
-import { fetchProjectTeam, useEntryCatalogQueries, useTasksListQuery } from "@kloqra/web-shared";
+import {
+  fetchProjectTeam,
+  useEntryCatalogQueries,
+  useTasksListQuery,
+  useWorkspaceOperationalSettings
+} from "@kloqra/web-shared";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -48,6 +51,7 @@ export function ExportsPage() {
   const catalog = useEntryCatalogQueries(ws, { enabled: Boolean(ws) });
   const projects = catalog.projects;
   const categories = catalog.categories;
+  const { timezone: workspaceTimezone } = useWorkspaceOperationalSettings(ws, Boolean(ws));
 
   const taskFilters = useMemo(() => {
     if (projectIds.length === 0) return undefined;
@@ -72,18 +76,6 @@ export function ExportsPage() {
 
   const [localPresets, setLocalPresets] = useState<StoredExportPreset[]>([]);
   const [serverPresets, setServerPresets] = useState<ExportPresetDto[]>([]);
-
-  // Load the admin user's timezone preference so exported date columns match the UI.
-  const [userTimezone, setUserTimezone] = useState<string | undefined>(undefined);
-  useEffect(() => {
-    if (!ws) return;
-    api<UserProfileDto>(ROUTES.USERS.ME, { workspaceId: ws })
-      .then((profile) => {
-        const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        setUserTimezone(resolveEffectiveTimezone(profile.preferences, browserTz));
-      })
-      .catch(() => {});
-  }, [ws]);
 
   const initialTaskIdRef = useRef<string | null>(null);
 
@@ -241,8 +233,8 @@ export function ExportsPage() {
       preview,
       previewLoading,
       previewError,
-      // Pass user timezone preference so exports use the same timezone as the UI
-      timezone: userTimezone
+      // Workspace TZ so exports match operational admin views
+      timezone: workspaceTimezone
     }),
     [
       ws,
@@ -261,7 +253,7 @@ export function ExportsPage() {
       preview,
       previewLoading,
       previewError,
-      userTimezone
+      workspaceTimezone
     ]
   );
 

@@ -88,6 +88,8 @@ function unreadKey(userId: string, workspaceId: string) {
   return notificationUnreadKey(userId, workspaceId);
 }
 
+const unreadInflight = new Map<string, Promise<void>>();
+
 let globalListenersAttached = false;
 let onFocusHandler: (() => void) | null = null;
 let onUpdatedHandler: (() => void) | null = null;
@@ -178,6 +180,12 @@ export const useNotificationsStore = create<NotificationsStoreState>((set, get) 
   refreshUnread: async (userId, workspaceId) => {
     if (!userId || !workspaceId) return;
     const key = unreadKey(userId, workspaceId);
+    const existing = unreadInflight.get(key);
+    if (existing) {
+      await existing;
+      return;
+    }
+
     set((state) => ({
       unreadByWorkspace: {
         ...state.unreadByWorkspace,
@@ -187,22 +195,32 @@ export const useNotificationsStore = create<NotificationsStoreState>((set, get) 
         }
       }
     }));
-    try {
-      const res = await api<{ count: number }>(ROUTES.NOTIFICATIONS.UNREAD_COUNT, { workspaceId });
-      set((state) => ({
-        unreadByWorkspace: {
-          ...state.unreadByWorkspace,
-          [key]: { count: res.count, loading: false }
-        }
-      }));
-    } catch {
-      set((state) => ({
-        unreadByWorkspace: {
-          ...state.unreadByWorkspace,
-          [key]: { count: 0, loading: false }
-        }
-      }));
-    }
+
+    const promise = (async () => {
+      try {
+        const res = await api<{ count: number }>(ROUTES.NOTIFICATIONS.UNREAD_COUNT, {
+          workspaceId
+        });
+        set((state) => ({
+          unreadByWorkspace: {
+            ...state.unreadByWorkspace,
+            [key]: { count: res.count, loading: false }
+          }
+        }));
+      } catch {
+        set((state) => ({
+          unreadByWorkspace: {
+            ...state.unreadByWorkspace,
+            [key]: { count: 0, loading: false }
+          }
+        }));
+      } finally {
+        unreadInflight.delete(key);
+      }
+    })();
+
+    unreadInflight.set(key, promise);
+    await promise;
   },
 
   refreshRecent: async (userId, workspaceId, limit) => {

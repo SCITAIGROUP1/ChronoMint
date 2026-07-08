@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   blockStyle,
   buildDayOccupancySegments,
+  clipLogToDay,
   combineDayAndTimeInZone,
   computeLogMoveRange,
+  countLogsOnDay,
+  dayBoundsFromDateKey,
   fromDateKey,
   isSlotOccupiedElsewhere,
   rangeOccupiedElsewhere,
@@ -13,12 +16,13 @@ import {
 } from "./calendar-utils";
 
 describe("day header totals", () => {
-  it("sums clipped log seconds for a day", () => {
+  it("sums full duration for logs that start on the day", () => {
     const day = combineDayAndTimeInZone("2026-06-15", "12:00", "UTC");
     const logs = [
       {
         startTime: "2026-06-15T09:00:00.000Z",
-        endTime: "2026-06-15T10:45:00.000Z"
+        endTime: "2026-06-15T10:45:00.000Z",
+        durationSec: 6300
       }
     ];
 
@@ -26,7 +30,26 @@ describe("day header totals", () => {
     expect(total).toBe(6300);
   });
 
-  it("includes active timer seconds clipped to the day", () => {
+  it("attributes overnight entries fully to the preference-TZ start day", () => {
+    // Wed Jul 8 20:30 – Thu Jul 9 01:30 Asia/Colombo (5h) — same shape as tracker/dashboard 10h Wed.
+    const wed = fromDateKey("2026-07-08");
+    const thu = fromDateKey("2026-07-09");
+    const overnight = {
+      startTime: "2026-07-08T15:00:00.000Z",
+      endTime: "2026-07-08T20:00:00.000Z",
+      durationSec: 18_000
+    };
+    const sameDay = {
+      startTime: "2026-07-08T09:00:00.000Z",
+      endTime: "2026-07-08T14:00:00.000Z",
+      durationSec: 18_000
+    };
+
+    expect(resolveDayHeaderTotalSeconds([overnight, sameDay], wed, "Asia/Colombo")).toBe(36_000);
+    expect(resolveDayHeaderTotalSeconds([overnight, sameDay], thu, "Asia/Colombo")).toBe(0);
+  });
+
+  it("includes active timer seconds on the day the timer started", () => {
     const day = combineDayAndTimeInZone("2026-06-15", "12:00", "UTC");
     const total = resolveDayHeaderTotalSeconds([], day, "UTC", {
       startedAt: "2026-06-15T09:00:00.000Z",
@@ -35,6 +58,66 @@ describe("day header totals", () => {
     });
 
     expect(total).toBe(1800);
+  });
+
+  it("does not add an active timer that started on another calendar day", () => {
+    const thu = fromDateKey("2026-07-09");
+    const total = resolveDayHeaderTotalSeconds([], thu, "Asia/Colombo", {
+      startedAt: "2026-07-08T15:00:00.000Z",
+      isPaused: false,
+      elapsedSec: 7200,
+      liveElapsedSec: 7200
+    });
+    expect(total).toBe(0);
+  });
+
+  it("counts overnight entries on the start day only (header UX)", () => {
+    const wed = fromDateKey("2026-07-08");
+    const thu = fromDateKey("2026-07-09");
+    const overnight = {
+      startTime: "2026-07-08T15:00:00.000Z",
+      endTime: "2026-07-08T20:00:00.000Z",
+      durationSec: 18_000
+    };
+    expect(countLogsOnDay([overnight], wed, "Asia/Colombo")).toBe(1);
+    expect(countLogsOnDay([overnight], thu, "Asia/Colombo")).toBe(0);
+  });
+});
+
+describe("overnight clip vs start-day totals", () => {
+  it("clips visual remnant onto the next day while totals stay on start day", () => {
+    const tz = "Asia/Colombo";
+    const wed = fromDateKey("2026-07-08");
+    const thu = fromDateKey("2026-07-09");
+    // Wed 20:30 → Thu 01:30 Colombo
+    const overnight = {
+      startTime: "2026-07-08T15:00:00.000Z",
+      endTime: "2026-07-08T20:00:00.000Z",
+      durationSec: 18_000
+    };
+
+    const wedClip = clipLogToDay(overnight, wed, tz);
+    const thuClip = clipLogToDay(overnight, thu, tz);
+    expect(wedClip).not.toBeNull();
+    expect(thuClip).not.toBeNull();
+
+    const wedStyle = blockStyle(wedClip!.start, wedClip!.end, tz);
+    const thuStyle = blockStyle(thuClip!.start, thuClip!.end, tz);
+    expect(wedStyle.display).not.toBe("none");
+    expect(thuStyle.display).not.toBe("none");
+    expect(parseFloat(wedStyle.height)).toBeGreaterThan(0);
+    expect(parseFloat(thuStyle.height)).toBeGreaterThan(0);
+
+    expect(resolveDayHeaderTotalSeconds([overnight], wed, tz)).toBe(18_000);
+    expect(resolveDayHeaderTotalSeconds([overnight], thu, tz)).toBe(0);
+  });
+});
+
+describe("dayBoundsFromDateKey DST-safe end", () => {
+  it("ends at next local midnight, not +24h wall clock", () => {
+    const { dayStart, dayEnd } = dayBoundsFromDateKey("2026-07-08", "Asia/Colombo");
+    expect(dayStart.toISOString()).toBe("2026-07-07T18:30:00.000Z");
+    expect(dayEnd.toISOString()).toBe("2026-07-08T18:30:00.000Z");
   });
 });
 
@@ -142,6 +225,24 @@ describe("blockStyle proportional height", () => {
     const heightPct = parseFloat(style.height);
     expect(heightPct).toBeGreaterThan(0);
     expect(heightPct).toBeLessThan(1);
+  });
+
+  it("renders an entry that ends at exact local midnight (20:00–24:00)", () => {
+    const tz = "Asia/Colombo";
+    const day = fromDateKey("2026-07-08");
+    const log = {
+      startTime: "2026-07-08T14:30:00.000Z", // 20:00 Colombo
+      endTime: "2026-07-08T18:30:00.000Z" // 24:00 / next midnight Colombo
+    };
+    const clip = clipLogToDay(log, day, tz);
+    expect(clip).not.toBeNull();
+    const style = blockStyle(clip!.start, clip!.end, tz);
+    expect(style.display).not.toBe("none");
+    const topPct = parseFloat(style.top);
+    const heightPct = parseFloat(style.height);
+    // 20:00–24:00 = last 4/24 of the day
+    expect(topPct).toBeCloseTo((20 / 24) * 100, 5);
+    expect(heightPct).toBeCloseTo((4 / 24) * 100, 5);
   });
 });
 

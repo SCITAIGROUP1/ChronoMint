@@ -1,6 +1,5 @@
 import type { TimesheetApprovalPeriod, WorkspaceSettings } from "@kloqra/contracts";
 import { DEFAULT_TIMESHEET_APPROVAL_PERIOD, parseWorkspaceSettings } from "@kloqra/contracts";
-import { getWeekStartDate } from "./week.util";
 
 export type PeriodRange = {
   periodStart: Date;
@@ -25,6 +24,24 @@ function datePartsInTimezone(date: Date, timeZone: string) {
   return { y, m, d };
 }
 
+function addCalendarDays(
+  y: number,
+  m: number,
+  d: number,
+  days: number
+): {
+  y: number;
+  m: number;
+  d: number;
+} {
+  const next = new Date(Date.UTC(y, m - 1, d + days));
+  return {
+    y: next.getUTCFullYear(),
+    m: next.getUTCMonth() + 1,
+    d: next.getUTCDate()
+  };
+}
+
 /** UTC instant for local midnight on Y-M-D in the given IANA timezone. */
 function localMidnightUtc(y: number, m: number, d: number, timeZone: string): Date {
   if (timeZone === "UTC") {
@@ -35,33 +52,79 @@ function localMidnightUtc(y: number, m: number, d: number, timeZone: string): Da
   return new Date(guess.getTime() - offsetMs);
 }
 
+/** Exclusive next local midnight (DST-safe via calendar Y-M-D arithmetic). */
+function nextLocalMidnightUtc(y: number, m: number, d: number, timeZone: string): Date {
+  const next = addCalendarDays(y, m, d, 1);
+  return localMidnightUtc(next.y, next.m, next.d, timeZone);
+}
+
 function endOfLocalDayUtc(y: number, m: number, d: number, timeZone: string): Date {
-  const start = localMidnightUtc(y, m, d, timeZone);
-  const nextDay = new Date(start);
-  nextDay.setUTCDate(nextDay.getUTCDate() + 1);
-  return new Date(nextDay.getTime() - 1);
+  return new Date(nextLocalMidnightUtc(y, m, d, timeZone).getTime() - 1);
 }
 
 function getTimezoneOffsetMs(date: Date, timeZone: string): number {
-  const utc = new Intl.DateTimeFormat("en-US", {
-    timeZone: "UTC",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false
-  }).format(date);
-  const local = new Intl.DateTimeFormat("en-US", {
+  if (timeZone === "UTC") return 0;
+  try {
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
+      hour: "numeric",
+      minute: "numeric",
+      second: "numeric",
+      hour12: false
+    });
+    const parts = formatter.formatToParts(date);
+    const getVal = (type: string) => Number(parts.find((p) => p.type === type)?.value);
+
+    let hour = getVal("hour");
+    if (hour === 24) hour = 0;
+
+    const tzDateUtc = Date.UTC(
+      getVal("year"),
+      getVal("month") - 1,
+      getVal("day"),
+      hour,
+      getVal("minute"),
+      getVal("second")
+    );
+
+    return tzDateUtc - date.getTime();
+  } catch {
+    return 0;
+  }
+}
+
+/** Local weekday 0=Sun..6=Sat for Y-M-D in zone. */
+function localWeekday(y: number, m: number, d: number, timeZone: string): number {
+  const midnight = localMidnightUtc(y, m, d, timeZone);
+  const weekday = new Intl.DateTimeFormat("en-US", {
     timeZone,
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false
-  }).format(date);
-  const [uh, um, us] = utc.split(":").map(Number);
-  const [lh, lm, ls] = local.split(":").map(Number);
-  const utcSec = uh * 3600 + um * 60 + us;
-  const localSec = lh * 3600 + lm * 60 + ls;
-  return (localSec - utcSec) * 1000;
+    weekday: "short"
+  }).format(midnight);
+  const map: Record<string, number> = {
+    Sun: 0,
+    Mon: 1,
+    Tue: 2,
+    Wed: 3,
+    Thu: 4,
+    Fri: 5,
+    Sat: 6
+  };
+  return map[weekday] ?? 0;
+}
+
+function weekStartParts(
+  y: number,
+  m: number,
+  d: number,
+  timeZone: string,
+  weekStart: WorkspaceSettings["weekStart"]
+): { y: number; m: number; d: number } {
+  const day = localWeekday(y, m, d, timeZone);
+  const diff = weekStart === "sunday" ? -day : day === 0 ? -6 : 1 - day;
+  return addCalendarDays(y, m, d, diff);
 }
 
 export function resolveApprovalPeriod(
@@ -101,13 +164,17 @@ export function getPeriodRange(
     };
   }
 
+  // Weekly: workspace TZ week containing the local calendar day of the instant
+  // (matches docs/specs/submissions.md — never bare UTC weekday math).
+  const { y, m, d } = datePartsInTimezone(date, tz);
   const weekStartPref = workspaceSettings.weekStart ?? "monday";
-  const periodStart = getWeekStartDate(date, weekStartPref);
-  const periodEnd = new Date(periodStart);
-  periodEnd.setUTCDate(periodEnd.getUTCDate() + 6);
-  periodEnd.setUTCHours(23, 59, 59, 999);
-
-  return { periodStart, periodEnd, approvalPeriod };
+  const startParts = weekStartParts(y, m, d, tz, weekStartPref);
+  const endParts = addCalendarDays(startParts.y, startParts.m, startParts.d, 6);
+  return {
+    periodStart: localMidnightUtc(startParts.y, startParts.m, startParts.d, tz),
+    periodEnd: endOfLocalDayUtc(endParts.y, endParts.m, endParts.d, tz),
+    approvalPeriod
+  };
 }
 
 export function formatPeriodLabel(

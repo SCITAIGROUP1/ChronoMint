@@ -33,16 +33,30 @@ export function resolveEntryApprovalStatus(
   }
 
   const start = new Date(log.startTime);
+  const statusPrecedence: Partial<Record<TimesheetApprovalStatus, number>> = {
+    APPROVED: 4,
+    SUBMITTED: 3,
+    REJECTED: 2,
+    DRAFT: 1
+  };
+
+  let best: EntryApprovalDisplay | null = null;
+  let bestScore = -1;
+
   for (const sub of submissionByKey.values()) {
     if (sub.projectId !== project.id) continue;
     const pStart = new Date(sub.periodStart);
     const pEnd = new Date(sub.periodEnd);
-    if (start >= pStart && start <= pEnd) {
-      const status = sub.status === "WAIVED" ? "DRAFT" : sub.status;
-      return { showApproval: true, status };
+    if (start < pStart || start > pEnd) continue;
+    const status = (sub.status === "WAIVED" ? "DRAFT" : sub.status) as TimesheetApprovalStatus;
+    const score = statusPrecedence[status] ?? 0;
+    if (score > bestScore) {
+      bestScore = score;
+      best = { showApproval: true, status };
     }
   }
 
+  if (best) return best;
   return { showApproval: true, status: "DRAFT" };
 }
 

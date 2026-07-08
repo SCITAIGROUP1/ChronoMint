@@ -1,7 +1,7 @@
 "use client";
 
-import { BRAND_NAME, ROUTES, resolveEffectiveTimezone } from "@kloqra/contracts";
-import type { ActiveTimerDto, AutoStoppedTimerDto, TimeLogDto } from "@kloqra/contracts";
+import { BRAND_NAME, ROUTES } from "@kloqra/contracts";
+import type { ActiveTimerDto, TimeLogDto } from "@kloqra/contracts";
 import {
   AppBar,
   Button,
@@ -17,27 +17,28 @@ import {
   EmptyState
 } from "@kloqra/ui";
 import {
+  useDisplayPreferences,
   useEntryCatalogQueries,
   useRefetchOnWindowFocus,
   useTimelogListQuery,
   useTimelogMutations,
-  useUserProfile,
   todayInZone,
   localMidnightUtcInZone,
+  sumDurationSecForDateKey,
   toDateKeyInZone
 } from "@kloqra/web-shared";
 import { Play, Pause, Square } from "lucide-react";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { formatAutoStopToastMessage } from "./timer-autostop-message";
 import { DailyGoalWidget, QuickActions, StaleTimerDialog } from "./timer-lazy";
 import { resolveTimerStartErrorMessage } from "./timer-start-error";
 import { JiraIssuePicker } from "@/components/jira-issue-picker";
+import { useActiveTimerSession } from "@/hooks/use-active-timer-session";
 import { useIsImpersonating } from "@/hooks/use-is-impersonating";
 import { useJiraIssues } from "@/hooks/use-jira-issues";
-import { useTimelogStaleRefetch } from "@/hooks/use-timelog-stale-refetch";
 import { api } from "@/lib/api";
 import { formatProjectLabel, formatTaskLabel } from "@/lib/project-labels";
+import { useActiveTimerSessionStore } from "@/stores/active-timer-session.store";
 import { useProjectsStore } from "@/stores/projects.store";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 import { isActiveTimer, useTimerStore } from "@/stores/timer.store";
@@ -152,11 +153,7 @@ export function TimerPage() {
 
   useRefetchOnWindowFocus(reloadCatalog, Boolean(ws));
 
-  const { profile } = useUserProfile();
-  const timezone = useMemo(() => {
-    const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    return resolveEffectiveTimezone(profile?.preferences ?? {}, browserTz);
-  }, [profile]);
+  const { timezone } = useDisplayPreferences();
 
   const [projectId, setProjectId] = useState("");
   const [taskChoice, setTaskChoice] = useState("");
@@ -220,51 +217,21 @@ export function TimerPage() {
     await refetchRecentLogs();
   }, [refetchRecentLogs]);
 
-  const timelogMutations = useTimelogMutations(ws, { onLocalRefresh: refreshRecentLogs });
+  // List cache is patched in commitTimelogMutation — skip redundant local refetch.
+  const timelogMutations = useTimelogMutations(ws);
 
-  const fetchActiveTimer = useCallback(async () => {
+  const refreshActiveTimer = useCallback(async () => {
     if (!ws) return;
-    try {
-      const res = await api<ActiveTimerDto | AutoStoppedTimerDto | null>(ROUTES.TIMER.ACTIVE, {
-        workspaceId: ws
-      });
-      if (res && "autostopped" in res && res.autostopped) {
-        setActive(null);
-        toast.warning(formatAutoStopToastMessage(), { duration: 8000 });
-        await timelogMutations.invalidateAll();
-        return;
-      }
-      setActive(res as ActiveTimerDto | null);
-    } catch {
-      // ignore
-    }
-  }, [ws, setActive, timelogMutations]);
+    await useActiveTimerSessionStore.getState().refreshActive(ws);
+  }, [ws]);
 
-  useEffect(() => {
-    if (!ws) return;
-    void fetchActiveTimer();
-  }, [ws, fetchActiveTimer]);
-
-  useTimelogStaleRefetch(
-    ws,
-    () => {
-      void refreshRecentLogs();
-    },
-    Boolean(ws)
-  );
+  useActiveTimerSession(ws, Boolean(ws));
 
   // Handle active status ticks
   useEffect(() => {
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, [tick]);
-
-  // Handle background polling of active timer state (every 30s)
-  useEffect(() => {
-    if (!ws) return;
-    const intervalId = setInterval(fetchActiveTimer, 30000);
-    return () => clearInterval(intervalId);
-  }, [ws, fetchActiveTimer]);
 
   const projectTasks = useMemo(
     () => tasks.filter((t) => t.projectId === projectId),
@@ -287,6 +254,12 @@ export function TimerPage() {
   const tracking = isActiveTimer(active);
   const isImpersonating = useIsImpersonating();
 
+  // Reconcile active timer when tracking but task metadata is missing from catalog.
+  useEffect(() => {
+    if (!ws || !tracking || activeTask) return;
+    void refreshActiveTimer();
+  }, [ws, tracking, activeTask, refreshActiveTimer]);
+
   // Stale check warning trigger
   useEffect(() => {
     if (!tracking || !active) return;
@@ -295,11 +268,6 @@ export function TimerPage() {
     if (snoozedUntil && Date.now() < snoozedUntil) return;
     setShowStaleDialog(true);
   }, [elapsedSec, tracking, staleWarningHours, snoozedUntil, active]);
-
-  useEffect(() => {
-    if (!ws || !tracking || activeTask) return;
-    void fetchActiveTimer();
-  }, [ws, tracking, activeTask, fetchActiveTimer]);
 
   const canStart = Boolean(projectId) && Boolean(taskChoice);
 
@@ -376,7 +344,7 @@ export function TimerPage() {
         method: "POST",
         workspaceId: ws
       });
-      await fetchActiveTimer();
+      await refreshActiveTimer();
       toast.success("Timer paused. Enjoy your break!");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not pause timer");
@@ -395,7 +363,7 @@ export function TimerPage() {
         method: "POST",
         workspaceId: ws
       });
-      await fetchActiveTimer();
+      await refreshActiveTimer();
       toast.success("Timer resumed. Welcome back!");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not resume timer");
@@ -478,12 +446,7 @@ export function TimerPage() {
   const todayLoggedSec = useMemo(() => {
     const today = todayInZone(timezone);
     const dateKey = toDateKeyInZone(today, timezone);
-    return recentLogs.reduce((sum, log) => {
-      const start = new Date(log.startTime);
-      if (toDateKeyInZone(start, timezone) !== dateKey) return sum;
-      const end = new Date(log.endTime);
-      return sum + (end.getTime() - start.getTime()) / 1000;
-    }, 0);
+    return sumDurationSecForDateKey(recentLogs, dateKey, timezone);
   }, [recentLogs, timezone]);
 
   const totalTodaySec = todayLoggedSec + (tracking ? elapsedSec : 0);

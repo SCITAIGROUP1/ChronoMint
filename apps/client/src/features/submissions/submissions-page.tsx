@@ -1,7 +1,5 @@
 "use client";
 
-import type { UserProfileDto } from "@kloqra/contracts";
-import { resolveEffectiveTimezone, ROUTES } from "@kloqra/contracts";
 import {
   AppBar,
   AppBarSecondary,
@@ -15,7 +13,12 @@ import {
   APPROVALS_TABLE_PAGE_SIZE,
   parseMemberSubmissionsSearch,
   resolveMemberSubmissionsTab,
+  SUBMISSIONS_LOOKBACK_WEEKS,
+  submissionPeriodEndDateKey,
+  todayInZone,
+  toDateKeyInZone,
   useClientTablePagination,
+  useDisplayPreferences,
   useEntryCatalogQueries,
   useMySubmissionsLookbackQuery,
   type MemberSubmissionsTab
@@ -32,8 +35,6 @@ import {
   filterSubmissionsByTab,
   type MemberSubmissionsTabFilter
 } from "./use-my-submissions";
-import { todayInZone } from "@/features/timesheet/calendar-utils";
-import { api } from "@/lib/api";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
 const TAB_OPTIONS: { value: MemberSubmissionsTab; label: string }[] = [
@@ -99,28 +100,37 @@ export function SubmissionsPage() {
 
   const [rangeFrom, setRangeFrom] = useState("");
   const [rangeTo, setRangeTo] = useState("");
-  const [weekStartPref, setWeekStartPref] = useState<"monday" | "sunday">("monday");
   const [projectFilter, setProjectFilter] = useState<string[]>([]);
 
-  const [timezone, setTimezone] = useState(() =>
-    resolveEffectiveTimezone({}, Intl.DateTimeFormat().resolvedOptions().timeZone)
-  );
-
-  const anchorDate = useMemo(() => todayInZone(timezone), [timezone]);
+  const { timezone, weekStart: weekStartPref } = useDisplayPreferences();
+  const anchorDateKey = useMemo(() => toDateKeyInZone(todayInZone(timezone), timezone), [timezone]);
   const {
     data: allSubmissions = [],
     isLoading: allLoading,
     refetch: refreshAll
-  } = useMySubmissionsLookbackQuery(ws, anchorDate, 26, "assigned", Boolean(ws));
+  } = useMySubmissionsLookbackQuery(
+    ws,
+    anchorDateKey,
+    SUBMISSIONS_LOOKBACK_WEEKS,
+    "assigned",
+    Boolean(ws)
+  );
 
   useEffect(() => {
     if (!deepLink.periodStart) return;
-    const periodStart = new Date(deepLink.periodStart);
-    const periodEnd = new Date(periodStart);
-    periodEnd.setDate(periodEnd.getDate() + 6);
-    setRangeFrom(periodStart.toISOString().slice(0, 10));
-    setRangeTo(periodEnd.toISOString().slice(0, 10));
-  }, [deepLink.periodStart]);
+    const periodStartKey = deepLink.periodStart.slice(0, 10);
+    const match = allSubmissions.find(
+      (row) =>
+        row.periodStart.slice(0, 10) === periodStartKey &&
+        (!deepLink.projectId || row.projectId === deepLink.projectId)
+    );
+    const approvalPeriod = match?.approvalPeriod ?? "weekly";
+    const periodEndKey = match
+      ? match.periodEnd.slice(0, 10)
+      : submissionPeriodEndDateKey(deepLink.periodStart, approvalPeriod);
+    setRangeFrom(periodStartKey);
+    setRangeTo(periodEndKey);
+  }, [deepLink.periodStart, deepLink.projectId, allSubmissions]);
 
   useEffect(() => {
     if (!deepLink.projectId) return;
@@ -133,21 +143,9 @@ export function SubmissionsPage() {
     el?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [deepLink.projectId, deepLink.highlight, tab]);
 
-  useEffect(() => {
-    if (!ws) return;
-    void api<UserProfileDto>(ROUTES.USERS.ME, { workspaceId: ws }).then((profile) => {
-      const pref = profile.preferences?.weekStart;
-      if (pref === "monday" || pref === "sunday") {
-        setWeekStartPref(pref);
-      }
-      setTimezone(
-        resolveEffectiveTimezone(
-          profile.preferences ?? {},
-          Intl.DateTimeFormat().resolvedOptions().timeZone
-        )
-      );
-    });
-  }, [ws]);
+  const handleSubmitted = useCallback(async () => {
+    await refreshAll();
+  }, [refreshAll]);
 
   const setTab = useCallback(
     (next: MemberSubmissionsTab) => {
@@ -160,10 +158,6 @@ export function SubmissionsPage() {
     [router, searchParams]
   );
 
-  const handleSubmitted = useCallback(async () => {
-    await refreshAll();
-  }, [refreshAll]);
-
   const periodFilteredSubmissions = useMemo(
     () =>
       filterSubmissionsByPeriodRange(
@@ -171,9 +165,10 @@ export function SubmissionsPage() {
           (a, b) => new Date(b.periodStart).getTime() - new Date(a.periodStart).getTime()
         ),
         rangeFrom,
-        rangeTo
+        rangeTo,
+        timezone
       ),
-    [allSubmissions, rangeFrom, rangeTo]
+    [allSubmissions, rangeFrom, rangeTo, timezone]
   );
 
   const tabFilteredSubmissions = useMemo(

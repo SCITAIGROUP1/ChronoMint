@@ -1,5 +1,6 @@
 import type { AuthSessionDto } from "@kloqra/contracts";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useWorkspacesStore } from "../stores/workspaces.store";
 import { resolveAdminPostAuthPath } from "./resolve-admin-post-auth-path";
 
 const { apiMock } = vi.hoisted(() => ({
@@ -24,12 +25,15 @@ const workspaces = [
 describe("resolveAdminPostAuthPath", () => {
   beforeEach(() => {
     apiMock.mockReset();
+    useWorkspacesStore.getState().clear();
   });
 
   it("routes tenant owner with one workspace to select-context", async () => {
     apiMock.mockResolvedValue(workspaces.slice(0, 1));
 
     await expect(resolveAdminPostAuthPath(ownerSession)).resolves.toBe("/select-context");
+    expect(apiMock).toHaveBeenCalledTimes(1);
+    expect(useWorkspacesStore.getState().workspaces).toHaveLength(1);
   });
 
   it("routes workspace-only admin with multiple workspaces to select-workspace", async () => {
@@ -41,5 +45,7 @@ describe("resolveAdminPostAuthPath", () => {
         workspaceRole: "ADMIN"
       } as AuthSessionDto)
     ).resolves.toBe("/select-workspace");
+    expect(apiMock).toHaveBeenCalledTimes(1);
+    expect(useWorkspacesStore.getState().workspaces).toHaveLength(2);
   });
 });
