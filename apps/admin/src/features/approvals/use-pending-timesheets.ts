@@ -78,11 +78,13 @@ export function usePendingTimesheets(
           `Bulk review job for ${ids.length} timesheets enqueued. Updates will process in the background.`
         );
         await invalidateWorkspaceQueries(workspaceId, ["pending_approvals", "submissions"]);
+        await refetch();
+        window.setTimeout(() => void refetch(), 3000);
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Failed to trigger bulk review");
       }
     },
-    [workspaceId]
+    [workspaceId, refetch]
   );
 
   return {

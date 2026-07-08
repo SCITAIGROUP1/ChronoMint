@@ -32,6 +32,7 @@ import { draftToIsoRange, canSaveTaskDraft } from "../timesheet/time-entry-draft
 import { validateTimeEntryOverlap } from "../timesheet/validate-time-entry-overlap";
 import { SubmissionStatusDialogs } from "./submission-status-dialogs";
 import { submitButtonLabel, useSubmissionStatusActions } from "./use-submission-status-actions";
+import { useIsImpersonating } from "@/hooks/use-is-impersonating";
 import { useProjectsStore } from "@/stores/projects.store";
 
 export type SubmissionsTableProps = {
@@ -316,8 +317,15 @@ function SubmissionTableRow({
   workspaceNamesById: Record<string, string>;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const isImpersonating = useIsImpersonating();
 
   const actions = useSubmissionStatusActions(statusInfo, onSubmitted);
+
+  const isPeriodLocked =
+    isImpersonating ||
+    actions.amendmentPending ||
+    actions.status === "SUBMITTED" ||
+    actions.status === "APPROVED";
 
   const timesheetHref = useMemo(
     () => buildMemberTimesheetHrefFromSubmission(statusInfo),
@@ -429,7 +437,7 @@ function SubmissionTableRow({
               tasks={tasks}
               workspaceNamesById={workspaceNamesById}
               onLogUpdated={onSubmitted}
-              isLocked={!actions.canSubmit}
+              isLocked={isPeriodLocked}
             />
           </DataTableCell>
         </TableRow>

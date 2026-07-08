@@ -204,7 +204,7 @@ export function useTimesheetSubmissionStatusQuery(
   enabled = true
 ) {
   const uniqueDates = useMemo(
-    () => [...new Set(dates.filter(Boolean).map(normalizeSubmissionDateKey))].sort(),
+    () => [...new Set(dates.filter(Boolean).map((d) => normalizeSubmissionDateKey(d)))].sort(),
     [dates]
   );
   // Latest visible day (or today) anchors one lookback covering all periods we care about.

@@ -1,6 +1,6 @@
 "use client";
 
-import { ROUTES, resolveEffectiveTimezone } from "@kloqra/contracts";
+import { ROUTES } from "@kloqra/contracts";
 import type { TimeLogDto, ActiveTimerDto, TaskDto, WorkspaceMemberDto } from "@kloqra/contracts";
 import {
   AppBar,
@@ -33,11 +33,14 @@ import {
   type DashboardBreakpoint,
   type DashboardPeriodPreset,
   type DashboardPeriodSelection,
+  useDisplayPreferences,
   useEntryCatalogQueries,
+  useMySubmissionsLookbackQuery,
+  SUBMISSIONS_LOOKBACK_WEEKS,
+  usePreferenceTodayDateKey,
   useTasksListQuery,
   useTimelogListQuery,
   useTimelogMutations,
-  useUserProfile,
   localMidnightUtcInZone,
   todayInZone
 } from "@kloqra/web-shared";
@@ -64,10 +67,7 @@ import {
 } from "./widgets-lazy";
 import { useSuppressAssistantLauncher } from "@/features/assistant/assistant-provider";
 import { useTeamActivities } from "@/features/dashboard/use-team-activities";
-import {
-  useDashboardSubmissions,
-  useMySubmissions
-} from "@/features/submissions/use-my-submissions";
+import { countActionableSubmissions } from "@/features/submissions/use-my-submissions";
 import {
   buildSubmissionByKey,
   isTimeEntryLocked,
@@ -108,23 +108,17 @@ export function DashboardPage() {
   const catalog = useEntryCatalogQueries(ws, { enabled: Boolean(ws) });
   const projects = catalog.projects;
   const tasks = catalog.tasks;
-  const { profile } = useUserProfile();
-
-  const timezone = useMemo(() => {
-    const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    return resolveEffectiveTimezone(profile?.preferences ?? {}, browserTz);
-  }, [profile]);
+  const { timezone } = useDisplayPreferences();
+  const anchorDateKey = usePreferenceTodayDateKey();
 
   // Dashboard filter states
   const [range, setRange] = useState<DashboardPeriodSelection>("week");
-  const [startDate, setStartDate] = useState<string>(() => {
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-    return applyDashboardPeriodPreset("week", tz).from;
-  });
-  const [endDate, setEndDate] = useState<string>(() => {
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-    return applyDashboardPeriodPreset("week", tz).to;
-  });
+  const [startDate, setStartDate] = useState<string>(
+    () => applyDashboardPeriodPreset("week", timezone).from
+  );
+  const [endDate, setEndDate] = useState<string>(
+    () => applyDashboardPeriodPreset("week", timezone).to
+  );
   const [filterProjectId, setFilterProjectId] = useState("");
   const [filterCategoryId, setFilterCategoryId] = useState("");
   const [filterTaskId, setFilterTaskId] = useState("");
@@ -214,18 +208,14 @@ export function DashboardPage() {
   }
 
   // Keep date ranges in sync with the loaded/updated timezone preference
-  const { submissions } = useDashboardSubmissions(ws, Boolean(ws));
-  const draftCount = useMemo(() => {
-    return submissions.filter((s) => s.status === "DRAFT" || s.status === "REJECTED").length;
-  }, [submissions]);
-  // Stabilize anchor — `new Date()` every render changes the query key every ms and storms /submissions.
-  const [submissionsAnchor] = useState(() => new Date());
-  const { submissions: todaySubmissions } = useMySubmissions(
+  const { data: submissions = [] } = useMySubmissionsLookbackQuery(
     ws,
-    submissionsAnchor,
+    anchorDateKey,
+    SUBMISSIONS_LOOKBACK_WEEKS,
     "assigned",
     Boolean(ws)
   );
+  const draftCount = useMemo(() => countActionableSubmissions(submissions), [submissions]);
 
   const teamActivitiesFilters = useMemo(() => {
     const [fy, fm, fd] = startDate.split("-").map(Number);
@@ -511,7 +501,7 @@ export function DashboardPage() {
     }
   }
 
-  const submissionByKey = useMemo(() => buildSubmissionByKey(todaySubmissions), [todaySubmissions]);
+  const submissionByKey = useMemo(() => buildSubmissionByKey(submissions), [submissions]);
 
   const isLogLocked = useCallback(
     (log: TimeLogDto) => {

@@ -81,7 +81,14 @@ export const useActiveTimerSessionStore = create<ActiveTimerStoreState>((set, ge
       void get().refreshActive(workspaceId);
     }
 
+    const intervalId = setInterval(() => {
+      if ((get().refCounts[key] ?? 0) > 0) {
+        void get().refreshActive(workspaceId);
+      }
+    }, 30_000);
+
     return () => {
+      clearInterval(intervalId);
       const remaining = Math.max(0, (get().refCounts[key] ?? 1) - 1);
       const nextRefCounts = { ...get().refCounts };
       if (remaining === 0) {

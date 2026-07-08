@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@kloqra/ui";
+import { invalidateWorkspaceQueries } from "@kloqra/web-shared";
 import { Building2, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -138,6 +139,12 @@ export function WorkspacePage() {
           }
         })
       });
+      await invalidateWorkspaceQueries(ws, [
+        "submissions",
+        "timesheet",
+        "pending_approvals",
+        "timelogs"
+      ]);
       toast.success("Workspace settings saved.");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to update workspace settings";

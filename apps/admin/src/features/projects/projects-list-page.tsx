@@ -108,7 +108,8 @@ export function ProjectsListPage() {
         body: JSON.stringify({
           name: projectName,
           clientName: trimmedClientName,
-          color: createColor
+          color: createColor,
+          timesheetApprovalEnabled: true
         })
       });
       setName("");

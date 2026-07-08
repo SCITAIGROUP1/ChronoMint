@@ -1,12 +1,7 @@
 "use client";
 
 import { ROUTES } from "@kloqra/contracts";
-import type {
-  ActiveTimerDto,
-  AutoStoppedTimerDto,
-  TimeLogDto,
-  UserProfileDto
-} from "@kloqra/contracts";
+import type { TimeLogDto, UserProfileDto } from "@kloqra/contracts";
 import {
   AppBar,
   Button,
@@ -20,7 +15,6 @@ import {
 import {
   api as sharedApi,
   buildMemberSubmissionsHref,
-  invalidateTimelogData,
   logStartDateKey,
   parseMemberTimesheetSearch,
   scopedStorageKey,
@@ -82,10 +76,10 @@ import {
   isTimeEntryLocked,
   LOCKED_ENTRY_MESSAGE
 } from "@/features/time-tracker/entry-approval-status";
+import { useActiveTimerSession } from "@/hooks/use-active-timer-session";
 import { useIsImpersonating } from "@/hooks/use-is-impersonating";
 import { useJiraIssues } from "@/hooks/use-jira-issues";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import { api } from "@/lib/api";
 import { colorForTask } from "@/lib/project-color-styles";
 import { formatTaskLabel } from "@/lib/project-labels";
 import { useProjectsStore } from "@/stores/projects.store";
@@ -191,7 +185,7 @@ export function TimesheetPage() {
   const [confirmDeleteLog, setConfirmDeleteLog] = useState<TimeLogDto | null>(null);
 
   const [showOccupancyOverlay, setShowOccupancyOverlay] = useState(true);
-  const { active: activeTimer, elapsedSec: liveElapsedSec, setActive, tick } = useTimerStore();
+  const { active: activeTimer, elapsedSec: liveElapsedSec, tick } = useTimerStore();
 
   useEffect(() => {
     if (!userId) return;
@@ -232,29 +226,7 @@ export function TimesheetPage() {
     setMobileBannerDismissed(true);
   }
 
-  const fetchActiveTimer = useCallback(async () => {
-    if (!ws) return;
-    try {
-      const res = await api<ActiveTimerDto | AutoStoppedTimerDto | null>(ROUTES.TIMER.ACTIVE, {
-        workspaceId: ws
-      });
-      if (res && "autostopped" in res && res.autostopped) {
-        setActive(null);
-        void invalidateTimelogData(ws);
-        return;
-      }
-      setActive(res as ActiveTimerDto | null);
-    } catch {
-      setActive(null);
-    }
-  }, [ws, setActive]);
-
-  useEffect(() => {
-    if (!ws) return;
-    void fetchActiveTimer();
-    const poll = setInterval(() => void fetchActiveTimer(), 30_000);
-    return () => clearInterval(poll);
-  }, [ws, fetchActiveTimer]);
+  useActiveTimerSession(ws, Boolean(ws));
 
   useEffect(() => {
     const id = setInterval(tick, 1000);

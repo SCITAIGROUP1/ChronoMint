@@ -1,11 +1,14 @@
 "use client";
 
-import { ROUTES, resolveEffectiveTimezone } from "@kloqra/contracts";
+import { ROUTES } from "@kloqra/contracts";
 import type { TeamMembersOverviewDto } from "@kloqra/contracts";
 import { AppBar } from "@kloqra/ui";
-import { fetchProjectTeam, fetchUserProfile, useEntryCatalogQueries } from "@kloqra/web-shared";
+import {
+  fetchProjectTeam,
+  useEntryCatalogQueries,
+  useWorkspaceOperationalSettings
+} from "@kloqra/web-shared";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { TimesheetDisplayFormat } from "./display-format";
 import { groupLogsByWeek } from "./group-logs-by-week";
 import type { BillabilityFilter } from "./time-tracker-filters-panel";
 import {
@@ -27,27 +30,7 @@ import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
 export function AdminTimeTrackerPage() {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
-  const [displayFormat, setDisplayFormat] = useState<TimesheetDisplayFormat | null>(null);
-  const [weekStartPref, setWeekStartPref] = useState<"monday" | "sunday">("monday");
-
-  useEffect(() => {
-    if (!ws) return;
-    void fetchUserProfile(ws)
-      .then((profile) => {
-        if (!profile) return;
-        const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        const timezone = resolveEffectiveTimezone(profile.preferences, browserTz);
-        setWeekStartPref(profile.preferences.weekStart ?? "monday");
-        setDisplayFormat({
-          timezone,
-          dateFormat: profile.effectiveDateFormat,
-          timeFormat: profile.effectiveTimeFormat
-        });
-      })
-      .catch(() => {});
-  }, [ws]);
-
-  const timezone = displayFormat?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const { timezone, weekStart: weekStartPref } = useWorkspaceOperationalSettings(ws, Boolean(ws));
 
   const catalog = useEntryCatalogQueries(ws, { enabled: Boolean(ws) });
   const tasks = catalog.tasks;

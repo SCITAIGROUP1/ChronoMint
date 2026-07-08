@@ -72,6 +72,16 @@ describe("isTimeEntryLocked", () => {
 
     expect(isTimeEntryLocked(log, project, submissionByKey)).toBe(false);
   });
+
+  it("prefers submitted status when multiple periods match", () => {
+    const submissionByKey = buildSubmissionByKey([
+      { ...submittedPeriod, status: "DRAFT", id: "draft-period" },
+      submittedPeriod
+    ]);
+
+    expect(resolveEntryApprovalStatus(log, project, submissionByKey).status).toBe("SUBMITTED");
+    expect(isTimeEntryLocked(log, project, submissionByKey)).toBe(true);
+  });
 });
 
 describe("buildSubmissionByKey", () => {

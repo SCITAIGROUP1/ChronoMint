@@ -2,7 +2,6 @@
 
 import {
   ROUTES,
-  resolveEffectiveTimezone,
   type MissingTimesheetDto,
   type PendingTimesheetDto,
   type ReviewedTimesheetDto,
@@ -29,9 +28,11 @@ import {
   cn
 } from "@kloqra/ui";
 import {
-  fetchUserProfile,
   parseAdminApprovalsSearch,
-  hasActiveApprovalsFilter
+  hasActiveApprovalsFilter,
+  todayInZone,
+  toDateKeyInZone,
+  useWorkspaceOperationalSettings
 } from "@kloqra/web-shared";
 import { Check, X, ChevronDown, ChevronUp } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -451,10 +452,15 @@ export function ApprovalsPage() {
     memberOptions,
     loading: filterOptionsLoading
   } = useApprovalsFilterOptions(ws, Boolean(ws));
-  const [anchorDate] = useState(() => new Date());
   const [remindTarget, setRemindTarget] = useState<MissingTimesheetDto | null>(null);
   const [reminding, setReminding] = useState(false);
   const focusRef = useRef<HTMLDivElement>(null);
+
+  const { timezone, weekStartsOn } = useWorkspaceOperationalSettings(ws, Boolean(ws));
+  const missingAnchorDate = useMemo(() => {
+    const anchorKey = filters.from ?? toDateKeyInZone(todayInZone(timezone), timezone);
+    return new Date(`${anchorKey}T12:00:00.000Z`);
+  }, [filters.from, timezone]);
 
   const [viewMode, setViewMode] = useState<"card" | "table">("card");
 
@@ -472,18 +478,6 @@ export function ApprovalsPage() {
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [expandedIds, setExpandedIds] = useState<string[]>([]);
-  const [timezone, setTimezone] = useState<string | undefined>(undefined);
-
-  useEffect(() => {
-    if (!ws) return;
-    void fetchUserProfile(ws)
-      .then((profile) => {
-        if (!profile) return;
-        const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        setTimezone(resolveEffectiveTimezone(profile.preferences, browserTz));
-      })
-      .catch(() => {});
-  }, [ws]);
   const [bulkConfirmAction, setBulkConfirmAction] = useState<"approve" | "reject" | null>(null);
   const [bulkActioning, setBulkActioning] = useState(false);
   const [confirmActionId, setConfirmActionId] = useState<{
@@ -523,6 +517,7 @@ export function ApprovalsPage() {
       await triggerBulkReview(selectedIds, action, comment);
       setSelectedIds([]);
       setExpandedIds([]);
+      await fetchPending();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to run bulk review");
     } finally {
@@ -538,13 +533,14 @@ export function ApprovalsPage() {
     page: missingPage,
     limit: missingLimit,
     totalPages: missingTotalPages
-  } = useMissingTimesheets(ws, anchorDate, filters, tab === "missing");
+  } = useMissingTimesheets(ws, missingAnchorDate, filters, tab === "missing");
 
   const {
     amendments,
     loading: amendmentsLoading,
     actioningId: amendmentActioningId,
     handleReview: handleAmendmentReview,
+    refresh: refreshAmendments,
     total: amendmentsTotal,
     page: amendmentsPage,
     limit: amendmentsLimit,
@@ -668,6 +664,7 @@ export function ApprovalsPage() {
         showSort={tab === "review"}
         viewMode={viewMode}
         onViewModeChange={tab !== "missing" ? handleViewModeChange : undefined}
+        weekStartsOn={weekStartsOn}
         resultCount={
           tab === "review"
             ? pendingTotal
@@ -833,6 +830,7 @@ export function ApprovalsPage() {
                     <PendingTimesheetCard
                       item={t}
                       workspaceId={ws}
+                      timezone={timezone}
                       onReview={(action, note) => void handleReview(t.id, action, note)}
                       actioning={actioningId === t.id}
                       highlighted={focused}
@@ -996,10 +994,14 @@ export function ApprovalsPage() {
                           }
                         }}
                         onApprove={() =>
-                          void handleAmendmentReview(item.id, "approve").then(() => fetchPending())
+                          void handleAmendmentReview(item.id, "approve").then(() =>
+                            refreshAmendments()
+                          )
                         }
                         onDeny={() =>
-                          void handleAmendmentReview(item.id, "deny").then(() => fetchPending())
+                          void handleAmendmentReview(item.id, "deny").then(() =>
+                            refreshAmendments()
+                          )
                         }
                       />
                     );
@@ -1018,7 +1020,9 @@ export function ApprovalsPage() {
                     <AmendmentRequestCard
                       item={item}
                       onReview={(action, note) =>
-                        void handleAmendmentReview(item.id, action, note).then(() => fetchPending())
+                        void handleAmendmentReview(item.id, action, note).then(() =>
+                          refreshAmendments()
+                        )
                       }
                       actioning={amendmentActioningId === item.id}
                       highlighted={focused}
@@ -1139,7 +1143,12 @@ export function ApprovalsPage() {
                 const focused = deepLink.periodId === item.id;
                 return (
                   <div key={item.id} ref={focused ? focusRef : undefined}>
-                    <ReviewedTimesheetCard item={item} workspaceId={ws} highlighted={focused} />
+                    <ReviewedTimesheetCard
+                      item={item}
+                      workspaceId={ws}
+                      timezone={timezone}
+                      highlighted={focused}
+                    />
                   </div>
                 );
               })}
@@ -1256,7 +1265,12 @@ export function ApprovalsPage() {
                 const focused = deepLink.periodId === item.id;
                 return (
                   <div key={item.id} ref={focused ? focusRef : undefined}>
-                    <ReviewedTimesheetCard item={item} workspaceId={ws} highlighted={focused} />
+                    <ReviewedTimesheetCard
+                      item={item}
+                      workspaceId={ws}
+                      timezone={timezone}
+                      highlighted={focused}
+                    />
                   </div>
                 );
               })}
@@ -1449,6 +1463,7 @@ export function ApprovalsPage() {
                       <PendingTimesheetCard
                         item={item}
                         workspaceId={ws}
+                        timezone={timezone}
                         onReview={(action, note) => void handleReview(item.id, action, note)}
                         actioning={actioningId === item.id}
                         highlighted={focused}
@@ -1466,7 +1481,12 @@ export function ApprovalsPage() {
                 } else {
                   return (
                     <div key={item.id} ref={focused ? focusRef : undefined}>
-                      <ReviewedTimesheetCard item={item} workspaceId={ws} highlighted={focused} />
+                      <ReviewedTimesheetCard
+                        item={item}
+                        workspaceId={ws}
+                        timezone={timezone}
+                        highlighted={focused}
+                      />
                     </div>
                   );
                 }
@@ -1611,7 +1631,7 @@ export function ApprovalsPage() {
                 const succeeded = results.filter((r) => r.status === "fulfilled").length;
                 toast.success(`Successfully approved ${succeeded} edit request(s).`);
                 setSelectedIds([]);
-                return fetchPending();
+                return refreshAmendments();
               })
               .finally(() => {
                 setBulkActioning(false);
@@ -1662,7 +1682,7 @@ export function ApprovalsPage() {
                 const succeeded = results.filter((r) => r.status === "fulfilled").length;
                 toast.success(`Successfully denied ${succeeded} edit request(s).`);
                 setSelectedIds([]);
-                return fetchPending();
+                return refreshAmendments();
               })
               .finally(() => {
                 setBulkActioning(false);

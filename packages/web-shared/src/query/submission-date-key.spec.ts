@@ -15,4 +15,11 @@ describe("normalizeSubmissionDateKey", () => {
     // Prefer-calendar keys must stay as provided even when local midnight would shift UTC day.
     expect(normalizeSubmissionDateKey("2026-07-08")).toBe("2026-07-08");
   });
+
+  it("uses display timezone for ISO timestamps when provided", () => {
+    // 2026-07-08 01:00 Colombo is still Jul 8 local but Jul 7 UTC.
+    expect(normalizeSubmissionDateKey("2026-07-07T20:30:00.000Z", "Asia/Colombo")).toBe(
+      "2026-07-08"
+    );
+  });
 });

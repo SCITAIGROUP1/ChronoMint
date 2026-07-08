@@ -142,6 +142,8 @@ export { useWorkspacesStore } from "./stores/workspaces.store";
 export { toDateInputValue } from "./utils/date-input";
 export { resolveStartupPath } from "./utils/startup-page";
 export { useDisplayPreferences } from "./hooks/use-display-preferences";
+export { usePreferenceTodayDateKey } from "./hooks/use-preference-today-date-key";
+export { useWorkspaceOperationalSettings } from "./hooks/use-workspace-operational-settings";
 export { usePaginatedList } from "./hooks/use-paginated-list";
 export { useRefetchOnWindowFocus } from "./hooks/use-refetch-on-window-focus";
 export { useWorkspaceStaleRefetch } from "./hooks/use-workspace-stale-refetch";
@@ -252,6 +254,7 @@ export {
   getTimezoneOffsetMs,
   type DashboardPeriodPreset
 } from "./utils/dashboard-period-presets";
+export { submissionPeriodEndDateKey } from "./utils/submission-period-range";
 export {
   logStartDateKey,
   resolveLogDurationSec,

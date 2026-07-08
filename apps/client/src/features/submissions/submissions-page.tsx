@@ -14,6 +14,7 @@ import {
   parseMemberSubmissionsSearch,
   resolveMemberSubmissionsTab,
   SUBMISSIONS_LOOKBACK_WEEKS,
+  submissionPeriodEndDateKey,
   todayInZone,
   toDateKeyInZone,
   useClientTablePagination,
@@ -119,11 +120,18 @@ export function SubmissionsPage() {
   useEffect(() => {
     if (!deepLink.periodStart) return;
     const periodStartKey = deepLink.periodStart.slice(0, 10);
-    const periodEnd = new Date(`${periodStartKey}T12:00:00`);
-    periodEnd.setDate(periodEnd.getDate() + 6);
+    const match = allSubmissions.find(
+      (row) =>
+        row.periodStart.slice(0, 10) === periodStartKey &&
+        (!deepLink.projectId || row.projectId === deepLink.projectId)
+    );
+    const approvalPeriod = match?.approvalPeriod ?? "weekly";
+    const periodEndKey = match
+      ? match.periodEnd.slice(0, 10)
+      : submissionPeriodEndDateKey(deepLink.periodStart, approvalPeriod);
     setRangeFrom(periodStartKey);
-    setRangeTo(periodEnd.toISOString().slice(0, 10));
-  }, [deepLink.periodStart]);
+    setRangeTo(periodEndKey);
+  }, [deepLink.periodStart, deepLink.projectId, allSubmissions]);
 
   useEffect(() => {
     if (!deepLink.projectId) return;
