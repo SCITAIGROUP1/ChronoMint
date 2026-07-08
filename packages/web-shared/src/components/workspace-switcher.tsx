@@ -23,6 +23,7 @@ import {
   formatTenantRoleLabel
 } from "../auth/admin-access-label";
 import type { AdminContextMode } from "../auth/admin-context";
+import { isPendingWorkspaceSetup } from "../auth/tenant-onboarding";
 import { useTenantCurrent } from "../features/tenant/use-tenant-current";
 import { getWorkspaceId, useSessionStore } from "../stores/session.store";
 import { useWorkspacesStore } from "../stores/workspaces.store";
@@ -150,6 +151,7 @@ export function WorkspaceSwitcher({
 
   useEffect(() => {
     if (!session || workspaces.length > 0) return;
+    if (isPendingWorkspaceSetup(session) || !session.workspaceId) return;
     void ensureWorkspacesLoaded(() =>
       api<WorkspaceListItemDto[]>(ROUTES.WORKSPACES.LIST, { workspaceId: currentId })
     ).catch(() => {});

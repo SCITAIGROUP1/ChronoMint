@@ -24,14 +24,21 @@ describe("useDisplayPreferences timezone", () => {
   });
 
   it("uses browser timezone when preference is Browser default (even if API says UTC)", () => {
+    const browserTzSpy = vi
+      .spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions")
+      .mockReturnValue({
+        ...Intl.DateTimeFormat().resolvedOptions(),
+        timeZone: "Asia/Colombo"
+      });
+
     mocks.profile = {
       preferences: {},
       effectiveTimezone: "UTC"
     };
-    const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const { result } = renderHook(() => useDisplayPreferences());
-    expect(result.current.timezone).toBe(browserTz);
-    expect(result.current.timezone).not.toBe("UTC");
+    expect(result.current.timezone).toBe("Asia/Colombo");
+
+    browserTzSpy.mockRestore();
   });
 
   it("honors an explicit timezone preference over browser", () => {

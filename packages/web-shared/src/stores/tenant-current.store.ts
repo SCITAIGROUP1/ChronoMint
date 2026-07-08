@@ -111,3 +111,8 @@ export const useTenantCurrentStore = create<TenantCurrentStoreState>((set, get) 
 export function getTenantCurrentEntry(key: string): TenantCurrentEntry {
   return useTenantCurrentStore.getState().byKey[key] ?? EMPTY;
 }
+
+/** Seed tenant current from an onboarding/auth prefetch so account chrome avoids a duplicate fetch. */
+export function seedTenantCurrentCache(tenant: TenantDto, workspaceId?: string | null): void {
+  useTenantCurrentStore.getState().setTenant(tenantCurrentCacheKey(workspaceId ?? null), tenant);
+}
