@@ -85,6 +85,32 @@ export function toDateKeyInZone(d: Date, timezone: string): string {
   }
 }
 
+/** Shift a YYYY-MM-DD calendar key by N days (civil date math, zone-independent). */
+export function addCalendarDaysToDateKey(dateKey: string, days: number): string {
+  const [y, m, d] = dateKey.split("-").map(Number);
+  const next = new Date(Date.UTC(y, m - 1, d + days));
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${next.getUTCFullYear()}-${pad(next.getUTCMonth() + 1)}-${pad(next.getUTCDate())}`;
+}
+
+/** Exclusive end bound of a local calendar day — next local midnight (DST-safe). */
+export function nextLocalMidnightUtcInZone(dateKey: string, timezone: string): Date {
+  const nextKey = addCalendarDaysToDateKey(dateKey, 1);
+  const [y, m, d] = nextKey.split("-").map(Number);
+  return localMidnightUtcInZone(y, m, d, timezone);
+}
+
+/** Inclusive local day start + exclusive next-midnight end in the given IANA zone. */
+export function dayBoundsInZone(
+  dateKey: string,
+  timezone: string
+): { dayStart: Date; dayEnd: Date } {
+  const [y, m, d] = dateKey.split("-").map(Number);
+  const dayStart = localMidnightUtcInZone(y, m, d, timezone);
+  const dayEnd = nextLocalMidnightUtcInZone(dateKey, timezone);
+  return { dayStart, dayEnd };
+}
+
 export function applyDashboardPeriodPreset(
   preset: DashboardPeriodPreset,
   timezone?: string,

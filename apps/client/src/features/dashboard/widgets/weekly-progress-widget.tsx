@@ -7,7 +7,12 @@ import {
   ChartTooltipContent,
   type ChartConfig
 } from "@kloqra/ui/chart";
-import { toDateKeyInZone, localMidnightUtcInZone } from "@kloqra/web-shared";
+import {
+  localMidnightUtcInZone,
+  logStartDateKey,
+  resolveLogDurationSec,
+  toDateKeyInZone
+} from "@kloqra/web-shared";
 import React, { useMemo } from "react";
 import { Bar, BarChart, CartesianGrid, Legend, ReferenceLine, XAxis, YAxis } from "recharts";
 
@@ -45,25 +50,16 @@ export function WeeklyProgressWidget({
     return days.map((dayDate) => {
       const dateKey = toDateKeyInZone(dayDate, resolvedTz);
 
-      // Find logs for this specific date
-      const dayLogs = logs.filter((log) => {
-        const logDate = new Date(log.startTime);
-        return toDateKeyInZone(logDate, resolvedTz) === dateKey;
-      });
-
       let billableHours = 0;
       let nonBillableHours = 0;
 
-      for (const log of dayLogs) {
-        const hours = log.durationSec / 3600;
-        if (log.isBillable) {
-          billableHours += hours;
-        } else {
-          nonBillableHours += hours;
-        }
+      for (const log of logs) {
+        if (logStartDateKey(log, resolvedTz) !== dateKey) continue;
+        const hours = resolveLogDurationSec(log) / 3600;
+        if (log.isBillable) billableHours += hours;
+        else nonBillableHours += hours;
       }
 
-      // X-Axis label format: if 7 days or less, show weekday name. Otherwise show month/day
       const showShortDate = days.length > 7;
       const dayName = showShortDate
         ? dayDate.toLocaleDateString(undefined, {

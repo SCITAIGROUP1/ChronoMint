@@ -2,7 +2,7 @@
 
 import type { TimeLogDto, ProjectDto, TaskDto } from "@kloqra/contracts";
 import { Button, ProjectColorDot } from "@kloqra/ui";
-import { toDateKeyInZone, todayInZone } from "@kloqra/web-shared";
+import { logStartDateKey, todayInZone, toDateKeyInZone } from "@kloqra/web-shared";
 import { Lock, Play, Trash2, Clock } from "lucide-react";
 import React, { useMemo } from "react";
 
@@ -29,10 +29,7 @@ export function TodayLogsWidget({
   const todayLogs = useMemo(() => {
     const todayStr = toDateKeyInZone(todayInZone(resolvedTz), resolvedTz);
     return logs
-      .filter((log) => {
-        const logDate = new Date(log.startTime);
-        return toDateKeyInZone(logDate, resolvedTz) === todayStr;
-      })
+      .filter((log) => logStartDateKey(log, resolvedTz) === todayStr)
       .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
   }, [logs, resolvedTz]);
 

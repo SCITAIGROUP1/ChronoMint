@@ -24,6 +24,7 @@ import {
   useUserProfile,
   todayInZone,
   localMidnightUtcInZone,
+  sumDurationSecForDateKey,
   toDateKeyInZone
 } from "@kloqra/web-shared";
 import { Play, Pause, Square } from "lucide-react";
@@ -479,12 +480,7 @@ export function TimerPage() {
   const todayLoggedSec = useMemo(() => {
     const today = todayInZone(timezone);
     const dateKey = toDateKeyInZone(today, timezone);
-    return recentLogs.reduce((sum, log) => {
-      const start = new Date(log.startTime);
-      if (toDateKeyInZone(start, timezone) !== dateKey) return sum;
-      const end = new Date(log.endTime);
-      return sum + (end.getTime() - start.getTime()) / 1000;
-    }, 0);
+    return sumDurationSecForDateKey(recentLogs, dateKey, timezone);
   }, [recentLogs, timezone]);
 
   const totalTodaySec = todayLoggedSec + (tracking ? elapsedSec : 0);

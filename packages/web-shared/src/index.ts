@@ -242,11 +242,23 @@ export {
   applyDashboardPeriodPreset,
   matchDashboardPeriodPreset,
   localMidnightUtcInZone,
+  nextLocalMidnightUtcInZone,
+  dayBoundsInZone,
+  addCalendarDaysToDateKey,
   todayInZone,
   toDateKeyInZone,
   getTimezoneOffsetMs,
   type DashboardPeriodPreset
 } from "./utils/dashboard-period-presets";
+export {
+  logStartDateKey,
+  resolveLogDurationSec,
+  sumDurationSecForDateKey,
+  sumDurationSecForDateKeyWithTimer,
+  countLogsForDateKey,
+  type DurationLogLike,
+  type ActiveTimerOnStartDay
+} from "./utils/timelog-day-attribution";
 export {
   ReportScopeFilters,
   type ReportScopeFilterValues,

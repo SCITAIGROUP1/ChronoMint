@@ -1,17 +1,15 @@
 import type { TimeLogDto } from "@kloqra/contracts";
-import { toDateKeyInZone } from "@kloqra/web-shared";
+import { logStartDateKey, resolveLogDurationSec, toDateKeyInZone } from "@kloqra/web-shared";
 
 /**
  * Calculates the total hours logged per day for the last 14 days.
+ * Preference-TZ start-day attribution (shared with Timesheet / Tracker totals).
  */
 export function getDailyTotals(logs: TimeLogDto[], timezone: string): Record<string, number> {
   const totals: Record<string, number> = {};
   for (const log of logs) {
-    const start = new Date(log.startTime);
-    const end = new Date(log.endTime);
-    const dateKey = toDateKeyInZone(start, timezone);
-    const duration = (end.getTime() - start.getTime()) / 1000;
-    totals[dateKey] = (totals[dateKey] ?? 0) + duration;
+    const dateKey = logStartDateKey(log, timezone);
+    totals[dateKey] = (totals[dateKey] ?? 0) + resolveLogDurationSec(log);
   }
   return totals;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { ROUTES, resolveEffectiveTimezone } from "@kloqra/contracts";
+import { ROUTES } from "@kloqra/contracts";
 import type {
   ActiveTimerDto,
   AutoStoppedTimerDto,
@@ -23,6 +23,7 @@ import {
   invalidateTimelogData,
   parseMemberTimesheetSearch,
   scopedStorageKey,
+  useDisplayPreferences,
   useTimelogListQuery,
   useTimelogMutations,
   useTimelogOccupancyQuery,
@@ -128,27 +129,35 @@ export function TimesheetPage() {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
   const userId = useSessionStore((s) => s.session?.user?.id);
   const isImpersonating = useIsImpersonating();
+  const displayPrefs = useDisplayPreferences();
   const [displayFormat, setDisplayFormat] = useState<TimesheetDisplayFormat | null>(null);
   const [weekStartPref, setWeekStartPref] = useState<"monday" | "sunday">("monday");
+  const [jiraConnected, setJiraConnected] = useState(false);
+
+  useEffect(() => {
+    setWeekStartPref(displayPrefs.weekStart);
+    setDisplayFormat({
+      timezone: displayPrefs.timezone,
+      dateFormat: displayPrefs.dateFormat,
+      timeFormat: displayPrefs.timeFormat
+    });
+  }, [
+    displayPrefs.timezone,
+    displayPrefs.weekStart,
+    displayPrefs.dateFormat,
+    displayPrefs.timeFormat
+  ]);
 
   useEffect(() => {
     if (!ws) return;
     sharedApi<UserProfileDto>(ROUTES.USERS.ME, { workspaceId: ws })
       .then((profile) => {
-        const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        const timezone = resolveEffectiveTimezone(profile.preferences, browserTz);
-        setWeekStartPref(profile.preferences.weekStart ?? "monday");
-        setDisplayFormat({
-          timezone,
-          dateFormat: profile.effectiveDateFormat,
-          timeFormat: profile.effectiveTimeFormat
-        });
         setJiraConnected(profile.jiraConnected ?? false);
       })
       .catch(() => {});
   }, [ws]);
 
-  const timezone = displayFormat?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const timezone = displayFormat?.timezone ?? displayPrefs.timezone;
 
   const catalog = useEntryCatalogQueries(ws, { enabled: Boolean(ws) });
   const projects = catalog.projects;
@@ -171,7 +180,6 @@ export function TimesheetPage() {
     () => countActionableSubmissions(submissionNavItems),
     [submissionNavItems]
   );
-  const [jiraConnected, setJiraConnected] = useState(false);
   const { issues: jiraIssues } = useJiraIssues(jiraConnected);
 
   const [dialogOpen, setDialogOpen] = useState(false);

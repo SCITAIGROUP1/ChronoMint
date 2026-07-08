@@ -1,5 +1,10 @@
 import type { TimeLogDto } from "@kloqra/contracts";
-import { todayInZone, toDateKeyInZone } from "@kloqra/web-shared";
+import {
+  logStartDateKey,
+  resolveLogDurationSec,
+  todayInZone,
+  toDateKeyInZone
+} from "@kloqra/web-shared";
 
 export type TodayStatsInput = {
   logs: TimeLogDto[];
@@ -10,6 +15,7 @@ export type TodayStatsInput = {
   todayDateKey?: string;
 };
 
+/** Today totals — preference-TZ start-day attribution (shared with Timesheet headers). */
 export function computeTodayStats({
   logs,
   timezone,
@@ -23,20 +29,15 @@ export function computeTodayStats({
   let billableSec = 0;
 
   for (const log of logs) {
-    if (toDateKeyInZone(new Date(log.startTime), timezone) !== todayStr) {
-      continue;
-    }
-    totalSec += log.durationSec;
-    if (log.isBillable) {
-      billableSec += log.durationSec;
-    }
+    if (logStartDateKey(log, timezone) !== todayStr) continue;
+    const sec = resolveLogDurationSec(log);
+    totalSec += sec;
+    if (log.isBillable) billableSec += sec;
   }
 
   if (activeTimerSec > 0) {
     totalSec += activeTimerSec;
-    if (isBillableActive) {
-      billableSec += activeTimerSec;
-    }
+    if (isBillableActive) billableSec += activeTimerSec;
   }
 
   return {

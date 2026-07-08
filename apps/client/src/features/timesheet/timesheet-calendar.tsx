@@ -26,6 +26,7 @@ import {
   CALENDAR_START_HOUR,
   CALENDAR_END_HOUR,
   todayInZone,
+  countLogsOnDay,
   resolveDayHeaderTotalSeconds
 } from "./calendar-utils";
 import {
@@ -188,6 +189,14 @@ export function TimesheetCalendar({
       ])
     );
   }, [days, logs, timezone, activeTimer, liveElapsedSec]);
+
+  const dayHeaderEntryCounts = useMemo(
+    () =>
+      new Map(
+        days.map((day) => [calendarDateKey(day, timezone), countLogsOnDay(logs, day, timezone)])
+      ),
+    [days, logs, timezone]
+  );
 
   function previewConflict(
     logId: string,
@@ -502,8 +511,12 @@ export function TimesheetCalendar({
             </div>
             {days.map((day) => {
               const isToday = isSameDayInZone(day, today, timezone);
-              const totalSec = dayHeaderTotals.get(calendarDateKey(day, timezone)) ?? 0;
+              const dateKey = calendarDateKey(day, timezone);
+              const totalSec = dayHeaderTotals.get(dateKey) ?? 0;
+              const entryCount = dayHeaderEntryCounts.get(dateKey) ?? 0;
               const totalLabel = totalSec > 0 ? formatDuration(totalSec) : null;
+              const countLabel =
+                entryCount > 0 ? `${entryCount} ${entryCount === 1 ? "entry" : "entries"}` : null;
 
               return (
                 <div
@@ -527,9 +540,19 @@ export function TimesheetCalendar({
                         "w-full truncate text-[10px] font-semibold tabular-nums leading-tight sm:text-[11px]",
                         isToday ? "text-primary-foreground/90" : "text-primary"
                       )}
-                      title={`${totalLabel} logged`}
+                      title={`${totalLabel} · ${countLabel ?? "0 entries"}`}
                     >
                       {totalLabel}
+                      {countLabel ? (
+                        <span
+                          className={cn(
+                            "ml-1 font-normal",
+                            isToday ? "text-primary-foreground/75" : "text-muted-foreground"
+                          )}
+                        >
+                          · {countLabel}
+                        </span>
+                      ) : null}
                     </span>
                   ) : null}
                 </div>

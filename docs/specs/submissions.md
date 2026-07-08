@@ -44,7 +44,7 @@ DTOs: [timesheet.dto.ts](../../packages/contracts/src/dto/timesheet.dto.ts)
 ## Domain rules
 
 1. Approval is **per project** (`timesheetApprovalEnabled` on project or workspace default).
-2. Period boundaries follow workspace timezone and **week starts on** setting.
+2. Period boundaries follow **workspace timezone** (not member display preference) and **week starts on** setting. Daily, weekly, and monthly ranges all resolve Y-M-D / week start in that workspace zone; member preference TZ only affects how clocks and day columns render.
 3. **Hours-only drafts:** submission lists include draft rows only when the member has logged hours in that period (virtual + DB rows).
 4. **No backlog on policy change:** enabling/disabling approval or changing period type waives open `DRAFT` and `REJECTED` periods on that project.
 5. **Ordered submit:** a rejected earlier period must be resubmitted before later periods on the same project.

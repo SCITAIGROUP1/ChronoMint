@@ -3,6 +3,7 @@
 import type { TimeLogDto } from "@kloqra/contracts";
 import { cn } from "@kloqra/ui";
 import {
+  countLogsOnDay,
   formatDuration,
   getMonthGrid,
   startOfMonth,
@@ -54,10 +55,8 @@ export function TimesheetMonth({
                 }
                 const inMonth = day.getMonth() === monthStart.getMonth();
                 const totalSec = totalSecondsOnDay(logs, day, timezone);
-                const dayLogs = logs.filter((l) => {
-                  const clip = totalSecondsOnDay([l], day, timezone);
-                  return clip > 0;
-                });
+                const entryCount = countLogsOnDay(logs, day, timezone);
+                const dayLogs = logs.filter((l) => totalSecondsOnDay([l], day, timezone) > 0);
 
                 return (
                   <button
@@ -80,8 +79,14 @@ export function TimesheetMonth({
                       {day.getDate()}
                     </span>
                     {totalSec > 0 && (
-                      <p className="mt-1 text-xs font-medium text-primary">
+                      <p
+                        className="mt-1 text-xs font-medium text-primary"
+                        title={`${formatDuration(totalSec)} · ${entryCount} ${entryCount === 1 ? "entry" : "entries"}`}
+                      >
                         {formatDuration(totalSec)}
+                        <span className="ml-1 font-normal text-muted-foreground">
+                          · {entryCount}
+                        </span>
                       </p>
                     )}
                     {dayLogs.length > 0 && (

@@ -1,4 +1,5 @@
 import type { TimeLogDto } from "@kloqra/contracts";
+import { logStartDateKey } from "@kloqra/web-shared";
 import {
   addDays,
   formatDuration,
@@ -28,26 +29,24 @@ export type DayLogGroup = {
 };
 
 function logDayInZone(log: TimeLogDto, timezone: string): Date {
-  const key = toDateKeyInZone(new Date(log.startTime), timezone);
-  return fromDateKey(key);
+  return fromDateKey(logStartDateKey(log, timezone));
 }
 
 function weekKeyFromDay(day: Date): string {
   return toDateKey(day);
 }
 
-function formatDayOfMonth(date: Date, timezone: string): string {
-  return new Intl.DateTimeFormat("en-US", {
-    timeZone: timezone,
-    day: "numeric"
-  }).format(date);
+function formatDayOfMonth(date: Date, _timezone: string): string {
+  // Calendar dates are wall-clock YMD on the Date; do not re-zone (UTC pref shifts labels).
+  return String(date.getDate());
 }
 
-function formatMonthLong(date: Date, timezone: string): string {
+function formatMonthLong(date: Date, _timezone: string): string {
+  const noonUtc = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), 12));
   return new Intl.DateTimeFormat("en-US", {
-    timeZone: timezone,
+    timeZone: "UTC",
     month: "long"
-  }).format(date);
+  }).format(noonUtc);
 }
 
 export function formatWeekSectionLabel(
@@ -83,19 +82,21 @@ export function formatHoursDecimalWithSuffix(sec: number): string {
   return `${formatHoursDecimal(sec)}h`;
 }
 
-export function formatDayTabLabel(day: Date, timezone: string): string {
+export function formatDayTabLabel(day: Date, _timezone: string): string {
+  const noonUtc = new Date(Date.UTC(day.getFullYear(), day.getMonth(), day.getDate(), 12));
   return new Intl.DateTimeFormat("en-US", {
-    timeZone: timezone,
+    timeZone: "UTC",
     weekday: "short"
-  }).format(day);
+  }).format(noonUtc);
 }
 
-export function formatDayTabDateLabel(day: Date, timezone: string): string {
+export function formatDayTabDateLabel(day: Date, _timezone: string): string {
+  const noonUtc = new Date(Date.UTC(day.getFullYear(), day.getMonth(), day.getDate(), 12));
   return new Intl.DateTimeFormat("en-US", {
-    timeZone: timezone,
+    timeZone: "UTC",
     month: "short",
     day: "numeric"
-  }).format(day);
+  }).format(noonUtc);
 }
 
 export function defaultActiveDayKey(days: DayLogGroup[], timezone: string): string {
