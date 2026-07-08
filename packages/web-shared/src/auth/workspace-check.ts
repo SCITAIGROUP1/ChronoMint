@@ -1,6 +1,7 @@
 import { ROUTES } from "@kloqra/contracts";
 import type { WorkspaceListItemDto } from "@kloqra/contracts";
 import { api } from "../api/client";
+import { useWorkspacesStore } from "../stores/workspaces.store";
 import { filterAdminAccessibleWorkspaces } from "./admin-context";
 
 export type WorkspaceCheckOptions = {
@@ -11,6 +12,7 @@ export type WorkspaceCheckOptions = {
 
 /**
  * Checks if the user belongs to multiple workspaces (optionally filtering by role).
+ * Seeds `useWorkspacesStore` so shell/switcher do not refetch the same list.
  */
 export async function hasMultipleWorkspaces(
   activeWorkspaceId: string,
@@ -21,6 +23,9 @@ export async function hasMultipleWorkspaces(
     const list = await api<WorkspaceListItemDto[]>(ROUTES.WORKSPACES.LIST, {
       workspaceId: activeWorkspaceId
     });
+    if (list.length > 0) {
+      useWorkspacesStore.getState().setWorkspaces(list);
+    }
     const filtered = normalized?.filterAdminAccess
       ? filterAdminAccessibleWorkspaces(list)
       : normalized?.roleFilter

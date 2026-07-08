@@ -16,8 +16,9 @@ function queryKeysForScope(
     case "timelogs":
       return [timelogQueryKeys.workspace(workspaceId)];
     case "timesheet":
+      // Occupancy + week summary only. Timelog *lists* are owned by the `timelogs` scope —
+      // including them here re-fetches every patched list whenever derived scopes fire.
       return [
-        timelogQueryKeys.workspace(workspaceId),
         weekSummaryQueryKeys.workspace(workspaceId),
         occupancyQueryKeys.workspace(workspaceId)
       ];
@@ -63,6 +64,7 @@ export async function invalidateWorkspaceQueries(
     prefixes.some((prefix) => matchesQueryKey(query.queryKey, prefix));
 
   await client.cancelQueries({ predicate });
-  await client.invalidateQueries({ predicate });
-  await client.refetchQueries({ predicate, type: "active" });
+  // Single pass: mark stale + refetch active. Do not also call refetchQueries —
+  // that stacked a second network hop for every mount after invalidate.
+  await client.invalidateQueries({ predicate, refetchType: "active" });
 }

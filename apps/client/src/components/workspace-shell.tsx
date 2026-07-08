@@ -59,20 +59,25 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
   const { count: notificationUnreadCount } = useNotificationUnreadCount(wsId, Boolean(wsId));
   const setWorkspaceNames = useProjectsStore((s) => s.setWorkspaces);
   const setWorkspaces = useWorkspacesStore((s) => s.setWorkspaces);
+  const ensureWorkspacesLoaded = useWorkspacesStore((s) => s.ensureLoaded);
   const workspaces = useWorkspacesStore((s) => s.workspaces);
 
   useEffect(() => {
     if (session) {
-      if (workspaces.length === 0) {
+      if (workspaces.length > 0) {
+        // Login / bootstrap already seeded the list — sync names without refetching.
+        setWorkspaceNames(workspaces);
+        return;
+      }
+      void ensureWorkspacesLoaded(() =>
         api<WorkspaceListItemDto[]>(ROUTES.WORKSPACES.LIST, {
           workspaceId: session.workspaceId
         })
-          .then((list) => {
-            setWorkspaces(list);
-            setWorkspaceNames(list);
-          })
-          .catch(() => {});
-      }
+      )
+        .then((list) => {
+          setWorkspaceNames(list);
+        })
+        .catch(() => {});
       return;
     }
 
@@ -115,7 +120,14 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
         sessionStorage.removeItem(IMPERSONATION_HANDOFF_KEY);
         router.replace("/login");
       });
-  }, [session, setWorkspaces, setWorkspaceNames, router, workspaces.length]);
+  }, [
+    session,
+    setWorkspaces,
+    setWorkspaceNames,
+    ensureWorkspacesLoaded,
+    router,
+    workspaces.length
+  ]);
 
   async function handleStopImpersonation() {
     try {

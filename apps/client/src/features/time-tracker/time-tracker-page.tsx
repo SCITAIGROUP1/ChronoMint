@@ -1,18 +1,16 @@
 "use client";
 
-import { ROUTES, resolveEffectiveTimezone } from "@kloqra/contracts";
-import type {
-  ListTimesheetSubmissionsResponseDto,
-  TimeLogDto,
-  TimesheetPeriodDto,
-  UserProfileDto
-} from "@kloqra/contracts";
+import type { TimeLogDto } from "@kloqra/contracts";
 import { AppBar, ConfirmDialog } from "@kloqra/ui";
-import { api as sharedApi, useEntryCatalogQueries, useTimelogMutations } from "@kloqra/web-shared";
+import {
+  useDisplayPreferences,
+  useEntryCatalogQueries,
+  useTimelogMutations,
+  useTimesheetSubmissionStatusQuery
+} from "@kloqra/web-shared";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { todayInZone } from "../timesheet/calendar-utils";
-import type { TimesheetDisplayFormat } from "../timesheet/display-format";
+import { toDateKey, todayInZone } from "../timesheet/calendar-utils";
 import {
   canSaveTaskDraft,
   draftFromLog,
@@ -43,7 +41,6 @@ import { formatVisibleWeeksSummary } from "./time-tracker-week-list";
 import { useTimeTrackerLogs } from "./use-time-tracker-logs";
 import { useIsImpersonating } from "@/hooks/use-is-impersonating";
 import { useTimelogStaleRefetch } from "@/hooks/use-timelog-stale-refetch";
-import { api } from "@/lib/api";
 import { colorForTask } from "@/lib/project-color-styles";
 import { formatTaskLabel } from "@/lib/project-labels";
 import { useProjectsStore } from "@/stores/projects.store";
@@ -52,26 +49,7 @@ import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 export function TimeTrackerPage() {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
   const isImpersonating = useIsImpersonating();
-  const [displayFormat, setDisplayFormat] = useState<TimesheetDisplayFormat | null>(null);
-  const [weekStartPref, setWeekStartPref] = useState<"monday" | "sunday">("monday");
-
-  useEffect(() => {
-    if (!ws) return;
-    sharedApi<UserProfileDto>(ROUTES.USERS.ME, { workspaceId: ws })
-      .then((profile) => {
-        const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        const timezone = resolveEffectiveTimezone(profile.preferences, browserTz);
-        setWeekStartPref(profile.preferences.weekStart ?? "monday");
-        setDisplayFormat({
-          timezone,
-          dateFormat: profile.effectiveDateFormat,
-          timeFormat: profile.effectiveTimeFormat
-        });
-      })
-      .catch(() => {});
-  }, [ws]);
-
-  const timezone = displayFormat?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const { timezone, weekStart: weekStartPref } = useDisplayPreferences();
 
   const catalog = useEntryCatalogQueries(ws, { enabled: Boolean(ws) });
   const { projects, tasks, categories } = catalog;
@@ -95,10 +73,6 @@ export function TimeTrackerPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmDeleteLog, setConfirmDeleteLog] = useState<TimeLogDto | null>(null);
-
-  const [submissionByKey, setSubmissionByKey] = useState<Map<string, TimesheetPeriodDto>>(
-    () => new Map()
-  );
 
   useEffect(() => {
     if (period === "custom") return;
@@ -214,47 +188,31 @@ export function TimeTrackerPage() {
     setPage(1);
   }, []);
 
-  const refreshSubmissions = useCallback(async () => {
-    if (!ws) return;
+  // Local calendar day keys — ISO slice shifts UTC for Colombo (+5:30) and dupes on refetch.
+  const submissionDates = useMemo(() => {
     const dates = new Set<string>();
     for (const log of logs) {
       dates.add(log.startTime.slice(0, 10));
     }
     if (dates.size === 0) {
-      dates.add(todayInZone(timezone).toISOString().slice(0, 10));
+      dates.add(toDateKey(todayInZone(timezone)));
     }
-    try {
-      const merged = new Map<string, TimesheetPeriodDto>();
-      for (const date of dates) {
-        const params = new URLSearchParams({ date });
-        const res = await api<ListTimesheetSubmissionsResponseDto>(
-          `${ROUTES.TIMESHEETS.MY_SUBMISSIONS}?${params}`,
-          { workspaceId: ws }
-        );
-        for (const item of res.items) {
-          merged.set(`${item.projectId}:${item.periodStart}`, item);
-        }
-      }
-      setSubmissionByKey(merged);
-    } catch {
-      setSubmissionByKey(new Map());
-    }
-  }, [ws, logs, timezone]);
+    return [...dates];
+  }, [logs, timezone]);
 
-  useEffect(() => {
-    void refreshSubmissions();
-  }, [refreshSubmissions]);
+  const { submissionByKey, refetch: refreshSubmissions } = useTimesheetSubmissionStatusQuery(
+    ws,
+    submissionDates,
+    Boolean(ws)
+  );
 
-  const refreshTimelogSurface = useCallback(async () => {
-    await Promise.all([refreshLogs(), refreshSubmissions()]);
-  }, [refreshLogs, refreshSubmissions]);
-
-  const timelogMutations = useTimelogMutations(ws, { onLocalRefresh: refreshTimelogSurface });
+  // Cache patch + derived RQ invalidation update UI; do not refetch lists again on local save.
+  const timelogMutations = useTimelogMutations(ws);
 
   useTimelogStaleRefetch(
     ws,
     () => {
-      void refreshTimelogSurface();
+      void Promise.all([refreshLogs(), refreshSubmissions()]);
     },
     Boolean(ws)
   );

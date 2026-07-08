@@ -166,9 +166,9 @@ export function useMySubmissionsLookbackQuery(
 ) {
   const sessionGeneration = useSessionGeneration();
   const queryEnabled = useWorkspaceQueryEnabled(workspaceId, enabled);
-  const queryKey = `lookback=${lookbackWeeks}&date=${anchorDate.toISOString().slice(0, 10)}&scope=${scope}`;
+  const queryKey = `lookback=${lookbackWeeks}&date=${normalizeSubmissionDateKey(anchorDate.toISOString())}&scope=${scope}`;
   const path = `${ROUTES.TIMESHEETS.MY_SUBMISSIONS}?${new URLSearchParams({
-    date: anchorDate.toISOString().slice(0, 10),
+    date: normalizeSubmissionDateKey(anchorDate.toISOString()),
     scope,
     lookbackWeeks: String(lookbackWeeks)
   })}`;

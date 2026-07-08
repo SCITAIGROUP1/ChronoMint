@@ -169,8 +169,10 @@ export {
   WORKSPACE_DATA_STALE_EVENT,
   dispatchWorkspaceDataStale,
   invalidateWorkspaceData,
+  noteLocalTimelogMutation,
   registerWorkspaceDataInvalidation,
   scopesForNotificationType,
+  shouldSuppressLocalTimelogMutationEcho,
   type WorkspaceDataStaleDetail
 } from "./realtime/workspace-data-sync";
 export {

@@ -100,6 +100,7 @@ export function WorkspaceSwitcher({
   const setSession = useSessionStore((s) => s.setSession);
   const workspaces = useWorkspacesStore((s) => s.workspaces);
   const setWorkspaces = useWorkspacesStore((s) => s.setWorkspaces);
+  const ensureWorkspacesLoaded = useWorkspacesStore((s) => s.ensureLoaded);
   const [switching, setSwitching] = useState(false);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -149,10 +150,10 @@ export function WorkspaceSwitcher({
 
   useEffect(() => {
     if (!session || workspaces.length > 0) return;
-    api<WorkspaceListItemDto[]>(ROUTES.WORKSPACES.LIST, { workspaceId: currentId })
-      .then(setWorkspaces)
-      .catch(() => {});
-  }, [session, workspaces.length, currentId, setWorkspaces]);
+    void ensureWorkspacesLoaded(() =>
+      api<WorkspaceListItemDto[]>(ROUTES.WORKSPACES.LIST, { workspaceId: currentId })
+    ).catch(() => {});
+  }, [session, workspaces.length, currentId, ensureWorkspacesLoaded]);
 
   useEffect(() => {
     if (!open) return;

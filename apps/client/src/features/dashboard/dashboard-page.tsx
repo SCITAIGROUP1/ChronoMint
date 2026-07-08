@@ -380,7 +380,8 @@ export function DashboardPage() {
     await refetchLogs();
   }, [refetchLogs]);
 
-  const timelogMutations = useTimelogMutations(ws, { onLocalRefresh: refreshLogs });
+  // List cache is patched in commitTimelogMutation — skip redundant local refetch.
+  const timelogMutations = useTimelogMutations(ws);
 
   useTimelogStaleRefetch(
     ws,

@@ -118,8 +118,8 @@ function SubmissionRowLogs({
     await refetchLogs();
   }, [refetchLogs]);
 
+  // List cache is patched in commitTimelogMutation — skip redundant local refetch.
   const timelogMutations = useTimelogMutations(workspaceId, {
-    onLocalRefresh: refreshLogs,
     projectId: submission.projectId
   });
 

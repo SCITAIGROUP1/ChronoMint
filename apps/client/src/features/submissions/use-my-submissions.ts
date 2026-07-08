@@ -3,6 +3,7 @@
 import type { TimesheetPeriodDto } from "@kloqra/contracts";
 import { useMySubmissionsQuery } from "@kloqra/web-shared";
 import { useCallback, useMemo } from "react";
+import { toDateKey } from "@/features/timesheet/calendar-utils";
 import { buildSubmissionsPath } from "@/lib/submissions-path";
 
 export type SubmissionsScope = "logged" | "assigned";
@@ -56,13 +57,13 @@ export function filterSubmissionsByPeriodRange(
 }
 
 function buildScopedQueryKey(anchorDate: Date, scope: SubmissionsScope) {
-  // Day-granular key — full ISO would remount queries whenever the caller passed a fresh Date.
-  return `date=${anchorDate.toISOString().slice(0, 10)}&scope=${scope}`;
+  // Local calendar day — `toISOString().slice(0, 10)` shifts UTC for +05:30 zones.
+  return `date=${toDateKey(anchorDate)}&scope=${scope}`;
 }
 
 function buildScopedPath(anchorDate: Date, scope: SubmissionsScope) {
   const params = new URLSearchParams({
-    date: anchorDate.toISOString().slice(0, 10),
+    date: toDateKey(anchorDate),
     scope
   });
   return buildSubmissionsPath(params);

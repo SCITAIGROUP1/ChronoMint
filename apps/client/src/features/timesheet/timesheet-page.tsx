@@ -52,7 +52,8 @@ import {
   occupancyConflictLabel,
   rangeOccupiedElsewhere,
   slotIndexFromTime,
-  slotIntervalForIndex
+  slotIntervalForIndex,
+  toDateKey
 } from "./calendar-utils";
 import {
   formatDayRangeLabel,
@@ -359,8 +360,8 @@ export function TimesheetPage() {
   const calendarLoading = logsQueryLoading || occupancyLoading || catalog.isLoading;
 
   const submissionDates = useMemo(() => {
-    // Day keys only — full ISO timestamps would create one GET /submissions per log.
-    const dates = new Set<string>([anchor.toISOString().slice(0, 10)]);
+    // Local calendar day keys — ISO UTC slice can disagree with the workspace day.
+    const dates = new Set<string>([toDateKey(anchor)]);
     for (const log of logs) {
       dates.add(log.startTime.slice(0, 10));
     }
@@ -444,17 +445,14 @@ export function TimesheetPage() {
     );
   }, [logsQueryError]);
 
-  const refreshTimelogSurface = useCallback(async () => {
-    await Promise.all([refreshLogs(), refetchOccupancy()]);
-  }, [refreshLogs, refetchOccupancy]);
-
-  const timelogMutations = useTimelogMutations(ws, { onLocalRefresh: refreshTimelogSurface });
+  // Lists patched in commit; occupancy/submissions refreshed via derived RQ invalidation.
+  const timelogMutations = useTimelogMutations(ws);
 
   useWorkspaceStaleRefetch(
     ws,
     ["timelogs"],
     () => {
-      void refreshTimelogSurface();
+      void Promise.all([refreshLogs(), refetchOccupancy()]);
     },
     Boolean(ws)
   );

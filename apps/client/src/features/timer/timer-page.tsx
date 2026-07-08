@@ -220,7 +220,8 @@ export function TimerPage() {
     await refetchRecentLogs();
   }, [refetchRecentLogs]);
 
-  const timelogMutations = useTimelogMutations(ws, { onLocalRefresh: refreshRecentLogs });
+  // List cache is patched in commitTimelogMutation — skip redundant local refetch.
+  const timelogMutations = useTimelogMutations(ws);
 
   const fetchActiveTimer = useCallback(async () => {
     if (!ws) return;

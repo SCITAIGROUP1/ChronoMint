@@ -19,7 +19,6 @@ describe("invalidateTimelogQueries", () => {
     const client = getQueryClient();
     const cancelSpy = vi.spyOn(client, "cancelQueries");
     const invalidateSpy = vi.spyOn(client, "invalidateQueries");
-    const refetchSpy = vi.spyOn(client, "refetchQueries");
     const queryFn = vi
       .fn()
       .mockResolvedValueOnce({ items: [{ id: "log-1" }] })
@@ -47,11 +46,13 @@ describe("invalidateTimelogQueries", () => {
       expect.objectContaining({ predicate: expect.any(Function) })
     );
     expect(invalidateSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ predicate: expect.any(Function) })
+      expect.objectContaining({
+        predicate: expect.any(Function),
+        refetchType: "active"
+      })
     );
-    expect(refetchSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ predicate: expect.any(Function), type: "active" })
-    );
+    // TanStack may call refetchQueries internally from invalidate(..., refetchType: "active") —
+    // assert outcome instead of implementation: active queryFn ran again.
     await waitFor(() => expect(queryFn.mock.calls.length).toBeGreaterThanOrEqual(2));
   });
 
