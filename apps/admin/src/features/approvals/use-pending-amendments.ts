@@ -1,13 +1,14 @@
 "use client";
 
 import { ROUTES } from "@kloqra/contracts";
-import type {
-  ListAmendmentRequestsResponseDto,
-  TimesheetAmendmentDto,
-  TimesheetApprovalsFilterQuery
-} from "@kloqra/contracts";
-import { buildApprovalsListQueryString } from "@kloqra/web-shared";
-import { useCallback, useEffect, useState } from "react";
+import type { TimesheetApprovalsFilterQuery } from "@kloqra/contracts";
+import {
+  buildApprovalsListQueryString,
+  invalidateWorkspaceQueries,
+  mapApprovalsQueryData,
+  usePendingAmendmentsQuery
+} from "@kloqra/web-shared";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { useRegisterApprovalsRefresh } from "./use-approvals-refresh-registration";
 import { api } from "@/lib/api";
@@ -17,42 +18,19 @@ export function usePendingAmendments(
   filters: TimesheetApprovalsFilterQuery,
   enabled = true
 ) {
-  const [amendments, setAmendments] = useState<TimesheetAmendmentDto[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [actioningId, setActioningId] = useState<string | null>(null);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(25);
-  const [totalPages, setTotalPages] = useState(0);
-
   const filterKey = buildApprovalsListQueryString(filters);
+  const { data, isLoading, refetch } = usePendingAmendmentsQuery(workspaceId, filterKey, enabled);
+  const mapped = mapApprovalsQueryData(data);
+  const [actioningId, setActioningId] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     if (!workspaceId) return;
-    setLoading(true);
     try {
-      const path = filterKey
-        ? `${ROUTES.TIMESHEETS.LIST_AMENDMENTS}?${filterKey}`
-        : ROUTES.TIMESHEETS.LIST_AMENDMENTS;
-      const res = await api<ListAmendmentRequestsResponseDto>(path, { workspaceId });
-      setAmendments(res.items ?? []);
-      setTotal(res.total ?? 0);
-      setPage(res.page ?? 1);
-      setLimit(res.limit ?? 25);
-      setTotalPages(res.totalPages ?? 0);
+      await refetch();
     } catch {
       toast.error("Failed to load amendment requests");
-      setAmendments([]);
-    } finally {
-      setLoading(false);
     }
-  }, [workspaceId, filterKey]);
-
-  useEffect(() => {
-    if (enabled && workspaceId) {
-      void refresh();
-    }
-  }, [enabled, workspaceId, refresh]);
+  }, [workspaceId, refetch]);
 
   useRegisterApprovalsRefresh(refresh);
 
@@ -73,27 +51,26 @@ export function usePendingAmendments(
         toast.success(
           action === "approve" ? "Edit request approved — period unlocked" : "Edit request denied"
         );
-        setAmendments((prev) => prev.filter((item) => item.id !== id));
-        setTotal((prev) => Math.max(0, prev - 1));
+        await invalidateWorkspaceQueries(workspaceId, ["pending_approvals", "submissions"]);
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Failed to review amendment");
       } finally {
         setActioningId(null);
       }
     },
-    [workspaceId, refresh]
+    [workspaceId]
   );
 
   return {
-    amendments,
-    loading,
+    amendments: mapped.items,
+    loading: isLoading,
     actioningId,
-    total,
-    page,
-    limit,
-    totalPages,
+    total: mapped.total,
+    page: mapped.page,
+    limit: mapped.limit,
+    totalPages: mapped.totalPages,
     refresh,
     handleReview,
-    amendmentCount: total
+    amendmentCount: mapped.total
   };
 }

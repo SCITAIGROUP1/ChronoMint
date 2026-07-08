@@ -4,28 +4,10 @@ import {
   buildPaginationMeta,
   type PaginatedResponse
 } from "@kloqra/contracts";
-import { readUserIdFromToken } from "../auth/jwt-payload";
-import { getAccessToken, useSessionStore } from "../stores/session.store";
 import { api } from "./client";
 import { appendListQuery, buildListQuery } from "./list-query";
 
 type ListApiResponse<T> = T[] | PaginatedResponse<T>;
-
-function resolveListCacheUserId(): string {
-  const sessionUserId = useSessionStore.getState().session?.user?.id;
-  if (sessionUserId) return sessionUserId;
-  return readUserIdFromToken(getAccessToken()) ?? "anonymous";
-}
-
-/** @deprecated List cache removed — kept for API compatibility during migration. */
-export function invalidateListItemsCache(): void {
-  // no-op: server data is cached in React Query only
-}
-
-/** @deprecated Use invalidateListItemsCache() */
-export function clearListItemsCache() {
-  invalidateListItemsCache();
-}
 
 export function normalizePaginatedListResponse<T>(
   data: ListApiResponse<T>,
@@ -53,11 +35,8 @@ export async function fetchListItems<T>(
     workspaceId: string;
     filters?: Record<string, string | string[] | number | boolean | undefined | null>;
     limit?: number;
-    /** @deprecated Ignored — list cache removed. */
-    bypassCache?: boolean;
   }
 ): Promise<T[]> {
-  void resolveListCacheUserId();
   const limit = options.limit ?? DEFAULT_DROPDOWN_LIST_LIMIT;
   const query = buildListQuery({
     page: 1,
@@ -78,6 +57,7 @@ export async function fetchPaginatedList<T>(
     limit?: number;
     search?: string;
     filters?: Record<string, string | string[] | number | boolean | undefined | null>;
+    signal?: AbortSignal;
   }
 ): Promise<PaginatedResponse<T>> {
   const limit = options.limit ?? DEFAULT_TABLE_PAGE_SIZE;
@@ -88,7 +68,8 @@ export async function fetchPaginatedList<T>(
     filters: options.filters
   });
   const res = await api<ListApiResponse<T>>(appendListQuery(path, query), {
-    workspaceId: options.workspaceId
+    workspaceId: options.workspaceId,
+    signal: options.signal
   });
   return normalizePaginatedListResponse(res, options.page, limit);
 }

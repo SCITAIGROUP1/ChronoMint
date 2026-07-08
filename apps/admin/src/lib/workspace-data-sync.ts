@@ -8,7 +8,6 @@ import {
 import { useEffect } from "react";
 import { triggerApprovalsRefresh } from "@/lib/approvals-refresh-registry";
 import { triggerTimelogRefresh } from "@/lib/timelog-refresh-registry";
-import { usePendingTimesheetsStore } from "@/stores/pending-timesheets.store";
 
 /** Realtime sync: React Query invalidation + admin-specific registries. */
 export function useAdminWorkspaceDataSync(workspaceId: string) {
@@ -22,7 +21,6 @@ export function useAdminWorkspaceDataSync(workspaceId: string) {
       if (!detail || detail.workspaceId !== workspaceId) return;
 
       if (detail.scopes.includes("pending_approvals")) {
-        usePendingTimesheetsStore.getState().refreshWorkspace(workspaceId);
         triggerApprovalsRefresh();
       }
       if (detail.scopes.includes("timelogs") || detail.scopes.includes("timesheet")) {

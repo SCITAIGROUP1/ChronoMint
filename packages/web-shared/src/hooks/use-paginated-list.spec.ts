@@ -1,9 +1,11 @@
 /** @vitest-environment jsdom */
 import { DEFAULT_TABLE_PAGE_SIZE } from "@kloqra/contracts";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
-import { act } from "react";
+import { act, createElement, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { usePaginatedList } from "./use-paginated-list";
+import { getQueryClient, resetQueryClient } from "../query/query-client";
+import { resetPaginatedListQueries, usePaginatedList } from "./use-paginated-list";
 
 const fetchPaginatedList = vi.fn();
 const mockSessionGeneration = vi.fn();
@@ -16,8 +18,17 @@ vi.mock("./use-session-generation", () => ({
   useSessionGeneration: () => mockSessionGeneration()
 }));
 
+function createWrapper() {
+  const client = getQueryClient();
+  return function Wrapper({ children }: { children: ReactNode }) {
+    return createElement(QueryClientProvider, { client }, children);
+  };
+}
+
 describe("usePaginatedList", () => {
   beforeEach(() => {
+    resetQueryClient();
+    resetPaginatedListQueries();
     fetchPaginatedList.mockReset();
     mockSessionGeneration.mockReturnValue(0);
     fetchPaginatedList.mockResolvedValue({
@@ -35,7 +46,7 @@ describe("usePaginatedList", () => {
           basePath: "/tasks",
           filters
         }),
-      { initialProps: { filters: { projectId: "p-1" } } }
+      { initialProps: { filters: { projectId: "p-1" } }, wrapper: createWrapper() }
     );
 
     await waitFor(() => expect(fetchPaginatedList).toHaveBeenCalledTimes(1));
@@ -54,7 +65,7 @@ describe("usePaginatedList", () => {
           basePath: "/tasks",
           filters
         }),
-      { initialProps: { filters: { projectId: "p-1" } } }
+      { initialProps: { filters: { projectId: "p-1" } }, wrapper: createWrapper() }
     );
 
     await waitFor(() => expect(fetchPaginatedList).toHaveBeenCalledTimes(1));
@@ -73,11 +84,13 @@ describe("usePaginatedList", () => {
       limit: 10
     });
 
-    const { result } = renderHook(() =>
-      usePaginatedList<{ id: string }>({
-        workspaceId: "ws-1",
-        basePath: "/tasks"
-      })
+    const { result } = renderHook(
+      () =>
+        usePaginatedList<{ id: string }>({
+          workspaceId: "ws-1",
+          basePath: "/tasks"
+        }),
+      { wrapper: createWrapper() }
     );
 
     await waitFor(() => expect(fetchPaginatedList).toHaveBeenCalledTimes(1));
@@ -86,7 +99,8 @@ describe("usePaginatedList", () => {
       page: 1,
       limit: DEFAULT_TABLE_PAGE_SIZE,
       search: "",
-      filters: undefined
+      filters: undefined,
+      signal: expect.any(AbortSignal)
     });
     expect(result.current.limit).toBe(DEFAULT_TABLE_PAGE_SIZE);
 
@@ -107,19 +121,22 @@ describe("usePaginatedList", () => {
       page: 1,
       limit: 25,
       search: "",
-      filters: undefined
+      filters: undefined,
+      signal: expect.any(AbortSignal)
     });
   });
 
   it("refetches when a watched workspace scope becomes stale", async () => {
     const { WORKSPACE_DATA_STALE_EVENT } = await import("../realtime/workspace-data-sync");
 
-    renderHook(() =>
-      usePaginatedList<{ id: string }>({
-        workspaceId: "ws-1",
-        basePath: "/tasks",
-        refreshOnStaleScopes: ["tasks"]
-      })
+    renderHook(
+      () =>
+        usePaginatedList<{ id: string }>({
+          workspaceId: "ws-1",
+          basePath: "/tasks",
+          refreshOnStaleScopes: ["tasks"]
+        }),
+      { wrapper: createWrapper() }
     );
 
     await waitFor(() => expect(fetchPaginatedList).toHaveBeenCalledTimes(1));
@@ -155,7 +172,7 @@ describe("usePaginatedList", () => {
           basePath: "/tasks"
         });
       },
-      { initialProps: { generation: 0 } }
+      { initialProps: { generation: 0 }, wrapper: createWrapper() }
     );
 
     await waitFor(() => expect(fetchPaginatedList).toHaveBeenCalledTimes(1));

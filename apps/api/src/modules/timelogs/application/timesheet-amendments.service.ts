@@ -2,6 +2,7 @@ import { ErrorCodes, formatTimesheetPeriodLabel, buildPaginationMeta } from "@kl
 import type { TimesheetAmendmentDto, TimesheetApprovalsFilterQuery } from "@kloqra/contracts";
 import { Injectable, HttpStatus, Logger } from "@nestjs/common";
 import { ProjectAccessService } from "../../../common/access/project-access.service";
+import { ReportCacheService } from "../../../common/cache/report-cache.service";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import {
@@ -17,7 +18,8 @@ export class TimesheetAmendmentsService {
   constructor(
     private prisma: PrismaService,
     private notificationsDispatch: NotificationsDispatchService,
-    private access: ProjectAccessService
+    private access: ProjectAccessService,
+    private reportCache: ReportCacheService
   ) {}
 
   private toDto(row: {
@@ -148,6 +150,8 @@ export class TimesheetAmendmentsService {
           `Notification dispatch failed: ${err instanceof Error ? err.message : String(err)}`
         );
       });
+
+    await this.reportCache.invalidateWorkspace(workspaceId);
 
     return this.toDto(row);
   }
@@ -332,6 +336,8 @@ export class TimesheetAmendmentsService {
       }
     });
 
+    await this.reportCache.invalidateWorkspace(workspaceId);
+
     return this.toDto(row);
   }
 
@@ -428,6 +434,8 @@ export class TimesheetAmendmentsService {
           `Notification dispatch failed: ${err instanceof Error ? err.message : String(err)}`
         );
       });
+
+    await this.reportCache.invalidateWorkspace(workspaceId);
 
     return this.toDto(row);
   }

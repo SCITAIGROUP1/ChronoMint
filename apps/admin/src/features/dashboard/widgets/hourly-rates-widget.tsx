@@ -1,7 +1,7 @@
 "use client";
 
 import { ROUTES } from "@kloqra/contracts";
-import type { HourlyRateDto, WorkspaceMemberDto } from "@kloqra/contracts";
+import type { HourlyRateDto } from "@kloqra/contracts";
 import {
   DataTableCell,
   DataTableHead,
@@ -12,9 +12,12 @@ import {
   TablePagination,
   TableRow
 } from "@kloqra/ui";
-import { fetchPaginatedList, useProjectsListQuery } from "@kloqra/web-shared";
-import React, { useEffect, useState, useCallback, useMemo } from "react";
-import { api } from "@/lib/api";
+import {
+  usePaginatedList,
+  useProjectsListQuery,
+  useWorkspaceMembersQuery
+} from "@kloqra/web-shared";
+import React, { useEffect, useMemo } from "react";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
 export type HourlyRatesWidgetProps = {
@@ -27,57 +30,41 @@ const WIDGET_PAGE_SIZE = 5;
 export function HourlyRatesWidget({ projectId, userId }: HourlyRatesWidgetProps) {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
   const { data: projects = [] } = useProjectsListQuery(ws, Boolean(ws));
-  const [rates, setRates] = useState<HourlyRateDto[]>([]);
-  const [members, setMembers] = useState<WorkspaceMemberDto[]>([]);
-  const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   const filters = useMemo(
     () => ({
-      ...(projectId ? { projectId } : {}),
-      ...(userId ? { userId } : {})
+      ...(projectId
+        ? { projectId: Array.isArray(projectId) ? projectId.join(",") : projectId }
+        : {}),
+      ...(userId ? { userId: Array.isArray(userId) ? userId.join(",") : userId } : {})
     }),
     [projectId, userId]
   );
 
-  const fetchData = useCallback(async () => {
-    if (!ws) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const [ratesData, membersData] = await Promise.all([
-        fetchPaginatedList<HourlyRateDto>(ROUTES.BILLING.RATES, {
-          workspaceId: ws,
-          page,
-          limit: WIDGET_PAGE_SIZE,
-          filters
-        }),
-        api<WorkspaceMemberDto[]>(ROUTES.WORKSPACES.MEMBERS(ws), { workspaceId: ws }).catch(
-          () => []
-        )
-      ]);
+  const {
+    items: rates,
+    page,
+    setPage,
+    total,
+    totalPages,
+    limit,
+    setLimit,
+    loading,
+    error
+  } = usePaginatedList<HourlyRateDto>({
+    workspaceId: ws,
+    basePath: ROUTES.BILLING.RATES,
+    filters,
+    enabled: Boolean(ws),
+    refreshOnStaleScopes: ["projects"]
+  });
 
-      setRates(ratesData.items);
-      setTotal(ratesData.total);
-      setTotalPages(ratesData.totalPages);
-      setMembers(membersData);
-    } catch {
-      setError("Failed to load hourly rates");
-    } finally {
-      setLoading(false);
-    }
-  }, [ws, page, filters]);
+  const { data: members = [] } = useWorkspaceMembersQuery(ws, Boolean(ws));
 
   useEffect(() => {
+    setLimit(WIDGET_PAGE_SIZE);
     setPage(1);
-  }, [projectId, userId]);
-
-  useEffect(() => {
-    void fetchData();
-  }, [fetchData]);
+  }, [projectId, userId, setLimit, setPage]);
 
   if (loading) {
     return (
@@ -154,7 +141,7 @@ export function HourlyRatesWidget({ projectId, userId }: HourlyRatesWidgetProps)
               page={page}
               totalPages={totalPages}
               total={total}
-              limit={WIDGET_PAGE_SIZE}
+              limit={limit}
               onPageChange={setPage}
               disabled={loading}
             />

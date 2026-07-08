@@ -201,7 +201,21 @@ export {
   useTenantWorkspacesListQuery,
   workspaceListQueryKeys
 } from "./query/use-workspace-list-queries";
+export { useWorkspaceMembersQuery } from "./query/use-workspace-members-query";
+export { useWorkspaceRemoteQuery } from "./query/use-workspace-remote-query";
 export { useMySubmissionsQuery, useWeekSummaryQuery } from "./query/use-member-reporting-queries";
+export { approvalsQueryKeys } from "./query/approvals-query-keys";
+export {
+  buildPendingApprovalsPath,
+  mapApprovalsQueryData,
+  useAllTimesheetsQuery,
+  useMissingTimesheetsQuery,
+  useMySubmissionsLookbackQuery,
+  usePendingAmendmentsQuery,
+  usePendingTimesheetsQuery,
+  useReviewedTimesheetsQuery,
+  useTimesheetSubmissionStatusQuery
+} from "./query/use-approvals-queries";
 export { buildOccupancyPath, useTimelogOccupancyQuery } from "./query/use-timelog-occupancy-query";
 export {
   applyTimelogCachePatch,

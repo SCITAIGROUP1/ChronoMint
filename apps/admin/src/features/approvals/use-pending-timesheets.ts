@@ -1,15 +1,25 @@
 "use client";
 
 import { ROUTES, type TimesheetApprovalsFilterQuery } from "@kloqra/contracts";
-import { buildApprovalsCountQueryString, buildApprovalsListQueryString } from "@kloqra/web-shared";
-import { useCallback, useEffect, useState } from "react";
+import {
+  buildApprovalsCountQueryString,
+  buildApprovalsListQueryString,
+  invalidateWorkspaceQueries,
+  mapApprovalsQueryData,
+  usePendingTimesheetsQuery
+} from "@kloqra/web-shared";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
-import {
-  usePendingTimesheetsListKey,
-  usePendingTimesheetsStore,
-  EMPTY_PENDING_TIMESHEETS
-} from "@/stores/pending-timesheets.store";
+
+const POLL_MS = 60_000;
+
+function shouldPollPendingApprovals(filterKey: string): boolean {
+  if (!filterKey) return true;
+  if (filterKey === buildApprovalsCountQueryString({})) return true;
+  const params = new URLSearchParams(filterKey);
+  return [...params.keys()].every((key) => key === "page" || key === "limit");
+}
 
 export function usePendingTimesheets(
   workspaceId: string,
@@ -17,29 +27,15 @@ export function usePendingTimesheets(
   enabled = true
 ) {
   const filterKey = buildApprovalsListQueryString(filters);
-  const listKey = usePendingTimesheetsListKey(workspaceId, filters);
-  const entry = usePendingTimesheetsStore((s) => s.byKey[listKey]);
-  const pending = entry?.items ?? EMPTY_PENDING_TIMESHEETS;
-  const loading = entry?.loading ?? false;
-  const total = entry?.total ?? 0;
-  const page = entry?.page ?? 1;
-  const limit = entry?.limit ?? 25;
-  const totalPages = entry?.totalPages ?? 0;
-
-  const subscribe = usePendingTimesheetsStore((s) => s.subscribe);
-  const fetchPending = usePendingTimesheetsStore((s) => s.fetchPending);
-  const removeItem = usePendingTimesheetsStore((s) => s.removeItem);
+  const { data, isLoading, refetch } = usePendingTimesheetsQuery(workspaceId, filterKey, enabled, {
+    refetchInterval: shouldPollPendingApprovals(filterKey) ? POLL_MS : false
+  });
+  const mapped = mapApprovalsQueryData(data);
   const [actioningId, setActioningId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!enabled || !workspaceId) return;
-    return subscribe(workspaceId, filterKey);
-  }, [enabled, workspaceId, filterKey, subscribe]);
-
-  const refreshPending = useCallback(async () => {
-    if (!workspaceId) return;
-    await fetchPending(workspaceId, filterKey);
-  }, [workspaceId, filterKey, fetchPending]);
+  const invalidatePending = useCallback(async () => {
+    await refetch();
+  }, [refetch]);
 
   const handleReview = useCallback(
     async (id: string, action: "approve" | "reject", reviewNote = "") => {
@@ -58,14 +54,14 @@ export function usePendingTimesheets(
           body: JSON.stringify({ reviewNote })
         });
         toast.success(`Timesheet ${action === "approve" ? "approved" : "rejected"} successfully`);
-        removeItem(workspaceId, filterKey, id);
+        await invalidateWorkspaceQueries(workspaceId, ["pending_approvals", "submissions"]);
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Failed to review timesheet");
       } finally {
         setActioningId(null);
       }
     },
-    [workspaceId, filterKey, removeItem]
+    [workspaceId]
   );
 
   const handleBulkReview = useCallback(
@@ -81,41 +77,33 @@ export function usePendingTimesheets(
         toast.success(
           `Bulk review job for ${ids.length} timesheets enqueued. Updates will process in the background.`
         );
-        for (const id of ids) {
-          removeItem(workspaceId, filterKey, id);
-        }
+        await invalidateWorkspaceQueries(workspaceId, ["pending_approvals", "submissions"]);
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Failed to trigger bulk review");
       }
     },
-    [workspaceId, filterKey, removeItem]
+    [workspaceId]
   );
 
   return {
-    pending,
-    loading,
+    pending: mapped.items,
+    loading: isLoading,
     actioningId,
-    total,
-    page,
-    limit,
-    totalPages,
-    fetchPending: refreshPending,
+    total: mapped.total,
+    page: mapped.page,
+    limit: mapped.limit,
+    totalPages: mapped.totalPages,
+    fetchPending: invalidatePending,
     handleReview,
     handleBulkReview,
-    pendingCount: total
+    pendingCount: mapped.total
   };
 }
 
 export function usePendingTimesheetsBadgeCount(workspaceId: string, enabled = true) {
   const filterKey = buildApprovalsCountQueryString({});
-  const listKey = `${workspaceId}:${filterKey}`;
-  const subscribe = usePendingTimesheetsStore((s) => s.subscribe);
-  const count = usePendingTimesheetsStore((s) => s.byKey[listKey]?.total ?? 0);
-
-  useEffect(() => {
-    if (!enabled || !workspaceId) return;
-    return subscribe(workspaceId, filterKey);
-  }, [enabled, workspaceId, filterKey, subscribe]);
-
-  return count;
+  const { data } = usePendingTimesheetsQuery(workspaceId, filterKey, enabled, {
+    refetchInterval: POLL_MS
+  });
+  return mapApprovalsQueryData(data).total;
 }

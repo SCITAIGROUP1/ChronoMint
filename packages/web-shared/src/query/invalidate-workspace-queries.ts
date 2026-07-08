@@ -1,5 +1,6 @@
 import type { WorkspaceDataInvalidateScope } from "@kloqra/contracts";
 import { clearInflightGetRequestsForPath } from "../api/inflight-requests";
+import { approvalsQueryKeys } from "./approvals-query-keys";
 import { catalogQueryKeys } from "./catalog-query-keys";
 import { occupancyQueryKeys } from "./occupancy-query-keys";
 import { getQueryClient } from "./query-client";
@@ -27,7 +28,7 @@ function queryKeysForScope(
     case "tasks":
       return [catalogQueryKeys.tasks(workspaceId)];
     case "pending_approvals":
-      return [["pending_approvals"]];
+      return [approvalsQueryKeys.workspace(workspaceId)];
     default:
       return [];
   }

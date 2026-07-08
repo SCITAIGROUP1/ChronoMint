@@ -5,8 +5,11 @@ import {
   type PaginatedResponse,
   type WorkspaceDataInvalidateScope
 } from "@kloqra/contracts";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchPaginatedList } from "../api/fetch-list-items";
+import { paginatedListQueryKeys } from "../query/paginated-list-query-keys";
+import { getQueryClient } from "../query/query-client";
 import { useSessionGeneration } from "./use-session-generation";
 import { useWorkspaceStaleRefetch } from "./use-workspace-stale-refetch";
 
@@ -22,6 +25,16 @@ type UsePaginatedListOptions = {
   refreshOnStaleScopes?: WorkspaceDataInvalidateScope[];
 };
 
+function shouldKeepPreviousPage(
+  previousKey: readonly unknown[] | undefined,
+  nextKey: readonly unknown[]
+): boolean {
+  if (!previousKey) return false;
+  return (
+    previousKey[1] === nextKey[1] && previousKey[2] === nextKey[2] && previousKey[7] === nextKey[7]
+  );
+}
+
 export function usePaginatedList<T>({
   enabled = true,
   workspaceId,
@@ -32,18 +45,11 @@ export function usePaginatedList<T>({
   refreshOnStaleScopes
 }: UsePaginatedListOptions) {
   const sessionGeneration = useSessionGeneration();
-  const generationRef = useRef(sessionGeneration);
-  generationRef.current = sessionGeneration;
 
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(DEFAULT_TABLE_PAGE_SIZE);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [items, setItems] = useState<T[]>([]);
-  const [total, setTotal] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const filterKey = useMemo(() => JSON.stringify(filters ?? {}), [filters]);
   const stableFilters = useMemo(
@@ -57,10 +63,6 @@ export function usePaginatedList<T>({
     setPage(1);
     setSearch("");
     setDebouncedSearch("");
-    setItems([]);
-    setTotal(0);
-    setTotalPages(0);
-    setError(null);
   }, [sessionGeneration]);
 
   useEffect(() => {
@@ -77,39 +79,37 @@ export function usePaginatedList<T>({
     setLimit(nextLimit);
   }, []);
 
-  const reload = useCallback(async () => {
-    if (!enabled || !workspaceId) return;
-    const generationAtStart = generationRef.current;
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await fetchPaginatedList<T>(basePath, {
+  const queryKey = paginatedListQueryKeys.list(
+    workspaceId,
+    basePath,
+    page,
+    limit,
+    debouncedSearch,
+    filterKey,
+    sessionGeneration
+  );
+
+  const { data, isFetching, isError, refetch } = useQuery({
+    queryKey,
+    queryFn: ({ signal }) =>
+      fetchPaginatedList<T>(basePath, {
         workspaceId,
         page,
         limit,
         search: debouncedSearch,
-        filters: stableFilters
-      });
-      if (generationAtStart !== generationRef.current) return;
-      setItems(data.items ?? []);
-      setTotal(data.total ?? data.items?.length ?? 0);
-      setTotalPages(data.totalPages ?? 0);
-    } catch {
-      if (generationAtStart !== generationRef.current) return;
-      setItems([]);
-      setTotal(0);
-      setTotalPages(0);
-      setError("Could not load data.");
-    } finally {
-      if (generationAtStart === generationRef.current) {
-        setLoading(false);
-      }
-    }
-  }, [enabled, workspaceId, basePath, page, limit, debouncedSearch, stableFilters]);
+        filters: stableFilters,
+        signal
+      }),
+    enabled: enabled && Boolean(workspaceId),
+    staleTime: 0,
+    refetchOnMount: "always",
+    placeholderData: (previousData, previousQuery) =>
+      shouldKeepPreviousPage(previousQuery?.queryKey, queryKey) ? previousData : undefined
+  });
 
-  useEffect(() => {
-    void reload();
-  }, [reload, sessionGeneration]);
+  const reload = useCallback(async () => {
+    await refetch();
+  }, [refetch]);
 
   useEffect(() => {
     if (!refreshOnFocus || !enabled || !workspaceId || typeof window === "undefined") return;
@@ -138,6 +138,12 @@ export function usePaginatedList<T>({
     enabled && Boolean(refreshOnStaleScopes?.length)
   );
 
+  const items = data?.items ?? [];
+  const total = data?.total ?? items.length;
+  const totalPages = data?.totalPages ?? 0;
+  const loading = isFetching;
+  const error = isError ? "Could not load data." : null;
+
   return {
     items,
     page,
@@ -158,3 +164,8 @@ export type PaginatedListState<T> = PaginatedResponse<T> & {
   loading: boolean;
   error: string | null;
 };
+
+/** @internal test helper */
+export function resetPaginatedListQueries(): void {
+  getQueryClient().removeQueries({ queryKey: paginatedListQueryKeys.all });
+}

@@ -2,7 +2,7 @@ import type { DashboardReportDto, TenantAnalyticsSummaryDto } from "@kloqra/cont
 import { Injectable } from "@nestjs/common";
 import { RedisService, type RedisClient } from "../redis/redis.service";
 
-const DASHBOARD_TTL_SEC = 30;
+const DASHBOARD_TTL_SEC = 0;
 
 @Injectable()
 export class ReportCacheService {
@@ -32,12 +32,14 @@ export class ReportCacheService {
   }
 
   async getDashboard(key: string): Promise<DashboardReportDto | null> {
+    if (DASHBOARD_TTL_SEC <= 0) return null;
     const raw = await this.getClient().get(key);
     if (!raw) return null;
     return JSON.parse(raw) as DashboardReportDto;
   }
 
   async setDashboard(key: string, _workspaceId: string, data: DashboardReportDto) {
+    if (DASHBOARD_TTL_SEC <= 0) return;
     const payload = JSON.stringify(data);
     const client = this.getClient();
     if ("setex" in client && typeof client.setex === "function") {
@@ -82,12 +84,14 @@ export class ReportCacheService {
   }
 
   async getBilling(key: string): Promise<any | null> {
+    if (DASHBOARD_TTL_SEC <= 0) return null;
     const raw = await this.getClient().get(key);
     if (!raw) return null;
     return JSON.parse(raw);
   }
 
   async setBilling(key: string, _workspaceId: string, data: any) {
+    if (DASHBOARD_TTL_SEC <= 0) return;
     const payload = JSON.stringify(data);
     const client = this.getClient();
     if ("setex" in client && typeof client.setex === "function") {
@@ -102,12 +106,14 @@ export class ReportCacheService {
   }
 
   async getTenantRollup(key: string): Promise<TenantAnalyticsSummaryDto | null> {
+    if (DASHBOARD_TTL_SEC <= 0) return null;
     const raw = await this.getClient().get(key);
     if (!raw) return null;
     return JSON.parse(raw) as TenantAnalyticsSummaryDto;
   }
 
   async setTenantRollup(key: string, _tenantId: string, data: TenantAnalyticsSummaryDto) {
+    if (DASHBOARD_TTL_SEC <= 0) return;
     const payload = JSON.stringify(data);
     const client = this.getClient();
     if ("setex" in client && typeof client.setex === "function") {

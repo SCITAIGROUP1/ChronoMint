@@ -28,7 +28,9 @@ export default defineConfig({
         /smoke\.spec\.ts/,
         /impersonation\.spec\.ts/,
         /submissions\.spec\.ts/,
-        /screenshot\.spec\.ts/
+        /screenshot\.spec\.ts/,
+        /session-boundary\.spec\.ts/,
+        /admin-client-timelog-sync\.spec\.ts/
       ],
       dependencies: ["setup-member"],
       use: {
@@ -55,6 +57,16 @@ export default defineConfig({
     {
       name: "smoke",
       testMatch: /smoke\.spec\.ts/,
+      use: { storageState: { cookies: [], origins: [] } }
+    },
+    {
+      name: "session-boundary",
+      testMatch: /session-boundary\.spec\.ts/,
+      use: { storageState: { cookies: [], origins: [] } }
+    },
+    {
+      name: "admin-client-sync",
+      testMatch: /admin-client-timelog-sync\.spec\.ts/,
       use: { storageState: { cookies: [], origins: [] } }
     }
   ],

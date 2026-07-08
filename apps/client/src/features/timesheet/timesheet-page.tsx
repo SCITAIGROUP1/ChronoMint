@@ -4,9 +4,7 @@ import { ROUTES, resolveEffectiveTimezone } from "@kloqra/contracts";
 import type {
   ActiveTimerDto,
   AutoStoppedTimerDto,
-  ListTimesheetSubmissionsResponseDto,
   TimeLogDto,
-  TimesheetPeriodDto,
   UserProfileDto
 } from "@kloqra/contracts";
 import {
@@ -29,6 +27,7 @@ import {
   useTimelogMutations,
   useTimelogOccupancyQuery,
   useEntryCatalogQueries,
+  useTimesheetSubmissionStatusQuery,
   useWorkspaceStaleRefetch
 } from "@kloqra/web-shared";
 import { Clock, Eye, EyeOff, Lock, X } from "lucide-react";
@@ -274,10 +273,6 @@ export function TimesheetPage() {
   );
   const monthStart = useMemo(() => startOfMonth(anchor), [anchor]);
 
-  const [submissionByKey, setSubmissionByKey] = useState<Map<string, TimesheetPeriodDto>>(
-    () => new Map()
-  );
-
   const projectForTask = useCallback(
     (taskId: string) => {
       const task = tasks.find((t) => t.id === taskId);
@@ -299,26 +294,6 @@ export function TimesheetPage() {
   );
 
   const isTimerEntry = useCallback((log: TimeLogDto) => log.source === "timer", []);
-
-  const isEntryInactive = useCallback(
-    (log: TimeLogDto) =>
-      isTimeEntryInactive(
-        projectForTask(log.taskId),
-        taskForLog(log.taskId),
-        categoryForTask(log.taskId)
-      ),
-    [projectForTask, taskForLog, categoryForTask]
-  );
-
-  const isSubmissionLocked = useCallback(
-    (log: TimeLogDto) => isTimeEntryLocked(log, projectForTask(log.taskId), submissionByKey),
-    [projectForTask, submissionByKey]
-  );
-
-  const isEntryReadOnly = useCallback(
-    (log: TimeLogDto) => isEntryInactive(log) || isSubmissionLocked(log),
-    [isEntryInactive, isSubmissionLocked]
-  );
 
   const calendarDays = useMemo(() => {
     if (view === "day") return [startOfDay(anchor)];
@@ -383,33 +358,39 @@ export function TimesheetPage() {
   const logs = logsData?.items ?? [];
   const calendarLoading = logsQueryLoading || occupancyLoading || catalog.isLoading;
 
-  const refreshSubmissions = useCallback(async () => {
-    if (!ws) return;
+  const submissionDates = useMemo(() => {
     const dates = new Set<string>([anchor.toISOString()]);
     for (const log of logs) {
       dates.add(log.startTime);
     }
-    try {
-      const merged = new Map<string, TimesheetPeriodDto>();
-      for (const date of dates) {
-        const params = new URLSearchParams({ date });
-        const res = await api<ListTimesheetSubmissionsResponseDto>(
-          `${ROUTES.TIMESHEETS.MY_SUBMISSIONS}?${params}`,
-          { workspaceId: ws }
-        );
-        for (const item of res.items) {
-          merged.set(`${item.projectId}:${item.periodStart}`, item);
-        }
-      }
-      setSubmissionByKey(merged);
-    } catch {
-      setSubmissionByKey(new Map());
-    }
-  }, [ws, anchor, logs]);
+    return [...dates];
+  }, [anchor, logs]);
 
-  useEffect(() => {
-    void refreshSubmissions();
-  }, [refreshSubmissions]);
+  const { submissionByKey, refetch: refreshSubmissions } = useTimesheetSubmissionStatusQuery(
+    ws,
+    submissionDates,
+    Boolean(ws)
+  );
+
+  const isEntryInactive = useCallback(
+    (log: TimeLogDto) =>
+      isTimeEntryInactive(
+        projectForTask(log.taskId),
+        taskForLog(log.taskId),
+        categoryForTask(log.taskId)
+      ),
+    [projectForTask, taskForLog, categoryForTask]
+  );
+
+  const isSubmissionLocked = useCallback(
+    (log: TimeLogDto) => isTimeEntryLocked(log, projectForTask(log.taskId), submissionByKey),
+    [projectForTask, submissionByKey]
+  );
+
+  const isEntryReadOnly = useCallback(
+    (log: TimeLogDto) => isEntryInactive(log) || isSubmissionLocked(log),
+    [isEntryInactive, isSubmissionLocked]
+  );
 
   const rangeLabel = useMemo(() => {
     if (!displayFormat) {

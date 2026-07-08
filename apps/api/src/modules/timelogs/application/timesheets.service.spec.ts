@@ -8,6 +8,7 @@ describe("TimesheetsService", () => {
   let service: TimesheetsService;
   let mockPrisma: any;
   let mockNotificationsDispatch: { notifyWorkspaceAdmins: ReturnType<typeof vi.fn> };
+  let mockReportCache: { invalidateWorkspace: ReturnType<typeof vi.fn> };
 
   const workspaceId = "ws-1";
   const userId = "user-1";
@@ -70,13 +71,18 @@ describe("TimesheetsService", () => {
       assertCanManageProject: vi.fn().mockResolvedValue(undefined),
       manageableProjectIds: vi.fn().mockResolvedValue(["proj-1"])
     };
+    mockReportCache = {
+      invalidateWorkspace: vi.fn().mockResolvedValue(undefined)
+    };
     service = new TimesheetsService(
       mockPrisma,
       {
         notify: vi.fn().mockResolvedValue(undefined),
         notifyWorkspaceAdmins: mockNotificationsDispatch.notifyWorkspaceAdmins
       } as never,
-      mockAccess as never
+      mockAccess as never,
+      mockReportCache as never,
+      { add: vi.fn() } as never
     );
   });
 
@@ -109,6 +115,7 @@ describe("TimesheetsService", () => {
     expect(result.period.status).toBe("SUBMITTED");
     expect(result.period.projectName).toBe("Website");
     expect(mockPrisma.timesheetPeriod.create).toHaveBeenCalled();
+    expect(mockReportCache.invalidateWorkspace).toHaveBeenCalledWith(workspaceId);
   });
 
   it("submit omits totalHours from admin notification when no time was logged", async () => {
@@ -207,6 +214,7 @@ describe("TimesheetsService", () => {
         reviewNote: "Looks good"
       })
     });
+    expect(mockReportCache.invalidateWorkspace).toHaveBeenCalledWith(workspaceId);
     expect(service["notificationsDispatch"].notify).toHaveBeenCalledWith(
       expect.objectContaining({
         templateId: "timesheet.approved",
@@ -233,7 +241,9 @@ describe("TimesheetsService", () => {
         notify: vi.fn().mockResolvedValue(undefined),
         notifyWorkspaceAdmins: mockNotificationsDispatch.notifyWorkspaceAdmins
       } as never,
-      mockAccess as never
+      mockAccess as never,
+      mockReportCache as never,
+      { add: vi.fn() } as never
     );
 
     mockPrisma.timesheetPeriod.findFirst.mockResolvedValue({
@@ -365,16 +375,16 @@ describe("TimesheetsService", () => {
   it("listPending applies project and member filters", async () => {
     mockPrisma.timesheetPeriod.findMany.mockResolvedValue([]);
     await service.listPending(workspaceId, adminUserId, "ADMIN", {
-      projectId: "proj-1",
-      userId: "user-1",
+      projectId: ["proj-1"],
+      userId: ["user-1"],
       from: "2026-03-01",
       to: "2026-03-31"
     });
     expect(mockPrisma.timesheetPeriod.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          projectId: "proj-1",
-          userId: "user-1",
+          projectId: { in: ["proj-1"] },
+          userId: { in: ["user-1"] },
           periodStart: expect.objectContaining({ gte: expect.any(Date), lte: expect.any(Date) })
         })
       })
@@ -383,10 +393,10 @@ describe("TimesheetsService", () => {
 
   it("listApproved filters by APPROVED status", async () => {
     mockPrisma.timesheetPeriod.findMany.mockResolvedValue([]);
-    await service.listApproved(workspaceId, adminUserId, "ADMIN", { projectId: "proj-1" });
+    await service.listApproved(workspaceId, adminUserId, "ADMIN", { projectId: ["proj-1"] });
     expect(mockPrisma.timesheetPeriod.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ status: "APPROVED", projectId: "proj-1" }),
+        where: expect.objectContaining({ status: "APPROVED", projectId: { in: ["proj-1"] } }),
         orderBy: { reviewedAt: "desc" }
       })
     );
@@ -394,10 +404,10 @@ describe("TimesheetsService", () => {
 
   it("listRejected filters by REJECTED status", async () => {
     mockPrisma.timesheetPeriod.findMany.mockResolvedValue([]);
-    await service.listRejected(workspaceId, adminUserId, "ADMIN", { userId: "user-1" });
+    await service.listRejected(workspaceId, adminUserId, "ADMIN", { userId: ["user-1"] });
     expect(mockPrisma.timesheetPeriod.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ status: "REJECTED", userId: "user-1" }),
+        where: expect.objectContaining({ status: "REJECTED", userId: { in: ["user-1"] } }),
         orderBy: { reviewedAt: "desc" }
       })
     );

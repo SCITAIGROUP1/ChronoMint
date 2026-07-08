@@ -1,6 +1,6 @@
 "use client";
 
-import type { TimesheetPeriodDto, UserProfileDto } from "@kloqra/contracts";
+import type { UserProfileDto } from "@kloqra/contracts";
 import { resolveEffectiveTimezone, ROUTES } from "@kloqra/contracts";
 import {
   AppBar,
@@ -17,9 +17,8 @@ import {
   resolveMemberSubmissionsTab,
   useClientTablePagination,
   useEntryCatalogQueries,
-  WORKSPACE_DATA_STALE_EVENT,
-  type MemberSubmissionsTab,
-  type WorkspaceDataStaleDetail
+  useMySubmissionsLookbackQuery,
+  type MemberSubmissionsTab
 } from "@kloqra/web-shared";
 import { Check } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -101,13 +100,18 @@ export function SubmissionsPage() {
   const [rangeFrom, setRangeFrom] = useState("");
   const [rangeTo, setRangeTo] = useState("");
   const [weekStartPref, setWeekStartPref] = useState<"monday" | "sunday">("monday");
-  const [allSubmissions, setAllSubmissions] = useState<TimesheetPeriodDto[]>([]);
-  const [allLoading, setAllLoading] = useState(false);
   const [projectFilter, setProjectFilter] = useState<string[]>([]);
 
   const [timezone, setTimezone] = useState(() =>
     resolveEffectiveTimezone({}, Intl.DateTimeFormat().resolvedOptions().timeZone)
   );
+
+  const anchorDate = useMemo(() => todayInZone(timezone), [timezone]);
+  const {
+    data: allSubmissions = [],
+    isLoading: allLoading,
+    refetch: refreshAll
+  } = useMySubmissionsLookbackQuery(ws, anchorDate, 26, "assigned", Boolean(ws));
 
   useEffect(() => {
     if (!deepLink.periodStart) return;
@@ -156,51 +160,19 @@ export function SubmissionsPage() {
     [router, searchParams]
   );
 
-  const refreshAll = useCallback(async () => {
-    if (!ws) return;
-    const anchor = todayInZone(timezone);
-    const params = new URLSearchParams({
-      date: anchor.toISOString(),
-      scope: "assigned",
-      lookbackWeeks: "26"
-    });
-    const res = await api<{ items: TimesheetPeriodDto[] }>(
-      `${ROUTES.TIMESHEETS.MY_SUBMISSIONS}?${params.toString()}`,
-      { workspaceId: ws }
-    );
-    const items = res.items ?? [];
-    setAllSubmissions(
-      [...items].sort(
-        (a, b) => new Date(b.periodStart).getTime() - new Date(a.periodStart).getTime()
-      )
-    );
-  }, [ws, timezone]);
-
-  useEffect(() => {
-    if (!ws) return;
-    setAllLoading(true);
-    void refreshAll().finally(() => setAllLoading(false));
-  }, [ws, refreshAll]);
-
-  useEffect(() => {
-    if (!ws) return;
-    const onStale = (event: Event) => {
-      const detail = (event as CustomEvent<WorkspaceDataStaleDetail>).detail;
-      if (!detail || detail.workspaceId !== ws) return;
-      if (detail.scopes.includes("submissions") || detail.scopes.includes("timesheet")) {
-        void refreshAll();
-      }
-    };
-    window.addEventListener(WORKSPACE_DATA_STALE_EVENT, onStale);
-    return () => window.removeEventListener(WORKSPACE_DATA_STALE_EVENT, onStale);
-  }, [ws, refreshAll]);
-
   const handleSubmitted = useCallback(async () => {
     await refreshAll();
   }, [refreshAll]);
 
   const periodFilteredSubmissions = useMemo(
-    () => filterSubmissionsByPeriodRange(allSubmissions, rangeFrom, rangeTo),
+    () =>
+      filterSubmissionsByPeriodRange(
+        [...allSubmissions].sort(
+          (a, b) => new Date(b.periodStart).getTime() - new Date(a.periodStart).getTime()
+        ),
+        rangeFrom,
+        rangeTo
+      ),
     [allSubmissions, rangeFrom, rangeTo]
   );
 

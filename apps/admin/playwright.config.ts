@@ -15,7 +15,7 @@ export default defineConfig({
     { name: "setup", testMatch: /auth\.setup\.ts/ },
     {
       name: "e2e",
-      testIgnore: [/auth\.setup\.ts/, /smoke\.spec\.ts/],
+      testIgnore: [/auth\.setup\.ts/, /smoke\.spec\.ts/, /session-boundary\.spec\.ts/],
       dependencies: ["setup"],
       use: {
         storageState: "e2e/.auth/admin.json"
@@ -24,6 +24,11 @@ export default defineConfig({
     {
       name: "smoke",
       testMatch: /smoke\.spec\.ts/,
+      use: { storageState: { cookies: [], origins: [] } }
+    },
+    {
+      name: "session-boundary",
+      testMatch: /session-boundary\.spec\.ts/,
       use: { storageState: { cookies: [], origins: [] } }
     }
   ],

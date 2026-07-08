@@ -1,15 +1,14 @@
 "use client";
 
-import { ROUTES } from "@kloqra/contracts";
-import type {
-  ListMissingTimesheetsResponseDto,
-  MissingTimesheetDto,
-  TimesheetApprovalsFilterQuery
-} from "@kloqra/contracts";
-import { buildApprovalsListQueryString } from "@kloqra/web-shared";
-import { useCallback, useEffect, useState } from "react";
+import type { TimesheetApprovalsFilterQuery } from "@kloqra/contracts";
+import {
+  buildApprovalsListQueryString,
+  mapApprovalsQueryData,
+  useMissingTimesheetsQuery
+} from "@kloqra/web-shared";
+import { useCallback } from "react";
 import { toast } from "sonner";
-import { api } from "@/lib/api";
+import { useRegisterApprovalsRefresh } from "./use-approvals-refresh-registration";
 
 export function useMissingTimesheets(
   workspaceId: string,
@@ -17,56 +16,34 @@ export function useMissingTimesheets(
   filters: TimesheetApprovalsFilterQuery,
   enabled = true
 ) {
-  const [missing, setMissing] = useState<MissingTimesheetDto[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(25);
-  const [totalPages, setTotalPages] = useState(0);
-
   const filterKey = buildApprovalsListQueryString(filters);
+  const { data, isLoading, refetch } = useMissingTimesheetsQuery(
+    workspaceId,
+    anchorDate,
+    filterKey,
+    enabled
+  );
+  const mapped = mapApprovalsQueryData(data);
 
   const refresh = useCallback(async () => {
     if (!workspaceId) return;
-    setLoading(true);
     try {
-      const params = new URLSearchParams({ date: anchorDate.toISOString() });
-      if (filterKey) {
-        for (const [key, value] of new URLSearchParams(filterKey)) {
-          params.set(key, value);
-        }
-      }
-      const res = await api<ListMissingTimesheetsResponseDto>(
-        `${ROUTES.TIMESHEETS.LIST_MISSING}?${params}`,
-        { workspaceId }
-      );
-      setMissing(res.items ?? []);
-      setTotal(res.total ?? 0);
-      setPage(res.page ?? 1);
-      setLimit(res.limit ?? 25);
-      setTotalPages(res.totalPages ?? 0);
+      await refetch();
     } catch {
       toast.error("Failed to load missing submissions");
-      setMissing([]);
-    } finally {
-      setLoading(false);
     }
-  }, [workspaceId, anchorDate, filterKey]);
+  }, [workspaceId, refetch]);
 
-  useEffect(() => {
-    if (enabled && workspaceId) {
-      void refresh();
-    }
-  }, [enabled, workspaceId, refresh]);
+  useRegisterApprovalsRefresh(refresh);
 
   return {
-    missing,
-    loading,
+    missing: mapped.items,
+    loading: isLoading,
     refresh,
-    total,
-    page,
-    limit,
-    totalPages,
-    missingCount: missing.length
+    total: mapped.total,
+    page: mapped.page,
+    limit: mapped.limit,
+    totalPages: mapped.totalPages,
+    missingCount: mapped.items.length
   };
 }

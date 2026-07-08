@@ -13,6 +13,7 @@ import { api } from "../api/client";
 import { normalizePaginatedListResponse } from "../api/fetch-list-items";
 import { appendListQuery, buildListQuery } from "../api/list-query";
 import { readUserIdFromToken } from "../auth/jwt-payload";
+import { useSessionGeneration } from "../hooks/use-session-generation";
 import { useSessionStore } from "../stores/session.store";
 import { catalogQueryKeys } from "./catalog-query-keys";
 
@@ -39,10 +40,11 @@ export async function fetchCatalogList<T>(
 }
 
 export function useProjectsListQuery(workspaceId: string, enabled = true) {
+  const sessionGeneration = useSessionGeneration();
   const queryEnabled = useCatalogQueryEnabled(workspaceId, enabled);
 
   return useQuery({
-    queryKey: catalogQueryKeys.projects(workspaceId),
+    queryKey: [...catalogQueryKeys.projects(workspaceId), sessionGeneration],
     queryFn: () => fetchCatalogList<ProjectDto>(ROUTES.PROJECTS.LIST, workspaceId),
     enabled: queryEnabled,
     staleTime: 0,
@@ -51,10 +53,11 @@ export function useProjectsListQuery(workspaceId: string, enabled = true) {
 }
 
 export function useCategoriesListQuery(workspaceId: string, enabled = true) {
+  const sessionGeneration = useSessionGeneration();
   const queryEnabled = useCatalogQueryEnabled(workspaceId, enabled);
 
   return useQuery({
-    queryKey: catalogQueryKeys.categories(workspaceId),
+    queryKey: [...catalogQueryKeys.categories(workspaceId), sessionGeneration],
     queryFn: () => fetchCatalogList<CategoryDto>(ROUTES.CATEGORIES.LIST, workspaceId),
     enabled: queryEnabled,
     staleTime: 0,
@@ -74,9 +77,10 @@ export function useTasksListQuery(
         .join("&")
     : "";
   const queryEnabled = useCatalogQueryEnabled(workspaceId, enabled);
+  const sessionGeneration = useSessionGeneration();
 
   return useQuery({
-    queryKey: catalogQueryKeys.tasks(workspaceId, filterKey),
+    queryKey: [...catalogQueryKeys.tasks(workspaceId, filterKey), sessionGeneration],
     queryFn: () => fetchCatalogList<TaskDto>(ROUTES.TASKS.LIST, workspaceId, filters),
     enabled: queryEnabled,
     staleTime: 0,

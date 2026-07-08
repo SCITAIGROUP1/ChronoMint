@@ -31,13 +31,17 @@ describe("TimesheetAmendmentsService", () => {
       assertCanManageProject: vi.fn().mockResolvedValue(undefined),
       manageableProjectIds: vi.fn().mockResolvedValue(["proj-1"])
     };
+    const mockReportCache = {
+      invalidateWorkspace: vi.fn().mockResolvedValue(undefined)
+    };
     service = new TimesheetAmendmentsService(
       mockPrisma,
       {
         notify: vi.fn().mockResolvedValue(undefined),
         notifyWorkspaceAdmins: vi.fn().mockResolvedValue(undefined)
       } as never,
-      mockAccess as never
+      mockAccess as never,
+      mockReportCache as never
     );
   });
 
@@ -125,7 +129,7 @@ describe("TimesheetAmendmentsService", () => {
     mockPrisma.timesheetAmendmentRequest.findMany.mockResolvedValue([]);
 
     await service.listPending("workspace-target", "user-target", "ADMIN", {
-      userId: "user-target"
+      userId: ["user-target"]
     });
 
     expect(mockPrisma.timesheetAmendmentRequest.findMany).toHaveBeenCalledWith(
@@ -133,7 +137,7 @@ describe("TimesheetAmendmentsService", () => {
         where: {
           workspaceId: "workspace-target",
           status: "PENDING",
-          userId: "user-target"
+          userId: { in: ["user-target"] }
         },
         orderBy: { createdAt: "desc" }
       })

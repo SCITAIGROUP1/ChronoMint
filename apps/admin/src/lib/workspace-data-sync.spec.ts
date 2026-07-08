@@ -6,7 +6,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const workspaceId = "22222222-2222-4222-8222-222222222222";
 
 const mocks = vi.hoisted(() => ({
-  refreshWorkspace: vi.fn(),
   triggerApprovalsRefresh: vi.fn(),
   triggerTimelogRefresh: vi.fn(),
   invalidateWorkspaceQueries: vi.fn().mockResolvedValue(undefined)
@@ -28,12 +27,6 @@ vi.mock("@kloqra/web-shared", async (importOriginal) => {
   };
 });
 
-vi.mock("@/stores/pending-timesheets.store", () => ({
-  usePendingTimesheetsStore: {
-    getState: () => ({ refreshWorkspace: mocks.refreshWorkspace })
-  }
-}));
-
 import { useAdminWorkspaceDataSync } from "./workspace-data-sync";
 
 describe("useAdminWorkspaceDataSync", () => {
@@ -51,7 +44,6 @@ describe("useAdminWorkspaceDataSync", () => {
       })
     );
 
-    expect(mocks.refreshWorkspace).toHaveBeenCalledWith(workspaceId);
     expect(mocks.triggerApprovalsRefresh).toHaveBeenCalled();
   });
 
@@ -65,7 +57,6 @@ describe("useAdminWorkspaceDataSync", () => {
       })
     );
 
-    expect(mocks.refreshWorkspace).not.toHaveBeenCalled();
     expect(mocks.triggerApprovalsRefresh).not.toHaveBeenCalled();
   });
 

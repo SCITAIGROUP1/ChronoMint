@@ -11,6 +11,7 @@ import { Injectable, HttpStatus, Logger } from "@nestjs/common";
 import { Prisma, TimesheetStatus } from "@prisma/client";
 import { Queue } from "bullmq";
 import { ProjectAccessService } from "../../../common/access/project-access.service";
+import { ReportCacheService } from "../../../common/cache/report-cache.service";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { QUEUES } from "../../../common/queues";
@@ -44,6 +45,7 @@ export class TimesheetsService {
     private prisma: PrismaService,
     private notificationsDispatch: NotificationsDispatchService,
     private access: ProjectAccessService,
+    private reportCache: ReportCacheService,
     @InjectQueue(QUEUES.TIMESHEET_BULK_REVIEW) private readonly bulkReviewQueue: Queue
   ) {}
 
@@ -520,6 +522,8 @@ export class TimesheetsService {
         }
       })
     );
+
+    await this.reportCache.invalidateWorkspace(workspaceId);
 
     return {
       period: this.toPeriodDto(saved, project.name, approvalPeriod, false),
@@ -1056,6 +1060,8 @@ export class TimesheetsService {
       })
     );
 
+    await this.reportCache.invalidateWorkspace(workspaceId);
+
     return { ok: true as const };
   }
 
@@ -1177,6 +1183,8 @@ export class TimesheetsService {
         }
       })
     );
+
+    await this.reportCache.invalidateWorkspace(workspaceId);
 
     return { ok: true as const };
   }

@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test";
+import { expect } from "@playwright/test";
 import { SEED } from "../constants/seed";
 
 const MEMBER_EMAIL = SEED.personas.member.email;
@@ -39,4 +40,10 @@ export async function loginAsMember(page: Page) {
 
 export async function loginAsDrew(page: Page) {
   await submitLogin(page, DREW_EMAIL);
+}
+
+export async function logoutFromClient(page: Page) {
+  await page.getByRole("button", { name: "Log out" }).click();
+  await page.waitForURL(/\/login/, { timeout: 30_000 });
+  await expect(page.getByRole("heading", { name: /sign in/i })).toBeVisible();
 }
