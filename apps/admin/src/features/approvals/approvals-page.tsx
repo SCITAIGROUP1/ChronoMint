@@ -30,8 +30,6 @@ import {
 import {
   parseAdminApprovalsSearch,
   hasActiveApprovalsFilter,
-  todayInZone,
-  toDateKeyInZone,
   useWorkspaceOperationalSettings
 } from "@kloqra/web-shared";
 import { Check, X, ChevronDown, ChevronUp } from "lucide-react";
@@ -41,6 +39,7 @@ import { toast } from "sonner";
 import { AmendmentRequestCard } from "./amendment-request-card";
 import { ApprovalsFiltersBar } from "./approvals-filters-bar";
 import { readApprovalsViewMode, writeApprovalsViewMode } from "./approvals-view-mode-storage";
+import { resolveMissingTimesheetsAnchorDateKey } from "./missing-timesheets-anchor";
 import { PendingTimesheetCard, PendingActivity } from "./pending-timesheet-card";
 import { RemindMemberDialog } from "./remind-member-dialog";
 import { ReviewedTimesheetCard } from "./reviewed-timesheet-card";
@@ -457,10 +456,10 @@ export function ApprovalsPage() {
   const focusRef = useRef<HTMLDivElement>(null);
 
   const { timezone, weekStartsOn } = useWorkspaceOperationalSettings(ws, Boolean(ws));
-  const missingAnchorDate = useMemo(() => {
-    const anchorKey = filters.from ?? toDateKeyInZone(todayInZone(timezone), timezone);
-    return new Date(`${anchorKey}T12:00:00.000Z`);
-  }, [filters.from, timezone]);
+  const missingAnchorDateKey = useMemo(
+    () => resolveMissingTimesheetsAnchorDateKey(filters.from, timezone),
+    [filters.from, timezone]
+  );
 
   const [viewMode, setViewMode] = useState<"card" | "table">("card");
 
@@ -533,7 +532,7 @@ export function ApprovalsPage() {
     page: missingPage,
     limit: missingLimit,
     totalPages: missingTotalPages
-  } = useMissingTimesheets(ws, missingAnchorDate, filters, tab === "missing");
+  } = useMissingTimesheets(ws, missingAnchorDateKey, filters, tab === "missing");
 
   const {
     amendments,

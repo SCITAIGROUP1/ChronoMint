@@ -28,6 +28,10 @@ import { api } from "@/lib/api";
 import { colorForTask } from "@/lib/project-color-styles";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
+function browserTimezone(): string {
+  return typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC";
+}
+
 export function AdminTimeTrackerPage() {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
   const { timezone, weekStart: weekStartPref } = useWorkspaceOperationalSettings(ws, Boolean(ws));
@@ -41,9 +45,11 @@ export function AdminTimeTrackerPage() {
 
   const [period, setPeriod] = useState<TimeTrackerPeriodSelection>("this_week");
   const [rangeFrom, setRangeFrom] = useState(
-    () => inclusiveDateKeysFromPeriod("this_week", "UTC").from
+    () => inclusiveDateKeysFromPeriod("this_week", browserTimezone()).from
   );
-  const [rangeTo, setRangeTo] = useState(() => inclusiveDateKeysFromPeriod("this_week", "UTC").to);
+  const [rangeTo, setRangeTo] = useState(
+    () => inclusiveDateKeysFromPeriod("this_week", browserTimezone()).to
+  );
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [projectFilter, setProjectFilter] = useState<string[]>([]);

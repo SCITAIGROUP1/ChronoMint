@@ -201,7 +201,12 @@ export function TimeTrackerPage() {
     return [...dates];
   }, [logs, timezone]);
 
-  const { submissionByKey } = useTimesheetSubmissionStatusQuery(ws, submissionDates, Boolean(ws));
+  const { submissionByKey } = useTimesheetSubmissionStatusQuery(
+    ws,
+    submissionDates,
+    Boolean(ws),
+    timezone
+  );
 
   // Cache patch + derived RQ invalidation update UI; do not refetch lists again on local save.
   const timelogMutations = useTimelogMutations(ws);

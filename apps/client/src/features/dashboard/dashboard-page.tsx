@@ -76,7 +76,6 @@ import {
 import { suggestBillableFromTask } from "@/features/timesheet/time-entry-draft";
 import { useActiveTimerSession } from "@/hooks/use-active-timer-session";
 import { useIsImpersonating } from "@/hooks/use-is-impersonating";
-import { useTimelogStaleRefetch } from "@/hooks/use-timelog-stale-refetch";
 import { api } from "@/lib/api";
 import { useActiveTimerSessionStore } from "@/stores/active-timer-session.store";
 import { useSessionStore } from "@/stores/session.store";
@@ -372,14 +371,6 @@ export function DashboardPage() {
 
   // List cache is patched in commitTimelogMutation — skip redundant local refetch.
   const timelogMutations = useTimelogMutations(ws);
-
-  useTimelogStaleRefetch(
-    ws,
-    () => {
-      void refreshLogs();
-    },
-    Boolean(ws)
-  );
 
   useEffect(() => {
     if (!filterUserId) return;

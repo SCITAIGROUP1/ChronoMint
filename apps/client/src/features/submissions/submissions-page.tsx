@@ -21,7 +21,6 @@ import {
   useDisplayPreferences,
   useEntryCatalogQueries,
   useMySubmissionsLookbackQuery,
-  useWorkspaceStaleRefetch,
   type MemberSubmissionsTab
 } from "@kloqra/web-shared";
 import { Check } from "lucide-react";
@@ -148,16 +147,6 @@ export function SubmissionsPage() {
     await refreshAll();
   }, [refreshAll]);
 
-  // Remote approval/submit events — skip during local timelog mutation echo window.
-  useWorkspaceStaleRefetch(
-    ws,
-    ["submissions", "timesheet"],
-    () => {
-      void refreshAll();
-    },
-    Boolean(ws)
-  );
-
   const setTab = useCallback(
     (next: MemberSubmissionsTab) => {
       const params = new URLSearchParams(searchParams.toString());
@@ -176,9 +165,10 @@ export function SubmissionsPage() {
           (a, b) => new Date(b.periodStart).getTime() - new Date(a.periodStart).getTime()
         ),
         rangeFrom,
-        rangeTo
+        rangeTo,
+        timezone
       ),
-    [allSubmissions, rangeFrom, rangeTo]
+    [allSubmissions, rangeFrom, rangeTo, timezone]
   );
 
   const tabFilteredSubmissions = useMemo(

@@ -18,13 +18,15 @@ import {
   logStartDateKey,
   parseMemberTimesheetSearch,
   scopedStorageKey,
+  SUBMISSIONS_LOOKBACK_WEEKS,
   useDisplayPreferences,
+  useMySubmissionsLookbackQuery,
+  usePreferenceTodayDateKey,
   useTimelogListQuery,
   useTimelogMutations,
   useTimelogOccupancyQuery,
   useEntryCatalogQueries,
-  useTimesheetSubmissionStatusQuery,
-  useWorkspaceStaleRefetch
+  useTimesheetSubmissionStatusQuery
 } from "@kloqra/web-shared";
 import { Clock, Eye, EyeOff, Lock, X } from "lucide-react";
 import Link from "next/link";
@@ -49,7 +51,7 @@ import {
   rangeOccupiedElsewhere,
   slotIndexFromTime,
   slotIntervalForIndex,
-  toDateKey
+  toDateKeyInZone
 } from "./calendar-utils";
 import {
   formatDayRangeLabel,
@@ -67,10 +69,7 @@ import {
 } from "./time-entry-draft";
 import { TimeEntryDialog, TimesheetCalendar, TimesheetMonth } from "./timesheet-lazy";
 import { validateTimeEntryOverlap } from "./validate-time-entry-overlap";
-import {
-  countActionableSubmissions,
-  useMySubmissions
-} from "@/features/submissions/use-my-submissions";
+import { countActionableSubmissions } from "@/features/submissions/use-my-submissions";
 import {
   isTimeEntryInactive,
   isTimeEntryLocked,
@@ -87,6 +86,10 @@ import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 import { isActiveTimer, useTimerStore } from "@/stores/timer.store";
 
 type ViewMode = "day" | "week" | "month";
+
+function browserTimezone(): string {
+  return typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC";
+}
 
 const LEGACY_OVERLAY_KEY = "kloqra-show-occupancy-overlay";
 const LEGACY_MOBILE_BANNER_KEY = "kloqra-timesheet-mobile-banner-dismissed";
@@ -168,12 +171,19 @@ export function TimesheetPage() {
       const parsed = new Date(deepLink.date);
       if (!Number.isNaN(parsed.getTime())) return startOfDay(parsed);
     }
-    return startOfDay(new Date());
+    return todayInZone(browserTimezone());
   });
-  const { submissions: submissionNavItems } = useMySubmissions(ws, anchor, "assigned", Boolean(ws));
+  const anchorDateKey = usePreferenceTodayDateKey();
+  const { data: lookbackSubmissions = [] } = useMySubmissionsLookbackQuery(
+    ws,
+    anchorDateKey,
+    SUBMISSIONS_LOOKBACK_WEEKS,
+    "assigned",
+    Boolean(ws)
+  );
   const actionableSubmissionCount = useMemo(
-    () => countActionableSubmissions(submissionNavItems),
-    [submissionNavItems]
+    () => countActionableSubmissions(lookbackSubmissions),
+    [lookbackSubmissions]
   );
   const { issues: jiraIssues } = useJiraIssues(jiraConnected);
 
@@ -321,16 +331,11 @@ export function TimesheetPage() {
 
   const {
     data: logsData,
-    refetch: refetchLogs,
     isLoading: logsQueryLoading,
     error: logsQueryError
   } = useTimelogListQuery(ws, logsPath, Boolean(ws && visibleRange));
 
-  const {
-    data: occupancy = [],
-    isLoading: occupancyLoading,
-    refetch: refetchOccupancy
-  } = useTimelogOccupancyQuery(
+  const { data: occupancy = [], isLoading: occupancyLoading } = useTimelogOccupancyQuery(
     ws,
     visibleRange?.from.toISOString(),
     visibleRange?.to.toISOString(),
@@ -341,14 +346,19 @@ export function TimesheetPage() {
   const calendarLoading = logsQueryLoading || occupancyLoading || catalog.isLoading;
 
   const submissionDates = useMemo(() => {
-    const dates = new Set<string>([toDateKey(anchor)]);
+    const dates = new Set<string>([toDateKeyInZone(anchor, timezone)]);
     for (const log of logs) {
       dates.add(logStartDateKey(log, timezone));
     }
     return [...dates];
   }, [anchor, logs, timezone]);
 
-  const { submissionByKey } = useTimesheetSubmissionStatusQuery(ws, submissionDates, Boolean(ws));
+  const { submissionByKey } = useTimesheetSubmissionStatusQuery(
+    ws,
+    submissionDates,
+    Boolean(ws),
+    timezone
+  );
 
   const isEntryInactive = useCallback(
     (log: TimeLogDto) =>
@@ -410,10 +420,6 @@ export function TimesheetPage() {
     [tasks, projects]
   );
 
-  const refreshLogs = useCallback(async () => {
-    await refetchLogs();
-  }, [refetchLogs]);
-
   useEffect(() => {
     if (!logsQueryError) return;
     toast.error(
@@ -421,18 +427,8 @@ export function TimesheetPage() {
     );
   }, [logsQueryError]);
 
-  // Lists patched in commit; occupancy/submissions refreshed via derived RQ invalidation.
+  // Lists patched in commit; occupancy/submissions refreshed via shell RQ invalidation.
   const timelogMutations = useTimelogMutations(ws);
-
-  // Remote stale only (shell RQ also invalidates). Skip during local mutation echo window.
-  useWorkspaceStaleRefetch(
-    ws,
-    ["timelogs", "timesheet"],
-    () => {
-      void Promise.all([refreshLogs(), refetchOccupancy()]);
-    },
-    Boolean(ws)
-  );
 
   const overlapConflictMessage = useCallback(
     (conflict: { workspaceName: string; label: string; startTime: string; endTime: string }) => {

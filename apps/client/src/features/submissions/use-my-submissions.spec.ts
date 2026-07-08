@@ -1,24 +1,57 @@
+import { normalizeSubmissionDateKey } from "@kloqra/web-shared";
 import { describe, expect, it } from "vitest";
-import { toDateKey } from "@/features/timesheet/calendar-utils";
+import { filterSubmissionsByPeriodRange } from "./use-my-submissions";
 
-/** Mirrors buildScopedQueryKey day normalization used by useMySubmissions. */
-function buildScopedQueryKey(anchorDate: Date, scope: "logged" | "assigned") {
-  return `date=${toDateKey(anchorDate)}&scope=${scope}`;
-}
+const baseSubmission = {
+  id: "period-1",
+  userId: "user-1",
+  workspaceId: "ws-1",
+  projectId: "proj-1",
+  projectName: "Support Retainer",
+  periodStart: "2025-06-02T00:00:00.000Z",
+  periodEnd: "2025-06-08T23:59:59.999Z",
+  approvalPeriod: "weekly" as const,
+  note: null,
+  reviewNote: null,
+  reviewedBy: null,
+  submittedAt: null,
+  reviewedAt: null,
+  status: "DRAFT" as const
+};
 
-describe("member submissions query key stability", () => {
-  it("uses the same local day key for different times on the same calendar day", () => {
-    const morning = new Date(2026, 6, 8, 8, 0, 0);
-    const evening = new Date(2026, 6, 8, 20, 15, 30);
-    expect(buildScopedQueryKey(morning, "assigned")).toBe(buildScopedQueryKey(evening, "assigned"));
-    expect(buildScopedQueryKey(morning, "assigned")).toBe("date=2026-07-08&scope=assigned");
+describe("filterSubmissionsByPeriodRange", () => {
+  it("filters by period start using display timezone for ISO timestamps", () => {
+    const items = [
+      baseSubmission,
+      {
+        ...baseSubmission,
+        id: "period-2",
+        periodStart: "2025-07-01T00:00:00.000Z"
+      }
+    ];
+    expect(filterSubmissionsByPeriodRange(items, "2025-06-01", "2025-06-30", "UTC")).toHaveLength(
+      1
+    );
+    expect(filterSubmissionsByPeriodRange(items, "", "")).toHaveLength(2);
   });
 
-  it("does not shift to the previous UTC day for late evening local times", () => {
-    // 2026-07-08 01:00 in +05:30 is still Jul 8 local but Jul 7 in UTC ISO.
-    const lateEveningColomboEquiv = new Date(2026, 6, 8, 1, 0, 0);
-    expect(buildScopedQueryKey(lateEveningColomboEquiv, "assigned")).toBe(
-      "date=2026-07-08&scope=assigned"
-    );
+  it("uses timezone when comparing period start to range keys", () => {
+    // 2025-06-01 22:00 UTC is 2025-06-02 in Asia/Colombo (+05:30).
+    const colomboItem = {
+      ...baseSubmission,
+      periodStart: "2025-06-01T22:00:00.000Z"
+    };
+    expect(
+      filterSubmissionsByPeriodRange([colomboItem], "2025-06-02", "2025-06-02", "Asia/Colombo")
+    ).toHaveLength(1);
+    expect(
+      filterSubmissionsByPeriodRange([colomboItem], "2025-06-01", "2025-06-01", "UTC")
+    ).toHaveLength(1);
+  });
+});
+
+describe("normalizeSubmissionDateKey (period filter helper)", () => {
+  it("keeps bare YYYY-MM-DD stable for range comparisons", () => {
+    expect(normalizeSubmissionDateKey("2026-07-08")).toBe("2026-07-08");
   });
 });

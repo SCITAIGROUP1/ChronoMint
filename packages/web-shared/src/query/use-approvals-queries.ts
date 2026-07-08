@@ -129,18 +129,18 @@ export function useAllTimesheetsQuery(workspaceId: string, filterKey: string, en
 
 export function useMissingTimesheetsQuery(
   workspaceId: string,
-  anchorDate: Date,
+  anchorDateKey: string,
   filterKey: string,
   enabled = true
 ) {
   const sessionGeneration = useSessionGeneration();
   const queryEnabled = useWorkspaceQueryEnabled(workspaceId, enabled);
-  const anchorKey = anchorDate.toISOString();
+  const dateKey = normalizeSubmissionDateKey(anchorDateKey);
 
   return useQuery({
-    queryKey: approvalsQueryKeys.missing(workspaceId, anchorKey, filterKey, sessionGeneration),
+    queryKey: approvalsQueryKeys.missing(workspaceId, dateKey, filterKey, sessionGeneration),
     queryFn: ({ signal }) => {
-      const params = new URLSearchParams({ date: anchorKey });
+      const params = new URLSearchParams({ date: dateKey });
       if (filterKey) {
         for (const [key, value] of new URLSearchParams(filterKey)) {
           params.set(key, value);
@@ -201,17 +201,21 @@ export function useMySubmissionsLookbackQuery(
 export function useTimesheetSubmissionStatusQuery(
   workspaceId: string,
   dates: string[],
-  enabled = true
+  enabled = true,
+  timezone?: string
 ) {
   const uniqueDates = useMemo(
-    () => [...new Set(dates.filter(Boolean).map((d) => normalizeSubmissionDateKey(d)))].sort(),
-    [dates]
+    () =>
+      [
+        ...new Set(dates.filter(Boolean).map((d) => normalizeSubmissionDateKey(d, timezone)))
+      ].sort(),
+    [dates, timezone]
   );
   // Latest visible day (or today) anchors one lookback covering all periods we care about.
   const anchorDateKey = useMemo(() => {
     if (uniqueDates.length > 0) return uniqueDates[uniqueDates.length - 1]!;
-    return normalizeSubmissionDateKey(new Date().toISOString());
-  }, [uniqueDates]);
+    return normalizeSubmissionDateKey(new Date().toISOString(), timezone);
+  }, [uniqueDates, timezone]);
 
   const query = useMySubmissionsLookbackQuery(
     workspaceId,

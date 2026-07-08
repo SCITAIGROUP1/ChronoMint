@@ -209,6 +209,7 @@ export { useWorkspaceMembersQuery } from "./query/use-workspace-members-query";
 export { useWorkspaceRemoteQuery } from "./query/use-workspace-remote-query";
 export { useMySubmissionsQuery, useWeekSummaryQuery } from "./query/use-member-reporting-queries";
 export { approvalsQueryKeys } from "./query/approvals-query-keys";
+export { normalizeSubmissionDateKey } from "./query/submission-date-key";
 export {
   buildPendingApprovalsPath,
   buildSubmissionsLookbackQueryKey,

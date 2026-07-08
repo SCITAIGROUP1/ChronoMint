@@ -1,6 +1,6 @@
 "use client";
 
-import { BRAND_NAME, ROUTES, resolveEffectiveTimezone } from "@kloqra/contracts";
+import { BRAND_NAME, ROUTES } from "@kloqra/contracts";
 import type { ActiveTimerDto, TimeLogDto } from "@kloqra/contracts";
 import {
   AppBar,
@@ -17,11 +17,11 @@ import {
   EmptyState
 } from "@kloqra/ui";
 import {
+  useDisplayPreferences,
   useEntryCatalogQueries,
   useRefetchOnWindowFocus,
   useTimelogListQuery,
   useTimelogMutations,
-  useUserProfile,
   todayInZone,
   localMidnightUtcInZone,
   sumDurationSecForDateKey,
@@ -36,7 +36,6 @@ import { JiraIssuePicker } from "@/components/jira-issue-picker";
 import { useActiveTimerSession } from "@/hooks/use-active-timer-session";
 import { useIsImpersonating } from "@/hooks/use-is-impersonating";
 import { useJiraIssues } from "@/hooks/use-jira-issues";
-import { useTimelogStaleRefetch } from "@/hooks/use-timelog-stale-refetch";
 import { api } from "@/lib/api";
 import { formatProjectLabel, formatTaskLabel } from "@/lib/project-labels";
 import { useActiveTimerSessionStore } from "@/stores/active-timer-session.store";
@@ -154,11 +153,7 @@ export function TimerPage() {
 
   useRefetchOnWindowFocus(reloadCatalog, Boolean(ws));
 
-  const { profile } = useUserProfile();
-  const timezone = useMemo(() => {
-    const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    return resolveEffectiveTimezone(profile?.preferences ?? {}, browserTz);
-  }, [profile]);
+  const { timezone } = useDisplayPreferences();
 
   const [projectId, setProjectId] = useState("");
   const [taskChoice, setTaskChoice] = useState("");
@@ -231,14 +226,6 @@ export function TimerPage() {
   }, [ws]);
 
   useActiveTimerSession(ws, Boolean(ws));
-
-  useTimelogStaleRefetch(
-    ws,
-    () => {
-      void refreshRecentLogs();
-    },
-    Boolean(ws)
-  );
 
   // Handle active status ticks
   useEffect(() => {

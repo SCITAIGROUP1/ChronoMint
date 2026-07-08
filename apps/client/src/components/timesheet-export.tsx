@@ -4,10 +4,8 @@ import {
   ROUTES,
   buildExportFilename,
   DEFAULT_MEMBER_EXPORT_COLUMNS,
-  resolveEffectiveTimezone,
   type MemberExportBodyDto,
-  type MemberExportReportType,
-  type UserProfileDto
+  type MemberExportReportType
 } from "@kloqra/contracts";
 import {
   Button,
@@ -24,9 +22,13 @@ import {
   SelectTrigger,
   SelectValue
 } from "@kloqra/ui";
-import { toDateInputValue, useProjectsListQuery, useCategoriesListQuery } from "@kloqra/web-shared";
-import { useEffect, useState } from "react";
-import { api } from "@/lib/api";
+import {
+  toDateInputValue,
+  useDisplayPreferences,
+  useProjectsListQuery,
+  useCategoriesListQuery
+} from "@kloqra/web-shared";
+import { useState } from "react";
 import { apiDownloadPost, saveDownloadResponse } from "@/lib/download";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
@@ -42,6 +44,7 @@ export function TimesheetExport({
   defaultTo
 }: TimesheetExportProps) {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
+  const { timezone } = useDisplayPreferences();
   const [from, setFrom] = useState(() => {
     if (defaultFrom) return defaultFrom;
     const d = new Date();
@@ -59,18 +62,6 @@ export function TimesheetExport({
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
 
-  // Load user's timezone preference so exported date columns match the UI.
-  const [userTimezone, setUserTimezone] = useState<string | undefined>(undefined);
-  useEffect(() => {
-    if (!ws) return;
-    api<UserProfileDto>(ROUTES.USERS.ME, { workspaceId: ws })
-      .then((profile) => {
-        const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        setUserTimezone(resolveEffectiveTimezone(profile.preferences, browserTz));
-      })
-      .catch(() => {});
-  }, [ws]);
-
   async function runExport() {
     setError(null);
     setExporting(true);
@@ -81,7 +72,7 @@ export function TimesheetExport({
         billable,
         reportTypes: [reportType],
         format,
-        ...(userTimezone ? { timezone: userTimezone } : {}),
+        ...(timezone ? { timezone } : {}),
         ...(projectId ? { projectId } : {}),
         ...(categoryId ? { categoryId } : {}),
         ...(reportType === "time_entries"
