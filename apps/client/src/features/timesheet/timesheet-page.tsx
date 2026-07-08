@@ -4,8 +4,6 @@ import { ROUTES, resolveEffectiveTimezone } from "@kloqra/contracts";
 import type {
   ActiveTimerDto,
   AutoStoppedTimerDto,
-  CategoryDto,
-  ListTimeLogOccupancyResponseDto,
   ListTimesheetSubmissionsResponseDto,
   TimeLogDto,
   TimesheetPeriodDto,
@@ -29,6 +27,8 @@ import {
   scopedStorageKey,
   useTimelogListQuery,
   useTimelogMutations,
+  useTimelogOccupancyQuery,
+  useEntryCatalogQueries,
   useWorkspaceStaleRefetch
 } from "@kloqra/web-shared";
 import { Clock, Eye, EyeOff, Lock, X } from "lucide-react";
@@ -84,7 +84,6 @@ import { useIsImpersonating } from "@/hooks/use-is-impersonating";
 import { useJiraIssues } from "@/hooks/use-jira-issues";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { api } from "@/lib/api";
-import { loadEntryCatalog } from "@/lib/entry-catalog";
 import { colorForTask } from "@/lib/project-color-styles";
 import { formatTaskLabel } from "@/lib/project-labels";
 import { useProjectsStore } from "@/stores/projects.store";
@@ -120,14 +119,6 @@ function buildLogsQuery(from: Date, to: Date): string {
   return `${ROUTES.TIMELOGS.LIST}?${params}`;
 }
 
-function buildOccupancyQuery(from: Date, to: Date): string {
-  const params = new URLSearchParams({
-    from: from.toISOString(),
-    to: to.toISOString()
-  });
-  return `${ROUTES.TIMELOGS.OCCUPANCY}?${params}`;
-}
-
 export function TimesheetPage() {
   const searchParams = useSearchParams();
   const deepLink = useMemo(
@@ -159,9 +150,11 @@ export function TimesheetPage() {
 
   const timezone = displayFormat?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-  const [occupancy, setOccupancy] = useState<ListTimeLogOccupancyResponseDto["items"]>([]);
-  const { tasks, projects, workspaceNamesById, setTasks, setProjects } = useProjectsStore();
-  const [categories, setCategories] = useState<CategoryDto[]>([]);
+  const catalog = useEntryCatalogQueries(ws, { enabled: Boolean(ws) });
+  const projects = catalog.projects;
+  const tasks = catalog.tasks;
+  const categories = catalog.categories;
+  const workspaceNamesById = useProjectsStore((s) => s.workspaceNamesById);
 
   const [view, setView] = useState<ViewMode>(() => deepLink.view ?? "week");
   const [mobileBannerDismissed, setMobileBannerDismissed] = useState(true);
@@ -187,7 +180,6 @@ export function TimesheetPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmDeleteLog, setConfirmDeleteLog] = useState<TimeLogDto | null>(null);
-  const [occupancyLoading, setOccupancyLoading] = useState(false);
 
   const [showOccupancyOverlay, setShowOccupancyOverlay] = useState(true);
   const { active: activeTimer, elapsedSec: liveElapsedSec, setActive, tick } = useTimerStore();
@@ -377,8 +369,19 @@ export function TimesheetPage() {
     error: logsQueryError
   } = useTimelogListQuery(ws, logsPath, Boolean(ws && visibleRange));
 
+  const {
+    data: occupancy = [],
+    isLoading: occupancyLoading,
+    refetch: refetchOccupancy
+  } = useTimelogOccupancyQuery(
+    ws,
+    visibleRange?.from.toISOString(),
+    visibleRange?.to.toISOString(),
+    Boolean(ws && visibleRange)
+  );
+
   const logs = logsData?.items ?? [];
-  const calendarLoading = logsQueryLoading || occupancyLoading;
+  const calendarLoading = logsQueryLoading || occupancyLoading || catalog.isLoading;
 
   const refreshSubmissions = useCallback(async () => {
     if (!ws) return;
@@ -459,31 +462,9 @@ export function TimesheetPage() {
     );
   }, [logsQueryError]);
 
-  const refreshOccupancy = useCallback(async () => {
-    if (!visibleRange) {
-      setOccupancy([]);
-      return;
-    }
-    setOccupancyLoading(true);
-    try {
-      const res = await api<ListTimeLogOccupancyResponseDto>(
-        buildOccupancyQuery(visibleRange.from, visibleRange.to),
-        { workspaceId: ws }
-      );
-      setOccupancy(res.items);
-    } catch (e) {
-      setOccupancy([]);
-      if (e instanceof Error && e.message.includes("404")) {
-        toast.error("Occupied slots unavailable — restart the API (pnpm serve).");
-      }
-    } finally {
-      setOccupancyLoading(false);
-    }
-  }, [ws, visibleRange]);
-
   const refreshTimelogSurface = useCallback(async () => {
-    await Promise.all([refreshLogs(), refreshOccupancy()]);
-  }, [refreshLogs, refreshOccupancy]);
+    await Promise.all([refreshLogs(), refetchOccupancy()]);
+  }, [refreshLogs, refetchOccupancy]);
 
   const timelogMutations = useTimelogMutations(ws, { onLocalRefresh: refreshTimelogSurface });
 
@@ -518,11 +499,6 @@ export function TimesheetPage() {
   );
 
   useEffect(() => {
-    if (!ws) return;
-    void refreshOccupancy();
-  }, [ws, refreshOccupancy]);
-
-  useEffect(() => {
     if (!deepLink.date) return;
     const parsed = new Date(deepLink.date);
     if (!Number.isNaN(parsed.getTime())) {
@@ -541,15 +517,6 @@ export function TimesheetPage() {
       setAnchor(todayInZone(timezone));
     }
   }, [timezone, deepLink.date]);
-
-  useEffect(() => {
-    if (!ws) return;
-    void loadEntryCatalog(ws).then(({ tasks, projects, categories }) => {
-      setTasks(ws, tasks);
-      setProjects(ws, projects);
-      setCategories(categories);
-    });
-  }, [ws, setTasks, setProjects]);
 
   function goToday() {
     setAnchor(todayInZone(timezone));

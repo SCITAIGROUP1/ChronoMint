@@ -18,6 +18,7 @@ describe("invalidateTimelogQueries", () => {
   it("refetches active timelog queries on the shared provider client", async () => {
     const client = getQueryClient();
     const cancelSpy = vi.spyOn(client, "cancelQueries");
+    const invalidateSpy = vi.spyOn(client, "invalidateQueries");
     const refetchSpy = vi.spyOn(client, "refetchQueries");
     const queryFn = vi
       .fn()
@@ -42,22 +43,22 @@ describe("invalidateTimelogQueries", () => {
 
     await invalidateTimelogQueries(workspaceId);
 
-    expect(cancelSpy).toHaveBeenCalledWith({
-      queryKey: timelogQueryKeys.workspace(workspaceId)
-    });
-    expect(refetchSpy).toHaveBeenCalledWith({
-      queryKey: timelogQueryKeys.workspace(workspaceId),
-      type: "all"
-    });
-    await waitFor(() => expect(queryFn).toHaveBeenCalledTimes(2));
+    expect(cancelSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ predicate: expect.any(Function) })
+    );
+    expect(invalidateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ predicate: expect.any(Function) })
+    );
+    expect(refetchSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ predicate: expect.any(Function), type: "active" })
+    );
+    await waitFor(() => expect(queryFn.mock.calls.length).toBeGreaterThanOrEqual(2));
   });
 
-  it("refetches inactive cached timelog queries after invalidation", async () => {
+  it("marks inactive cached timelog queries stale without refetching them", async () => {
     const client = getQueryClient();
-    const queryFn = vi
-      .fn()
-      .mockResolvedValueOnce({ items: [{ id: "log-1" }] })
-      .mockResolvedValueOnce({ items: [{ id: "log-1" }, { id: "log-2" }] });
+    const queryFn = vi.fn().mockResolvedValue({ items: [{ id: "log-1" }] });
+    const listKey = timelogQueryKeys.list(workspaceId, path);
 
     const wrapper = ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={client}>{children}</QueryClientProvider>
@@ -66,7 +67,7 @@ describe("invalidateTimelogQueries", () => {
     const { unmount } = renderHook(
       () =>
         useQuery({
-          queryKey: timelogQueryKeys.list(workspaceId, path),
+          queryKey: listKey,
           queryFn
         }),
       { wrapper }
@@ -77,6 +78,7 @@ describe("invalidateTimelogQueries", () => {
 
     await invalidateTimelogQueries(workspaceId);
 
-    await waitFor(() => expect(queryFn).toHaveBeenCalledTimes(2));
+    expect(client.getQueryState(listKey)?.isInvalidated).toBe(true);
+    expect(queryFn).toHaveBeenCalledTimes(1);
   });
 });

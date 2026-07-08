@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, Button, ProjectColorDot } fro
 import {
   readScopedJSON,
   scopedStorageKey,
+  useEntryCatalogQueries,
   useTimelogListQuery,
   useWorkspaceStaleRefetch,
   writeScopedJSON
@@ -12,7 +13,6 @@ import {
 import { Star, History, Pin, PinOff, Clock, TrendingUp } from "lucide-react";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { api } from "@/lib/api";
-import { useProjectsStore } from "@/stores/projects.store";
 import { useSessionStore } from "@/stores/session.store";
 
 const LEGACY_FAVORITES_KEY = "kloqra_favorites";
@@ -51,7 +51,8 @@ export function QuickActions({
 }: QuickActionsProps) {
   const session = useSessionStore((s) => s.session);
   const ws = session?.workspaceId ?? "";
-  const { projects, tasks } = useProjectsStore();
+  const catalog = useEntryCatalogQueries(ws, { enabled: Boolean(ws) });
+  const { projects, tasks } = catalog;
 
   const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
   const [recents, setRecents] = useState<RecentItem[]>([]);

@@ -2,14 +2,13 @@
 
 import { ROUTES, resolveEffectiveTimezone } from "@kloqra/contracts";
 import type {
-  CategoryDto,
   ListTimesheetSubmissionsResponseDto,
   TimeLogDto,
   TimesheetPeriodDto,
   UserProfileDto
 } from "@kloqra/contracts";
 import { AppBar, ConfirmDialog } from "@kloqra/ui";
-import { api as sharedApi, useTimelogMutations } from "@kloqra/web-shared";
+import { api as sharedApi, useEntryCatalogQueries, useTimelogMutations } from "@kloqra/web-shared";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { todayInZone } from "../timesheet/calendar-utils";
@@ -45,10 +44,8 @@ import { useTimeTrackerLogs } from "./use-time-tracker-logs";
 import { useIsImpersonating } from "@/hooks/use-is-impersonating";
 import { useTimelogStaleRefetch } from "@/hooks/use-timelog-stale-refetch";
 import { api } from "@/lib/api";
-import { loadEntryCatalog } from "@/lib/entry-catalog";
 import { colorForTask } from "@/lib/project-color-styles";
 import { formatTaskLabel } from "@/lib/project-labels";
-import { useOfflineStore } from "@/stores/offline-store";
 import { useProjectsStore } from "@/stores/projects.store";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
@@ -76,8 +73,9 @@ export function TimeTrackerPage() {
 
   const timezone = displayFormat?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-  const { tasks, projects, workspaceNamesById, setTasks, setProjects } = useProjectsStore();
-  const [categories, setCategories] = useState<CategoryDto[]>([]);
+  const catalog = useEntryCatalogQueries(ws, { enabled: Boolean(ws) });
+  const { projects, tasks, categories } = catalog;
+  const workspaceNamesById = useProjectsStore((s) => s.workspaceNamesById);
 
   const [period, setPeriod] = useState<TimeTrackerPeriodSelection>("this_week");
   const [rangeFrom, setRangeFrom] = useState(
@@ -261,15 +259,6 @@ export function TimeTrackerPage() {
     Boolean(ws)
   );
 
-  useEffect(() => {
-    if (!ws) return;
-    void loadEntryCatalog(ws).then(({ tasks, projects, categories }) => {
-      setTasks(ws, tasks);
-      setProjects(ws, projects);
-      setCategories(categories);
-    });
-  }, [ws, setTasks, setProjects]);
-
   const projectForTask = useCallback(
     (taskId: string) => {
       const task = tasks.find((t) => t.id === taskId);
@@ -434,45 +423,6 @@ export function TimeTrackerPage() {
         isBillable: draft.isBillable
       };
 
-      const isOffline = useOfflineStore.getState().isOffline;
-      const task = tasks.find((t) => t.id === taskId);
-      const projectId = task?.projectId;
-
-      if (isOffline) {
-        if (editingLog) {
-          const isOfflineLog = editingLog.id.startsWith("temp-");
-          if (isOfflineLog) {
-            useOfflineStore.getState().updateOfflineLog(editingLog.id, {
-              taskId,
-              projectId,
-              startTime,
-              endTime,
-              description: draft.description || undefined,
-              isBillable: draft.isBillable
-            });
-            closeDialog();
-            toast.success("Offline time entry updated!");
-            return;
-          } else {
-            toast.error("Editing existing server entries requires an online connection.");
-            setSaving(false);
-            return;
-          }
-        } else {
-          useOfflineStore.getState().addOfflineLog({
-            taskId,
-            projectId,
-            startTime,
-            endTime,
-            description: draft.description || undefined,
-            isBillable: draft.isBillable
-          });
-          closeDialog();
-          toast.success("Time entry created offline!");
-          return;
-        }
-      }
-
       if (editingLog) {
         await timelogMutations.update(editingLog.id, body);
       } else {
@@ -505,23 +455,6 @@ export function TimeTrackerPage() {
     if (!target) return;
     if (isEntryReadOnly(target)) {
       toast.error(LOCKED_ENTRY_MESSAGE);
-      return;
-    }
-
-    const isOfflineLog = target.id.startsWith("temp-");
-    const isOffline = useOfflineStore.getState().isOffline;
-
-    if (isOfflineLog) {
-      useOfflineStore.getState().removeOfflineLog(target.id);
-      if (editingLog?.id === target.id) closeDialog();
-      toast.success("Offline time entry deleted!");
-      return;
-    }
-
-    if (isOffline) {
-      useOfflineStore.getState().deleteServerLogOffline(target.id);
-      if (editingLog?.id === target.id) closeDialog();
-      toast.success("Time entry queued for deletion!");
       return;
     }
 

@@ -1,8 +1,8 @@
 "use client";
 
-import { ROUTES, type ProjectDto } from "@kloqra/contracts";
+import { ROUTES } from "@kloqra/contracts";
 import { Card, CardContent, CardHeader, CardTitle, ProjectColorDot, Skeleton } from "@kloqra/ui";
-import { fetchListItems } from "@kloqra/web-shared";
+import { useProjectsListQuery } from "@kloqra/web-shared";
 import { AlertTriangle, CheckCircle, TrendingUp, Info } from "lucide-react";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { budgetBarColor } from "./budget-burndown-utils";
@@ -35,6 +35,7 @@ export function BudgetBurnDownWidget({
   onHeaderActions?: (actions: React.ReactNode) => void;
 }) {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
+  const { data: catalogProjects = [] } = useProjectsListQuery(ws, Boolean(ws));
   const [data, setData] = useState<BudgetData | null>(null);
   const [allProjectsData, setAllProjectsData] = useState<BudgetData[]>([]);
   const [loading, setLoading] = useState(false);
@@ -59,9 +60,7 @@ export function BudgetBurnDownWidget({
         setAllProjectsData([]);
       } else {
         // Fetch budgets for all projects
-        const projects = await fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, {
-          workspaceId: ws
-        });
+        const projects = catalogProjects;
         const targetProjects = Array.isArray(projectId)
           ? projects.filter((p) => projectId.includes(p.id))
           : projects;
@@ -79,7 +78,7 @@ export function BudgetBurnDownWidget({
     } finally {
       setLoading(false);
     }
-  }, [ws, projectId]);
+  }, [ws, projectId, catalogProjects]);
 
   const headerActionsNode = useMemo(() => {
     if (data && data.budgetHours !== null) {

@@ -1,7 +1,7 @@
 "use client";
 
 import { ROUTES } from "@kloqra/contracts";
-import type { HourlyRateDto, ProjectDto, WorkspaceMemberDto } from "@kloqra/contracts";
+import type { HourlyRateDto, WorkspaceMemberDto } from "@kloqra/contracts";
 import {
   DataTableCell,
   DataTableHead,
@@ -12,7 +12,7 @@ import {
   TablePagination,
   TableRow
 } from "@kloqra/ui";
-import { fetchListItems, fetchPaginatedList } from "@kloqra/web-shared";
+import { fetchPaginatedList, useProjectsListQuery } from "@kloqra/web-shared";
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { api } from "@/lib/api";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
@@ -26,8 +26,8 @@ const WIDGET_PAGE_SIZE = 5;
 
 export function HourlyRatesWidget({ projectId, userId }: HourlyRatesWidgetProps) {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
+  const { data: projects = [] } = useProjectsListQuery(ws, Boolean(ws));
   const [rates, setRates] = useState<HourlyRateDto[]>([]);
-  const [projects, setProjects] = useState<ProjectDto[]>([]);
   const [members, setMembers] = useState<WorkspaceMemberDto[]>([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -48,14 +48,13 @@ export function HourlyRatesWidget({ projectId, userId }: HourlyRatesWidgetProps)
     setLoading(true);
     setError(null);
     try {
-      const [ratesData, projectsData, membersData] = await Promise.all([
+      const [ratesData, membersData] = await Promise.all([
         fetchPaginatedList<HourlyRateDto>(ROUTES.BILLING.RATES, {
           workspaceId: ws,
           page,
           limit: WIDGET_PAGE_SIZE,
           filters
         }),
-        fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).catch(() => []),
         api<WorkspaceMemberDto[]>(ROUTES.WORKSPACES.MEMBERS(ws), { workspaceId: ws }).catch(
           () => []
         )
@@ -64,7 +63,6 @@ export function HourlyRatesWidget({ projectId, userId }: HourlyRatesWidgetProps)
       setRates(ratesData.items);
       setTotal(ratesData.total);
       setTotalPages(ratesData.totalPages);
-      setProjects(projectsData);
       setMembers(membersData);
     } catch {
       setError("Failed to load hourly rates");

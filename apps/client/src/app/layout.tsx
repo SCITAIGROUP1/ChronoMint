@@ -3,7 +3,7 @@ import { SentryInitializer } from "@kloqra/web-shared/client";
 import type { Metadata } from "next";
 import { Toaster } from "sonner";
 import { Providers } from "@/components/providers";
-import { PwaInitializer } from "@/components/pwa-initializer";
+import { ServiceWorkerCleanup } from "@/components/service-worker-cleanup";
 import { inter } from "@/lib/font";
 import "@/lib/register-session-boundary";
 import "./globals.css";
@@ -20,7 +20,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={inter.className}>
         <Providers>
           <SentryInitializer />
-          <PwaInitializer />
+          <ServiceWorkerCleanup />
           {children}
           <Toaster
             richColors

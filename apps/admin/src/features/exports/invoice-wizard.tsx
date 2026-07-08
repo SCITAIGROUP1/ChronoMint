@@ -1,7 +1,7 @@
 "use client";
 
 import { ROUTES } from "@kloqra/contracts";
-import type { ProjectDto, TimeLogDto, ListTimeLogsResponseDto } from "@kloqra/contracts";
+import type { TimeLogDto, ListTimeLogsResponseDto } from "@kloqra/contracts";
 import {
   Card,
   CardContent,
@@ -15,7 +15,7 @@ import {
   ProjectColorDot,
   Spinner
 } from "@kloqra/ui";
-import { fetchListItems } from "@kloqra/web-shared";
+import { useProjectsListQuery } from "@kloqra/web-shared";
 import { FileText, ArrowRight, ArrowLeft, Download, Info } from "lucide-react";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { toast } from "sonner";
@@ -26,7 +26,7 @@ import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
 export function InvoiceWizard() {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
-  const [projects, setProjects] = useState<ProjectDto[]>([]);
+  const { data: projects = [] } = useProjectsListQuery(ws, Boolean(ws));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -64,14 +64,6 @@ export function InvoiceWizard() {
     () => projects.find((p) => p.id === projectId),
     [projects, projectId]
   );
-
-  // Load projects
-  useEffect(() => {
-    if (!ws) return;
-    fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws })
-      .then(setProjects)
-      .catch(() => {});
-  }, [ws]);
 
   // Load logs preview when project or range changes
   const loadLogsPreview = useCallback(async () => {

@@ -1,3 +1,4 @@
+import type { ProjectDto } from "@kloqra/contracts";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
@@ -46,6 +47,20 @@ describe("SubmissionsTable", () => {
     const html = renderToStaticMarkup(
       <SubmissionsTable
         submissions={[draftSubmission]}
+        projects={[
+          {
+            id: "proj-1",
+            name: "Support Retainer",
+            workspaceId: "ws-1",
+            color: "#236bfe",
+            clientName: null,
+            budgetHours: null,
+            isActive: true,
+            timesheetApprovalEnabled: true,
+            timesheetApprovalPeriod: "weekly"
+          } satisfies ProjectDto
+        ]}
+        tasks={[]}
         onSubmitted={() => {}}
         workspaceId="ws-1"
         timezone="UTC"

@@ -7,22 +7,19 @@ import {
 import { readUserIdFromToken } from "../auth/jwt-payload";
 import { getAccessToken, useSessionStore } from "../stores/session.store";
 import { api } from "./client";
-import {
-  buildListCacheKey,
-  getCachedListItems,
-  invalidateListItemsCache,
-  setCachedListItems
-} from "./list-items-cache";
 import { appendListQuery, buildListQuery } from "./list-query";
 
 type ListApiResponse<T> = T[] | PaginatedResponse<T>;
-
-export { invalidateListItemsCache } from "./list-items-cache";
 
 function resolveListCacheUserId(): string {
   const sessionUserId = useSessionStore.getState().session?.user?.id;
   if (sessionUserId) return sessionUserId;
   return readUserIdFromToken(getAccessToken()) ?? "anonymous";
+}
+
+/** @deprecated List cache removed — kept for API compatibility during migration. */
+export function invalidateListItemsCache(): void {
+  // no-op: server data is cached in React Query only
 }
 
 /** @deprecated Use invalidateListItemsCache() */
@@ -56,18 +53,12 @@ export async function fetchListItems<T>(
     workspaceId: string;
     filters?: Record<string, string | string[] | number | boolean | undefined | null>;
     limit?: number;
+    /** @deprecated Ignored — list cache removed. */
     bypassCache?: boolean;
   }
 ): Promise<T[]> {
+  void resolveListCacheUserId();
   const limit = options.limit ?? DEFAULT_DROPDOWN_LIST_LIMIT;
-  const userId = resolveListCacheUserId();
-  const cacheKey = buildListCacheKey(path, options.workspaceId, userId, options.filters, limit);
-
-  if (!options.bypassCache) {
-    const cached = getCachedListItems(cacheKey);
-    if (cached) return cached as T[];
-  }
-
   const query = buildListQuery({
     page: 1,
     limit,
@@ -76,9 +67,7 @@ export async function fetchListItems<T>(
   const res = await api<ListApiResponse<T>>(appendListQuery(path, query), {
     workspaceId: options.workspaceId
   });
-  const items = normalizePaginatedListResponse(res, 1, limit).items;
-  setCachedListItems(cacheKey, items);
-  return items;
+  return normalizePaginatedListResponse(res, 1, limit).items;
 }
 
 export async function fetchPaginatedList<T>(

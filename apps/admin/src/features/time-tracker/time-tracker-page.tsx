@@ -1,15 +1,9 @@
 "use client";
 
 import { ROUTES, resolveEffectiveTimezone } from "@kloqra/contracts";
-import type {
-  CategoryDto,
-  ProjectDto,
-  TaskDto,
-  TeamMembersOverviewDto,
-  UserProfileDto
-} from "@kloqra/contracts";
+import type { TeamMembersOverviewDto, UserProfileDto } from "@kloqra/contracts";
 import { AppBar } from "@kloqra/ui";
-import { api as sharedApi, fetchListItems, fetchProjectTeam } from "@kloqra/web-shared";
+import { api as sharedApi, fetchProjectTeam, useEntryCatalogQueries } from "@kloqra/web-shared";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { TimesheetDisplayFormat } from "./display-format";
 import { groupLogsByWeek } from "./group-logs-by-week";
@@ -54,9 +48,10 @@ export function AdminTimeTrackerPage() {
 
   const timezone = displayFormat?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-  const [tasks, setTasks] = useState<TaskDto[]>([]);
-  const [projects, setProjects] = useState<ProjectDto[]>([]);
-  const [categories, setCategories] = useState<CategoryDto[]>([]);
+  const catalog = useEntryCatalogQueries(ws, { enabled: Boolean(ws) });
+  const tasks = catalog.tasks;
+  const projects = catalog.projects;
+  const categories = catalog.categories;
   const [allMembers, setAllMembers] = useState<{ userId: string; userName: string }[]>([]);
   const [projectMembers, setProjectMembers] = useState<{ userId: string; userName: string }[]>([]);
 
@@ -203,9 +198,6 @@ export function AdminTimeTrackerPage() {
 
   useEffect(() => {
     if (!ws) return;
-    fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws }).then(setTasks);
-    fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects);
-    fetchListItems<CategoryDto>(ROUTES.CATEGORIES.LIST, { workspaceId: ws }).then(setCategories);
 
     api<TeamMembersOverviewDto>(`${ROUTES.WORKSPACES.MEMBERS_OVERVIEW(ws)}?page=1&limit=200`, {
       workspaceId: ws

@@ -83,18 +83,35 @@ test.describe("Onboarding first visit", () => {
 test.describe("Onboarding persistence", () => {
   test("skips onboarding and does not show wizard again after reload", async ({ page }) => {
     await clearOnboardingStorage(page);
-    await gotoDashboard(page);
-    if (!(await welcomeHeading(page).isVisible())) {
-      await clearOnboardingStorage(page);
-      await page.reload();
-      await expect(welcomeHeading(page)).toBeVisible({ timeout: 15_000 });
-    }
-    await expect(welcomeHeading(page)).toBeVisible();
+    await page.goto("/dashboard");
+    await waitForClientShell(page);
+    await expect(welcomeHeading(page)).toBeVisible({ timeout: 15_000 });
+
+    const preferencesSaved = page.waitForResponse(
+      (response) =>
+        response.url().includes("/users/me/preferences") &&
+        response.request().method() === "PATCH" &&
+        response.ok(),
+      { timeout: 15_000 }
+    );
     await wizardDialog(page).getByRole("button", { name: "Skip onboarding" }).click();
     await expect(welcomeHeading(page)).not.toBeVisible();
+    await preferencesSaved;
+    // First-time skip routes to the timer page (not dashboard).
+    await page.waitForURL(/\/timer(?:\?|$)/, { timeout: 15_000 });
 
     await page.reload();
-    await expect(page.getByRole("heading", { name: "Dashboard", exact: true })).toBeVisible();
+    await waitForClientShell(page);
+    await expect(page.getByRole("heading", { name: "Timer", exact: true })).toBeVisible({
+      timeout: 15_000
+    });
+    await expect(welcomeHeading(page)).not.toBeVisible();
+
+    await page.goto("/dashboard");
+    await waitForClientShell(page);
+    await expect(page.getByRole("heading", { name: "Dashboard", exact: true })).toBeVisible({
+      timeout: 15_000
+    });
     await expect(welcomeHeading(page)).not.toBeVisible();
   });
 });

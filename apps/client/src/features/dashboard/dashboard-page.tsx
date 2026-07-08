@@ -1,14 +1,7 @@
 "use client";
 
 import { ROUTES, resolveEffectiveTimezone } from "@kloqra/contracts";
-import type {
-  TimeLogDto,
-  ProjectDto,
-  TaskDto,
-  ActiveTimerDto,
-  CategoryDto,
-  WorkspaceMemberDto
-} from "@kloqra/contracts";
+import type { TimeLogDto, ActiveTimerDto, TaskDto, WorkspaceMemberDto } from "@kloqra/contracts";
 import {
   AppBar,
   AppBarActionButton,
@@ -40,11 +33,11 @@ import {
   type DashboardBreakpoint,
   type DashboardPeriodPreset,
   type DashboardPeriodSelection,
-  fetchListItems,
+  useEntryCatalogQueries,
+  useTasksListQuery,
   useTimelogListQuery,
   useTimelogMutations,
   useUserProfile,
-  useWorkspaceStaleRefetch,
   localMidnightUtcInZone,
   todayInZone
 } from "@kloqra/web-shared";
@@ -85,8 +78,7 @@ import { useActiveTimerSession } from "@/hooks/use-active-timer-session";
 import { useIsImpersonating } from "@/hooks/use-is-impersonating";
 import { useTimelogStaleRefetch } from "@/hooks/use-timelog-stale-refetch";
 import { api } from "@/lib/api";
-import { useActiveTimerSessionStore } from "@/stores/member-data.store";
-import { useProjectsStore } from "@/stores/projects.store";
+import { useActiveTimerSessionStore } from "@/stores/active-timer-session.store";
 import { useSessionStore } from "@/stores/session.store";
 import { isActiveTimer, useTimerStore } from "@/stores/timer.store";
 
@@ -113,7 +105,9 @@ export function DashboardPage() {
   const isAdmin = session?.workspaceRole === "ADMIN";
   const isImpersonating = useIsImpersonating();
   const { active, elapsedSec, isPaused, setActive, tick } = useTimerStore();
-  const { tasks, projects, setTasks, setProjects } = useProjectsStore();
+  const catalog = useEntryCatalogQueries(ws, { enabled: Boolean(ws) });
+  const projects = catalog.projects;
+  const tasks = catalog.tasks;
   const { profile } = useUserProfile();
 
   const timezone = useMemo(() => {
@@ -135,9 +129,21 @@ export function DashboardPage() {
   const [filterCategoryId, setFilterCategoryId] = useState("");
   const [filterTaskId, setFilterTaskId] = useState("");
   const [filterUserId, setFilterUserId] = useState("");
-  const [categories, setCategories] = useState<CategoryDto[]>([]);
-  const [scopeTasks, setScopeTasks] = useState<TaskDto[]>([]);
   const [workspaceMembers, setWorkspaceMembers] = useState<WorkspaceMemberDto[]>([]);
+  const categories = catalog.categories;
+
+  const scopeTaskFilters = useMemo(() => {
+    if (!filterProjectId) return undefined;
+    const filters: Record<string, string> = { projectId: filterProjectId };
+    if (filterCategoryId) filters.categoryId = filterCategoryId;
+    return filters;
+  }, [filterProjectId, filterCategoryId]);
+
+  const { data: scopeTasks = [] } = useTasksListQuery(
+    ws,
+    scopeTaskFilters,
+    Boolean(ws && filterProjectId)
+  );
 
   const logsPath = useMemo(() => {
     const [fy, fm, fd] = startDate.split("-").map(Number);
@@ -352,32 +358,16 @@ export function DashboardPage() {
     };
   }, [isCatalogOpen, isArranging, handleCancelArranging]);
 
-  const loadAll = useCallback(async () => {
-    if (!ws) return;
-    setLoading(true);
-    try {
-      await Promise.all([
-        fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then((items) =>
-          setProjects(ws, items)
-        ),
-        fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws }).then((items) =>
-          setTasks(ws, items)
-        ),
-        fetchListItems<CategoryDto>(ROUTES.CATEGORIES.LIST, { workspaceId: ws }).then(
-          setCategories
-        ),
-        isAdmin
-          ? api<WorkspaceMemberDto[]>(ROUTES.WORKSPACES.MEMBERS(ws), { workspaceId: ws }).then(
-              setWorkspaceMembers
-            )
-          : Promise.resolve()
-      ]);
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false);
-    }
-  }, [ws, isAdmin, setProjects, setTasks]);
+  useEffect(() => {
+    if (!ws || !isAdmin) return;
+    void api<WorkspaceMemberDto[]>(ROUTES.WORKSPACES.MEMBERS(ws), { workspaceId: ws })
+      .then(setWorkspaceMembers)
+      .catch(() => setWorkspaceMembers([]));
+  }, [ws, isAdmin]);
+
+  useEffect(() => {
+    setLoading(catalog.isLoading);
+  }, [catalog.isLoading]);
 
   const fetchActiveTimer = useCallback(async () => {
     if (!ws) return;
@@ -390,36 +380,6 @@ export function DashboardPage() {
 
   const timelogMutations = useTimelogMutations(ws, { onLocalRefresh: refreshLogs });
 
-  useEffect(() => {
-    void loadAll();
-  }, [loadAll]);
-
-  useEffect(() => {
-    if (!ws || !filterProjectId) {
-      setScopeTasks([]);
-      return;
-    }
-    const filters: Record<string, string> = { projectId: filterProjectId };
-    if (filterCategoryId) filters.categoryId = filterCategoryId;
-    fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws, filters })
-      .then(setScopeTasks)
-      .catch(() => setScopeTasks([]));
-  }, [ws, filterProjectId, filterCategoryId]);
-
-  const refreshTaskCatalog = useCallback(() => {
-    if (!ws) return;
-    void fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws, bypassCache: true }).then(
-      (items) => setTasks(ws, items)
-    );
-    if (!filterProjectId) return;
-    const filters: Record<string, string> = { projectId: filterProjectId };
-    if (filterCategoryId) filters.categoryId = filterCategoryId;
-    void fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws, filters, bypassCache: true })
-      .then(setScopeTasks)
-      .catch(() => setScopeTasks([]));
-  }, [ws, filterProjectId, filterCategoryId, setTasks]);
-
-  useWorkspaceStaleRefetch(ws, ["tasks", "projects"], refreshTaskCatalog, Boolean(ws));
   useTimelogStaleRefetch(
     ws,
     () => {

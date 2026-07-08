@@ -1,6 +1,6 @@
 "use client";
 
-import type { ProjectDto, TimesheetPeriodDto, TimeLogDto } from "@kloqra/contracts";
+import type { ProjectDto, TaskDto, TimesheetPeriodDto, TimeLogDto } from "@kloqra/contracts";
 import { ROUTES } from "@kloqra/contracts";
 import {
   Button,
@@ -37,7 +37,8 @@ import { useProjectsStore } from "@/stores/projects.store";
 
 export type SubmissionsTableProps = {
   submissions: TimesheetPeriodDto[];
-  projects?: ProjectDto[];
+  projects: ProjectDto[];
+  tasks: TaskDto[];
   onSubmitted: () => void;
   highlightedProjectId?: string;
   workspaceId: string;
@@ -68,12 +69,18 @@ function SubmissionRowLogs({
   submission,
   workspaceId,
   timezone,
+  projects,
+  tasks,
+  workspaceNamesById,
   onLogUpdated,
   isLocked
 }: {
   submission: TimesheetPeriodDto;
   workspaceId: string;
   timezone: string;
+  projects: ProjectDto[];
+  tasks: TaskDto[];
+  workspaceNamesById: Record<string, string>;
   onLogUpdated: () => void;
   isLocked: boolean;
 }) {
@@ -106,10 +113,6 @@ function SubmissionRowLogs({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmDeleteLog, setConfirmDeleteLog] = useState<TimeLogDto | null>(null);
-
-  const tasks = useProjectsStore((s) => s.tasks);
-  const projects = useProjectsStore((s) => s.projects);
-  const workspaceNamesById = useProjectsStore((s) => s.workspaceNamesById);
 
   const refreshLogs = useCallback(async () => {
     await refetchLogs();
@@ -311,7 +314,10 @@ function SubmissionTableRow({
   onSubmitted,
   highlighted,
   workspaceId,
-  timezone
+  timezone,
+  projects,
+  tasks,
+  workspaceNamesById
 }: {
   statusInfo: TimesheetPeriodDto;
   projectColor?: string;
@@ -319,6 +325,9 @@ function SubmissionTableRow({
   highlighted?: boolean;
   workspaceId: string;
   timezone: string;
+  projects: ProjectDto[];
+  tasks: TaskDto[];
+  workspaceNamesById: Record<string, string>;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -434,6 +443,9 @@ function SubmissionTableRow({
               submission={statusInfo}
               workspaceId={workspaceId}
               timezone={timezone}
+              projects={projects}
+              tasks={tasks}
+              workspaceNamesById={workspaceNamesById}
               onLogUpdated={onSubmitted}
               isLocked={!actions.canSubmit}
             />
@@ -461,12 +473,14 @@ function SubmissionTableRow({
 
 export function SubmissionsTable({
   submissions,
-  projects = [],
+  projects,
+  tasks,
   onSubmitted,
   highlightedProjectId,
   workspaceId,
   timezone
 }: SubmissionsTableProps) {
+  const workspaceNamesById = useProjectsStore((s) => s.workspaceNamesById);
   const projectColorById = useMemo(
     () => new Map(projects.map((project) => [project.id, project.color])),
     [projects]
@@ -497,6 +511,9 @@ export function SubmissionsTable({
                 highlighted={highlighted}
                 workspaceId={workspaceId}
                 timezone={timezone}
+                projects={projects}
+                tasks={tasks}
+                workspaceNamesById={workspaceNamesById}
               />
             );
           })}

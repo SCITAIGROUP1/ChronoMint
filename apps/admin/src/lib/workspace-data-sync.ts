@@ -2,7 +2,7 @@
 
 import {
   WORKSPACE_DATA_STALE_EVENT,
-  clearInflightGetRequestsForPath,
+  useWorkspaceQuerySync,
   type WorkspaceDataStaleDetail
 } from "@kloqra/web-shared";
 import { useEffect } from "react";
@@ -10,7 +10,10 @@ import { triggerApprovalsRefresh } from "@/lib/approvals-refresh-registry";
 import { triggerTimelogRefresh } from "@/lib/timelog-refresh-registry";
 import { usePendingTimesheetsStore } from "@/stores/pending-timesheets.store";
 
+/** Realtime sync: React Query invalidation + admin-specific registries. */
 export function useAdminWorkspaceDataSync(workspaceId: string) {
+  useWorkspaceQuerySync(workspaceId);
+
   useEffect(() => {
     if (!workspaceId) return;
 
@@ -23,7 +26,9 @@ export function useAdminWorkspaceDataSync(workspaceId: string) {
         triggerApprovalsRefresh();
       }
       if (detail.scopes.includes("timelogs") || detail.scopes.includes("timesheet")) {
-        clearInflightGetRequestsForPath("/timelogs");
+        triggerTimelogRefresh();
+      }
+      if (detail.scopes.includes("projects") || detail.scopes.includes("tasks")) {
         triggerTimelogRefresh();
       }
     };

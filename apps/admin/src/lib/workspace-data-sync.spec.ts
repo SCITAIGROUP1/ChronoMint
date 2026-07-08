@@ -2,13 +2,14 @@
 /* eslint-disable import/order -- vitest mocks must precede subject import */
 import { renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
 const workspaceId = "22222222-2222-4222-8222-222222222222";
 
 const mocks = vi.hoisted(() => ({
   refreshWorkspace: vi.fn(),
   triggerApprovalsRefresh: vi.fn(),
   triggerTimelogRefresh: vi.fn(),
-  clearInflightGetRequestsForPath: vi.fn()
+  invalidateWorkspaceQueries: vi.fn().mockResolvedValue(undefined)
 }));
 
 vi.mock("@/lib/approvals-refresh-registry", () => ({
@@ -22,8 +23,8 @@ vi.mock("@/lib/timelog-refresh-registry", () => ({
 vi.mock("@kloqra/web-shared", async (importOriginal) => {
   const actual = await importOriginal();
   return {
-    ...(actual as object),
-    clearInflightGetRequestsForPath: mocks.clearInflightGetRequestsForPath
+    ...(actual as Record<string, unknown>),
+    invalidateWorkspaceQueries: mocks.invalidateWorkspaceQueries
   };
 });
 
@@ -78,7 +79,19 @@ describe("useAdminWorkspaceDataSync", () => {
       })
     );
 
-    expect(mocks.clearInflightGetRequestsForPath).toHaveBeenCalledWith("/timelogs");
+    expect(mocks.triggerTimelogRefresh).toHaveBeenCalled();
+  });
+
+  it("refreshes catalog-backed views when projects or tasks scopes are stale", async () => {
+    const { WORKSPACE_DATA_STALE_EVENT } = await import("@kloqra/web-shared");
+
+    renderHook(() => useAdminWorkspaceDataSync(workspaceId));
+    window.dispatchEvent(
+      new CustomEvent(WORKSPACE_DATA_STALE_EVENT, {
+        detail: { workspaceId, scopes: ["projects"] }
+      })
+    );
+
     expect(mocks.triggerTimelogRefresh).toHaveBeenCalled();
   });
 });

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useActiveTimerSessionStore } from "@/stores/member-data.store";
+import { useActiveTimerSessionStore } from "@/stores/active-timer-session.store";
 
 export function useActiveTimerSession(workspaceId: string, enabled = true) {
   const subscribeActive = useActiveTimerSessionStore((s) => s.subscribeActive);

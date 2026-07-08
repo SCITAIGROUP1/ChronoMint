@@ -1,7 +1,7 @@
 "use client";
 
 import { ROUTES } from "@kloqra/contracts";
-import type { ProjectListItemDto, WorkspaceMemberDto } from "@kloqra/contracts";
+import type { WorkspaceMemberDto } from "@kloqra/contracts";
 import {
   AppModal,
   Button,
@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@kloqra/ui";
-import { fetchListItems } from "@kloqra/web-shared";
+import { useProjectsListQuery } from "@kloqra/web-shared";
 import { UserPlus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -35,7 +35,11 @@ export function AssignProjectManagerDialog({
   onAssigned
 }: AssignProjectManagerDialogProps) {
   const [members, setMembers] = useState<WorkspaceMemberDto[]>([]);
-  const [projects, setProjects] = useState<ProjectListItemDto[]>([]);
+  const { data: projectRows = [], isLoading: projectsLoading } = useProjectsListQuery(
+    workspaceId,
+    open && Boolean(workspaceId)
+  );
+  const projects = useMemo(() => projectRows.filter((project) => project.isActive), [projectRows]);
   const [loadingOptions, setLoadingOptions] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState("");
   const [selectedProjectId, setSelectedProjectId] = useState("");
@@ -53,18 +57,15 @@ export function AssignProjectManagerDialog({
     setLoadingOptions(true);
     void (async () => {
       try {
-        const [memberRows, projectRows] = await Promise.all([
-          api<WorkspaceMemberDto[]>(ROUTES.WORKSPACES.MEMBERS(workspaceId), { workspaceId }),
-          fetchListItems<ProjectListItemDto>(ROUTES.PROJECTS.LIST, { workspaceId })
-        ]);
+        const memberRows = await api<WorkspaceMemberDto[]>(ROUTES.WORKSPACES.MEMBERS(workspaceId), {
+          workspaceId
+        });
         if (!cancelled) {
           setMembers(memberRows.filter((member) => member.role === "MEMBER" && member.isActive));
-          setProjects(projectRows.filter((project) => project.isActive));
         }
       } catch {
         if (!cancelled) {
           setMembers([]);
-          setProjects([]);
           toast.error("Could not load members or projects.");
         }
       } finally {
@@ -75,6 +76,8 @@ export function AssignProjectManagerDialog({
       cancelled = true;
     };
   }, [open, workspaceId]);
+
+  const optionsLoading = loadingOptions || projectsLoading;
 
   const memberOptions = useMemo(
     () =>
@@ -141,7 +144,7 @@ export function AssignProjectManagerDialog({
           </Button>
           <Button
             type="button"
-            disabled={!selectedUserId || !selectedProjectId || submitting || loadingOptions}
+            disabled={!selectedUserId || !selectedProjectId || submitting || optionsLoading}
             onClick={() => void handleAssign()}
           >
             {submitting ? "Assigning…" : "Assign"}
@@ -156,9 +159,9 @@ export function AssignProjectManagerDialog({
             value={selectedUserId}
             onValueChange={setSelectedUserId}
             options={memberOptions}
-            placeholder={loadingOptions ? "Loading members…" : "Select member"}
+            placeholder={optionsLoading ? "Loading members…" : "Select member"}
             searchPlaceholder="Search members…"
-            disabled={loadingOptions || Boolean(presetUserId)}
+            disabled={optionsLoading || Boolean(presetUserId)}
             aria-label="Select workspace member"
           />
         </div>
@@ -167,10 +170,10 @@ export function AssignProjectManagerDialog({
           <Select
             value={selectedProjectId}
             onValueChange={setSelectedProjectId}
-            disabled={loadingOptions}
+            disabled={optionsLoading}
           >
             <SelectTrigger id="assign-project" aria-label="Select project">
-              <SelectValue placeholder={loadingOptions ? "Loading projects…" : "Select project"} />
+              <SelectValue placeholder={optionsLoading ? "Loading projects…" : "Select project"} />
             </SelectTrigger>
             <SelectContent>
               {projects.map((project) => (

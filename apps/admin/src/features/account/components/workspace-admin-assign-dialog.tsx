@@ -1,7 +1,7 @@
 "use client";
 
 import { ROUTES } from "@kloqra/contracts";
-import type { InviteMemberResponseDto, WorkspaceListItemDto } from "@kloqra/contracts";
+import type { InviteMemberResponseDto } from "@kloqra/contracts";
 import {
   AppModal,
   Button,
@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@kloqra/ui";
-import { fetchListItems } from "@kloqra/web-shared";
+import { useAccessibleWorkspacesListQuery } from "@kloqra/web-shared";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { validateAssignWorkspaceAdminForm } from "../assign-workspace-admin-validation";
@@ -36,7 +36,7 @@ export function WorkspaceAdminAssignDialog({
   onAssigned
 }: WorkspaceAdminAssignDialogProps) {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
-  const [workspaces, setWorkspaces] = useState<WorkspaceListItemDto[]>([]);
+  const { data: workspaces = [] } = useAccessibleWorkspacesListQuery(ws, open && Boolean(ws));
   const [workspaceId, setWorkspaceId] = useState(initialWorkspaceId ?? "");
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
@@ -52,16 +52,9 @@ export function WorkspaceAdminAssignDialog({
   }, [open, initialWorkspaceId]);
 
   useEffect(() => {
-    if (!open || !ws) return;
-    void fetchListItems<WorkspaceListItemDto>(ROUTES.WORKSPACES.LIST, { workspaceId: ws })
-      .then((items) => {
-        setWorkspaces(items);
-        if (!initialWorkspaceId && items[0]) {
-          setWorkspaceId(items[0].id);
-        }
-      })
-      .catch(() => setWorkspaces([]));
-  }, [open, ws, initialWorkspaceId]);
+    if (!open || initialWorkspaceId || workspaces.length === 0) return;
+    setWorkspaceId(workspaces[0]!.id);
+  }, [open, initialWorkspaceId, workspaces]);
 
   const workspaceName =
     initialWorkspaceName ??

@@ -5,9 +5,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { TimeEntryDialog } from "./time-entry-dialog";
 import type { TimeEntryDraft } from "./time-entry-draft";
 
-vi.mock("@/hooks/use-live-entry-catalog", () => ({
-  useLiveEntryCatalog: vi.fn()
-}));
+vi.mock("@kloqra/web-shared", async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...(actual as Record<string, unknown>),
+    useCategoriesListQuery: () => ({ data: [] })
+  };
+});
 
 const draft: TimeEntryDraft = {
   date: "2026-06-09",

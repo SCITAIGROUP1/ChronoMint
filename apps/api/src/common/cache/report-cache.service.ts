@@ -2,7 +2,7 @@ import type { DashboardReportDto, TenantAnalyticsSummaryDto } from "@kloqra/cont
 import { Injectable } from "@nestjs/common";
 import { RedisService, type RedisClient } from "../redis/redis.service";
 
-const DASHBOARD_TTL_SEC = 120;
+const DASHBOARD_TTL_SEC = 30;
 
 @Injectable()
 export class ReportCacheService {

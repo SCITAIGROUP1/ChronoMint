@@ -1,14 +1,7 @@
 "use client";
 
 import { isShareableWidgetId, ROUTES, resolveEffectiveTimezone } from "@kloqra/contracts";
-import type {
-  CategoryDto,
-  DashboardReportDto,
-  ProjectDto,
-  TaskDto,
-  TeamMemberDto,
-  UserProfileDto
-} from "@kloqra/contracts";
+import type { DashboardReportDto, TeamMemberDto, UserProfileDto } from "@kloqra/contracts";
 import {
   AppBar,
   AppBarActionButton,
@@ -38,7 +31,8 @@ import {
   type DashboardBreakpoint,
   type DashboardPeriodPreset,
   type DashboardPeriodSelection,
-  fetchListItems,
+  useEntryCatalogQueries,
+  useTasksListQuery,
   api as sharedApi,
   localMidnightUtcInZone
 } from "@kloqra/web-shared";
@@ -184,9 +178,22 @@ export function DashboardPage() {
   const [userId, setUserId] = useState<string[]>([]);
   const [categoryId, setCategoryId] = useState("");
   const [taskId, setTaskId] = useState("");
-  const [projects, setProjects] = useState<ProjectDto[]>([]);
-  const [categories, setCategories] = useState<CategoryDto[]>([]);
-  const [tasks, setTasks] = useState<TaskDto[]>([]);
+  const catalog = useEntryCatalogQueries(ws, { enabled: Boolean(ws) });
+  const projects = catalog.projects;
+  const categories = catalog.categories;
+
+  const taskFilters = useMemo(() => {
+    if (projectId.length === 0) return undefined;
+    const filters: Record<string, string | string[]> = { projectId };
+    if (categoryId) filters.categoryId = categoryId;
+    return filters;
+  }, [projectId, categoryId]);
+
+  const { data: tasks = [] } = useTasksListQuery(
+    ws,
+    taskFilters,
+    Boolean(ws && projectId.length > 0)
+  );
   const [teamMembers, setTeamMembers] = useState<TeamMemberDto[]>([]);
   const [report, setReport] = useState<DashboardReportDto | null>(null);
   const [loading, setLoading] = useState(true);
@@ -304,17 +311,8 @@ export function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    if (!ws) return;
-    fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects);
-    fetchListItems<CategoryDto>(ROUTES.CATEGORIES.LIST, { workspaceId: ws }).then(setCategories);
-  }, [ws]);
-
-  useEffect(() => {
-    if (!ws || !projectId || projectId.length === 0) {
+    if (!ws || projectId.length === 0) {
       setTeamMembers([]);
-      setTasks([]);
-      setUserId([]);
-      setTaskId("");
       return;
     }
 
@@ -335,13 +333,14 @@ export function DashboardPage() {
       }
       setTeamMembers([...uniqueMembersMap.values()]);
     });
+  }, [ws, projectId]);
 
-    const filters: Record<string, string | string[]> = { projectId: projectIds };
-    if (categoryId) filters.categoryId = categoryId;
-    fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws, filters })
-      .then(setTasks)
-      .catch(() => setTasks([]));
-  }, [ws, projectId, categoryId]);
+  useEffect(() => {
+    if (!projectId.length) {
+      setUserId([]);
+      setTaskId("");
+    }
+  }, [projectId.length]);
 
   useEffect(() => {
     if (!userId || userId.length === 0) return;

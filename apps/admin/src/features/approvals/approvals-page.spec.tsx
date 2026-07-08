@@ -7,6 +7,14 @@ vi.mock("@/lib/api", () => ({
   api: vi.fn()
 }));
 
+vi.mock("@kloqra/web-shared", async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...(actual as Record<string, unknown>),
+    useTasksListQuery: () => ({ data: [] })
+  };
+});
+
 describe("PendingTimesheetCard", () => {
   it("renders member and project details", () => {
     const html = renderToStaticMarkup(

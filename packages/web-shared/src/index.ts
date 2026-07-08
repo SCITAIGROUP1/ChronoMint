@@ -103,7 +103,6 @@ export type {
 export {
   fetchListItems,
   fetchPaginatedList,
-  invalidateListItemsCache,
   normalizePaginatedListResponse
 } from "./api/fetch-list-items";
 export { coerceListItems } from "./utils/coerce-list-items";
@@ -175,14 +174,35 @@ export {
   type WorkspaceDataStaleDetail
 } from "./realtime/workspace-data-sync";
 export {
+  TIMELOG_MUTATION_SCOPES,
   TIMELOG_DERIVED_INVALIDATE_SCOPES,
   TIMELOG_INVALIDATE_SCOPES,
   commitTimelogMutation,
   invalidateTimelogData
 } from "./realtime/timelog-data-sync";
+export { useWorkspaceQuerySync } from "./realtime/use-workspace-query-sync";
 export { AppQueryProvider } from "./query/app-query-provider";
 export { resetQueryClient } from "./query/query-client";
 export { invalidateTimelogQueries } from "./query/invalidate-timelog-queries";
+export { invalidateWorkspaceQueries } from "./query/invalidate-workspace-queries";
+export { catalogQueryKeys } from "./query/catalog-query-keys";
+export { submissionsQueryKeys } from "./query/submissions-query-keys";
+export { weekSummaryQueryKeys } from "./query/week-summary-query-keys";
+export { occupancyQueryKeys } from "./query/occupancy-query-keys";
+export {
+  useProjectsListQuery,
+  useCategoriesListQuery,
+  useTasksListQuery
+} from "./query/use-catalog-queries";
+export { useEntryCatalogQueries } from "./query/use-entry-catalog-queries";
+export { fetchCatalogList } from "./query/use-catalog-queries";
+export {
+  useAccessibleWorkspacesListQuery,
+  useTenantWorkspacesListQuery,
+  workspaceListQueryKeys
+} from "./query/use-workspace-list-queries";
+export { useMySubmissionsQuery, useWeekSummaryQuery } from "./query/use-member-reporting-queries";
+export { buildOccupancyPath, useTimelogOccupancyQuery } from "./query/use-timelog-occupancy-query";
 export {
   applyTimelogCachePatch,
   removeTimelogFromListCaches,

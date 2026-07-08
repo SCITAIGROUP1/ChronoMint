@@ -6,13 +6,10 @@ import {
   type ExportPresetDto,
   type ExportPreviewBodyDto,
   type ExportPreviewResponseDto,
-  type CategoryDto,
-  type ProjectDto,
-  type TaskDto,
   type UserProfileDto,
   type WorkspaceMemberDto
 } from "@kloqra/contracts";
-import { fetchListItems, fetchProjectTeam } from "@kloqra/web-shared";
+import { fetchProjectTeam, useEntryCatalogQueries, useTasksListQuery } from "@kloqra/web-shared";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -48,9 +45,22 @@ export function ExportsPage() {
   const [taskId, setTaskId] = useState("");
   const [teamOnly, setTeamOnly] = useState(false);
 
-  const [projects, setProjects] = useState<ProjectDto[]>([]);
-  const [categories, setCategories] = useState<CategoryDto[]>([]);
-  const [tasks, setTasks] = useState<TaskDto[]>([]);
+  const catalog = useEntryCatalogQueries(ws, { enabled: Boolean(ws) });
+  const projects = catalog.projects;
+  const categories = catalog.categories;
+
+  const taskFilters = useMemo(() => {
+    if (projectIds.length === 0) return undefined;
+    const filters: Record<string, string | string[]> = { projectId: projectIds };
+    if (categoryId) filters.categoryId = categoryId;
+    return filters;
+  }, [projectIds, categoryId]);
+
+  const { data: tasks = [], refetch: refetchTasks } = useTasksListQuery(
+    ws,
+    taskFilters,
+    Boolean(ws && projectIds.length > 0)
+  );
   const [members, setMembers] = useState<WorkspaceMemberDto[]>([]);
 
   const [preview, setPreview] = useState<ExportPreviewResponseDto | null>(null);
@@ -122,8 +132,6 @@ export function ExportsPage() {
 
   useEffect(() => {
     if (!ws) return;
-    fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects);
-    fetchListItems<CategoryDto>(ROUTES.CATEGORIES.LIST, { workspaceId: ws }).then(setCategories);
     api<WorkspaceMemberDto[]>(ROUTES.WORKSPACES.MEMBERS(ws), { workspaceId: ws }).then(setMembers);
     setLocalPresets(listLocalExportPresets(ws));
     api<ExportPresetDto[]>(ROUTES.EXPORT.PRESETS, { workspaceId: ws })
@@ -133,30 +141,19 @@ export function ExportsPage() {
 
   useEffect(() => {
     if (!ws || projectIds.length === 0) {
-      setTasks([]);
       setTaskId("");
       return;
     }
-    const filters: Record<string, string | string[]> = { projectId: projectIds };
-    if (categoryId) filters.categoryId = categoryId;
-    fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws, filters })
-      .then((fetchedTasks) => {
-        setTasks(fetchedTasks);
-        if (initialTaskIdRef.current) {
-          if (!fetchedTasks.some((t) => t.id === initialTaskIdRef.current)) {
-            setTaskId("");
-          }
-          initialTaskIdRef.current = null;
-        }
-      })
-      .catch(() => {
-        setTasks([]);
-        if (initialTaskIdRef.current) {
+    void refetchTasks().then((result) => {
+      const fetchedTasks = result.data ?? [];
+      if (initialTaskIdRef.current) {
+        if (!fetchedTasks.some((t) => t.id === initialTaskIdRef.current)) {
           setTaskId("");
-          initialTaskIdRef.current = null;
         }
-      });
-  }, [ws, projectIds, categoryId]);
+        initialTaskIdRef.current = null;
+      }
+    });
+  }, [ws, projectIds, categoryId, refetchTasks]);
 
   const [projectMembers, setProjectMembers] = useState<{ userId: string; userName: string }[]>([]);
 

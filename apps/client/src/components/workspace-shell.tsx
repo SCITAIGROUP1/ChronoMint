@@ -30,7 +30,6 @@ import { OnboardingProvider, useOnboarding } from "@/features/onboarding/onboard
 import { useMySubmissionsBadgeCount } from "@/features/submissions/use-my-submissions";
 import { api } from "@/lib/api";
 import { useClientWorkspaceDataSync } from "@/lib/workspace-data-sync";
-import { useOfflineStore } from "@/stores/offline-store";
 import { useProjectsStore } from "@/stores/projects.store";
 import { useSessionStore } from "@/stores/session.store";
 import { useWorkspacesStore } from "@/stores/workspaces.store";
@@ -61,7 +60,6 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
   const setWorkspaceNames = useProjectsStore((s) => s.setWorkspaces);
   const setWorkspaces = useWorkspacesStore((s) => s.setWorkspaces);
   const workspaces = useWorkspacesStore((s) => s.workspaces);
-  const isOffline = useOfflineStore((s) => s.isOffline);
 
   useEffect(() => {
     if (session) {
@@ -181,45 +179,32 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
         />
       }
       impersonationBanner={
-        session.impersonatorId || isOffline ? (
+        session.impersonatorId ? (
           <div className="sticky top-0 z-50 flex flex-col">
-            {session.impersonatorId && (
-              <div className="flex items-center justify-between border-b border-status-warning-border bg-status-warning-bg px-6 py-3 text-xs text-status-warning-fg backdrop-blur-md lg:px-8">
-                <div className="flex items-center gap-2.5">
-                  <span className="relative flex h-2.5 w-2.5">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-warning opacity-75" />
-                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-warning" />
-                  </span>
-                  <span>
-                    👁 Viewing as <strong className="font-semibold">{session.user.name}</strong> —
-                    read-only mode{" "}
-                    <span className="opacity-70">
-                      (impersonated by Admin{" "}
-                      <strong className="font-semibold">{session.impersonatorName}</strong>)
-                    </span>
-                  </span>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 border-status-warning-border px-3 text-xs text-status-warning-fg transition-colors hover:bg-status-warning-bg/80"
-                  onClick={handleStopImpersonation}
-                >
-                  Return to Admin
-                </Button>
-              </div>
-            )}
-            {isOffline && (
-              <div className="flex items-center justify-center gap-2 border-b border-amber-600/30 bg-amber-500/10 px-6 py-2 text-xs font-semibold text-amber-600 backdrop-blur-md dark:bg-amber-500/5 dark:text-amber-500 lg:px-8">
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-500 opacity-75" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
+            <div className="flex items-center justify-between border-b border-status-warning-border bg-status-warning-bg px-6 py-3 text-xs text-status-warning-fg backdrop-blur-md lg:px-8">
+              <div className="flex items-center gap-2.5">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-warning opacity-75" />
+                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-warning" />
                 </span>
                 <span>
-                  Offline Mode — Time entries will be saved locally and synced when you reconnect
+                  👁 Viewing as <strong className="font-semibold">{session.user.name}</strong> —
+                  read-only mode{" "}
+                  <span className="opacity-70">
+                    (impersonated by Admin{" "}
+                    <strong className="font-semibold">{session.impersonatorName}</strong>)
+                  </span>
                 </span>
               </div>
-            )}
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 border-status-warning-border px-3 text-xs text-status-warning-fg transition-colors hover:bg-status-warning-bg/80"
+                onClick={handleStopImpersonation}
+              >
+                Return to Admin
+              </Button>
+            </div>
           </div>
         ) : undefined
       }

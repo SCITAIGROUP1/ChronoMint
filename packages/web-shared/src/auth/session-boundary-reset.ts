@@ -1,5 +1,4 @@
 import { clearInflightGetRequests } from "../api/inflight-requests";
-import { invalidateListItemsCache } from "../api/list-items-cache";
 import { clearOrgSlugCookie } from "../features/auth/org-slug-cookie";
 import { clearThemeHydration } from "../hooks/theme-preference-state";
 import { resetQueryClient } from "../query/query-client";
@@ -16,7 +15,6 @@ export function removeWorkspaceScopedKeys(
   if (workspaceId) {
     useUserProfileStore.getState().removeKey(workspaceId);
     useNotificationsStore.getState().removeWorkspace(workspaceId);
-    invalidateListItemsCache({ workspaceId });
   }
   if (tenantId) {
     useUserProfileStore.getState().removeKey(`tenant:${tenantId}`);
@@ -31,7 +29,6 @@ export function applySharedBoundaryReset(
   clearInflightGetRequests();
 
   if (level === "full") {
-    invalidateListItemsCache();
     useUserProfileStore.getState().clear();
     useNotificationsStore.getState().clear();
     useWorkspacesStore.getState().clear();
@@ -44,6 +41,5 @@ export function applySharedBoundaryReset(
 
   if (level === "workspace" && prev) {
     removeWorkspaceScopedKeys(prev.workspaceId, prev.tenantId);
-    invalidateListItemsCache(prev.workspaceId ? { workspaceId: prev.workspaceId } : undefined);
   }
 }

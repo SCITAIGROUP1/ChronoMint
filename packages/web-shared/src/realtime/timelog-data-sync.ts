@@ -1,19 +1,23 @@
 import type { WorkspaceDataInvalidateScope } from "@kloqra/contracts";
 import { clearInflightGetRequestsForPath } from "../api/inflight-requests";
-import { invalidateTimelogQueries } from "../query/invalidate-timelog-queries";
+import { invalidateWorkspaceQueries } from "../query/invalidate-workspace-queries";
 import { applyTimelogCachePatch, type TimelogCachePatch } from "../query/patch-timelog-list-caches";
 import { getQueryClient } from "../query/query-client";
 import { timelogQueryKeys } from "../query/timelog-query-keys";
 import { invalidateWorkspaceData } from "./workspace-data-sync";
 
-/** Remote/socket/API: refetch timelog lists and timesheet-adjacent stores. */
-export const TIMELOG_INVALIDATE_SCOPES: WorkspaceDataInvalidateScope[] = ["timelogs", "timesheet"];
-
-/** Local save: refresh submissions/week-summary only — never refetch timelog lists we just patched. */
-export const TIMELOG_DERIVED_INVALIDATE_SCOPES: WorkspaceDataInvalidateScope[] = [
-  "submissions",
-  "timesheet"
+/** All scopes that must refresh after any timelog mutation. */
+export const TIMELOG_MUTATION_SCOPES: WorkspaceDataInvalidateScope[] = [
+  "timelogs",
+  "timesheet",
+  "submissions"
 ];
+
+/** @deprecated Use TIMELOG_MUTATION_SCOPES */
+export const TIMELOG_INVALIDATE_SCOPES = TIMELOG_MUTATION_SCOPES;
+
+/** @deprecated Use TIMELOG_MUTATION_SCOPES */
+export const TIMELOG_DERIVED_INVALIDATE_SCOPES = TIMELOG_MUTATION_SCOPES;
 
 function clearTimelogInflightRequests(): void {
   clearInflightGetRequestsForPath("/timelogs");
@@ -22,8 +26,8 @@ function clearTimelogInflightRequests(): void {
 /** Broadcast timelog stale to every mounted view (timesheet, tracker, dashboard, timer). */
 export async function invalidateTimelogData(workspaceId: string): Promise<void> {
   clearTimelogInflightRequests();
-  await invalidateTimelogQueries(workspaceId);
-  invalidateWorkspaceData(workspaceId, TIMELOG_INVALIDATE_SCOPES);
+  await invalidateWorkspaceQueries(workspaceId, TIMELOG_MUTATION_SCOPES);
+  invalidateWorkspaceData(workspaceId, TIMELOG_MUTATION_SCOPES);
 }
 
 /** Refresh the current view, then notify other views. Call after create/update/delete. */
@@ -33,23 +37,21 @@ export async function commitTimelogMutation(
   cachePatch?: TimelogCachePatch
 ): Promise<void> {
   clearTimelogInflightRequests();
-  await getQueryClient().cancelQueries({ queryKey: timelogQueryKeys.workspace(workspaceId) });
+  const client = getQueryClient();
+  await client.cancelQueries({ queryKey: timelogQueryKeys.workspace(workspaceId) });
 
   if (cachePatch) {
     applyTimelogCachePatch(workspaceId, cachePatch);
-    if (localRefresh) {
-      await localRefresh();
-    }
-    await getQueryClient().invalidateQueries({
-      queryKey: timelogQueryKeys.workspace(workspaceId),
-      refetchType: "none"
-    });
-    invalidateWorkspaceData(workspaceId, TIMELOG_DERIVED_INVALIDATE_SCOPES);
-    return;
   }
-
   if (localRefresh) {
     await localRefresh();
   }
-  await invalidateTimelogData(workspaceId);
+
+  await client.refetchQueries({
+    queryKey: timelogQueryKeys.workspace(workspaceId),
+    type: "active"
+  });
+
+  await invalidateWorkspaceQueries(workspaceId, TIMELOG_MUTATION_SCOPES);
+  invalidateWorkspaceData(workspaceId, TIMELOG_MUTATION_SCOPES);
 }

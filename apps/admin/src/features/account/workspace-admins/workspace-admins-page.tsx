@@ -1,11 +1,7 @@
 "use client";
 
 import { ROUTES } from "@kloqra/contracts";
-import type {
-  MemberEmailDeliveryDto,
-  WorkspaceAdminOverviewDto,
-  WorkspaceListItemDto
-} from "@kloqra/contracts";
+import type { MemberEmailDeliveryDto, WorkspaceAdminOverviewDto } from "@kloqra/contracts";
 import {
   AppBar,
   AppBarListToolbar,
@@ -33,10 +29,10 @@ import {
   TableRow,
   TableLoadingState
 } from "@kloqra/ui";
-import { canManageOrganization, fetchListItems } from "@kloqra/web-shared";
+import { canManageOrganization, useTenantWorkspacesListQuery } from "@kloqra/web-shared";
 import { Building2, UserCheck, Users } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { WorkspaceAdminAssignDialog } from "../components/workspace-admin-assign-dialog";
 import { useWorkspaceAdminsOverview } from "./use-workspace-admins-overview";
@@ -56,7 +52,7 @@ export function WorkspaceAdminsPage() {
   const [workspaceFilter, setWorkspaceFilter] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState<"ALL" | "active" | "inactive">("ALL");
   const [membershipFilter, setMembershipFilter] = useState<"ALL" | "active" | "inactive">("ALL");
-  const [workspaces, setWorkspaces] = useState<WorkspaceListItemDto[]>([]);
+  const { data: workspaces = [] } = useTenantWorkspacesListQuery(ws, Boolean(ws));
 
   const {
     admins,
@@ -84,13 +80,6 @@ export function WorkspaceAdminsPage() {
   const [assignOpen, setAssignOpen] = useState(false);
   const [demoteTarget, setDemoteTarget] = useState<WorkspaceAdminOverviewDto | null>(null);
   const [removeTarget, setRemoveTarget] = useState<WorkspaceAdminOverviewDto | null>(null);
-
-  useEffect(() => {
-    if (!ws) return;
-    void fetchListItems<WorkspaceListItemDto>(ROUTES.TENANTS.WORKSPACES, { workspaceId: ws })
-      .then(setWorkspaces)
-      .catch(() => setWorkspaces([]));
-  }, [ws]);
 
   async function patchAdmin(
     admin: WorkspaceAdminOverviewDto,

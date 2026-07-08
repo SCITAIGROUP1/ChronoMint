@@ -1,8 +1,8 @@
 "use client";
 
 import { ROUTES } from "@kloqra/contracts";
-import type { ProjectListItemDto, TeamMembersOverviewDto } from "@kloqra/contracts";
-import { fetchListItems } from "@kloqra/web-shared";
+import type { TeamMembersOverviewDto } from "@kloqra/contracts";
+import { useProjectsListQuery } from "@kloqra/web-shared";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 
@@ -12,22 +12,21 @@ export type ApprovalsFilterOption = {
 };
 
 export function useApprovalsFilterOptions(workspaceId: string, enabled = true) {
-  const [projects, setProjects] = useState<ProjectListItemDto[]>([]);
+  const { data: projectRows = [], isLoading: projectsLoading } = useProjectsListQuery(
+    workspaceId,
+    enabled && Boolean(workspaceId)
+  );
   const [members, setMembers] = useState<ApprovalsFilterOption[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [membersLoading, setMembersLoading] = useState(false);
 
   useEffect(() => {
     if (!enabled || !workspaceId) return;
-    setLoading(true);
-    void Promise.all([
-      fetchListItems<ProjectListItemDto>(ROUTES.PROJECTS.LIST, { workspaceId }),
-      api<TeamMembersOverviewDto>(
-        `${ROUTES.WORKSPACES.MEMBERS_OVERVIEW(workspaceId)}?page=1&limit=100`,
-        { workspaceId }
-      )
-    ])
-      .then(([projectRows, overview]) => {
-        setProjects(projectRows.filter((p) => p.timesheetApprovalEnabled && p.isActive));
+    setMembersLoading(true);
+    void api<TeamMembersOverviewDto>(
+      `${ROUTES.WORKSPACES.MEMBERS_OVERVIEW(workspaceId)}?page=1&limit=100`,
+      { workspaceId }
+    )
+      .then((overview) => {
         setMembers(
           (overview.members ?? []).map((member) => ({
             value: member.userId,
@@ -35,12 +34,14 @@ export function useApprovalsFilterOptions(workspaceId: string, enabled = true) {
           }))
         );
       })
-      .catch(() => {
-        setProjects([]);
-        setMembers([]);
-      })
-      .finally(() => setLoading(false));
+      .catch(() => setMembers([]))
+      .finally(() => setMembersLoading(false));
   }, [enabled, workspaceId]);
+
+  const projects = useMemo(
+    () => projectRows.filter((p) => p.timesheetApprovalEnabled && p.isActive),
+    [projectRows]
+  );
 
   const projectOptions = useMemo(
     (): ApprovalsFilterOption[] =>
@@ -50,5 +51,5 @@ export function useApprovalsFilterOptions(workspaceId: string, enabled = true) {
     [projects]
   );
 
-  return { projectOptions, memberOptions: members, loading };
+  return { projectOptions, memberOptions: members, loading: projectsLoading || membersLoading };
 }

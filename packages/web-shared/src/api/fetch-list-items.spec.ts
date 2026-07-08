@@ -1,7 +1,6 @@
 import type { PaginatedResponse } from "@kloqra/contracts";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchListItems, normalizePaginatedListResponse } from "./fetch-list-items";
-import { buildListCacheKey, setCachedListItems } from "./list-items-cache";
 
 const api = vi.fn();
 
@@ -55,9 +54,7 @@ describe("fetchListItems", () => {
     api.mockReset();
   });
 
-  it("bypasses cached list responses when requested", async () => {
-    const cacheKey = buildListCacheKey("/tasks", "ws-1", "user-1", { projectId: "p-1" }, 100);
-    setCachedListItems(cacheKey, [{ id: "stale" }]);
+  it("always fetches from the network", async () => {
     api.mockResolvedValue({
       items: [{ id: "fresh" }],
       page: 1,
@@ -68,8 +65,7 @@ describe("fetchListItems", () => {
 
     const items = await fetchListItems<{ id: string }>("/tasks", {
       workspaceId: "ws-1",
-      filters: { projectId: "p-1" },
-      bypassCache: true
+      filters: { projectId: "p-1" }
     });
 
     expect(items).toEqual([{ id: "fresh" }]);

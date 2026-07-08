@@ -1,13 +1,7 @@
 "use client";
 
 import { BRAND_NAME, ROUTES, resolveEffectiveTimezone } from "@kloqra/contracts";
-import type {
-  ActiveTimerDto,
-  AutoStoppedTimerDto,
-  ProjectDto,
-  TaskDto,
-  TimeLogDto
-} from "@kloqra/contracts";
+import type { ActiveTimerDto, AutoStoppedTimerDto, TimeLogDto } from "@kloqra/contracts";
 import {
   AppBar,
   Button,
@@ -23,12 +17,11 @@ import {
   EmptyState
 } from "@kloqra/ui";
 import {
-  fetchListItems,
+  useEntryCatalogQueries,
   useRefetchOnWindowFocus,
   useTimelogListQuery,
   useTimelogMutations,
   useUserProfile,
-  useWorkspaceStaleRefetch,
   todayInZone,
   localMidnightUtcInZone,
   toDateKeyInZone
@@ -45,7 +38,6 @@ import { useJiraIssues } from "@/hooks/use-jira-issues";
 import { useTimelogStaleRefetch } from "@/hooks/use-timelog-stale-refetch";
 import { api } from "@/lib/api";
 import { formatProjectLabel, formatTaskLabel } from "@/lib/project-labels";
-import { useOfflineStore } from "@/stores/offline-store";
 import { useProjectsStore } from "@/stores/projects.store";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 import { isActiveTimer, useTimerStore } from "@/stores/timer.store";
@@ -147,9 +139,19 @@ function TimerRing({
 
 export function TimerPage() {
   const session = useSessionStore((s) => s.session);
-  const { active, elapsedSec, isPaused, setActive, tick } = useTimerStore();
-  const { tasks, projects, workspaceNamesById, setTasks, setProjects } = useProjectsStore();
   const ws = session?.workspaceId ?? getWorkspaceId() ?? "";
+  const { active, elapsedSec, isPaused, setActive, tick } = useTimerStore();
+  const catalog = useEntryCatalogQueries(ws, { enabled: Boolean(ws) });
+  const { projects, tasks, refetch: refetchCatalog } = catalog;
+  const workspaceNamesById = useProjectsStore((s) => s.workspaceNamesById);
+
+  const reloadCatalog = useCallback(() => {
+    if (!ws) return;
+    void refetchCatalog();
+  }, [ws, refetchCatalog]);
+
+  useRefetchOnWindowFocus(reloadCatalog, Boolean(ws));
+
   const { profile } = useUserProfile();
   const timezone = useMemo(() => {
     const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -191,8 +193,6 @@ export function TimerPage() {
 
   const [jiraConnected, setJiraConnected] = useState(false);
   const { issues: jiraIssues } = useJiraIssues(jiraConnected);
-  const offlineLogs = useOfflineStore((s) => s.offlineLogs);
-  const offlineDeletions = useOfflineStore((s) => s.offlineDeletions);
 
   // Stale Warning Dialog state
   const [showStaleDialog, setShowStaleDialog] = useState(false);
@@ -242,31 +242,9 @@ export function TimerPage() {
 
   useEffect(() => {
     if (!ws) return;
-    void Promise.all([
-      fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then((items) =>
-        setProjects(ws, items)
-      ),
-      fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws }).then((items) =>
-        setTasks(ws, items)
-      ),
-      fetchActiveTimer()
-    ]);
-  }, [ws, setProjects, setTasks, fetchActiveTimer]);
+    void fetchActiveTimer();
+  }, [ws, fetchActiveTimer]);
 
-  const reloadCatalog = useCallback(() => {
-    if (!ws) return;
-    void Promise.all([
-      fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws, bypassCache: true }).then(
-        (items) => setProjects(ws, items)
-      ),
-      fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws, bypassCache: true }).then(
-        (items) => setTasks(ws, items)
-      )
-    ]);
-  }, [ws, setProjects, setTasks]);
-
-  useRefetchOnWindowFocus(reloadCatalog, Boolean(ws));
-  useWorkspaceStaleRefetch(ws, ["tasks", "projects"], reloadCatalog, Boolean(ws));
   useTimelogStaleRefetch(
     ws,
     () => {
@@ -336,26 +314,6 @@ export function TimerPage() {
     setStarting(true);
     setError(null);
 
-    const isOffline = useOfflineStore.getState().isOffline;
-    if (isOffline) {
-      const mockActive = {
-        taskId: taskChoice,
-        workspaceId: ws,
-        userId: session?.user.id ?? "",
-        elapsedSec: 0,
-        startedAt: new Date().toISOString(),
-        isPaused: false,
-        pausedAt: null,
-        accumulatedSec: 0,
-        isOfflineActive: true
-      };
-      setActive(mockActive as unknown as Parameters<typeof setActive>[0]);
-      setTaskChoice("");
-      toast.success("Timer started successfully (offline)!");
-      setStarting(false);
-      return;
-    }
-
     try {
       const res = await api<ActiveTimerDto>(ROUTES.TIMER.START, {
         method: "POST",
@@ -380,28 +338,6 @@ export function TimerPage() {
     if (isImpersonating) return;
     setStopping(true);
     setError(null);
-
-    const isOffline = useOfflineStore.getState().isOffline;
-    const isTempActive =
-      active && (active as unknown as { isOfflineActive?: boolean }).isOfflineActive;
-    if (isOffline || isTempActive) {
-      const task = tasks.find((t) => t.id === active?.taskId);
-      const projectId = task?.projectId;
-      useOfflineStore.getState().addOfflineLog({
-        taskId: active!.taskId,
-        projectId,
-        startTime: active!.startedAt,
-        endTime: new Date().toISOString(),
-        description: stopDescription.trim() || undefined,
-        isBillable: activeTask?.billableDefault ?? true
-      });
-      const logged = formatElapsed(elapsedSec);
-      setActive(null);
-      setStopDescription("");
-      toast.success(`Timer stopped. ${logged} saved locally.`);
-      setStopping(false);
-      return;
-    }
 
     try {
       const created = await api<TimeLogDto>(ROUTES.TIMER.STOP, {
@@ -435,20 +371,6 @@ export function TimerPage() {
     setPausing(true);
     setError(null);
 
-    const isOffline = useOfflineStore.getState().isOffline;
-    const isTempActive =
-      active && (active as unknown as { isOfflineActive?: boolean }).isOfflineActive;
-    if (isOffline || isTempActive) {
-      setActive({
-        ...active!,
-        isPaused: true,
-        pausedAt: new Date().toISOString()
-      } as unknown as Parameters<typeof setActive>[0]);
-      toast.success("Timer paused (offline).");
-      setPausing(false);
-      return;
-    }
-
     try {
       await api(ROUTES.TIMER.PAUSE, {
         method: "POST",
@@ -467,23 +389,6 @@ export function TimerPage() {
     if (isImpersonating) return;
     setResuming(true);
     setError(null);
-
-    const isOffline = useOfflineStore.getState().isOffline;
-    const isTempActive =
-      active && (active as unknown as { isOfflineActive?: boolean }).isOfflineActive;
-    if (isOffline || isTempActive) {
-      const pausedMs = Date.now() - new Date(active!.pausedAt!).getTime();
-      const newStart = new Date(new Date(active!.startedAt).getTime() + pausedMs).toISOString();
-      setActive({
-        ...active!,
-        isPaused: false,
-        pausedAt: null,
-        startedAt: newStart
-      } as unknown as Parameters<typeof setActive>[0]);
-      toast.success("Timer resumed (offline).");
-      setResuming(false);
-      return;
-    }
 
     try {
       await api(ROUTES.TIMER.RESUME, {
@@ -513,15 +418,6 @@ export function TimerPage() {
   const handleDiscard = async () => {
     if (isImpersonating) return;
     setShowStaleDialog(false);
-
-    const isOffline = useOfflineStore.getState().isOffline;
-    const isTempActive =
-      active && (active as unknown as { isOfflineActive?: boolean }).isOfflineActive;
-    if (isOffline || isTempActive) {
-      setActive(null);
-      toast.info("Timer discarded (offline). No time was logged.");
-      return;
-    }
 
     try {
       await api(ROUTES.TIMER.DISCARD, { method: "POST", workspaceId: ws });
@@ -579,36 +475,16 @@ export function TimerPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tracking, isPaused, canStart, starting, stopping, pausing, resuming]);
 
-  const displayedLogs = useMemo(() => {
-    const activeServerLogs = recentLogs.filter((log) => !offlineDeletions.includes(log.id));
-    const mappedOfflineLogs = offlineLogs.map((log) => ({
-      id: log.tempId,
-      userId: "",
-      taskId: log.taskId,
-      startTime: log.startTime,
-      endTime: log.endTime,
-      durationSec: Math.floor(
-        (new Date(log.endTime).getTime() - new Date(log.startTime).getTime()) / 1000
-      ),
-      description: log.description || null,
-      isBillable: log.isBillable ?? true,
-      source: "timer" as const,
-      isOffline: true,
-      syncStatus: log.syncStatus
-    }));
-    return [...mappedOfflineLogs, ...activeServerLogs];
-  }, [recentLogs, offlineLogs, offlineDeletions]);
-
   const todayLoggedSec = useMemo(() => {
     const today = todayInZone(timezone);
     const dateKey = toDateKeyInZone(today, timezone);
-    return displayedLogs.reduce((sum, log) => {
+    return recentLogs.reduce((sum, log) => {
       const start = new Date(log.startTime);
       if (toDateKeyInZone(start, timezone) !== dateKey) return sum;
       const end = new Date(log.endTime);
       return sum + (end.getTime() - start.getTime()) / 1000;
     }, 0);
-  }, [displayedLogs, timezone]);
+  }, [recentLogs, timezone]);
 
   const totalTodaySec = todayLoggedSec + (tracking ? elapsedSec : 0);
 
@@ -853,7 +729,7 @@ export function TimerPage() {
 
         {/* Sidebar Widgets Column */}
         <div className="lg:col-span-5 space-y-6">
-          <DailyGoalWidget totalSeconds={totalTodaySec} logs={displayedLogs} timezone={timezone} />
+          <DailyGoalWidget totalSeconds={totalTodaySec} logs={recentLogs} timezone={timezone} />
 
           <QuickActions
             onSelect={(pId, tId) => {

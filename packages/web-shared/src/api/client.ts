@@ -5,7 +5,6 @@ import { getPlatformAccessToken, usePlatformSessionStore } from "../stores/platf
 import { getAccessToken, useSessionStore } from "../stores/session.store";
 import { getApiBase } from "./base";
 import { getInflightGetRequests, clearInflightGetRequestsForPath } from "./inflight-requests";
-import { invalidateListItemsCache } from "./list-items-cache";
 export { clearInflightGetRequests, clearInflightGetRequestsForPath } from "./inflight-requests";
 
 export { getApiBase } from "./base";
@@ -272,7 +271,6 @@ async function executeApiRequest<T>(
   }
 
   if (method !== "GET" && method !== "HEAD") {
-    invalidateListItemsCache(ws ? { workspaceId: ws } : undefined);
     if (path.includes("/timelogs") || path.startsWith("/timer/")) {
       clearInflightGetRequestsForPath("/timelogs");
     }

@@ -14,7 +14,12 @@ import {
   CenteredLoader,
   ConfirmDialog
 } from "@kloqra/ui";
-import { SettingsCard, fetchListItems, fetchProjectTeam } from "@kloqra/web-shared";
+import {
+  SettingsCard,
+  fetchProjectTeam,
+  useCategoriesListQuery,
+  useTasksListQuery
+} from "@kloqra/web-shared";
 import { ListTodo, Pencil, Plus, Trash2, Lock, Unlock } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -33,8 +38,16 @@ type Props = {
 };
 
 export function ProjectTasksPanel({ workspaceId, projectId, projectIsActive }: Props) {
-  const [tasks, setTasks] = useState<TaskDto[]>([]);
-  const [categories, setCategories] = useState<CategoryDto[]>([]);
+  const taskFilters = useMemo(() => ({ projectId }), [projectId]);
+  const {
+    data: tasks = [],
+    isLoading: tasksLoading,
+    refetch: refetchTasks
+  } = useTasksListQuery(workspaceId, taskFilters, Boolean(workspaceId && projectId));
+  const { data: categories = [], refetch: refetchCategories } = useCategoriesListQuery(
+    workspaceId,
+    Boolean(workspaceId)
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -109,17 +122,11 @@ export function ProjectTasksPanel({ workspaceId, projectId, projectIsActive }: P
     setLoading(true);
     setError(null);
     try {
-      const [taskList, categoryList, team] = await Promise.all([
-        fetchListItems<TaskDto>(ROUTES.TASKS.LIST, {
-          workspaceId,
-          filters: { projectId },
-          bypassCache: true
-        }),
-        fetchListItems<CategoryDto>(ROUTES.CATEGORIES.LIST, { workspaceId }),
+      const [, , team] = await Promise.all([
+        refetchTasks(),
+        refetchCategories(),
         fetchProjectTeam(projectId, { workspaceId })
       ]);
-      setTasks(taskList);
-      setCategories(categoryList);
       setTeamMembers(
         team.members.map((m) => ({
           userId: m.userId,
@@ -429,7 +436,7 @@ export function ProjectTasksPanel({ workspaceId, projectId, projectIsActive }: P
               : `${tasks.length} task${tasks.length === 1 ? "" : "s"} across ${grouped.length} ${grouped.length === 1 ? "category" : "categories"}`
         }
       >
-        {loading && tasks.length === 0 ? (
+        {(loading || tasksLoading) && tasks.length === 0 ? (
           <CenteredLoader label="Loading tasks…" className="py-8" />
         ) : tasks.length === 0 ? null : (
           <div className="space-y-5">

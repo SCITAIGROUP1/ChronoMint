@@ -5,7 +5,6 @@ import type {
   PendingTimesheetDto,
   ListTimeLogsResponseDto,
   ListTimelogAuditEventsResponseDto,
-  TaskListItemDto,
   TimeLogDto
 } from "@kloqra/contracts";
 import {
@@ -20,7 +19,7 @@ import {
   type TimeEntryAuditEvent,
   cn
 } from "@kloqra/ui";
-import { fetchListItems } from "@kloqra/web-shared";
+import { useTasksListQuery } from "@kloqra/web-shared";
 import { Calendar, Check, MessageSquare, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
@@ -58,8 +57,12 @@ function PendingActivity({
   const [open, setOpen] = useState(false);
   const [logs, setLogs] = useState<TimeLogDto[]>([]);
   const [auditEvents, setAuditEvents] = useState<TimeEntryAuditEvent[]>([]);
-  const [tasks, setTasks] = useState<TaskListItemDto[]>([]);
   const [loading, setLoading] = useState(false);
+  const { data: tasks = [] } = useTasksListQuery(
+    workspaceId,
+    { projectId: item.projectId },
+    open && Boolean(workspaceId)
+  );
 
   useEffect(() => {
     if (!open || !workspaceId) return;
@@ -74,18 +77,11 @@ function PendingActivity({
       to: item.periodEnd
     });
 
-    void Promise.all([
-      fetchListItems<TaskListItemDto>(ROUTES.TASKS.LIST, {
-        workspaceId,
-        filters: { projectId: item.projectId }
-      }),
-      api<ListTimeLogsResponseDto>(`${ROUTES.TIMELOGS.LIST}?${params}`, { workspaceId })
-    ])
-      .then(async ([fetchedTasks, res]) => {
+    void api<ListTimeLogsResponseDto>(`${ROUTES.TIMELOGS.LIST}?${params}`, { workspaceId })
+      .then(async (res) => {
         if (cancelled) return;
 
         const periodLogs = sortLogsByStartDesc(res.items);
-        setTasks(fetchedTasks);
         setLogs(periodLogs);
 
         const visibleForAudit = periodLogs.slice(0, 8);

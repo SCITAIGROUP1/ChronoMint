@@ -1,9 +1,8 @@
 "use client";
 
-import type { DashboardReportDto, ProjectDto } from "@kloqra/contracts";
-import { ROUTES } from "@kloqra/contracts";
+import type { DashboardReportDto } from "@kloqra/contracts";
 import { Skeleton } from "@kloqra/ui";
-import { fetchListItems } from "@kloqra/web-shared";
+import { useProjectsListQuery } from "@kloqra/web-shared";
 import React, { useEffect, useState, useCallback } from "react";
 import {
   ScatterChart,
@@ -32,6 +31,7 @@ interface ScatterDataPoint {
 
 export function RateEfficiencyWidget({ report }: RateEfficiencyWidgetProps) {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
+  const { data: projects = [] } = useProjectsListQuery(ws, Boolean(ws));
   const [dataPoints, setDataPoints] = useState<ScatterDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -42,10 +42,6 @@ export function RateEfficiencyWidget({ report }: RateEfficiencyWidgetProps) {
     }
 
     try {
-      const projects = await fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, {
-        workspaceId: ws
-      }).catch(() => []);
-
       const points = report.timeByProject.map((p) => {
         const project = projects.find((pr) => pr.id === p.projectId);
         const color = project?.color ?? "#3b82f6";
@@ -69,7 +65,7 @@ export function RateEfficiencyWidget({ report }: RateEfficiencyWidgetProps) {
     } finally {
       setLoading(false);
     }
-  }, [ws, report.timeByProject]);
+  }, [ws, report.timeByProject, projects]);
 
   useEffect(() => {
     void calculateEfficiency();

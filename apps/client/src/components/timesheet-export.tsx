@@ -5,10 +5,8 @@ import {
   buildExportFilename,
   DEFAULT_MEMBER_EXPORT_COLUMNS,
   resolveEffectiveTimezone,
-  type CategoryDto,
   type MemberExportBodyDto,
   type MemberExportReportType,
-  type ProjectDto,
   type UserProfileDto
 } from "@kloqra/contracts";
 import {
@@ -26,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@kloqra/ui";
-import { fetchListItems, toDateInputValue } from "@kloqra/web-shared";
+import { toDateInputValue, useProjectsListQuery, useCategoriesListQuery } from "@kloqra/web-shared";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { apiDownloadPost, saveDownloadResponse } from "@/lib/download";
@@ -56,8 +54,8 @@ export function TimesheetExport({
   const [reportType, setReportType] = useState<MemberExportReportType>("time_entries");
   const [format, setFormat] = useState<MemberExportBodyDto["format"]>("csv");
   const [billable, setBillable] = useState<MemberExportBodyDto["billable"]>("all");
-  const [projects, setProjects] = useState<ProjectDto[]>([]);
-  const [categories, setCategories] = useState<CategoryDto[]>([]);
+  const { data: projects = [] } = useProjectsListQuery(ws, Boolean(ws));
+  const { data: categories = [] } = useCategoriesListQuery(ws, Boolean(ws));
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
 
@@ -71,14 +69,6 @@ export function TimesheetExport({
         setUserTimezone(resolveEffectiveTimezone(profile.preferences, browserTz));
       })
       .catch(() => {});
-  }, [ws]);
-
-  useEffect(() => {
-    if (!ws) return;
-    void fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then(setProjects);
-    void fetchListItems<CategoryDto>(ROUTES.CATEGORIES.LIST, { workspaceId: ws }).then(
-      setCategories
-    );
   }, [ws]);
 
   async function runExport() {

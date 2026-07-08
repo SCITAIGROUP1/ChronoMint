@@ -14,7 +14,13 @@ import {
   ProjectColorPicker,
   cn
 } from "@kloqra/ui";
-import { fetchListItems, getAccessToken, readUserIdFromToken } from "@kloqra/web-shared";
+import {
+  fetchCatalogList,
+  getAccessToken,
+  invalidateWorkspaceQueries,
+  readUserIdFromToken,
+  useEntryCatalogQueries
+} from "@kloqra/web-shared";
 import { ArrowRight, Clock, HelpCircle, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -32,7 +38,6 @@ import {
 import { useOnboardingStatus } from "./use-onboarding-status";
 import { useIsImpersonating } from "@/hooks/use-is-impersonating";
 import { api } from "@/lib/api";
-import { useProjectsStore } from "@/stores/projects.store";
 import { useSessionStore } from "@/stores/session.store";
 
 export type OnboardingCompleteOptions = {
@@ -65,7 +70,9 @@ export function OnboardingOverlay({
   const userName = session?.user.name ?? "there";
   const { profileLoading, wizardDone, markWizardDone } = useOnboardingStatus();
 
-  const { projects, setProjects, setTasks } = useProjectsStore();
+  const { projects, refetch: refetchCatalog } = useEntryCatalogQueries(ws, {
+    enabled: show && Boolean(ws)
+  });
 
   const [projectName, setProjectName] = useState("");
   const [clientName, setClientName] = useState("");
@@ -97,13 +104,6 @@ export function OnboardingOverlay({
       setStepIndex(0);
     }
   }, [replay, forceOpen]);
-
-  useEffect(() => {
-    if (!show || !ws || isAdmin) return;
-    void fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then((items) =>
-      setProjects(ws, items)
-    );
-  }, [show, ws, isAdmin, setProjects]);
 
   const closeOverlay = () => {
     setShow(false);
@@ -150,9 +150,7 @@ export function OnboardingOverlay({
         })
       });
 
-      let categories = await fetchListItems<CategoryDto>(ROUTES.CATEGORIES.LIST, {
-        workspaceId: ws
-      });
+      let categories = await fetchCatalogList<CategoryDto>(ROUTES.CATEGORIES.LIST, ws);
       if (categories.length === 0) {
         const general = await api<CategoryDto>(ROUTES.CATEGORIES.CREATE, {
           method: "POST",
@@ -179,12 +177,8 @@ export function OnboardingOverlay({
         })
       });
 
-      const [allProjects, allTasks] = await Promise.all([
-        fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }),
-        fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws })
-      ]);
-      setProjects(ws, allProjects);
-      setTasks(ws, allTasks);
+      await invalidateWorkspaceQueries(ws, ["projects", "tasks"]);
+      await refetchCatalog();
 
       toast.success(`Project "${projectName}" and default task created!`);
       setStepIndex(ONBOARDING_STEP_IDS.indexOf("track-time"));

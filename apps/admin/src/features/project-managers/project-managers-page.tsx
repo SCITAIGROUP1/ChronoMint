@@ -1,7 +1,7 @@
 "use client";
 
 import { ROUTES } from "@kloqra/contracts";
-import type { ProjectListItemDto, ProjectManagerOverviewDto } from "@kloqra/contracts";
+import type { ProjectManagerOverviewDto } from "@kloqra/contracts";
 import {
   AppBar,
   AppBarListToolbar,
@@ -28,10 +28,10 @@ import {
   TableRow,
   TableLoadingState
 } from "@kloqra/ui";
-import { fetchListItems } from "@kloqra/web-shared";
+import { useProjectsListQuery } from "@kloqra/web-shared";
 import { FolderKanban, UserCheck, Users } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { formatLastActive, formatWeekHours } from "../team-management/format-last-active";
 import { buildClientImpersonationUrl } from "../team-management/impersonation-redirect";
@@ -59,7 +59,7 @@ export function ProjectManagersPage() {
   const [statusFilter, setStatusFilter] = useState<"ALL" | "active" | "inactive">("ALL");
   const [membershipFilter, setMembershipFilter] = useState<"ALL" | "active" | "inactive">("ALL");
   const [assignmentFilter, setAssignmentFilter] = useState<"ALL" | "active" | "inactive">("ALL");
-  const [projects, setProjects] = useState<ProjectListItemDto[]>([]);
+  const { data: projects = [] } = useProjectsListQuery(ws, Boolean(ws));
 
   const {
     managers,
@@ -90,13 +90,6 @@ export function ProjectManagersPage() {
   const [assignOpen, setAssignOpen] = useState(false);
   const [assignPresetUserId, setAssignPresetUserId] = useState<string | undefined>();
   const [demoteAllTarget, setDemoteAllTarget] = useState<ProjectManagerOverviewDto | null>(null);
-
-  useEffect(() => {
-    if (!ws) return;
-    void fetchListItems<ProjectListItemDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws })
-      .then(setProjects)
-      .catch(() => setProjects([]));
-  }, [ws]);
 
   async function handleImpersonate(manager: ProjectManagerOverviewDto) {
     setManagerBusyId(manager.userId);

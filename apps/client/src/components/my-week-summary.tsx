@@ -1,28 +1,14 @@
 "use client";
 
-import { ROUTES, type MyWeekSummaryDto, type ProjectDto } from "@kloqra/contracts";
 import { Card, CardContent, CardHeader, CardTitle, ProjectColorDot } from "@kloqra/ui";
-import { fetchListItems } from "@kloqra/web-shared";
-import { useEffect, useState } from "react";
-import { api } from "@/lib/api";
+import { useProjectsListQuery, useWeekSummaryQuery } from "@kloqra/web-shared";
 import { colorForProject } from "@/lib/project-color-styles";
-import { useProjectsStore } from "@/stores/projects.store";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
 export function MyWeekSummary() {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
-  const { projects, setProjects } = useProjectsStore();
-  const [summary, setSummary] = useState<MyWeekSummaryDto | null>(null);
-
-  useEffect(() => {
-    if (!ws) return;
-    void api<MyWeekSummaryDto>(ROUTES.REPORTING.ME, { workspaceId: ws }).then(setSummary);
-    if (projects.length === 0) {
-      void fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then((items) =>
-        setProjects(ws, items)
-      );
-    }
-  }, [ws, setProjects, projects.length]);
+  const { data: summary } = useWeekSummaryQuery(ws, Boolean(ws));
+  const { data: projects = [] } = useProjectsListQuery(ws, Boolean(ws));
 
   if (!summary) return null;
 

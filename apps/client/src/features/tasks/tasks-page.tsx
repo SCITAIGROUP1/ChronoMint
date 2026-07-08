@@ -19,8 +19,8 @@ import {
   TableToolbar,
   TableLoadingState
 } from "@kloqra/ui";
-import { fetchListItems, usePaginatedList } from "@kloqra/web-shared";
-import { useEffect, useMemo, useState } from "react";
+import { usePaginatedList, useProjectsListQuery } from "@kloqra/web-shared";
+import { useMemo, useState } from "react";
 import { formatProjectLabel } from "@/lib/project-labels";
 import { useProjectsStore } from "@/stores/projects.store";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
@@ -29,15 +29,9 @@ const ALL_PROJECTS = "__all__";
 
 export function TasksPage() {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
-  const { projects, workspaceNamesById, setProjects } = useProjectsStore();
+  const { data: projects = [] } = useProjectsListQuery(ws, Boolean(ws));
+  const workspaceNamesById = useProjectsStore((s) => s.workspaceNamesById);
   const [projectFilter, setProjectFilter] = useState<string>(ALL_PROJECTS);
-
-  useEffect(() => {
-    if (!ws) return;
-    void fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then((items) =>
-      setProjects(ws, items)
-    );
-  }, [ws, setProjects]);
 
   const taskFilters = useMemo(
     () => (projectFilter === ALL_PROJECTS ? undefined : { projectId: projectFilter }),

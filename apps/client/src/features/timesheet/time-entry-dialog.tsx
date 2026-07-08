@@ -20,7 +20,7 @@ import {
   DatePicker,
   cn
 } from "@kloqra/ui";
-import { extractFieldErrorsFromMessage } from "@kloqra/web-shared";
+import { extractFieldErrorsFromMessage, useCategoriesListQuery } from "@kloqra/web-shared";
 import { ChevronDown, Clock } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatDuration } from "./calendar-utils";
@@ -33,7 +33,6 @@ import {
   taskSaveHint
 } from "./time-entry-draft";
 import { JiraIssuePicker } from "@/components/jira-issue-picker";
-import { useLiveEntryCatalog } from "@/hooks/use-live-entry-catalog";
 import { api } from "@/lib/api";
 import { filterLoggingProjects, filterLoggingTasks } from "@/lib/logging-catalog-filters";
 import { formatProjectLabel } from "@/lib/project-labels";
@@ -97,17 +96,12 @@ export function TimeEntryDialog({
   const [activeTab, setActiveTab] = useState<"details" | "history">("details");
   const [repeatOpen, setRepeatOpen] = useState(false);
   const [moreOptionsOpen, setMoreOptionsOpen] = useState(false);
-  const [selectorCategories, setSelectorCategories] = useState(categories);
+  const { data: liveCategories = [] } = useCategoriesListQuery(
+    workspaceId ?? "",
+    open && Boolean(workspaceId)
+  );
+  const selectorCategories = liveCategories.length > 0 ? liveCategories : categories;
   const clearedInvalidSelectionRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    setSelectorCategories(categories);
-  }, [categories]);
-
-  useLiveEntryCatalog(workspaceId ?? "", setSelectorCategories, {
-    enabled: open && Boolean(workspaceId),
-    pollIntervalMs: 30_000
-  });
 
   const fetchAuditEvents = useCallback(async () => {
     if (!editingLog || !workspaceId) return [];

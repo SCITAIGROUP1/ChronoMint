@@ -1,8 +1,8 @@
 "use client";
 
-import { ROUTES, type PresenceSnapshotDto, type ProjectDto } from "@kloqra/contracts";
+import type { PresenceSnapshotDto } from "@kloqra/contracts";
 import { ProjectColorDot, Skeleton } from "@kloqra/ui";
-import { fetchListItems } from "@kloqra/web-shared";
+import { useProjectsListQuery } from "@kloqra/web-shared";
 import { Play } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 import { usePresenceSnapshot } from "@/hooks/use-presence-snapshot";
@@ -16,24 +16,21 @@ export type LivePresenceWidgetProps = {
 export function LivePresenceWidget({ projectId, userId }: LivePresenceWidgetProps) {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
   const { snapshot, loading } = usePresenceSnapshot(ws, Boolean(ws));
-  const [projects, setProjects] = useState<ProjectDto[]>([]);
-  const [projectsLoaded, setProjectsLoaded] = useState(false);
+  const {
+    data: projects = [],
+    isLoading: projectsLoading,
+    isError: projectsError
+  } = useProjectsListQuery(ws, Boolean(ws));
   const [error, setError] = useState<string | null>(null);
   const members = snapshot?.members ?? [];
 
   useEffect(() => {
-    if (!ws) return;
-    fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws })
-      .then((data) => {
-        setProjects(data);
-        setProjectsLoaded(true);
-      })
-      .catch(() => {
-        setProjects([]);
-        setProjectsLoaded(true);
-        setError("Failed to load presence feed");
-      });
-  }, [ws]);
+    if (projectsError) {
+      setError("Failed to load presence feed");
+    } else {
+      setError(null);
+    }
+  }, [projectsError]);
 
   const filteredMembers = useMemo(() => {
     return members.filter((m: PresenceSnapshotDto["members"][number]) => {
@@ -59,7 +56,7 @@ export function LivePresenceWidget({ projectId, userId }: LivePresenceWidgetProp
   }, [members, projects, projectId, userId]);
   const [time, setTime] = useState(new Date());
 
-  const isLoading = loading || !projectsLoaded;
+  const isLoading = loading || projectsLoading;
   useEffect(() => {
     const ticker = setInterval(() => {
       setTime(new Date());

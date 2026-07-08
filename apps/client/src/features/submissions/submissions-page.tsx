@@ -1,6 +1,6 @@
 "use client";
 
-import type { ProjectDto, TimesheetPeriodDto, UserProfileDto, TaskDto } from "@kloqra/contracts";
+import type { TimesheetPeriodDto, UserProfileDto } from "@kloqra/contracts";
 import { resolveEffectiveTimezone, ROUTES } from "@kloqra/contracts";
 import {
   AppBar,
@@ -13,10 +13,10 @@ import {
 } from "@kloqra/ui";
 import {
   APPROVALS_TABLE_PAGE_SIZE,
-  fetchListItems,
   parseMemberSubmissionsSearch,
   resolveMemberSubmissionsTab,
   useClientTablePagination,
+  useEntryCatalogQueries,
   WORKSPACE_DATA_STALE_EVENT,
   type MemberSubmissionsTab,
   type WorkspaceDataStaleDetail
@@ -35,7 +35,6 @@ import {
 } from "./use-my-submissions";
 import { todayInZone } from "@/features/timesheet/calendar-utils";
 import { api } from "@/lib/api";
-import { useProjectsStore } from "@/stores/projects.store";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
 const TAB_OPTIONS: { value: MemberSubmissionsTab; label: string }[] = [
@@ -95,7 +94,10 @@ export function SubmissionsPage() {
   );
   const tab = resolveMemberSubmissionsTab(deepLink);
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
-  const { projects, setProjects, setTasks } = useProjectsStore();
+  const catalog = useEntryCatalogQueries(ws, { enabled: Boolean(ws) });
+  const projects = catalog.projects;
+  const tasks = catalog.tasks;
+
   const [rangeFrom, setRangeFrom] = useState("");
   const [rangeTo, setRangeTo] = useState("");
   const [weekStartPref, setWeekStartPref] = useState<"monday" | "sunday">("monday");
@@ -106,13 +108,6 @@ export function SubmissionsPage() {
   const [timezone, setTimezone] = useState(() =>
     resolveEffectiveTimezone({}, Intl.DateTimeFormat().resolvedOptions().timeZone)
   );
-
-  useEffect(() => {
-    if (!ws) return;
-    void fetchListItems<TaskDto>(ROUTES.TASKS.LIST, { workspaceId: ws }).then((items) =>
-      setTasks(ws, items)
-    );
-  }, [ws, setTasks]);
 
   useEffect(() => {
     if (!deepLink.periodStart) return;
@@ -149,14 +144,6 @@ export function SubmissionsPage() {
       );
     });
   }, [ws]);
-
-  useEffect(() => {
-    if (!ws) return;
-    if (projects.length > 0) return;
-    void fetchListItems<ProjectDto>(ROUTES.PROJECTS.LIST, { workspaceId: ws }).then((items) =>
-      setProjects(ws, items)
-    );
-  }, [ws, projects.length, setProjects]);
 
   const setTab = useCallback(
     (next: MemberSubmissionsTab) => {
@@ -325,6 +312,7 @@ export function SubmissionsPage() {
             <SubmissionsTable
               submissions={pageItems}
               projects={projects}
+              tasks={tasks}
               onSubmitted={handleSubmitted}
               highlightedProjectId={deepLink.projectId}
               workspaceId={ws}

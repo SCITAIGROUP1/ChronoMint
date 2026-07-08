@@ -1,14 +1,9 @@
 "use client";
 
 import type { TimesheetPeriodDto } from "@kloqra/contracts";
-import { useCallback, useEffect, useMemo } from "react";
-import {
-  buildSubmissionsPath,
-  EMPTY_SUBMISSIONS,
-  submissionStoreKey,
-  useMySubmissionsStore
-} from "@/stores/member-data.store";
-import { useSessionStore } from "@/stores/session.store";
+import { useMySubmissionsQuery } from "@kloqra/web-shared";
+import { useCallback, useMemo } from "react";
+import { buildSubmissionsPath } from "@/lib/submissions-path";
 
 export type SubmissionsScope = "logged" | "assigned";
 
@@ -72,11 +67,6 @@ function buildScopedPath(anchorDate: Date, scope: SubmissionsScope) {
   return buildSubmissionsPath(params);
 }
 
-function useSubmissionListKey(workspaceId: string, queryKey: string): string {
-  const userId = useSessionStore((s) => s.session?.user?.id);
-  return userId ? submissionStoreKey(userId, workspaceId, queryKey) : "";
-}
-
 export function useMySubmissions(
   workspaceId: string,
   anchorDate: Date,
@@ -85,22 +75,9 @@ export function useMySubmissions(
 ) {
   const queryKey = buildScopedQueryKey(anchorDate, scope);
   const path = buildScopedPath(anchorDate, scope);
-  const listKey = useSubmissionListKey(workspaceId, queryKey);
-  const submissions = useMySubmissionsStore((s) => s.byKey[listKey]?.items ?? EMPTY_SUBMISSIONS);
-  const loading = useMySubmissionsStore((s) => s.byKey[listKey]?.loading ?? false);
-  const subscribe = useMySubmissionsStore((s) => s.subscribe);
-  const fetchSubmissions = useMySubmissionsStore((s) => s.fetchSubmissions);
+  const { data, isLoading, refetch } = useMySubmissionsQuery(workspaceId, path, queryKey, enabled);
 
-  useEffect(() => {
-    if (!enabled || !workspaceId || !listKey) return;
-    return subscribe(workspaceId, queryKey, path);
-  }, [enabled, workspaceId, queryKey, path, subscribe, listKey]);
-
-  const refresh = useCallback(async () => {
-    if (!workspaceId) return;
-    await fetchSubmissions(workspaceId, queryKey, path);
-  }, [workspaceId, queryKey, path, fetchSubmissions]);
-
+  const submissions = data ?? [];
   const actionableCount = useMemo(() => countActionableSubmissions(submissions), [submissions]);
   const pendingReviewCount = useMemo(
     () => countPendingReviewSubmissions(submissions),
@@ -111,9 +88,13 @@ export function useMySubmissions(
     [submissions]
   );
 
+  const refresh = useCallback(async () => {
+    await refetch();
+  }, [refetch]);
+
   return {
     submissions,
-    loading,
+    loading: isLoading,
     refresh,
     actionableCount,
     pendingReviewCount,
@@ -127,41 +108,18 @@ export function useMySubmissionsBadgeCount(
   scope: SubmissionsScope = "assigned",
   enabled = true
 ) {
-  const queryKey = buildScopedQueryKey(anchorDate, scope);
-  const path = buildScopedPath(anchorDate, scope);
-  const listKey = useSubmissionListKey(workspaceId, queryKey);
-  const subscribe = useMySubmissionsStore((s) => s.subscribe);
-  const count = useMySubmissionsStore((s) => {
-    const items = s.byKey[listKey]?.items ?? EMPTY_SUBMISSIONS;
-    return countActionableSubmissions(items);
-  });
-
-  useEffect(() => {
-    if (!enabled || !workspaceId || !listKey) return;
-    return subscribe(workspaceId, queryKey, path);
-  }, [enabled, workspaceId, queryKey, path, subscribe, listKey]);
-
-  return count;
+  const { submissions } = useMySubmissions(workspaceId, anchorDate, scope, enabled);
+  return useMemo(() => countActionableSubmissions(submissions), [submissions]);
 }
 
 export function useDashboardSubmissions(workspaceId: string, enabled = true) {
   const queryKey = "all";
   const path = buildSubmissionsPath();
-  const listKey = useSubmissionListKey(workspaceId, queryKey);
-  const submissions = useMySubmissionsStore((s) => s.byKey[listKey]?.items ?? EMPTY_SUBMISSIONS);
-  const loading = useMySubmissionsStore((s) => s.byKey[listKey]?.loading ?? false);
-  const subscribe = useMySubmissionsStore((s) => s.subscribe);
-  const fetchSubmissions = useMySubmissionsStore((s) => s.fetchSubmissions);
-
-  useEffect(() => {
-    if (!enabled || !workspaceId || !listKey) return;
-    return subscribe(workspaceId, queryKey, path);
-  }, [enabled, workspaceId, queryKey, path, subscribe, listKey]);
+  const { data, isLoading, refetch } = useMySubmissionsQuery(workspaceId, path, queryKey, enabled);
 
   const refresh = useCallback(async () => {
-    if (!workspaceId) return;
-    await fetchSubmissions(workspaceId, queryKey, path);
-  }, [workspaceId, queryKey, path, fetchSubmissions]);
+    await refetch();
+  }, [refetch]);
 
-  return { submissions, loading, refresh };
+  return { submissions: data ?? [], loading: isLoading, refresh };
 }
