@@ -15,6 +15,7 @@ import { api } from "../api/client";
 import { useSessionGeneration } from "../hooks/use-session-generation";
 import { useSessionStore } from "../stores/session.store";
 import { approvalsQueryKeys } from "./approvals-query-keys";
+import { normalizeSubmissionDateKey } from "./submission-date-key";
 import { submissionsQueryKeys } from "./submissions-query-keys";
 import { isWorkspaceQuerySessionReady } from "./workspace-query-enabled";
 
@@ -165,9 +166,9 @@ export function useMySubmissionsLookbackQuery(
 ) {
   const sessionGeneration = useSessionGeneration();
   const queryEnabled = useWorkspaceQueryEnabled(workspaceId, enabled);
-  const queryKey = `lookback=${lookbackWeeks}&date=${anchorDate.toISOString()}&scope=${scope}`;
+  const queryKey = `lookback=${lookbackWeeks}&date=${anchorDate.toISOString().slice(0, 10)}&scope=${scope}`;
   const path = `${ROUTES.TIMESHEETS.MY_SUBMISSIONS}?${new URLSearchParams({
-    date: anchorDate.toISOString(),
+    date: anchorDate.toISOString().slice(0, 10),
     scope,
     lookbackWeeks: String(lookbackWeeks)
   })}`;
@@ -192,7 +193,10 @@ export function useTimesheetSubmissionStatusQuery(
 ) {
   const sessionGeneration = useSessionGeneration();
   const queryEnabled = useWorkspaceQueryEnabled(workspaceId, enabled);
-  const uniqueDates = useMemo(() => [...new Set(dates.filter(Boolean))].sort(), [dates]);
+  const uniqueDates = useMemo(
+    () => [...new Set(dates.filter(Boolean).map(normalizeSubmissionDateKey))].sort(),
+    [dates]
+  );
 
   const results = useQueries({
     queries: uniqueDates.map((date) => ({
@@ -203,8 +207,8 @@ export function useTimesheetSubmissionStatusQuery(
           { workspaceId, signal }
         ).then((res) => res.items ?? []),
       enabled: queryEnabled && uniqueDates.length > 0,
-      staleTime: 0,
-      refetchOnMount: "always" as const
+      staleTime: 60_000,
+      refetchOnMount: true as const
     }))
   });
 

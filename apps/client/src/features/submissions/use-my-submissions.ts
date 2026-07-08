@@ -56,12 +56,13 @@ export function filterSubmissionsByPeriodRange(
 }
 
 function buildScopedQueryKey(anchorDate: Date, scope: SubmissionsScope) {
-  return `date=${anchorDate.toISOString()}&scope=${scope}`;
+  // Day-granular key — full ISO would remount queries whenever the caller passed a fresh Date.
+  return `date=${anchorDate.toISOString().slice(0, 10)}&scope=${scope}`;
 }
 
 function buildScopedPath(anchorDate: Date, scope: SubmissionsScope) {
   const params = new URLSearchParams({
-    date: anchorDate.toISOString(),
+    date: anchorDate.toISOString().slice(0, 10),
     scope
   });
   return buildSubmissionsPath(params);

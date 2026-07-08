@@ -218,9 +218,11 @@ export function DashboardPage() {
   const draftCount = useMemo(() => {
     return submissions.filter((s) => s.status === "DRAFT" || s.status === "REJECTED").length;
   }, [submissions]);
+  // Stabilize anchor — `new Date()` every render changes the query key every ms and storms /submissions.
+  const [submissionsAnchor] = useState(() => new Date());
   const { submissions: todaySubmissions } = useMySubmissions(
     ws,
-    new Date(),
+    submissionsAnchor,
     "assigned",
     Boolean(ws)
   );

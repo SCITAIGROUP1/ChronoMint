@@ -359,9 +359,10 @@ export function TimesheetPage() {
   const calendarLoading = logsQueryLoading || occupancyLoading || catalog.isLoading;
 
   const submissionDates = useMemo(() => {
-    const dates = new Set<string>([anchor.toISOString()]);
+    // Day keys only — full ISO timestamps would create one GET /submissions per log.
+    const dates = new Set<string>([anchor.toISOString().slice(0, 10)]);
     for (const log of logs) {
-      dates.add(log.startTime);
+      dates.add(log.startTime.slice(0, 10));
     }
     return [...dates];
   }, [anchor, logs]);

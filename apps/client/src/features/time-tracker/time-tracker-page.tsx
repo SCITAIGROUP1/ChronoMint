@@ -218,10 +218,10 @@ export function TimeTrackerPage() {
     if (!ws) return;
     const dates = new Set<string>();
     for (const log of logs) {
-      dates.add(log.startTime);
+      dates.add(log.startTime.slice(0, 10));
     }
     if (dates.size === 0) {
-      dates.add(todayInZone(timezone).toISOString());
+      dates.add(todayInZone(timezone).toISOString().slice(0, 10));
     }
     try {
       const merged = new Map<string, TimesheetPeriodDto>();

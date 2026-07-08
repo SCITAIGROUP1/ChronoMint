@@ -97,4 +97,12 @@ describe("useTenantCurrent", () => {
     expect(result.current.tenant?.status).toBe("pending_setup");
     expect(result.current.error).toBeNull();
   });
+
+  it("skips fetching when disabled", async () => {
+    const { result } = renderHook(() => useTenantCurrent({ enabled: false }));
+
+    expect(result.current.loading).toBe(false);
+    expect(result.current.tenant).toBeNull();
+    expect(api).not.toHaveBeenCalled();
+  });
 });

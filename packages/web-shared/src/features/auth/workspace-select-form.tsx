@@ -38,8 +38,9 @@ export function WorkspaceSelectForm({
   const searchParams = useSearchParams();
   const session = useSessionStore((s) => s.session);
   const setSession = useSessionStore((s) => s.setSession);
-  const { tenant } = useTenantCurrent();
   const isOwner = session?.tenantRole === "OWNER";
+  // Members are not org TenantMembers — skip /tenants/current (403 Organization membership required).
+  const { tenant } = useTenantCurrent({ enabled: !memberPortal && isOwner });
   const seededWorkspaces = useWorkspacesStore((s) => s.workspaces);
   const setWorkspacesStore = useWorkspacesStore((s) => s.setWorkspaces);
 

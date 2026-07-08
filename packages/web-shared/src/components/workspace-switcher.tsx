@@ -100,7 +100,6 @@ export function WorkspaceSwitcher({
   const setSession = useSessionStore((s) => s.setSession);
   const workspaces = useWorkspacesStore((s) => s.workspaces);
   const setWorkspaces = useWorkspacesStore((s) => s.setWorkspaces);
-  const { tenant } = useTenantCurrent();
   const [switching, setSwitching] = useState(false);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -108,6 +107,10 @@ export function WorkspaceSwitcher({
 
   const unifiedContext = Boolean(organizationHref && contextMode);
   const isAccountContext = unifiedContext && contextMode === "account";
+  // Member portal never needs org profile; only org context mode does.
+  const { tenant } = useTenantCurrent({
+    enabled: Boolean(unifiedContext) && !memberPortal
+  });
 
   const visible = filterAdminAccess
     ? workspaces.filter(
