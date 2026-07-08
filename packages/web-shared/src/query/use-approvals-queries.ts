@@ -12,11 +12,11 @@ import type {
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { api } from "../api/client";
-import { readUserIdFromToken } from "../auth/jwt-payload";
 import { useSessionGeneration } from "../hooks/use-session-generation";
 import { useSessionStore } from "../stores/session.store";
 import { approvalsQueryKeys } from "./approvals-query-keys";
 import { submissionsQueryKeys } from "./submissions-query-keys";
+import { isWorkspaceQuerySessionReady } from "./workspace-query-enabled";
 
 type PaginatedResult<T> = {
   items: T[];
@@ -26,13 +26,18 @@ type PaginatedResult<T> = {
   totalPages: number;
 };
 
+/** Wait until session + JWT agree on user/workspace so badge probes do not race switches. */
 function useWorkspaceQueryEnabled(workspaceId: string, enabled: boolean): boolean {
   const sessionUserId = useSessionStore((s) => s.session?.user?.id);
+  const sessionWorkspaceId = useSessionStore((s) => s.session?.workspaceId);
   const accessToken = useSessionStore((s) => s.accessToken);
-  const tokenUserId = readUserIdFromToken(accessToken);
-  return Boolean(
-    enabled && workspaceId && sessionUserId && tokenUserId && sessionUserId === tokenUserId
-  );
+  return isWorkspaceQuerySessionReady({
+    enabled,
+    workspaceId,
+    sessionUserId,
+    sessionWorkspaceId,
+    accessToken
+  });
 }
 
 function emptyPaginated<T>(): PaginatedResult<T> {

@@ -1,9 +1,8 @@
-import type { WorkspaceWithRoleDto } from "@kloqra/contracts";
 import { create } from "zustand";
 
 interface ProjectsState {
   workspaceNamesById: Record<string, string>;
-  setWorkspaces: (workspaces: WorkspaceWithRoleDto[]) => void;
+  setWorkspaces: (workspaces: Array<{ id: string; name: string }>) => void;
   clear: () => void;
 }
 

@@ -6,8 +6,7 @@ import {
   type MissingTimesheetDto,
   type PendingTimesheetDto,
   type ReviewedTimesheetDto,
-  type TimesheetAmendmentDto,
-  type UserProfileDto
+  type TimesheetAmendmentDto
 } from "@kloqra/contracts";
 import {
   AppBar,
@@ -29,7 +28,11 @@ import {
   TablePagination,
   cn
 } from "@kloqra/ui";
-import { parseAdminApprovalsSearch, hasActiveApprovalsFilter } from "@kloqra/web-shared";
+import {
+  fetchUserProfile,
+  parseAdminApprovalsSearch,
+  hasActiveApprovalsFilter
+} from "@kloqra/web-shared";
 import { Check, X, ChevronDown, ChevronUp } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -473,8 +476,9 @@ export function ApprovalsPage() {
 
   useEffect(() => {
     if (!ws) return;
-    api<UserProfileDto>(ROUTES.USERS.ME, { workspaceId: ws })
+    void fetchUserProfile(ws)
       .then((profile) => {
+        if (!profile) return;
         const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
         setTimezone(resolveEffectiveTimezone(profile.preferences, browserTz));
       })

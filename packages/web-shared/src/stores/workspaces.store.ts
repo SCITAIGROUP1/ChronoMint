@@ -1,9 +1,10 @@
-import type { WorkspaceWithRoleDto } from "@kloqra/contracts";
+import type { WorkspaceListItemDto } from "@kloqra/contracts";
 import { create } from "zustand";
 
 interface WorkspacesState {
-  workspaces: WorkspaceWithRoleDto[];
-  setWorkspaces: (workspaces: WorkspaceWithRoleDto[]) => void;
+  /** Slim list rows from GET /workspaces — id/name/role (no slug required). */
+  workspaces: WorkspaceListItemDto[];
+  setWorkspaces: (workspaces: WorkspaceListItemDto[]) => void;
   clear: () => void;
 }
 

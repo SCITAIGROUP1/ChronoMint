@@ -1,9 +1,9 @@
 "use client";
 
 import { ROUTES, resolveEffectiveTimezone } from "@kloqra/contracts";
-import type { TeamMembersOverviewDto, UserProfileDto } from "@kloqra/contracts";
+import type { TeamMembersOverviewDto } from "@kloqra/contracts";
 import { AppBar } from "@kloqra/ui";
-import { api as sharedApi, fetchProjectTeam, useEntryCatalogQueries } from "@kloqra/web-shared";
+import { fetchProjectTeam, fetchUserProfile, useEntryCatalogQueries } from "@kloqra/web-shared";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { TimesheetDisplayFormat } from "./display-format";
 import { groupLogsByWeek } from "./group-logs-by-week";
@@ -32,8 +32,9 @@ export function AdminTimeTrackerPage() {
 
   useEffect(() => {
     if (!ws) return;
-    sharedApi<UserProfileDto>(ROUTES.USERS.ME, { workspaceId: ws })
+    void fetchUserProfile(ws)
       .then((profile) => {
+        if (!profile) return;
         const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
         const timezone = resolveEffectiveTimezone(profile.preferences, browserTz);
         setWeekStartPref(profile.preferences.weekStart ?? "monday");

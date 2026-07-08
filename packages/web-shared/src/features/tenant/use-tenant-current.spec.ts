@@ -2,6 +2,7 @@
 import { ROUTES } from "@kloqra/contracts";
 import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useTenantCurrentStore } from "../../stores/tenant-current.store";
 import { useTenantCurrent } from "./use-tenant-current";
 
 const api = vi.fn();
@@ -26,6 +27,7 @@ vi.mock("../../auth/workspace-context", () => ({
 describe("useTenantCurrent", () => {
   beforeEach(() => {
     api.mockReset();
+    useTenantCurrentStore.getState().clear();
     sessionState.session = { workspaceId: "ws-1" };
   });
 
@@ -46,6 +48,34 @@ describe("useTenantCurrent", () => {
     expect(api).toHaveBeenCalledWith(ROUTES.TENANTS.CURRENT, { workspaceId: "ws-1" });
     expect(result.current.tenant?.slug).toBe("acme");
     expect(result.current.error).toBeNull();
+  });
+
+  it("shares one in-flight request across remounts", async () => {
+    let resolve!: (value: unknown) => void;
+    api.mockImplementation(
+      () =>
+        new Promise((r) => {
+          resolve = r;
+        })
+    );
+
+    const first = renderHook(() => useTenantCurrent());
+    const second = renderHook(() => useTenantCurrent());
+
+    expect(api).toHaveBeenCalledTimes(1);
+    resolve({
+      id: "tenant-1",
+      name: "Acme",
+      slug: "acme",
+      status: "active",
+      settings: {},
+      createdAt: new Date().toISOString()
+    });
+
+    await waitFor(() => expect(first.result.current.loading).toBe(false));
+    await waitFor(() => expect(second.result.current.loading).toBe(false));
+    expect(first.result.current.tenant?.slug).toBe("acme");
+    expect(second.result.current.tenant?.slug).toBe("acme");
   });
 
   it("loads the current tenant without a workspace during onboarding", async () => {

@@ -1,37 +1,40 @@
 "use client";
 
 import { ROUTES, type TenantDto } from "@kloqra/contracts";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect } from "react";
 import { api } from "../../api/client";
+import { tenantCurrentCacheKey, useTenantCurrentStore } from "../../stores/tenant-current.store";
 import { tenantApiOptions, useTenantApiWorkspaceId } from "./tenant-api-workspace";
 
 export function useTenantCurrent() {
   const workspaceId = useTenantApiWorkspaceId();
-  const [tenant, setTenant] = useState<TenantDto | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const cacheKey = tenantCurrentCacheKey(workspaceId);
+  const entry = useTenantCurrentStore((s) => s.byKey[cacheKey]);
+  const load = useTenantCurrentStore((s) => s.load);
 
   const reload = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await api<TenantDto>(ROUTES.TENANTS.CURRENT, tenantApiOptions(workspaceId));
-      setTenant(data);
-    } catch (e) {
-      setError(
-        e instanceof Error
-          ? e.message
-          : "We couldn't load your organization profile. Please try again."
-      );
-      setTenant(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [workspaceId]);
+    useTenantCurrentStore.setState((state) => {
+      const byKey = { ...state.byKey };
+      delete byKey[cacheKey];
+      const inflight = { ...state.inflight };
+      delete inflight[cacheKey];
+      return { byKey, inflight };
+    });
+    await load(cacheKey, () =>
+      api<TenantDto>(ROUTES.TENANTS.CURRENT, tenantApiOptions(workspaceId))
+    );
+  }, [cacheKey, load, workspaceId]);
 
   useEffect(() => {
-    void reload();
-  }, [reload]);
+    void load(cacheKey, () =>
+      api<TenantDto>(ROUTES.TENANTS.CURRENT, tenantApiOptions(workspaceId))
+    );
+  }, [cacheKey, load, workspaceId]);
 
-  return { tenant, loading, error, reload };
+  return {
+    tenant: entry?.tenant ?? null,
+    loading: entry?.loading ?? true,
+    error: entry?.error ?? null,
+    reload
+  };
 }

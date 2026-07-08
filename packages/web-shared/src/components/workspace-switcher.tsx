@@ -1,7 +1,7 @@
 "use client";
 
 import { ROUTES } from "@kloqra/contracts";
-import type { AuthSessionWithTokenDto, WorkspaceWithRoleDto } from "@kloqra/contracts";
+import type { AuthSessionWithTokenDto, WorkspaceListItemDto } from "@kloqra/contracts";
 import { cn, Input, Spinner } from "@kloqra/ui";
 import { Building2, Check, ChevronDown, ChevronUp, Plus, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -51,9 +51,9 @@ export type WorkspaceSwitcherProps = {
 export { formatAdminWorkspaceAccessLabel, formatWorkspaceRole } from "../auth/admin-access-label";
 
 export function filterWorkspacesByQuery(
-  workspaces: WorkspaceWithRoleDto[],
+  workspaces: WorkspaceListItemDto[],
   query: string
-): WorkspaceWithRoleDto[] {
+): WorkspaceListItemDto[] {
   const normalized = query.trim().toLowerCase();
   if (!normalized) return workspaces;
   return workspaces.filter((workspace) => workspace.name.toLowerCase().includes(normalized));
@@ -127,7 +127,7 @@ export function WorkspaceSwitcher({
   const sectionLabel = isAccountContext ? "Organization" : "Workspace";
   const triggerTitle = isAccountContext ? orgName : (currentWorkspace?.name ?? "Select workspace");
   function workspaceAccessLabel(
-    workspaceRole: WorkspaceWithRoleDto["role"],
+    workspaceRole: WorkspaceListItemDto["role"],
     managedProjectIds?: string[]
   ): string {
     if (memberPortal) return formatMemberPortalWorkspaceLabel();
@@ -146,7 +146,7 @@ export function WorkspaceSwitcher({
 
   useEffect(() => {
     if (!session || workspaces.length > 0) return;
-    api<WorkspaceWithRoleDto[]>(ROUTES.WORKSPACES.LIST, { workspaceId: currentId })
+    api<WorkspaceListItemDto[]>(ROUTES.WORKSPACES.LIST, { workspaceId: currentId })
       .then(setWorkspaces)
       .catch(() => {});
   }, [session, workspaces.length, currentId, setWorkspaces]);
@@ -229,7 +229,7 @@ export function WorkspaceSwitcher({
       }
       setSession(res, res.accessToken, res.refreshToken);
       onAfterSwitch?.();
-      const list = await api<WorkspaceWithRoleDto[]>(ROUTES.WORKSPACES.LIST, {
+      const list = await api<WorkspaceListItemDto[]>(ROUTES.WORKSPACES.LIST, {
         workspaceId: nextId
       });
       setWorkspaces(list);

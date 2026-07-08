@@ -59,7 +59,10 @@ export function NotificationDropdown({
   useEffect(() => {
     if (!open) return;
     void refresh();
-    void refreshUnread();
+    // Unread is already live via subscribeUnread + socket; refresh only when disconnected.
+    if (!socketConnected) {
+      void refreshUnread();
+    }
     function handlePointerDown(event: MouseEvent) {
       if (!menuRef.current?.contains(event.target as Node)) {
         setOpen(false);
@@ -67,7 +70,7 @@ export function NotificationDropdown({
     }
     document.addEventListener("mousedown", handlePointerDown);
     return () => document.removeEventListener("mousedown", handlePointerDown);
-  }, [open, refresh, refreshUnread]);
+  }, [open, refresh, refreshUnread, socketConnected]);
 
   async function markAllRead() {
     await markAllNotificationsRead(workspaceId);

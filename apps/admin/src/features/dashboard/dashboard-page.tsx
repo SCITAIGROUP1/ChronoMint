@@ -1,7 +1,7 @@
 "use client";
 
 import { isShareableWidgetId, ROUTES, resolveEffectiveTimezone } from "@kloqra/contracts";
-import type { DashboardReportDto, TeamMemberDto, UserProfileDto } from "@kloqra/contracts";
+import type { DashboardReportDto, TeamMemberDto } from "@kloqra/contracts";
 import {
   AppBar,
   AppBarActionButton,
@@ -33,7 +33,7 @@ import {
   type DashboardPeriodSelection,
   useEntryCatalogQueries,
   useTasksListQuery,
-  api as sharedApi,
+  fetchUserProfile,
   localMidnightUtcInZone
 } from "@kloqra/web-shared";
 import { Clock, DollarSign, Folder, LayoutGrid, Move, Users } from "lucide-react";
@@ -150,8 +150,9 @@ export function DashboardPage() {
 
   useEffect(() => {
     if (!ws) return;
-    sharedApi<UserProfileDto>(ROUTES.USERS.ME, { workspaceId: ws })
+    void fetchUserProfile(ws)
       .then((profile) => {
+        if (!profile) return;
         const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
         const timezoneVal = resolveEffectiveTimezone(profile.preferences, browserTz);
         setDisplayFormat({

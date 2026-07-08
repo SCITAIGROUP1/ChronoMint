@@ -16,6 +16,7 @@ import { filterAdminAccessibleWorkspaces } from "../../auth/admin-context";
 import { logoutSession } from "../../auth/logout";
 import { useSessionStore } from "../../stores/session.store";
 import { fetchUserProfile } from "../../stores/user-profile.store";
+import { useWorkspacesStore } from "../../stores/workspaces.store";
 import { resolveStartupPath } from "../../utils/startup-page";
 import { useTenantCurrent } from "../tenant/use-tenant-current";
 
@@ -39,9 +40,11 @@ export function WorkspaceSelectForm({
   const setSession = useSessionStore((s) => s.setSession);
   const { tenant } = useTenantCurrent();
   const isOwner = session?.tenantRole === "OWNER";
+  const seededWorkspaces = useWorkspacesStore((s) => s.workspaces);
+  const setWorkspacesStore = useWorkspacesStore((s) => s.setWorkspaces);
 
-  const [workspaces, setWorkspaces] = useState<WorkspaceListItemDto[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [workspaces, setWorkspaces] = useState<WorkspaceListItemDto[]>(seededWorkspaces);
+  const [loading, setLoading] = useState(seededWorkspaces.length === 0);
   const [switchingId, setSwitchingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,29 +56,38 @@ export function WorkspaceSelectForm({
       return;
     }
 
+    const applyList = (list: WorkspaceListItemDto[], persistStore: boolean) => {
+      const filtered = roleFilter
+        ? list.filter((w) => w.role === roleFilter)
+        : memberPortal
+          ? list
+          : filterAdminAccessibleWorkspaces(list);
+      setWorkspaces(filtered);
+      if (persistStore) setWorkspacesStore(list);
+      if (filtered.length === 0) {
+        setError(roleFilter === "ADMIN" ? "No admin workspaces found." : "No workspaces found.");
+      }
+    };
+
+    if (seededWorkspaces.length > 0) {
+      applyList(seededWorkspaces, false);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     api<WorkspaceListItemDto[]>(ROUTES.WORKSPACES.LIST, {
       workspaceId: session.workspaceId
     })
-      .then((list) => {
-        const filtered = roleFilter
-          ? list.filter((w) => w.role === roleFilter)
-          : memberPortal
-            ? list
-            : filterAdminAccessibleWorkspaces(list);
-        setWorkspaces(filtered);
-        if (filtered.length === 0) {
-          setError(roleFilter === "ADMIN" ? "No admin workspaces found." : "No workspaces found.");
-        }
-      })
+      .then((list) => applyList(list, true))
       .catch(() => {
         setError("Failed to load workspaces. Please try again.");
       })
       .finally(() => {
         setLoading(false);
       });
-  }, [session, roleFilter, memberPortal, router]);
+  }, [session, roleFilter, memberPortal, router, seededWorkspaces, setWorkspacesStore]);
 
   async function handleSelectOrganization() {
     if (!session || switchingId) return;

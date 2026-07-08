@@ -6,10 +6,14 @@ import {
   type ExportPresetDto,
   type ExportPreviewBodyDto,
   type ExportPreviewResponseDto,
-  type UserProfileDto,
   type WorkspaceMemberDto
 } from "@kloqra/contracts";
-import { fetchProjectTeam, useEntryCatalogQueries, useTasksListQuery } from "@kloqra/web-shared";
+import {
+  fetchProjectTeam,
+  fetchUserProfile,
+  useEntryCatalogQueries,
+  useTasksListQuery
+} from "@kloqra/web-shared";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -77,8 +81,9 @@ export function ExportsPage() {
   const [userTimezone, setUserTimezone] = useState<string | undefined>(undefined);
   useEffect(() => {
     if (!ws) return;
-    api<UserProfileDto>(ROUTES.USERS.ME, { workspaceId: ws })
+    void fetchUserProfile(ws)
       .then((profile) => {
+        if (!profile) return;
         const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
         setUserTimezone(resolveEffectiveTimezone(profile.preferences, browserTz));
       })

@@ -1,7 +1,7 @@
 "use client";
 
 import { BRAND_NAME, ROUTES } from "@kloqra/contracts";
-import type { WorkspaceWithRoleDto } from "@kloqra/contracts";
+import type { WorkspaceListItemDto } from "@kloqra/contracts";
 import { Button, ResponsiveLayoutShell, SidebarUserFooter, type SidebarNavItem } from "@kloqra/ui";
 import {
   bootstrapSession,
@@ -64,7 +64,7 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (session) {
       if (workspaces.length === 0) {
-        api<WorkspaceWithRoleDto[]>(ROUTES.WORKSPACES.LIST, {
+        api<WorkspaceListItemDto[]>(ROUTES.WORKSPACES.LIST, {
           workspaceId: session.workspaceId
         })
           .then((list) => {

@@ -7,9 +7,9 @@ import {
 import { filterWorkspacesByQuery } from "./workspace-switcher";
 
 const workspaces = [
-  { id: "1", name: "Acme Corporation", slug: "acme", role: "ADMIN" as const },
-  { id: "2", name: "TechStart Inc", slug: "techstart", role: "MEMBER" as const },
-  { id: "3", name: "Design Studio", slug: "design", role: "ADMIN" as const }
+  { id: "1", name: "Acme Corporation", role: "ADMIN" as const },
+  { id: "2", name: "TechStart Inc", role: "MEMBER" as const },
+  { id: "3", name: "Design Studio", role: "ADMIN" as const }
 ];
 
 describe("formatWorkspaceRole", () => {

@@ -15,6 +15,7 @@ type ProfileEntry = {
 type UserProfileStoreState = {
   byWorkspace: Record<string, ProfileEntry>;
   refCounts: Record<string, number>;
+  inflight: Record<string, Promise<UserProfileDto | null>>;
 
   refresh: (workspaceId: string) => Promise<UserProfileDto | null>;
   setProfile: (workspaceId: string, profile: UserProfileDto) => void;
@@ -26,8 +27,9 @@ type UserProfileStoreState = {
 export const useUserProfileStore = create<UserProfileStoreState>((set, get) => ({
   byWorkspace: {},
   refCounts: {},
+  inflight: {},
 
-  clear: () => set({ byWorkspace: {}, refCounts: {} }),
+  clear: () => set({ byWorkspace: {}, refCounts: {}, inflight: {} }),
 
   removeKey: (workspaceId) => {
     set((state) => {
@@ -35,12 +37,17 @@ export const useUserProfileStore = create<UserProfileStoreState>((set, get) => (
       delete byWorkspace[workspaceId];
       const refCounts = { ...state.refCounts };
       delete refCounts[workspaceId];
-      return { byWorkspace, refCounts };
+      const inflight = { ...state.inflight };
+      delete inflight[workspaceId];
+      return { byWorkspace, refCounts, inflight };
     });
   },
 
   refresh: async (workspaceId) => {
     if (!workspaceId) return null;
+    const existing = get().inflight[workspaceId];
+    if (existing) return existing;
+
     const sessionUserId = useSessionStore.getState().session?.user?.id;
     set((state) => ({
       byWorkspace: {
@@ -52,25 +59,41 @@ export const useUserProfileStore = create<UserProfileStoreState>((set, get) => (
         }
       }
     }));
-    try {
-      const { api } = await import("../api/client");
-      const profile = await api<UserProfileDto>(ROUTES.USERS.ME, profileApiOptions(workspaceId));
-      set((state) => ({
-        byWorkspace: {
-          ...state.byWorkspace,
-          [workspaceId]: { profile, loading: false, userId: sessionUserId }
-        }
-      }));
-      return profile;
-    } catch {
-      set((state) => ({
-        byWorkspace: {
-          ...state.byWorkspace,
-          [workspaceId]: { profile: null, loading: false, userId: sessionUserId }
-        }
-      }));
-      return null;
-    }
+
+    const promise = (async (): Promise<UserProfileDto | null> => {
+      try {
+        const { api } = await import("../api/client");
+        const profile = await api<UserProfileDto>(ROUTES.USERS.ME, profileApiOptions(workspaceId));
+        set((state) => {
+          const inflight = { ...state.inflight };
+          delete inflight[workspaceId];
+          return {
+            inflight,
+            byWorkspace: {
+              ...state.byWorkspace,
+              [workspaceId]: { profile, loading: false, userId: sessionUserId }
+            }
+          };
+        });
+        return profile;
+      } catch {
+        set((state) => {
+          const inflight = { ...state.inflight };
+          delete inflight[workspaceId];
+          return {
+            inflight,
+            byWorkspace: {
+              ...state.byWorkspace,
+              [workspaceId]: { profile: null, loading: false, userId: sessionUserId }
+            }
+          };
+        });
+        return null;
+      }
+    })();
+
+    set((state) => ({ inflight: { ...state.inflight, [workspaceId]: promise } }));
+    return promise;
   },
 
   setProfile: (workspaceId, profile) => {
