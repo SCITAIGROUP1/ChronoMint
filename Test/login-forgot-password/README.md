@@ -2,7 +2,9 @@
 
 Standalone Playwright suite (deliberately **outside** the pnpm workspace — see `pnpm-workspace.yaml`, which only includes `apps/*` and `packages/*`). Targets the deployed app directly; no local dev server required.
 
-Source: [../../specs/login-forgot-password.md](../../specs/login-forgot-password.md) (test plan) and [../../specs/login-forgot-password-exploratory-results.md](../../specs/login-forgot-password-exploratory-results.md) (exploratory findings that shaped these scripts, including the two defect-regression tests).
+Source: [../../specs_qa/login-forgot-password.md](../../specs_qa/login-forgot-password.md) (test plan, 40 scenarios / 29 ACs) and [../../specs_qa/login-forgot-password-exploratory-results.md](../../specs_qa/login-forgot-password-exploratory-results.md) (exploratory findings that shaped these scripts, including the defect-regression tests).
+
+> **2026-07-09 refresh:** this suite was extended to cover the full current AC-1–AC-29 scope (previously only AC-1–AC-22 under the pre-expansion numbering — comments in `login.spec.ts` have been renumbered to match: the old "LGN-15/16/17" are now LGN-13/17/18). Added `tests/workspace-session.spec.ts` (Workspace routing + session context: WKS-01, LGN-19, LGN-06 partial, WKS-05 partial, LGN-16, LGN-12, LGN-14) and `tests/logout-security.spec.ts` (LGN-40 — a brand-new regression, not in the original 40-scenario plan, for the "logout doesn't terminate the session server-side" defect found during exploratory testing). See `HEALING_LOG.md` for the run history.
 
 ## Setup
 
@@ -30,23 +32,38 @@ pages/                  # Page Object Model — one class per screen
   login.page.ts
   forgot-password.page.ts
   reset-password.page.ts
-  dashboard.page.ts
+  dashboard.page.ts       # + workspace switcher / nav / redirect helpers
 tests/
-  login.spec.ts
-  forgot-password.spec.ts
+  login.spec.ts             # Login core auth + screen composition/validation
+  forgot-password.spec.ts   # Forgot password + reset password
+  workspace-session.spec.ts # Workspace routing + session/workspace context
+  logout-security.spec.ts   # LGN-40 — new logout/session-termination regression
 ```
 
 ## What's covered
 
-- All credential-free scenarios from the test plan (LGN-02, LGN-03, LGN-15, LGN-16, LGN-17, FPW-02, FPW-05, FPW-07, FPW-10)
-- Credentialed scenarios (LGN-01) gated behind `TEST_USER_EMAIL`/`TEST_USER_PASSWORD` — tests `test.skip()` if unset
-- Two **defect-regression** tests encoding the bugs found in exploratory testing (Step 3):
-  - `[defect regression] sign-in submits exactly once per click` — DEFECT-1
-  - `[defect regression] reset submits exactly once per click` — DEFECT-1
-  - `[defect regression] logout clears client access/refresh tokens from localStorage` — DEFECT-2
+20 live-walkable scenarios automated (the 19 confirmed live in the 2026-07-09 exploratory
+pass, plus the new LGN-40 regression):
 
-These three are **expected to fail** until the underlying bugs are fixed — that's intentional; they're the automated proof the defects exist and stay caught.
+- Login core & screen composition: LGN-01, 02, 03, 06 (partial), 12, 13, 14, 16, 17, 18
+- Workspace routing & session context: WKS-01, WKS-05 (partial), LGN-19
+- Forgot / reset password: FPW-01, 02, 05, 07, 10
+- **LGN-40 (new)** — logout must terminate the session server-side
 
-## Not covered (see exploratory results "Blocked" section)
+The 20 scenarios needing unavailable test data (2FA account, forced-password-change
+account, multi-workspace account, mailbox access for real reset tokens, a second
+device/browser context, the separate Platform Admin app) are **not** automated — see
+the test plan's "Code-verified only — not live-walkable" bucket and `HEALING_LOG.md`.
 
-2FA, unverified email, forced password change, multi-workspace, admin-role, and email-inbox-dependent scenarios need test data this run didn't have. Add fixtures/seed accounts, then extend `tests/` with matching specs.
+Defect-regression tests (expected to fail until the underlying bugs are fixed — this is
+intentional; they are the automated proof the defects exist and stay caught):
+
+- `[defect regression] Enter-then-click must not double-submit /auth/login` — pre-existing, DEFECT-1
+- `[defect regression] Enter-then-click must not double-submit /auth/reset-password` — pre-existing, DEFECT-1
+- `[DEFECT][LGN-40] after logout, a protected route must not silently re-authenticate` — **new**, Finding 1
+
+## Not covered (see exploratory results "Not verified — precondition unavailable" section)
+
+2FA, unverified email, forced password change, multi-workspace, admin-role, email-inbox-dependent,
+and platform-scope scenarios need test data/environments this run didn't have. Add fixtures/seed
+accounts, then extend `tests/` with matching specs.

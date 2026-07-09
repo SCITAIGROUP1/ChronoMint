@@ -41,8 +41,22 @@ test.describe("Login", () => {
     await expect(login.invalidCredentialsError).toBeVisible();
   });
 
-  // LGN-15
-  test("empty submit shows client-side validation without calling the API", async ({ page }) => {
+  // LGN-12 — known gap, not a new defect: button reads "Sign in" (not "Login"), field
+  // is named "Email" (not "Email Address"). Reproduced live 2026-07-09, RQA #561.
+  test("login screen presents expected fields and controls", async ({ page }) => {
+    const login = new LoginPage(page);
+    await login.goto();
+    await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
+    await expect(login.emailInput).toBeVisible();
+    await expect(login.passwordInput).toBeVisible();
+    await expect(login.signInButton).toBeVisible();
+    await expect(login.forgotPasswordLink).toBeVisible();
+  });
+
+  // LGN-13 (renumbered from the pre-expansion plan's LGN-15) — known gap, not a new
+  // defect: wording is "Email/Password is required", not the literal "This field is
+  // required". Validation itself works correctly. Reproduced live 2026-07-09, RQA #561.
+  test("required-field validation on empty submit", async ({ page }) => {
     const login = new LoginPage(page);
     await login.goto();
 
@@ -57,7 +71,24 @@ test.describe("Login", () => {
     expect(loginCallFired).toBe(false);
   });
 
-  // LGN-16
+  // LGN-14
+  test("partial empty submit shows only the blank field's required error", async ({ page }) => {
+    const login = new LoginPage(page);
+    await login.goto();
+
+    let loginCallFired = false;
+    page.on("request", (req) => {
+      if (req.url().includes("/auth/login")) loginCallFired = true;
+    });
+
+    await login.emailInput.fill(TEST_EMAIL || "someone@example.com");
+    await login.submit();
+    await expect(login.passwordRequiredError).toBeVisible();
+    await expect(login.emailRequiredError).not.toBeVisible();
+    expect(loginCallFired).toBe(false);
+  });
+
+  // LGN-17 (renumbered from the pre-expansion plan's LGN-16)
   test("show/hide password toggle switches input type", async ({ page }) => {
     const login = new LoginPage(page);
     await login.goto();
@@ -68,7 +99,7 @@ test.describe("Login", () => {
     expect(await login.passwordInputType()).toBe("text");
   });
 
-  // LGN-17
+  // LGN-18 (renumbered from the pre-expansion plan's LGN-17)
   test("forgot password link navigates to /forgot-password", async ({ page }) => {
     const login = new LoginPage(page);
     await login.goto();
@@ -99,8 +130,11 @@ test.describe("Login", () => {
     ).toHaveLength(1);
   });
 
-  // Investigated but NOT reproduced automatically (see exploratory results "Not confirmed"
-  // section) — kept as a living regression guard in case it resurfaces, not filed as a defect.
+  // Client-side-only check: confirms the scoped localStorage tokens are cleared on logout.
+  // This alone is NOT sufficient evidence the session is dead server-side — see the
+  // Finding 1 regression in tests/logout-security.spec.ts (LGN-40), which proved a
+  // protected route still silently re-authenticates via a cookie-based /auth/refresh
+  // even when these localStorage keys are correctly cleared. Kept as-is; still accurate.
   test("logout clears client access/refresh tokens from localStorage", async ({ page }) => {
     const login = new LoginPage(page);
     await login.goto();
