@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Test Execution Report — Member Timer</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1a1f2b; --muted: #5b6472; --border: #e2e6ec;
+    --card: #f7f8fa; --pass: #157a45; --pass-bg: #e6f6ec;
+    --fail: #b3261e; --fail-bg: #fdeceb; --block: #8a6d00; --block-bg: #fff6dc;
+    --accent: #3555d1; --code-bg: #eef0f4; --warn: #a15c00; --warn-bg: #fff1de;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#14171f; --fg:#e7e9ee; --muted:#9aa3b2; --border:#2a2f3a; --card:#1b1f29;
+      --pass:#5fd58a; --pass-bg:#12291d; --fail:#ff8783; --fail-bg:#2f1414;
+      --block:#e8c34d; --block-bg:#2c2410; --accent:#8ab0ff; --code-bg:#1f2430;
+      --warn:#f0b35c; --warn-bg:#2c2110; }
+  }
+  :root[data-theme="dark"] { --bg:#14171f; --fg:#e7e9ee; --muted:#9aa3b2; --border:#2a2f3a; --card:#1b1f29;
+    --pass:#5fd58a; --pass-bg:#12291d; --fail:#ff8783; --fail-bg:#2f1414;
+    --block:#e8c34d; --block-bg:#2c2410; --accent:#8ab0ff; --code-bg:#1f2430;
+    --warn:#f0b35c; --warn-bg:#2c2110; }
+  :root[data-theme="light"] { --bg:#ffffff; --fg:#1a1f2b; --muted:#5b6472; --border:#e2e6ec;
+    --card:#f7f8fa; --pass:#157a45; --pass-bg:#e6f6ec; --fail:#b3261e; --fail-bg:#fdeceb;
+    --block:#8a6d00; --block-bg:#fff6dc; --accent:#3555d1; --code-bg:#eef0f4;
+    --warn:#a15c00; --warn-bg:#fff1de; }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--fg); font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    line-height: 1.55; margin: 0; padding: 2rem clamp(1rem, 4vw, 3rem) 4rem; max-width: 1150px; }
+  h1 { font-size: 1.7rem; margin-bottom: .25rem; }
+  h2 { font-size: 1.25rem; margin-top: 2.5rem; border-bottom: 1px solid var(--border); padding-bottom: .4rem; }
+  h3 { font-size: 1.05rem; margin-top: 1.5rem; }
+  h4 { font-size: .95rem; margin-top: 1.2rem; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+  .subtitle { color: var(--muted); margin-top: 0; }
+  .meta { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; font-size: .9rem; color: var(--muted); margin: 1rem 0 2rem; }
+  .meta code { background: var(--code-bg); padding: .1rem .4rem; border-radius: 4px; }
+  .stat-row { display: flex; flex-wrap: wrap; gap: .75rem; margin: 1rem 0 2rem; }
+  .stat { flex: 1 1 140px; border: 1px solid var(--border); border-radius: 10px; padding: .9rem 1rem; background: var(--card); }
+  .stat .num { font-size: 1.6rem; font-weight: 700; display: block; }
+  .stat.pass .num { color: var(--pass); }
+  .stat.fail .num { color: var(--fail); }
+  .stat.block .num { color: var(--block); }
+  .stat.warn .num { color: var(--warn); }
+  .stat .label { font-size: .8rem; color: var(--muted); }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0 2rem; font-size: .92rem; }
+  th, td { text-align: left; padding: .5rem .6rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: .8rem; text-transform: uppercase; letter-spacing: .02em; }
+  tr:last-child td { border-bottom: none; }
+  .badge { display: inline-block; padding: .15rem .55rem; border-radius: 999px; font-size: .78rem; font-weight: 600; white-space: nowrap; }
+  .badge.pass { background: var(--pass-bg); color: var(--pass); }
+  .badge.fail { background: var(--fail-bg); color: var(--fail); }
+  .badge.block { background: var(--block-bg); color: var(--block); }
+  .badge.warn { background: var(--warn-bg); color: var(--warn); }
+  code, .mono { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .88em; background: var(--code-bg); padding: .1rem .35rem; border-radius: 4px; }
+  pre { background: var(--code-bg); padding: .9rem 1rem; border-radius: 8px; overflow-x: auto; font-size: .85rem; }
+  a { color: var(--accent); }
+  .card { border: 1px solid var(--border); border-radius: 10px; padding: 1.1rem 1.3rem; margin: 1rem 0; background: var(--card); }
+  .card.defect { border-color: var(--fail); }
+  .card.note { border-color: var(--block); }
+  .card.warn { border-color: var(--warn); }
+  .shots { display: flex; flex-wrap: wrap; gap: 1rem; margin: 1rem 0; }
+  .shots figure { margin: 0; flex: 1 1 260px; max-width: 340px; }
+  .shots img { width: 100%; border: 1px solid var(--border); border-radius: 8px; display: block; }
+  .shots figcaption { font-size: .8rem; color: var(--muted); margin-top: .35rem; text-align: center; }
+  .scroll-x { overflow-x: auto; }
+  .pill-row { display: flex; gap: .4rem; flex-wrap: wrap; margin: .5rem 0 0; }
+  .pill { background: var(--code-bg); border-radius: 6px; padding: .2rem .55rem; font-size: .78rem; }
+  footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); color: var(--muted); font-size: .85rem; }
+  .toc { columns: 2; gap: 2rem; font-size: .9rem; }
+  .toc a { display: block; margin-bottom: .25rem; }
+  ul.tight { margin: .3rem 0; padding-left: 1.3rem; }
+  ul.tight li { margin-bottom: .2rem; }
+  ol.tight { margin: .3rem 0; padding-left: 1.3rem; }
+  ol.tight li { margin-bottom: .3rem; }
+</style>
+</head>
+<body>
+
+<h1>Test Execution Report — Member Timer</h1>
+<p class="subtitle">End-to-end QA workflow: acceptance criteria → test plan → exploratory testing → automation → self-healing execution → defect logging</p>
+
+<div class="meta">
+  <span>Module: <code>timer-member</code></span>
+  <span>Target: <code>https://chrono-mint-client.vercel.app/timer</code> (Client / Member app, standalone page)</span>
+  <span>Date: <code>2026-07-11</code> (first QA pass for this module — no prior report existed)</span>
+  <span>Test account: <code>peter123@yopmail.com</code> (Member, workspace "Integritas")</span>
+  <span>Jira: <a href="https://kloqra.atlassian.net/browse/KAN-15" target="_blank" rel="noopener">KAN-15</a></span>
+</div>
+
+<div class="card note">
+  <strong>This is a brand-new module.</strong> No prior QA pass existed for the Member Timer page before this
+  session. All artifacts below (acceptance criteria, test plan, exploratory pass, automation suite, healing log,
+  this report) were produced in a single continuous run.
+</div>
+
+<div class="card warn">
+  <strong>Not a duplicate of the Dashboard Quick Timer widget.</strong> <code>specs_qa/dashboard-member.md</code>
+  (DM-027–DM-033) and <code>Test/dashboard-member/tests/quick-timer.spec.ts</code> already regression-test the
+  Dashboard's Quick Timer widget: project/task gating, the start/pause/resume/stop lifecycle, and that widget's own
+  filed gaps (#654/#655/#656). This module covers the standalone <code>/timer</code> page only — keyboard shortcuts,
+  the stale-timer dialog and hard auto-stop, the sidebar widgets (Daily Progress with 7-day grid + gamification
+  milestones, Pinned Favorites, Recent Activity, Yesterday summary), and the Jira issue picker, none of which exist
+  on the dashboard widget. See <code>specs_qa/timer-member.md</code>'s "Relationship to the Dashboard Quick Timer QA
+  pass" section for the full boundary.
+</div>
+
+<div class="toc card">
+  <a href="#overview">1. Summary / Overview</a>
+  <a href="#exploratory">2. Exploratory Testing Results</a>
+  <a href="#automation">3. Automation Coverage</a>
+  <a href="#execution">4. Execution Outcome</a>
+  <a href="#defects">5. Defect Log</a>
+  <a href="#coverage">6. Coverage Analysis (33 ACs)</a>
+  <a href="#gaps">7. Not-Verified Scenarios — Explicit Gaps</a>
+</div>
+
+<h2 id="overview">1. Summary / Overview</h2>
+
+<div class="stat-row">
+  <div class="stat pass"><span class="num">37 / 63</span><span class="label">Exploratory scenarios executed live — passed</span></div>
+  <div class="stat block"><span class="num">26</span><span class="label">Exploratory: not verified (precondition unavailable)</span></div>
+  <div class="stat fail"><span class="num">0</span><span class="label">Exploratory: discrepancies found live</span></div>
+  <div class="stat pass"><span class="num">28 / 36</span><span class="label">Automated tests passing (final, stable)</span></div>
+  <div class="stat warn"><span class="num">7</span><span class="label">Flaky — recovered on Playwright's built-in retry</span></div>
+  <div class="stat fail"><span class="num">1</span><span class="label">Automated: confirmed finding (caveated — KAN-15)</span></div>
+</div>
+
+<p>
+This module covers the standalone Member Timer page at <code>/timer</code>: access &amp; prerequisites, starting a
+timer (project/task selection and gating), the active-tracking view (ring, note field, Jira picker, pause/resume/stop),
+keyboard shortcuts, the stale-timer dialog and hard auto-stop, the sidebar widgets (Daily Progress, Pinned Favorites,
+Recent Activity, Yesterday summary), and cross-cutting workspace-scoping/refetch/isolation behavior. Acceptance
+criteria are sourced from <code>docs/qa/user_stories/Timer_Member.md</code> (<strong>33 ACs</strong>, AC-1–AC-33,
+across 7 numbered sections), grounded in <code>docs/specs/timer.md</code>, <code>docs/specs/timelogs.md</code>,
+<code>packages/contracts/src/dto/timer.dto.ts</code>, <code>apps/client/src/features/timer/</code>, and live
+exploration. The test plan (<code>specs_qa/timer-member.md</code>) maps all 33 ACs to <strong>63 scenarios</strong>
+(TM-001–TM-063).
+</p>
+
+<p>
+The source doc's own header notes a live discrepancy versus its own earlier verification: at an earlier date,
+<code>peter123@yopmail.com</code> / "Integritas" had zero assigned projects, confirming AC-4's "no projects assigned"
+empty state live. This session (and this pass's own exploratory run) found the account now has one assigned project
+("Aimswebplus"), which let AC-5–AC-16's active-timer flow be grounded live end-to-end, but means AC-4's empty state
+is <strong>no longer reproducible on this account</strong> — flagged rather than silently re-asserted, per the
+playbook's "if something looks stale, say so" guardrail. See TM-005 in <a href="#coverage">section 6</a>.
+</p>
+
+<h4>Source documents</h4>
+<div class="scroll-x">
+<table>
+  <tr><th>Artifact</th><th>Path</th></tr>
+  <tr><td>Acceptance criteria (33 ACs)</td><td><code>docs/qa/user_stories/Timer_Member.md</code></td></tr>
+  <tr><td>Test plan (63 scenarios / 7 feature areas)</td><td><code>specs_qa/timer-member.md</code></td></tr>
+  <tr><td>Exploratory results</td><td><code>specs_qa/timer-member-exploratory-results.md</code></td></tr>
+  <tr><td>Exploratory screenshots</td><td><code>specs_qa/exploratory/timer-member/</code> (20 screenshots)</td></tr>
+  <tr><td>Automation suite (pages + tests)</td><td><code>Test/timer-member/</code> (2 page objects, 5 spec files, 36 tests)</td></tr>
+  <tr><td>Healing log / run history</td><td><code>Test/timer-member/HEALING_LOG.md</code></td></tr>
+  <tr><td>Filed defect</td><td><a href="https://kloqra.atlassian.net/browse/KAN-15" target="_blank" rel="noopener">KAN-15</a> — caveated, not confirmed as a product regression</td></tr>
+</table>
+</div>
+
+<h2 id="exploratory">2. Exploratory Testing Results</h2>
+
+<p>
+Executed via Playwright MCP (real browser, Chromium) against the live production Client app. Of the plan's 63
+scenarios: <strong>37 passed</strong> live, matching the test plan's documented expected result <strong>verbatim</strong>
+(button labels, banner text, hint text, tab-title formats, tooltip text, empty-state copy), and <strong>26 were not
+verified</strong> because the seeded test account (<code>peter123@yopmail.com</code>, single workspace, one active
+project, no Jira connection) cannot produce the required precondition — see <a href="#gaps">section 7</a> for the
+full list and reasons. <strong>Zero new defects or copy/behavior mismatches were found</strong> during this
+exploratory pass — a clean result.
+</p>
+
+<h3>Notable findings (surprises / follow-ups, not defects)</h3>
+<ol class="tight">
+  <li><strong>TM-027 resolved positively.</strong> Previously carried forward as "not independently re-triggered"
+  (to avoid an extra time-log entry). This pass exercised it directly: pressing <code>Space</code> with focus outside
+  any input stopped a running timer via the normal Stop &amp; save flow — confirmed by the tab title reverting from
+  <code>⏱️ 00:01:55 — Kloqra</code> to plain <code>Kloqra</code>. No gap; the shortcut works as documented.</li>
+  <li><strong>TM-024's literal mouse-click path is still not independently exercised</strong> live (stopped only via
+  keyboard shortcuts this session, to limit throwaway time-log entries) — confirmed via automation instead (see
+  <a href="#automation">section 3</a>), which does click the on-screen button directly.</li>
+  <li><strong>AC-4 remains unreproducible</strong> on this account (still has the "Aimswebplus" project assigned) —
+  consistent with the planning pass's discrepancy note; recommend sourcing a genuinely zero-project Member account
+  for a future pass.</li>
+  <li>All Daily Progress sidebar values (gauge %, hrs/target, "Need X more hours", 7-day tooltips, milestone
+  tooltips) updated live and consistently in-step with the running timer across repeated snapshots — no lag or
+  stale-render issues observed.</li>
+  <li>No console errors attributable to the application were observed (only unrelated Kaspersky browser-extension
+  network-probe noise).</li>
+</ol>
+
+<p>
+Two real timer entries created during testing were deleted via Time Tracker afterward; the account's Today/Week
+totals were verified to return to their pre-session baseline (4.51h / 19.17h) after cleanup.
+</p>
+
+<h3>Screenshots (20 total, full set in <code>specs_qa/exploratory/timer-member/</code>)</h3>
+<div class="shots">
+  <figure><img src="../specs_qa/exploratory/timer-member/TM-001-002-idle-state.png" alt="Idle state"><figcaption>TM-001/002 — idle state, header + Yesterday summary</figcaption></figure>
+  <figure><img src="../specs_qa/exploratory/timer-member/TM-006-project-combobox-open.png" alt="Project combobox open"><figcaption>TM-006 — searchable Project combobox</figcaption></figure>
+  <figure><img src="../specs_qa/exploratory/timer-member/TM-007-task-grouped-categories.png" alt="Task grouped by category"><figcaption>TM-007 — Task list grouped by category</figcaption></figure>
+  <figure><img src="../specs_qa/exploratory/timer-member/TM-009-project-only-start-disabled.png" alt="Start disabled, project only"><figcaption>TM-009 — Start disabled with only Project chosen</figcaption></figure>
+  <figure><img src="../specs_qa/exploratory/timer-member/TM-009-both-selected-start-enabled.png" alt="Start enabled, both chosen"><figcaption>TM-009 — Start enabled once Task also chosen</figcaption></figure>
+  <figure><img src="../specs_qa/exploratory/timer-member/TM-011-015-017-tracking-state.png" alt="Tracking state"><figcaption>TM-011/015/017 — tracking view, ring + subtitle</figcaption></figure>
+  <figure><img src="../specs_qa/exploratory/timer-member/TM-016-021-034-paused-state.png" alt="Paused state"><figcaption>TM-016/021/034 — paused state, banner + tab title</figcaption></figure>
+  <figure><img src="../specs_qa/exploratory/timer-member/TM-019-030-note-field-space-ignored.png" alt="Note field"><figcaption>TM-019/030 — Note field, shortcuts ignored while typing</figcaption></figure>
+  <figure><img src="../specs_qa/exploratory/timer-member/TM-022-resume-continues.png" alt="Resume continues"><figcaption>TM-022 — Resume continues from prior elapsed time</figcaption></figure>
+  <figure><img src="../specs_qa/exploratory/timer-member/TM-024-027-035-stop-via-space-idle.png" alt="Stop via Space"><figcaption>TM-024/027/035 — Stop via Space, reverts to idle</figcaption></figure>
+  <figure><img src="../specs_qa/exploratory/timer-member/TM-026-space-starts-timer.png" alt="Space starts timer"><figcaption>TM-026 — Space starts the timer</figcaption></figure>
+  <figure><img src="../specs_qa/exploratory/timer-member/TM-029-shift-space-pause.png" alt="Shift+Space pause"><figcaption>TM-029 — Shift+Space pauses</figcaption></figure>
+  <figure><img src="../specs_qa/exploratory/timer-member/TM-029-shift-space-resume.png" alt="Shift+Space resume"><figcaption>TM-029 — Shift+Space resumes</figcaption></figure>
+  <figure><img src="../specs_qa/exploratory/timer-member/TM-046-edit-daily-goal-inline.png" alt="Edit daily goal"><figcaption>TM-046 — inline daily-target editor</figcaption></figure>
+  <figure><img src="../specs_qa/exploratory/timer-member/TM-049-weekly-grid-tooltip.png" alt="Weekly grid tooltip"><figcaption>TM-049 — 7-day grid tooltip</figcaption></figure>
+  <figure><img src="../specs_qa/exploratory/timer-member/TM-050-milestone-tooltip.png" alt="Milestone tooltip"><figcaption>TM-050 — milestone badge tooltip</figcaption></figure>
+  <figure><img src="../specs_qa/exploratory/timer-member/TM-051-pinned-favorite-chip.png" alt="Pinned favorite chip"><figcaption>TM-051 — pin/unpin toggle + chip</figcaption></figure>
+  <figure><img src="../specs_qa/exploratory/timer-member/TM-053-favorite-chip-repopulate.png" alt="Favorite chip repopulate"><figcaption>TM-053 — favorite chip re-populates selectors</figcaption></figure>
+  <figure><img src="../specs_qa/exploratory/timer-member/TM-054-empty-favorites-restored.png" alt="Empty favorites"><figcaption>TM-054 — empty-state hint after unpinning</figcaption></figure>
+  <figure><img src="../specs_qa/exploratory/timer-member/TM-055-recent-activity-chip-repopulate.png" alt="Recent activity chip"><figcaption>TM-055 — Recent Activity chip re-populates</figcaption></figure>
+</div>
+
+<h2 id="automation">3. Automation Coverage</h2>
+
+<p>
+Standalone Playwright suite at <code>Test/timer-member/</code> (Page Object Model). <strong>1 dedicated page object
+(<code>TimerPage</code>) plus a copied <code>LoginPage</code>, 5 spec files, 36 automated tests</strong> total, built
+directly from the test plan and the real selectors/copy confirmed live in Step 3.
+</p>
+
+<h4>Page objects</h4>
+<div class="pill-row">
+  <span class="pill"><code>pages/login.page.ts</code></span>
+  <span class="pill"><code>pages/timer.page.ts</code></span>
+</div>
+
+<h4>Spec files and AC coverage mapping</h4>
+<div class="scroll-x">
+<table>
+  <tr><th>Spec file</th><th>Tests</th><th>Covers</th><th>ACs</th></tr>
+  <tr>
+    <td><code>tests/timer-controls.spec.ts</code></td>
+    <td>14</td>
+    <td>Left-nav navigation, idle/tracking header copy, Task combobox gating + category grouping, Start button
+    disabled-until-both-chosen, starting switches to Tracking Time, elapsed ring ticking once/sec, pause freezes
+    elapsed + relabels ring, tracking subtitle format, Note field free text, Pause fires <code>POST /timer/pause</code>
+    + banner, Resume continues from accumulated elapsed (not 0), Stop &amp; save resets UI to idle (real mouse click
+    on the button, closing the exploratory gap around TM-024)</td>
+    <td>AC-1, AC-2, AC-5, AC-7, AC-8, AC-11, AC-12, AC-13, AC-14, AC-15</td>
+  </tr>
+  <tr>
+    <td><code>tests/keyboard-shortcuts.spec.ts</code></td>
+    <td>10</td>
+    <td>Space starts/stops the toggle, Ctrl+Shift+T secondary toggle, Shift+Space pause/resume, shortcuts ignored
+    while typing in the Note field, on-screen shortcut hints (idle + tracking), live tab-title ticking, pause-emoji
+    switch, revert to plain app name on stop</td>
+    <td>AC-17, AC-18, AC-19, AC-20, AC-21</td>
+  </tr>
+  <tr>
+    <td><code>tests/daily-progress.spec.ts</code></td>
+    <td>5</td>
+    <td>Daily Progress gauge + "Need more hours" hint update live while a timer runs, inline daily-goal edit
+    open/Cancel (no persistence pushed), 7-day Mon–Sun grid with status tooltips incl. weekends, all 4 milestone
+    badges with tooltip text, Yesterday summary strip (hours/billable %/top task)</td>
+    <td>AC-26, AC-27, AC-30</td>
+  </tr>
+  <tr>
+    <td><code>tests/favorites-and-recent.spec.ts</code></td>
+    <td>5</td>
+    <td>Pinned Favorites empty-state hint, pin control appears only once both Project and Task are selected,
+    pin/unpin toggles the button and chip, clicking a pinned chip re-populates selectors, Recent Activity chips
+    re-populate and enable Start</td>
+    <td>AC-28, AC-29</td>
+  </tr>
+  <tr>
+    <td><code>tests/cross-cutting.spec.ts</code></td>
+    <td>2</td>
+    <td><code>GET /timer/active</code> polling on mount and after every start/pause/resume/stop action (this test's
+    mount-fire assertion is the one confirmed finding — see <a href="#defects">section 5</a>), workspace-scoping
+    headers (<code>x-auth-scope</code>, <code>x-workspace-id</code>) present on every timer request</td>
+    <td>AC-25, AC-31</td>
+  </tr>
+</table>
+</div>
+
+<h3>Healing narrative — a genuinely deep debugging session, in order discovered</h3>
+<p>
+This module's <code>HEALING_LOG.md</code> documents an unusually deep chain of investigation for a single module.
+Reproducing the lessons here in full since several are broadly reusable for future modules, not just this one.
+</p>
+
+<h4>1. Login rate-limit risk — switched to a shared authenticated session</h4>
+<p>
+The original scaffold logged in fresh via <code>beforeEach</code> for every single test. With ~36 tests plus
+retries, this risked (and at least once, definitively did) trip the app's own login rate limit
+(5 requests/60s, per <code>acceptance-criteria-login-forgot-password.md</code> AC-3) — which manifests as a
+<code>/login</code> redirect instead of <code>/dashboard</code>, a failure that looks like a random, unrelated bug in
+whatever test happens to hit the limit. <strong>Fixed</strong> by adding <code>global-setup.ts</code> (logs in once,
+saves <code>storageState.json</code>) and wiring it into <code>playwright.config.ts</code>; removed per-test
+<code>login()</code> calls from every spec file's <code>beforeEach</code>. <em>Reusable lesson: any suite scaling
+past a handful of tests against a real login form should share one authenticated session rather than re-authenticating
+per test.</em>
+</p>
+
+<h4>2. Two "default expect() timeout too short" bugs</h4>
+<p>
+Same bug class seen in the dashboard-member and login-forgot-password modules. <code>LoginPage.login()</code>'s
+post-login <code>toHaveURL(/\/dashboard/)</code> check used Playwright's default 5s timeout, but the actual redirect
+occasionally takes longer — bumped to 15s. <code>TimerPage.ensureTimerStopped()</code>'s post-click
+<code>toBeHidden()</code> check had the same issue: if the stop-and-save round trip took &gt;5s, the cleanup guard
+itself would throw inside <code>beforeEach</code>, silently failing to clean up and letting a leftover timer cascade
+into later tests. Bumped to 15s, along with <code>stopAndSave()</code>'s own post-stop assertion.
+</p>
+
+<h4>3. A real cascade, root-caused to one test with no try/finally — fixed with a universal afterEach safety net</h4>
+<p>
+<code>cross-cutting.spec.ts</code>'s "GET /timer/active fires on mount and after every timer action" test starts a
+real timer mid-test, then asserts on captured network requests. If that assertion fails (which it does — see the one
+remaining real finding below), the test throws before ever reaching its own stop step, leaving a timer running for
+whatever test runs next. This produced a large, scary-looking cascade of ~12–30 "unrelated" failures across every
+other spec file, each inheriting the leftover active-timer precondition instead of the idle state it expected.
+<strong>Fixed properly, not per-test:</strong> rather than patching this one test's cleanup, an unconditional
+<code>test.afterEach</code> was added to <strong>all 5 spec files</strong> that calls
+<code>TimerPage.ensureTimerStopped()</code> regardless of how the preceding test finished — a permanent safety net
+against any future test written without its own guaranteed cleanup. <em>Reusable lesson: any suite with tests that
+mutate shared, stateful server resources (an active timer, a draft record, a session) needs an unconditional
+teardown, not a per-test try/finally that's easy to forget when a new test is added later.</em>
+</p>
+
+<h4>4. Three more self-healed test-authoring bugs</h4>
+<ul class="tight">
+  <li><strong>Wrong assertion type on an icon-only button</strong> (<code>favorites-and-recent.spec.ts</code>) — two
+  tests asserted <code>toHaveText("Pin current task")</code> on a button whose visible text content is empty; the
+  real label lives in its <code>title</code> attribute (confirmed via live DOM inspection). Fixed both assertions to
+  <code>toHaveAttribute("title", ...)</code>.</li>
+  <li><strong>Dropdown-animation click timing</strong> (<code>TimerPage.selectComboboxOption</code>) — occasionally
+  timed out clicking a Project/Task option immediately after opening the combobox; recovered on Playwright's built-in
+  retry, confirmed not a real defect via 2× isolated re-runs (both "fail then pass on retry") plus prior exploratory
+  confirmation of the same interaction. Fixed by explicitly waiting for the option to be visible before clicking,
+  instead of relying on retry to paper over the animation timing.</li>
+  <li><strong>Tick-wait margin too tight</strong> — <code>waitForTimeout(2500)</code> before asserting the
+  elapsed-time display changed was occasionally too short; bumped to 3500ms across the 3 affected assertions
+  (2 in <code>timer-controls.spec.ts</code>, 1 in <code>keyboard-shortcuts.spec.ts</code>).</li>
+</ul>
+<p>
+None of fixes #1–4 are product defects — all were test-infrastructure or test-authoring issues, confirmed via direct
+investigation (live DOM checks, isolated re-runs) before being treated as such, per the "don't file false defects"
+principle.
+</p>
+
+<h2 id="execution">4. Execution Outcome</h2>
+
+<div class="stat-row">
+  <div class="stat pass"><span class="num">28</span><span class="label">Passed</span></div>
+  <div class="stat fail"><span class="num">1</span><span class="label">Failed (confirmed real, caveated — KAN-15)</span></div>
+  <div class="stat warn"><span class="num">7</span><span class="label">Flaky (recovered on retry, not failures)</span></div>
+  <div class="stat"><span class="num">36</span><span class="label">Total automated tests</span></div>
+</div>
+
+<p>
+This is the authoritative, stable result — reproduced via a clean, isolated final run after all four fix categories
+in <a href="#automation">section 3</a> were applied.
+</p>
+
+<h4>The 1 confirmed failure</h4>
+<div class="card defect">
+  <strong><code>cross-cutting.spec.ts</code> — "GET /timer/active fires on mount and after every timer action"</strong>
+  <p>The mount-time portion of this test fails: <code>expect(mountRequests.length).toBeGreaterThan(0)</code> —
+  <code>mountRequests.length</code> is <code>0</code>. Confirmed twice in isolation (2 separate
+  <code>npx playwright test -g</code> runs, both showing the identical <code>Expected: &gt; 0, Received: 0</code>
+  failure) — a real, reproducible result, not a flake. <strong>However</strong>, this surfaced only after the suite
+  switched to a shared <code>storageState</code> session (fix #1 above) instead of a fresh login per test; it is
+  plausible the app's client-side data layer treats the timer-active state as "already fresh" within some cache
+  window carried over from a very recent prior navigation in the same session and legitimately skips a redundant
+  fetch — which would make this a test-environment artifact, not a product bug. Not deep-dived further per the
+  2-iteration rule. Filed as <a href="https://kloqra.atlassian.net/browse/KAN-15" target="_blank" rel="noopener">KAN-15</a>
+  with this caveat explicit in the ticket — see <a href="#defects">section 5</a>.</p>
+</div>
+
+<h4>The 7 flaky tests (recovered on retry — not treated as failures)</h4>
+<p>
+All 7 recovered cleanly on Playwright's built-in retry and were not chased further; they read as ordinary
+environment/timing noise (this machine has previously shown memory-pressure-driven worker crashes under load, and
+general timing jitter under contention is consistent with that pattern — the same category of noise seen on the
+dashboard-member and login-forgot-password modules' runs). None repeated on a second isolated re-run, unlike the
+mount-fire failure above, which repeated identically twice and was therefore treated as real.
+</p>
+
+<h2 id="defects">5. Defect Log</h2>
+
+<div class="scroll-x">
+<table>
+  <tr><th>Ticket / Reference</th><th>Summary</th><th>Severity / Priority</th><th>Status</th><th>Origin</th></tr>
+  <tr>
+    <td><a href="https://kloqra.atlassian.net/browse/KAN-15" target="_blank" rel="noopener">KAN-15</a></td>
+    <td>Timer page: <code>GET /timer/active</code> does not appear to fire on <code>/timer</code> page mount</td>
+    <td><span class="badge warn">Minor</span> / Low</td>
+    <td><span class="badge block">Backlog</span> (newly filed this session)</td>
+    <td>Discovered during automated execution (<code>cross-cutting.spec.ts</code>), confirmed reproducible twice in
+    isolation. Screenshot evidence attached to the ticket.</td>
+  </tr>
+</table>
+</div>
+
+<div class="card warn">
+  <strong>This finding carries an explicit caveat — do not read it as a confirmed, clean-cut defect.</strong> The
+  ticket itself states the finding surfaced only after this suite switched from a fresh login per test to a single
+  shared authenticated session (<code>storageState</code>), a test-infrastructure change made to avoid the login
+  rate limit, not a change to the app. It is plausible the app's client-side data layer legitimately treats the
+  timer-active state as "already fresh" within a cache window carried over from a very recent prior navigation in
+  the same browser session, and correctly skips a redundant fetch on this specific kind of mount (one that isn't
+  "brand new" from the app's point of view) — in which case this would be a benign, expected optimization, not a
+  defect. The behavior was <strong>not independently re-verified with a genuinely fresh, first-ever session</strong>
+  in this pass. Jira reflects this: Severity is recorded as "Minor (pending verification of the caveat — could be
+  Not a Bug)". Reported by piyumika.p@softcodeit.com, filed 2026-07-11, status Backlog, unassigned.
+</div>
+
+<p>No other defects were found. The exploratory pass (section 2) surfaced zero new discrepancies, and all 3 other
+self-healed issues found during automation (section 3, fixes #2–4) were confirmed as test-infrastructure/authoring
+bugs, not product defects, before being fixed rather than filed.</p>
+
+<h2 id="coverage">6. Coverage Analysis — 33 ACs vs. Scenarios vs. Automation</h2>
+
+<p>Every AC maps to at least one scenario; no orphan scenarios and no uncovered ACs in the plan. Status legend:
+<span class="badge pass">Verified</span> live-confirmed and/or automated, matches expected behavior;
+<span class="badge fail">Finding</span> confirmed-real result against this AC, filed with a caveat;
+<span class="badge block">Not verified</span> precondition unavailable this session.</p>
+
+<div class="scroll-x">
+<table>
+  <tr><th>AC</th><th>Title</th><th>Scenario(s)</th><th>Automated?</th><th>Status</th></tr>
+  <tr><td>AC-1</td><td>Member reaches Timer via left-nav link</td><td>TM-001</td><td>Yes</td><td><span class="badge pass">Verified</span></td></tr>
+  <tr><td>AC-2</td><td>Header copy changes with tracking state</td><td>TM-002, TM-003</td><td>Yes</td><td><span class="badge pass">Verified</span></td></tr>
+  <tr><td>AC-3</td><td>Only one active timer per user (server-enforced)</td><td>TM-004</td><td>No</td><td><span class="badge block">Not verified — needs concurrent session</span></td></tr>
+  <tr><td>AC-4</td><td>"No projects assigned" empty state</td><td>TM-005</td><td>No</td><td><span class="badge block">Not verified — account now has a project (discrepancy flagged)</span></td></tr>
+  <tr><td>AC-5</td><td>Project selector gates Task; tasks grouped by category</td><td>TM-006, TM-007</td><td>Yes</td><td><span class="badge pass">Verified</span></td></tr>
+  <tr><td>AC-6</td><td>"No tasks for this project" empty state</td><td>TM-008</td><td>No</td><td><span class="badge block">Not verified — this account's only project has tasks</span></td></tr>
+  <tr><td>AC-7</td><td>Start button disabled until both chosen, busy "Starting…" label</td><td>TM-009, TM-010</td><td>Partial</td><td><span class="badge pass">TM-009 verified</span> / <span class="badge block">TM-010 not verified — too fast to capture</span></td></tr>
+  <tr><td>AC-8</td><td>Successful start → tracking view + toast + refresh</td><td>TM-011</td><td>Yes</td><td><span class="badge pass">Verified</span></td></tr>
+  <tr><td>AC-9</td><td>Start-conflict messaging (same-workspace / cross-workspace)</td><td>TM-012, TM-013</td><td>No</td><td><span class="badge block">Not verified — needs concurrent session / second workspace</span></td></tr>
+  <tr><td>AC-10</td><td>Controls disabled in view-only (impersonation) mode</td><td>TM-014</td><td>No</td><td><span class="badge block">Not verified — no impersonation-capable account</span></td></tr>
+  <tr><td>AC-11</td><td>Animated ring, HH:MM:SS ticking, Recording/Paused labels</td><td>TM-015, TM-016</td><td>Yes</td><td><span class="badge pass">Verified</span></td></tr>
+  <tr><td>AC-12</td><td>Subtitle shows project — task; stale-task warning hint</td><td>TM-017, TM-018</td><td>Partial</td><td><span class="badge pass">TM-017 verified</span> / <span class="badge block">TM-018 not verified — needs a second admin session</span></td></tr>
+  <tr><td>AC-13</td><td>Note field (2000 char max) + Jira issue picker</td><td>TM-019, TM-020</td><td>Partial</td><td><span class="badge pass">TM-019 verified (ceiling not boundary-tested)</span> / <span class="badge block">TM-020 not verified — no Jira connection</span></td></tr>
+  <tr><td>AC-14</td><td>Pause / Resume mechanics + busy-disable</td><td>TM-021, TM-022, TM-023</td><td>Partial</td><td><span class="badge pass">TM-021, TM-022 verified</span> / <span class="badge block">TM-023 not verified — too fast to capture</span></td></tr>
+  <tr><td>AC-15</td><td>Stop &amp; save creates TimeLog, resets UI, merges caches</td><td>TM-024</td><td>Yes</td><td><span class="badge pass">Verified (automation exercises the literal button click)</span></td></tr>
+  <tr><td>AC-16</td><td>Stop self-heals on "no active timer" server error</td><td>TM-025</td><td>No</td><td><span class="badge block">Not verified — needs a race with another session/auto-stop</span></td></tr>
+  <tr><td>AC-17</td><td><code>Space</code> toggles Start/Stop</td><td>TM-026, TM-027</td><td>Yes</td><td><span class="badge pass">Verified</span></td></tr>
+  <tr><td>AC-18</td><td><code>Ctrl+Shift+T</code> secondary toggle</td><td>TM-028</td><td>Yes</td><td><span class="badge pass">Verified</span></td></tr>
+  <tr><td>AC-19</td><td><code>Shift+Space</code> toggles Pause/Resume; shortcuts ignored while typing</td><td>TM-029, TM-030</td><td>Yes</td><td><span class="badge pass">Verified</span></td></tr>
+  <tr><td>AC-20</td><td>On-screen shortcut hints (idle / tracking)</td><td>TM-031, TM-032</td><td>Yes</td><td><span class="badge pass">Verified</span></td></tr>
+  <tr><td>AC-21</td><td>Tab title reflects timer state live</td><td>TM-033, TM-034, TM-035</td><td>Yes</td><td><span class="badge pass">Verified</span></td></tr>
+  <tr><td>AC-22</td><td>Stale-warning dialog at 8h threshold, 3 actions</td><td>TM-036–TM-039</td><td>No</td><td><span class="badge block">Not verified — needs an 8+ hour unattended window</span></td></tr>
+  <tr><td>AC-23</td><td>Snooze re-appears after 1h; disabled while impersonating</td><td>TM-040, TM-041</td><td>No</td><td><span class="badge block">Not verified — needs 8h+1h window / impersonation</span></td></tr>
+  <tr><td>AC-24</td><td>Hard auto-stop past server ceiling</td><td>TM-042, TM-043</td><td>No</td><td><span class="badge block">Not verified — needs a very long unattended window + env var value</span></td></tr>
+  <tr><td>AC-25</td><td>Client polls <code>GET /timer/active</code> ~30s + on actions</td><td>TM-044</td><td>Yes</td><td><span class="badge fail">Confirmed finding on mount-fire (caveated) — KAN-15; post-action polling verified</span></td></tr>
+  <tr><td>AC-26</td><td>Daily Progress gauge, inline target edit, "Need X more" hint, goal-reached</td><td>TM-045–TM-048</td><td>Partial</td><td><span class="badge pass">TM-045–047 verified</span> / <span class="badge block">TM-048 not verified — account stayed under target</span></td></tr>
+  <tr><td>AC-27</td><td>7-day grid + gamification milestone badges</td><td>TM-049, TM-050</td><td>Yes</td><td><span class="badge pass">Verified</span></td></tr>
+  <tr><td>AC-28</td><td>Pinned Favorites (max 3), pin/unpin, chip repopulate</td><td>TM-051–TM-054</td><td>Yes</td><td><span class="badge pass">Verified</span></td></tr>
+  <tr><td>AC-29</td><td>Recent Activity (up to 3, last 7 days), empty state</td><td>TM-055, TM-056</td><td>Partial</td><td><span class="badge pass">TM-055 verified</span> / <span class="badge block">TM-056 not verified — account has activity every session</span></td></tr>
+  <tr><td>AC-30</td><td>Yesterday summary strip + hidden-when-empty</td><td>TM-057, TM-058</td><td>Partial</td><td><span class="badge pass">TM-057 verified</span> / <span class="badge block">TM-058 not verified — account logged time every session</span></td></tr>
+  <tr><td>AC-31</td><td>Actions scoped to active workspace; cross-workspace switch rejected</td><td>TM-059, TM-060</td><td>Partial</td><td><span class="badge pass">TM-059 verified</span> / <span class="badge block">TM-060 not verified — single-workspace account</span></td></tr>
+  <tr><td>AC-32</td><td>Catalog/recent-logs refetch on focus + stale-data events</td><td>TM-061, TM-062</td><td>No</td><td><span class="badge block">Not verified — not reliably observable / needs concurrent admin session</span></td></tr>
+  <tr><td>AC-33</td><td>Only the member's own logs/tasks/timer are ever shown</td><td>TM-063</td><td>No</td><td><span class="badge block">Not verified — unfalsifiable from a single-account session</span></td></tr>
+</table>
+</div>
+
+<h2 id="gaps">7. Not-Verified Scenarios — Explicit Gaps</h2>
+
+<p>
+<strong>26 of 63 scenarios</strong> could not be walked live or automated this session because the single seeded
+Member account (<code>peter123@yopmail.com</code>, one workspace "Integritas", one active project, no Jira
+connection, no impersonation access) cannot produce the required precondition. Nothing here was silently skipped —
+each is listed below with its specific missing precondition, grouped by category.
+</p>
+
+<div class="scroll-x">
+<table>
+  <tr><th>Missing precondition category</th><th>Scenarios blocked</th><th>Detail</th></tr>
+  <tr>
+    <td>8-hour stale-timer / hard auto-stop windows</td>
+    <td>TM-036, TM-037, TM-038, TM-039, TM-040, TM-041, TM-042, TM-043</td>
+    <td>The stale-warning dialog (default 8h threshold), its 3 actions, the 1-hour snooze re-appearance, and the
+    hard auto-stop ceiling (<code>NEXT_PUBLIC_HARD_AUTO_STOP_HOURS</code>) all require leaving a real timer running
+    unattended for 8+ hours (and longer for the hard ceiling) — not reproducible within a single QA session. Same
+    known-gap category the dashboard-member pass flagged as untestable live (its TD-4).</td>
+  </tr>
+  <tr>
+    <td>Second workspace / second session / second device (concurrency)</td>
+    <td>TM-004, TM-012, TM-013, TM-018, TM-025, TM-060, TM-062</td>
+    <td>Same-workspace and cross-workspace start conflicts, a race between Stop and a server-side "no active timer"
+    state, an admin mutating task assignment mid-timer, workspace-switch rejection, and stale-data-event refetch all
+    require a second concurrent session or a second workspace membership that this account does not have.</td>
+  </tr>
+  <tr>
+    <td>Impersonation ("view as member")</td>
+    <td>TM-014, TM-041</td>
+    <td>No impersonation-capable Admin/Owner account was available this session; TM-041 additionally depends on the
+    8-hour window above.</td>
+  </tr>
+  <tr>
+    <td>Jira integration</td>
+    <td>TM-020</td>
+    <td>This workspace/account has no connected Jira integration, so the "In Progress" issue-picker one-click
+    buttons were never visible to exercise — consistent with the AC's own visibility condition.</td>
+  </tr>
+  <tr>
+    <td>Zero-project / zero-task / zero-activity account variants</td>
+    <td>TM-005, TM-008, TM-048, TM-056, TM-058</td>
+    <td>The "no projects assigned" and "no tasks for this project" empty states, the goal-reached gauge state, and
+    the zero-recent-activity / zero-yesterday-logs empty states all require an account variant (zero projects, a
+    project with zero tasks, a target-exceeding day, or a fresh/reset account) that this seeded account does not
+    currently represent.</td>
+  </tr>
+  <tr>
+    <td>Transient request/UI states too fast to capture</td>
+    <td>TM-010, TM-023</td>
+    <td>The "Starting…" busy label and the mutual Pause/Resume/Stop busy-disable states complete their round trips
+    faster than this session's snapshot cadence could reliably capture — code-verified only, not a defect.</td>
+  </tr>
+  <tr>
+    <td>Tooling limitation / inherently unfalsifiable</td>
+    <td>TM-061, TM-063</td>
+    <td>Window-focus refetch isn't reliably observable via this Playwright session without a real tab-blur/focus
+    cycle plus precise network-call detection; cross-member data isolation (AC-33) is inherently unfalsifiable from
+    a single-account session — it would need a second account's data to exist and be checked for leakage.</td>
+  </tr>
+</table>
+</div>
+
+<p>
+Recommendation carried forward from the test plan and healing log: re-run this suite once a genuinely zero-project
+Member account, a multi-workspace account, a second Member/admin session, a connected Jira integration, and an
+8-hour unattended window become available in the QA environment.
+</p>
+
+<footer>
+  Generated as Step 7 of the QA e2e workflow for module <code>timer-member</code>. Sources: acceptance criteria,
+  test plan, exploratory results, healing log, and Jira (KAN-15) as of 2026-07-11. This is the first report for this
+  module — no prior version exists to supersede.
+</footer>
+
+</body>
+</html>
