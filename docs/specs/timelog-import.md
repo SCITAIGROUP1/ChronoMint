@@ -2,7 +2,10 @@
 
 ## User-visible outcome
 
-Members download a CSV/Excel template and upload time entries from **Time Tracker**. Import is **create-only** (never updates existing rows). Each row uses the same lock, overlap, and access rules as manual entry create.
+Members download a CSV/Excel template and upload time entries from **Time Tracker**. Import
+**creates** new rows only. Rows that already exist (same task + start/end minute, same-task
+coverage, or any overlap conflict) are **skipped** — never updated or duplicated. Overnight
+shifts (`23:00`–`03:30`) roll the end to the next calendar day.
 
 ## API
 
@@ -15,16 +18,30 @@ Contracts: `TIMELOG_IMPORT_COLUMNS`, `timelogImportResponseSchema` in `packages/
 
 ## Columns
 
-`project`, `task`, `date` (YYYY-MM-DD), `start_time` / `end_time` (HH:mm), optional `description`, `billable`.
+Import accepts either:
 
-Resolve `project` / `task` by name (case-insensitive) or UUID within the caller’s accessible projects/tasks. Times are interpreted in the request `timezone`, else user preference, else workspace timezone.
+- the **import template** (headers on row 1), or
+- a **member time-entry export** (title block + same headers + Total footer).
+
+Both use the same core labels: `Project`, `Task`, `Date`, `Start`, `End`, optional `Description`,
+`Billable`. Snake_case aliases (`start_time`, …) still work.
+
+**Export keeps its full report layout** (title/subtitle, `Category`, `Hours`, `Source`, Rate/Amount
+when commercial features are on, and the Total footer). Import does **not** strip those from the
+file — it simply ignores columns it does not need and skips the Total row.
+
+Resolve `project` / `task` by name (case-insensitive) or UUID within the caller’s accessible
+projects/tasks. Times are interpreted in the request `timezone`, else user preference, else
+workspace timezone.
 
 ## Limits
 
 - Max **500** rows per upload
 - File size **2MB**
 - Formats: `.xlsx`, `.csv`
-- Partial success: valid rows create; failures returned as `{ row, reason }`
+- Partial success: `{ created, skipped, failed[] }` — existing/overlapping rows count as skipped
+  (not errors). Only hard failures (unknown project/task, locked period, invalid times) appear in
+  `failed`.
 
 ## UI
 

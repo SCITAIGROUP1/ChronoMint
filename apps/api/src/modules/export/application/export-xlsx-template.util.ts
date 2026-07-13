@@ -250,8 +250,8 @@ export function findTotalLabelColumnIndex(
   columnKeys: string[],
   template: ExportXlsxTemplate
 ): number {
+  // Prefer identity columns; put description last so "Total" is not mistaken for an entry note.
   const preferred = [
-    "description",
     "member",
     "project",
     "client",
@@ -260,7 +260,8 @@ export function findTotalLabelColumnIndex(
     "workspace",
     "date",
     "week_label",
-    "period_label"
+    "period_label",
+    "description"
   ];
   for (const key of preferred) {
     const idx = columnKeys.indexOf(key);

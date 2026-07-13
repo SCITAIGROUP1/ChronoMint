@@ -15,12 +15,15 @@ Filenames include your workspace slug and a `-my-timesheet` segment.
 ## Import
 
 1. On **Time Tracker**, click **Import** in the page header.
-2. Download the **Template**.
-3. Fill rows with `project`, `task`, `date`, `start_time`, `end_time` (optional `description`, `billable`).
+2. Download the **Template** (headers match export: Project, Task, Date, Start, End, …).
+3. Fill rows, **or** upload a member time-entry export — title rows, extra columns, and the Total
+   footer are ignored.
 4. Upload the `.xlsx` or `.csv` file and click **Import entries**.
 5. Review created vs failed rows. Successful entries appear in the list after refresh.
 
-Import only **creates** new entries for you. Locked periods, overlaps, and unknown projects/tasks fail that row without undoing the rest.
+Import only **creates** new entries for you. Rows that already match an existing entry (same task
+and start/end) are **skipped**. Locked periods, overlaps with _different_ entries, and unknown
+projects/tasks fail that row without undoing the rest.
 
 ## What is not included
 

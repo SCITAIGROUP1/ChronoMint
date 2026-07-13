@@ -134,6 +134,18 @@ export const TIMELOG_IMPORT_COLUMNS = [
   "billable"
 ] as const;
 
+/** Human headers for the import template (aligned with member time-entry export labels). */
+export const TIMELOG_IMPORT_COLUMN_LABELS: Record<(typeof TIMELOG_IMPORT_COLUMNS)[number], string> =
+  {
+    project: "Project",
+    task: "Task",
+    date: "Date",
+    start_time: "Start",
+    end_time: "End",
+    description: "Description",
+    billable: "Billable"
+  };
+
 export const timelogImportRowSchema = z.object({
   project: z.string().trim().min(1).max(200),
   task: z.string().trim().min(1).max(200),
@@ -160,6 +172,8 @@ export const timelogImportFailedRowSchema = z.object({
 
 export const timelogImportResponseSchema = z.object({
   created: z.number().int().nonnegative(),
+  /** Rows that already match an existing entry (same task + start/end); not created again. */
+  skipped: z.number().int().nonnegative().default(0),
   failed: z.array(timelogImportFailedRowSchema)
 });
 

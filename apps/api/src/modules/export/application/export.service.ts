@@ -23,6 +23,7 @@ import { HttpStatus, Injectable } from "@nestjs/common";
 import archiver from "archiver";
 import PDFDocument from "pdfkit";
 import { assertClientCommercialFeaturesEnabled } from "../../../common/commercial/assert-commercial-features";
+import { isClientCommercialFeaturesEnabled } from "../../../common/commercial/client-commercial-features.util";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { roundExport } from "../../../common/time/round.util";
@@ -57,17 +58,25 @@ type ExportScope = "admin" | "member";
 const COMMERCIAL_REPORT_TYPES = new Set<ExportReportType>(["invoice", "budget_vs_actual"]);
 const COMMERCIAL_EXPORT_COLUMNS = new Set(["rate", "amount", "billable_amount"]);
 
-function assertExportAllowsCommercialFeatures(
-  reportTypes: readonly string[],
-  columns?: Partial<Record<string, string[]>> | null
-): void {
-  const columnValues = columns ? Object.values(columns).flatMap((c) => c ?? []) : [];
-  const needsCommercial =
-    reportTypes.some((r) => COMMERCIAL_REPORT_TYPES.has(r as ExportReportType)) ||
-    columnValues.some((c) => COMMERCIAL_EXPORT_COLUMNS.has(c));
-  if (needsCommercial) {
+/** Reject commercial-only report types when the kill-switch is off. */
+function assertExportAllowsCommercialFeatures(reportTypes: readonly string[]): void {
+  if (reportTypes.some((r) => COMMERCIAL_REPORT_TYPES.has(r as ExportReportType))) {
     assertClientCommercialFeaturesEnabled();
   }
+}
+
+/** Drop rate/amount columns when commercial features are off (hours export still works). */
+function stripCommercialExportColumns(columns: string[]): string[] {
+  if (isClientCommercialFeaturesEnabled()) return columns;
+  const kept = columns.filter((c) => !COMMERCIAL_EXPORT_COLUMNS.has(c));
+  if (kept.length === 0) {
+    throw new DomainException(
+      ErrorCodes.COMMERCIAL_FEATURES_DISABLED,
+      "Client commercial features (rates, revenue, budgets, invoices) are disabled.",
+      HttpStatus.FORBIDDEN
+    );
+  }
+  return kept;
 }
 
 type ExportFileBase = {
@@ -92,7 +101,7 @@ export class ExportService {
     workspaceId: string,
     body: ExportBodyDto
   ): Promise<{ buffer: Buffer; contentType: string; filename: string }> {
-    assertExportAllowsCommercialFeatures(body.reportTypes, body.columns);
+    assertExportAllowsCommercialFeatures(body.reportTypes);
     return this.runExport(workspaceId, body, "admin");
   }
 
@@ -101,7 +110,7 @@ export class ExportService {
     userId: string,
     body: MemberExportBodyDto
   ): Promise<{ buffer: Buffer; contentType: string; filename: string }> {
-    assertExportAllowsCommercialFeatures(body.reportTypes, body.columns);
+    assertExportAllowsCommercialFeatures(body.reportTypes);
     return this.runExport(
       workspaceId,
       {
@@ -150,7 +159,7 @@ export class ExportService {
     workspaceId: string,
     body: ExportPreviewBodyDto
   ): Promise<ExportPreviewResponseDto> {
-    assertExportAllowsCommercialFeatures(body.reportTypes, body.columns);
+    assertExportAllowsCommercialFeatures(body.reportTypes);
     const ctx = await this.loadContext(workspaceId, body);
     const counts = {} as Record<ExportReportType, number>;
     const sheetPlan = await this.buildSheets(
@@ -394,8 +403,10 @@ export class ExportService {
       ? resolveMemberExportColumns(report as MemberExportReportType, memberBody?.columns)
       : resolveExportColumns(report, body.columns);
 
-    if (hasCustomColumns) return base;
-    return applyPurposeColumnPreset(base, report as ExportSheetReport, purposeSlug);
+    const withPurpose = hasCustomColumns
+      ? base
+      : applyPurposeColumnPreset(base, report as ExportSheetReport, purposeSlug);
+    return stripCommercialExportColumns(withPurpose);
   }
 
   private buildMemberRows(

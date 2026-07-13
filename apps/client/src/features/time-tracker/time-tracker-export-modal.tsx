@@ -19,12 +19,24 @@ import {
   SelectValue,
   formatDateRangeLabel
 } from "@kloqra/ui";
-import { toDateInputValue, useDisplayPreferences, useProjectsListQuery } from "@kloqra/web-shared";
+import {
+  isClientCommercialFeaturesEnabled,
+  toDateInputValue,
+  useDisplayPreferences,
+  useProjectsListQuery
+} from "@kloqra/web-shared";
 import { CalendarDays } from "lucide-react";
 import { useEffect, useState } from "react";
 import { apiDownloadPost, saveDownloadResponse } from "@/lib/download";
 import { getWorkspaceId, useSessionStore } from "@/stores/session.store";
 
+const COMMERCIAL_EXPORT_COLUMNS = new Set(["rate", "amount", "billable_amount"]);
+
+function memberTimeEntryColumns(): string[] {
+  const cols = [...DEFAULT_MEMBER_EXPORT_COLUMNS.time_entries];
+  if (isClientCommercialFeaturesEnabled()) return cols;
+  return cols.filter((c) => !COMMERCIAL_EXPORT_COLUMNS.has(c));
+}
 type TimeTrackerExportModalProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -73,7 +85,7 @@ export function TimeTrackerExportModal({
         billable,
         reportTypes: ["time_entries"],
         format,
-        columns: { time_entries: [...DEFAULT_MEMBER_EXPORT_COLUMNS.time_entries] },
+        columns: { time_entries: memberTimeEntryColumns() },
         ...(timezone ? { timezone } : {}),
         ...(projectId ? { projectId } : {})
       };
@@ -88,8 +100,9 @@ export function TimeTrackerExportModal({
       });
       await saveDownloadResponse(res, fallback);
       onOpenChange(false);
-    } catch {
-      setError("Export failed. Check the date range and try again.");
+    } catch (e) {
+      const message = e instanceof Error ? e.message : null;
+      setError(message && message !== "Failed to fetch" ? message : "Export failed. Try again.");
     } finally {
       setExporting(false);
     }
@@ -101,7 +114,8 @@ export function TimeTrackerExportModal({
       onOpenChange={onOpenChange}
       title="Export my time"
       description="Download your time entries for payroll or your records."
-      size="md"
+      size={pickingRange ? "xl" : "md"}
+      className={pickingRange ? "sm:max-w-[44rem]" : undefined}
       footer={
         <>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

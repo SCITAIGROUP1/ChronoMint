@@ -67,6 +67,7 @@ import {
   updateTimeLogSchema,
   timelogImportRowSchema,
   timelogImportResponseSchema,
+  TIMELOG_IMPORT_COLUMN_LABELS,
   updateUserPreferencesSchema,
   userProfileSchema
 } from "./index";
@@ -139,6 +140,12 @@ describe("contracts", () => {
       failed: [{ row: 3, reason: "Unknown task" }]
     });
     expect(response.success).toBe(true);
+    if (response.success) {
+      expect(response.data.skipped).toBe(0);
+    }
+
+    expect(TIMELOG_IMPORT_COLUMN_LABELS.start_time).toBe("Start");
+    expect(TIMELOG_IMPORT_COLUMN_LABELS.end_time).toBe("End");
   });
 
   it("exposes timesheet submissions route", () => {

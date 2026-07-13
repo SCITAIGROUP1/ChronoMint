@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { DomainException } from "../../../common/errors/domain.exception";
 import { ExportService } from "./export.service";
 
 describe("ExportService loadContext", () => {
@@ -17,6 +18,7 @@ describe("ExportService loadContext", () => {
 
   const workspaceId = "ws-1";
   const taskId = "550e8400-e29b-41d4-a716-446655440000";
+  const prevCommercial = process.env.CLIENT_COMMERCIAL_FEATURES_ENABLED;
 
   beforeEach(() => {
     mockPrisma = {
@@ -47,6 +49,11 @@ describe("ExportService loadContext", () => {
       teamMemberUserIds: vi.fn()
     };
     service = new ExportService(mockPrisma as never, mockAggregation as never, {} as never);
+  });
+
+  afterEach(() => {
+    if (prevCommercial === undefined) delete process.env.CLIENT_COMMERCIAL_FEATURES_ENABLED;
+    else process.env.CLIENT_COMMERCIAL_FEATURES_ENABLED = prevCommercial;
   });
 
   it("passes taskId to fetchLogs", async () => {
@@ -86,5 +93,35 @@ describe("ExportService loadContext", () => {
       workspaceId,
       expect.objectContaining({ userId: "user-isolation-123" })
     );
+  });
+
+  it("generateMember allows rate/amount columns when commercial features are off (strips them)", async () => {
+    process.env.CLIENT_COMMERCIAL_FEATURES_ENABLED = "false";
+    await service.generateMember(workspaceId, "user-1", {
+      from: "2025-06-01",
+      to: "2025-06-07",
+      reportTypes: ["time_entries"],
+      format: "csv",
+      columns: {
+        time_entries: ["project", "date", "hours", "billable", "rate", "amount", "description"]
+      }
+    });
+
+    expect(mockAggregation.fetchLogs).toHaveBeenCalled();
+  });
+
+  it("generate rejects invoice report type when commercial features are off", async () => {
+    process.env.CLIENT_COMMERCIAL_FEATURES_ENABLED = "false";
+    await expect(
+      service.generate(workspaceId, {
+        from: "2025-06-01",
+        to: "2025-06-07",
+        billable: "all",
+        groupBy: [],
+        sheetLayout: "standard",
+        reportTypes: ["invoice"],
+        format: "csv"
+      })
+    ).rejects.toBeInstanceOf(DomainException);
   });
 });

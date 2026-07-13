@@ -1,4 +1,5 @@
 import {
+  TIMELOG_IMPORT_COLUMN_LABELS,
   TIMELOG_IMPORT_COLUMNS,
   TIMELOG_IMPORT_MAX_ROWS,
   timelogImportRowSchema,
@@ -16,7 +17,35 @@ import { TimelogsService } from "./timelogs.service";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+type ImportColumn = (typeof TIMELOG_IMPORT_COLUMNS)[number];
 type ParsedImportRow = TimelogImportRowDto & { rowNumber: number; invalidReason?: string };
+type ColumnMap = Partial<Record<ImportColumn, number>>;
+
+const REQUIRED_IMPORT_COLUMNS = ["project", "task", "date", "start_time", "end_time"] as const;
+
+/** Map export / template / snake_case headers onto import field keys. */
+const HEADER_ALIASES: Record<string, ImportColumn> = {
+  project: "project",
+  task: "task",
+  date: "date",
+  start: "start_time",
+  "start time": "start_time",
+  end: "end_time",
+  "end time": "end_time",
+  description: "description",
+  billable: "billable",
+  // Keep aliases in sync with TIMELOG_IMPORT_COLUMN_LABELS / member export labels.
+  ...Object.fromEntries(
+    TIMELOG_IMPORT_COLUMNS.map((key) => [
+      TIMELOG_IMPORT_COLUMN_LABELS[key]
+        .trim()
+        .toLowerCase()
+        .replace(/[_-]+/g, " ")
+        .replace(/\s+/g, " "),
+      key
+    ])
+  )
+};
 
 @Injectable()
 export class TimelogImportService {
@@ -29,10 +58,11 @@ export class TimelogImportService {
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("Time entries");
     sheet.columns = TIMELOG_IMPORT_COLUMNS.map((key) => ({
-      header: key,
+      header: TIMELOG_IMPORT_COLUMN_LABELS[key],
       key,
       width: key === "description" ? 40 : 18
     }));
+    sheet.getRow(1).font = { bold: true };
     sheet.addRow({
       project: "Example Project",
       task: "Example Task",
@@ -40,7 +70,7 @@ export class TimelogImportService {
       start_time: "09:00",
       end_time: "10:30",
       description: "Optional notes",
-      billable: "true"
+      billable: "yes"
     });
 
     res.setHeader(
@@ -80,6 +110,7 @@ export class TimelogImportService {
     const catalog = await this.loadTaskCatalog(params.workspaceId, params.userId, params.role);
 
     let created = 0;
+    let skipped = 0;
     const failed: TimelogImportResponseDto["failed"] = [];
 
     for (const row of rows) {
@@ -88,11 +119,25 @@ export class TimelogImportService {
           throw new Error(row.invalidReason);
         }
         const taskId = this.resolveTaskId(catalog, row.project, row.task);
-        const start = combineDayAndTimeInZone(row.date, normalizeClock(row.start_time), timezone);
-        const end = combineDayAndTimeInZone(row.date, normalizeClock(row.end_time), timezone);
+        const startClock = normalizeClock(row.start_time);
+        const endClock = normalizeClock(row.end_time);
+        const start = this.timelogs.localTimeToUtc(row.date, startClock, timezone);
+        let end = this.timelogs.localTimeToUtc(row.date, endClock, timezone);
+        // Export stores overnight shifts as same-date Start/End (e.g. 23:00–03:30).
+        if (end.getTime() <= start.getTime()) {
+          end = this.timelogs.localTimeToUtc(addOneCalendarDay(row.date), endClock, timezone);
+        }
         if (end.getTime() <= start.getTime()) {
           throw new Error("end_time must be after start_time");
         }
+
+        // Re-importing an export: skip if this slot is already covered on the same task.
+        const alreadyLogged = await this.findExistingCoverage(params.userId, taskId, start, end);
+        if (alreadyLogged) {
+          skipped += 1;
+          continue;
+        }
+
         await this.timelogs.create(params.workspaceId, params.userId, params.role, {
           taskId,
           startTime: start.toISOString(),
@@ -102,6 +147,15 @@ export class TimelogImportService {
         });
         created += 1;
       } catch (err) {
+        // Re-upload of existing times: overlaps mean the slot is already taken — skip, don't fail.
+        if (
+          (err instanceof DomainException && err.code === ErrorCodes.TIMELOG_OVERLAP) ||
+          (err instanceof Error &&
+            (/overlap/i.test(err.message) || /can't log time for two projects/i.test(err.message)))
+        ) {
+          skipped += 1;
+          continue;
+        }
         failed.push({
           row: row.rowNumber,
           reason:
@@ -114,9 +168,44 @@ export class TimelogImportService {
       }
     }
 
-    return { created, failed };
+    return { created, skipped, failed };
   }
 
+  /**
+   * Same entry after export→re-import.
+   * Export only writes HH:mm (seconds dropped), so we compare at minute precision — not fuzzy matching.
+   * Also treats same-task overlaps as already present (defensive if overnight/TZ reconstruction drifts).
+   */
+  private async findExistingCoverage(userId: string, taskId: string, start: Date, end: Date) {
+    const startMin = floorToUtcMinute(start);
+    const endMin = floorToUtcMinute(end);
+    const exact = await this.prisma.timeLog.findFirst({
+      where: {
+        userId,
+        taskId,
+        startTime: {
+          gte: startMin,
+          lt: new Date(startMin.getTime() + 60_000)
+        },
+        endTime: {
+          gte: endMin,
+          lt: new Date(endMin.getTime() + 60_000)
+        }
+      },
+      select: { id: true }
+    });
+    if (exact) return exact;
+
+    return this.prisma.timeLog.findFirst({
+      where: {
+        userId,
+        taskId,
+        startTime: { lt: end },
+        endTime: { gt: start }
+      },
+      select: { id: true }
+    });
+  }
   private async resolveTimezone(
     workspaceId: string,
     userId: string,
@@ -227,40 +316,35 @@ export class TimelogImportService {
       );
     }
 
-    const headerRow = sheet.getRow(1);
-    const headers = TIMELOG_IMPORT_COLUMNS.map((_, index) =>
-      String(headerRow.getCell(index + 1).text ?? "")
-        .trim()
-        .toLowerCase()
-    );
-    for (const required of ["project", "task", "date", "start_time", "end_time"] as const) {
-      if (!headers.includes(required)) {
-        throw new DomainException(
-          ErrorCodes.VALIDATION_ERROR,
-          `Missing required column "${required}"`,
-          HttpStatus.BAD_REQUEST
-        );
-      }
-    }
-
-    return this.rowsFromSheet(sheet, headers);
+    const { headerRowNumber, columns } = findHeaderRowInSheet(sheet);
+    assertRequiredColumns(columns);
+    return this.rowsFromSheet(sheet, columns, headerRowNumber);
   }
 
-  private rowsFromSheet(sheet: ExcelJS.Worksheet, headers: string[]): ParsedImportRow[] {
-    const colIndex = (name: string) => headers.indexOf(name);
+  private rowsFromSheet(
+    sheet: ExcelJS.Worksheet,
+    columns: ColumnMap,
+    headerRowNumber: number
+  ): ParsedImportRow[] {
     const rows: ParsedImportRow[] = [];
     sheet.eachRow((row, rowNumber) => {
-      if (rowNumber === 1) return;
+      if (rowNumber <= headerRowNumber) return;
       const raw = {
-        project: cellText(row.getCell(colIndex("project") + 1)),
-        task: cellText(row.getCell(colIndex("task") + 1)),
-        date: normalizeExcelDate(row.getCell(colIndex("date") + 1)),
-        start_time: normalizeExcelClock(row.getCell(colIndex("start_time") + 1)),
-        end_time: normalizeExcelClock(row.getCell(colIndex("end_time") + 1)),
-        description: cellText(row.getCell(colIndex("description") + 1)) || undefined,
-        billable: cellText(row.getCell(colIndex("billable") + 1)) || undefined
+        project: cellText(row.getCell((columns.project ?? 0) + 1)),
+        task: cellText(row.getCell((columns.task ?? 0) + 1)),
+        date: normalizeExcelDate(row.getCell((columns.date ?? 0) + 1)),
+        start_time: normalizeExcelClock(row.getCell((columns.start_time ?? 0) + 1)),
+        end_time: normalizeExcelClock(row.getCell((columns.end_time ?? 0) + 1)),
+        description:
+          columns.description !== undefined
+            ? cellText(row.getCell(columns.description + 1)) || undefined
+            : undefined,
+        billable:
+          columns.billable !== undefined
+            ? cellText(row.getCell(columns.billable + 1)) || undefined
+            : undefined
       };
-      if (!raw.project && !raw.task && !raw.date) return;
+      if (isSkippableImportRow(raw)) return;
       rows.push(toParsedRow(raw, rowNumber));
     });
     return rows;
@@ -270,37 +354,125 @@ export class TimelogImportService {
     const lines = text
       .replace(/^\uFEFF/, "")
       .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter(Boolean);
+      .map((line) => line.trimEnd())
+      .filter((line) => line.trim().length > 0);
     if (lines.length < 2) return [];
-    const headers = splitCsvLine(lines[0]!).map((h) => h.trim().toLowerCase());
-    for (const required of ["project", "task", "date", "start_time", "end_time"] as const) {
-      if (!headers.includes(required)) {
-        throw new DomainException(
-          ErrorCodes.VALIDATION_ERROR,
-          `Missing required column "${required}"`,
-          HttpStatus.BAD_REQUEST
-        );
+
+    let headerLineIndex = -1;
+    let columns: ColumnMap = {};
+    for (let i = 0; i < Math.min(lines.length, 30); i += 1) {
+      const mapped = mapHeaders(splitCsvLine(lines[i]!).map((h) => h.trim()));
+      if (hasRequiredColumns(mapped)) {
+        headerLineIndex = i;
+        columns = mapped;
+        break;
       }
     }
-    const idx = (name: string) => headers.indexOf(name);
+    if (headerLineIndex < 0) {
+      throwMissingRequiredColumn(columns);
+    }
+    assertRequiredColumns(columns);
+
     const rows: ParsedImportRow[] = [];
-    for (let i = 1; i < lines.length; i += 1) {
+    for (let i = headerLineIndex + 1; i < lines.length; i += 1) {
       const cols = splitCsvLine(lines[i]!);
       const raw = {
-        project: cols[idx("project")]?.trim() ?? "",
-        task: cols[idx("task")]?.trim() ?? "",
-        date: cols[idx("date")]?.trim() ?? "",
-        start_time: cols[idx("start_time")]?.trim() ?? "",
-        end_time: cols[idx("end_time")]?.trim() ?? "",
-        description: cols[idx("description")]?.trim() || undefined,
-        billable: cols[idx("billable")]?.trim() || undefined
+        project: cols[columns.project!]?.trim() ?? "",
+        task: cols[columns.task!]?.trim() ?? "",
+        date: cols[columns.date!]?.trim() ?? "",
+        start_time: cols[columns.start_time!]?.trim() ?? "",
+        end_time: cols[columns.end_time!]?.trim() ?? "",
+        description:
+          columns.description !== undefined
+            ? cols[columns.description]?.trim() || undefined
+            : undefined,
+        billable:
+          columns.billable !== undefined ? cols[columns.billable]?.trim() || undefined : undefined
       };
-      if (!raw.project && !raw.task && !raw.date) continue;
+      if (isSkippableImportRow(raw)) continue;
       rows.push(toParsedRow(raw, i + 1));
     }
     return rows;
   }
+}
+
+export function canonicalizeImportHeader(raw: string): ImportColumn | null {
+  const normalized = raw.trim().toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
+  return HEADER_ALIASES[normalized] ?? null;
+}
+
+export function mapHeaders(headers: string[]): ColumnMap {
+  const columns: ColumnMap = {};
+  headers.forEach((header, index) => {
+    const key = canonicalizeImportHeader(header);
+    if (key && columns[key] === undefined) columns[key] = index;
+  });
+  return columns;
+}
+
+function hasRequiredColumns(columns: ColumnMap): boolean {
+  return REQUIRED_IMPORT_COLUMNS.every((key) => columns[key] !== undefined);
+}
+
+function assertRequiredColumns(columns: ColumnMap): void {
+  for (const required of REQUIRED_IMPORT_COLUMNS) {
+    if (columns[required] === undefined) {
+      throwMissingRequiredColumn(columns, required);
+    }
+  }
+}
+
+function throwMissingRequiredColumn(columns: ColumnMap, missing?: string): never {
+  const required = missing ?? REQUIRED_IMPORT_COLUMNS.find((key) => columns[key] === undefined);
+  throw new DomainException(
+    ErrorCodes.VALIDATION_ERROR,
+    `Missing required column "${required ?? "project"}"`,
+    HttpStatus.BAD_REQUEST
+  );
+}
+
+function findHeaderRowInSheet(sheet: ExcelJS.Worksheet): {
+  headerRowNumber: number;
+  columns: ColumnMap;
+} {
+  const maxScan = Math.min(sheet.rowCount || 1, 40);
+  for (let rowNumber = 1; rowNumber <= maxScan; rowNumber += 1) {
+    const row = sheet.getRow(rowNumber);
+    const headers: string[] = [];
+    row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+      headers[colNumber - 1] = String(cell.text ?? "").trim();
+    });
+    const columns = mapHeaders(headers);
+    if (hasRequiredColumns(columns)) {
+      return { headerRowNumber: rowNumber, columns };
+    }
+  }
+  throwMissingRequiredColumn({});
+}
+
+function isSkippableImportRow(raw: {
+  project: string;
+  task: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+  description?: string;
+}): boolean {
+  if (!raw.project && !raw.task && !raw.date) return true;
+
+  // Export total footer may put "Total" under Project (or Description).
+  const markers = [raw.project, raw.task, raw.description ?? ""].map((s) => s.trim().toLowerCase());
+  if (markers.includes("total")) {
+    if (
+      !raw.start_time ||
+      !raw.end_time ||
+      !raw.task ||
+      raw.task.trim().toLowerCase() === "total"
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function cellText(cell: ExcelJS.Cell): string {
@@ -401,6 +573,18 @@ export function combineDayAndTimeInZone(dateKey: string, time: string, timezone:
   if (timezone === "UTC") return guess;
   const offsetMs = getTimezoneOffsetMs(guess, timezone);
   return new Date(guess.getTime() - offsetMs);
+}
+
+export function addOneCalendarDay(dateKey: string): string {
+  const [y, m, d] = dateKey.split("-").map(Number);
+  const next = new Date(Date.UTC(y!, m! - 1, d! + 1));
+  return next.toISOString().slice(0, 10);
+}
+
+/** Export writes HH:mm only — compare identity at that precision. */
+export function floorToUtcMinute(date: Date): Date {
+  const ms = date.getTime();
+  return new Date(ms - (ms % 60_000));
 }
 
 function getTimezoneOffsetMs(date: Date, timeZone: string): number {

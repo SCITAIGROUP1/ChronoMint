@@ -62,6 +62,16 @@ describe("export-xlsx-template.util", () => {
     expect(findTotalLabelColumnIndex(["member", "hours", "amount"], template)).toBe(0);
   });
 
+  it("prefers project over description for the totals label", () => {
+    const template = getExportXlsxTemplate("time_entries");
+    expect(
+      findTotalLabelColumnIndex(
+        ["project", "category", "task", "date", "hours", "billable", "description", "source"],
+        template
+      )
+    ).toBe(0);
+  });
+
   it("sanitizes Excel table names", () => {
     expect(sanitizeExcelTableName("Alex — Hours", 2)).toMatch(/^Kq_/);
   });

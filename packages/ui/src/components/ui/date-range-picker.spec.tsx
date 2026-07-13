@@ -103,4 +103,20 @@ describe("DateRangePicker", () => {
     await user.click(screen.getByRole("button", { name: "Apply" }));
     expect(onChange).toHaveBeenCalledWith("2026-06-10", "2026-06-12");
   });
+
+  it("shows two months in an inline dual-month picker", () => {
+    render(
+      <DateRangePicker
+        inline
+        from="2026-07-01"
+        to="2026-07-13"
+        onChange={vi.fn()}
+        ariaLabel="Export date range"
+        numberOfMonths={2}
+      />
+    );
+
+    expect(screen.getByText("July 2026")).toBeInTheDocument();
+    expect(screen.getByText("August 2026")).toBeInTheDocument();
+  });
 });

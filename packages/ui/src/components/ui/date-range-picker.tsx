@@ -77,13 +77,13 @@ function MonthPanel({
       : draft.to;
 
   return (
-    <div className="space-y-3">
+    <div className="mx-auto w-[17.5rem] space-y-3">
       <p className="text-center text-sm font-semibold text-foreground">{monthTitle(year, month)}</p>
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-7 justify-items-center gap-1.5">
         {weekdayLabels.map((label) => (
           <div
             key={label}
-            className="flex h-8 items-center justify-center text-[11px] font-medium uppercase tracking-wide text-muted-foreground"
+            className="flex h-8 w-9 items-center justify-center text-[11px] font-medium uppercase tracking-wide text-muted-foreground"
           >
             {label}
           </div>
@@ -110,7 +110,7 @@ function MonthPanel({
               onMouseEnter={() => onDayHover(key)}
               onMouseLeave={() => onDayHover(null)}
               className={cn(
-                "relative flex h-9 w-9 items-center justify-center rounded-md text-sm font-medium transition-colors",
+                "relative flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-sm font-medium transition-colors",
                 "hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60",
                 (inCommittedRange || inPreviewRange) &&
                   !isSelectedEndpoint &&
@@ -253,7 +253,7 @@ export function DateRangePicker({
 
       <div
         className={cn(
-          "grid gap-6 p-4",
+          "grid justify-items-center gap-8 px-5 py-5",
           showSecondMonth ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"
         )}
       >
