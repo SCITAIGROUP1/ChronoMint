@@ -8,6 +8,7 @@ import { NotificationsModule } from "../notifications/notifications.module";
 import { ProjectsModule } from "../projects/projects.module";
 import { SubscriptionsModule } from "../subscriptions/subscriptions.module";
 import { TimelogAuditService } from "./application/timelog-audit.service";
+import { TimelogImportService } from "./application/timelog-import.service";
 import { TimelogsService } from "./application/timelogs.service";
 import { TimesheetAmendmentsService } from "./application/timesheet-amendments.service";
 import { TimesheetLockService } from "./application/timesheet-lock.service";
@@ -33,6 +34,7 @@ import { TimesheetsController } from "./interface/http/timesheets.controller";
   controllers: [TimelogsController, TimesheetsController],
   providers: [
     TimelogsService,
+    TimelogImportService,
     TimesheetsService,
     TimesheetAmendmentsService,
     TimesheetReminderService,

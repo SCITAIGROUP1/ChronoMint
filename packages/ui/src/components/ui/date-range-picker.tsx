@@ -33,6 +33,11 @@ export type DateRangePickerProps = {
   popoverAlign?: "start" | "center" | "end";
   /** When true (default), show one month in the popover below the `sm` breakpoint. */
   collapseToSingleMonthOnMobile?: boolean;
+  /**
+   * Render the calendar in-flow (for dialogs/modals) instead of a popover.
+   * Prefer this when body scroll is locked by a parent dialog.
+   */
+  inline?: boolean;
 };
 
 type DraftRange = {
@@ -138,7 +143,8 @@ export function DateRangePicker({
   weekStartsOn = 1,
   numberOfMonths = 2,
   popoverAlign = "end",
-  collapseToSingleMonthOnMobile = true
+  collapseToSingleMonthOnMobile = true,
+  inline = false
 }: DateRangePickerProps) {
   const [open, setOpen] = React.useState(false);
   const [draft, setDraft] = React.useState<DraftRange>({ from, to });
@@ -168,18 +174,19 @@ export function DateRangePicker({
   }, [numberOfMonths, collapseToSingleMonthOnMobile]);
 
   React.useEffect(() => {
-    if (!open) return;
+    if (!inline && !open) return;
     const normalized = normalizeDateRange(from, to);
     setDraft(normalized);
     const anchor = normalized.from || dateKeyFromDate(new Date());
     const [year, month] = anchor.split("-").map(Number);
     setVisibleMonth({ year, month });
     setHoverKey(null);
-  }, [open, from, to]);
+  }, [open, from, to, inline]);
 
   const triggerLabel = from && to ? formatDateRangeLabel(from, to) : placeholder;
 
   function handleDayClick(key: string) {
+    if (disabled) return;
     setDraft((current) => {
       if (!current.from || (current.from && current.to)) {
         return { from: key, to: "" };
@@ -210,6 +217,98 @@ export function DateRangePicker({
         ? "Select an end date"
         : "Select a start date";
 
+  const panel = (
+    <>
+      <div className="border-b border-border/70 px-4 py-3">
+        <p className="text-sm font-semibold text-foreground">Date range</p>
+        <p className="text-xs text-muted-foreground">
+          Choose a start and end date for your entries.
+        </p>
+      </div>
+
+      <div className="flex items-center justify-between gap-2 border-b border-border/70 px-3 py-2">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-8"
+          aria-label="Previous month"
+          disabled={disabled}
+          onClick={() => setVisibleMonth((current) => addMonths(current.year, current.month, -1))}
+        >
+          <ChevronLeft className="size-4" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-8"
+          aria-label="Next month"
+          disabled={disabled}
+          onClick={() => setVisibleMonth((current) => addMonths(current.year, current.month, 1))}
+        >
+          <ChevronRight className="size-4" />
+        </Button>
+      </div>
+
+      <div
+        className={cn(
+          "grid gap-6 p-4",
+          showSecondMonth ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"
+        )}
+      >
+        <MonthPanel
+          year={visibleMonth.year}
+          month={visibleMonth.month}
+          weekStartsOn={weekStartsOn}
+          draft={draft}
+          hoverKey={hoverKey}
+          onDayClick={handleDayClick}
+          onDayHover={setHoverKey}
+        />
+        {showSecondMonth ? (
+          <MonthPanel
+            year={secondMonth.year}
+            month={secondMonth.month}
+            weekStartsOn={weekStartsOn}
+            draft={draft}
+            hoverKey={hoverKey}
+            onDayClick={handleDayClick}
+            onDayHover={setHoverKey}
+          />
+        ) : null}
+      </div>
+
+      <div className="flex items-center justify-between gap-3 border-t border-border/70 px-4 py-3">
+        <p className="truncate text-xs text-muted-foreground">{footerLabel}</p>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button type="button" variant="ghost" size="sm" disabled={disabled} onClick={handleClear}>
+            Clear
+          </Button>
+          <Button type="button" size="sm" disabled={disabled || !canApply} onClick={handleApply}>
+            Apply
+          </Button>
+        </div>
+      </div>
+    </>
+  );
+
+  if (inline) {
+    return (
+      <div
+        role="group"
+        aria-label={ariaLabel}
+        className={cn(
+          "w-full overflow-hidden rounded-xl border border-border/80 bg-card text-card-foreground",
+          disabled && "pointer-events-none opacity-60",
+          className
+        )}
+      >
+        {panel}
+      </div>
+    );
+  }
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -231,77 +330,9 @@ export function DateRangePicker({
       <PopoverContent
         align={popoverAlign}
         collisionPadding={24}
-        className="w-auto max-w-[min(100vw-2rem,42rem)] p-0"
+        className="max-h-[min(85dvh,40rem)] w-auto max-w-[min(100vw-2rem,42rem)] overflow-y-auto overscroll-contain p-0"
       >
-        <div className="border-b border-border/70 px-4 py-3">
-          <p className="text-sm font-semibold text-foreground">Date range</p>
-          <p className="text-xs text-muted-foreground">
-            Choose a start and end date for your entries.
-          </p>
-        </div>
-
-        <div className="flex items-center justify-between gap-2 border-b border-border/70 px-3 py-2">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="size-8"
-            aria-label="Previous month"
-            onClick={() => setVisibleMonth((current) => addMonths(current.year, current.month, -1))}
-          >
-            <ChevronLeft className="size-4" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="size-8"
-            aria-label="Next month"
-            onClick={() => setVisibleMonth((current) => addMonths(current.year, current.month, 1))}
-          >
-            <ChevronRight className="size-4" />
-          </Button>
-        </div>
-
-        <div
-          className={cn(
-            "grid gap-6 p-4",
-            showSecondMonth ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1"
-          )}
-        >
-          <MonthPanel
-            year={visibleMonth.year}
-            month={visibleMonth.month}
-            weekStartsOn={weekStartsOn}
-            draft={draft}
-            hoverKey={hoverKey}
-            onDayClick={handleDayClick}
-            onDayHover={setHoverKey}
-          />
-          {showSecondMonth ? (
-            <MonthPanel
-              year={secondMonth.year}
-              month={secondMonth.month}
-              weekStartsOn={weekStartsOn}
-              draft={draft}
-              hoverKey={hoverKey}
-              onDayClick={handleDayClick}
-              onDayHover={setHoverKey}
-            />
-          ) : null}
-        </div>
-
-        <div className="flex items-center justify-between gap-3 border-t border-border/70 px-4 py-3">
-          <p className="truncate text-xs text-muted-foreground">{footerLabel}</p>
-          <div className="flex shrink-0 items-center gap-2">
-            <Button type="button" variant="ghost" size="sm" onClick={handleClear}>
-              Clear
-            </Button>
-            <Button type="button" size="sm" disabled={!canApply} onClick={handleApply}>
-              Apply
-            </Button>
-          </div>
-        </div>
+        {panel}
       </PopoverContent>
     </Popover>
   );

@@ -1,31 +1,34 @@
-# Member: Export my data
+# Member: Export and import my time
 
-Export only **your** time in the active workspace from the timesheet page.
+Manage your own time files from **Time Tracker** (`/time-tracker`).
 
-## Steps
+## Export
 
-1. Go to **Timesheet** (`/timesheet`).
-2. Set the **date range** (from / to) for the export.
-3. Optionally filter by **project** or **billable** status.
-4. Choose **report type(s)**:
-   - **Time entries** — one row per log
-   - **Daily summary** — hours by day and project
-   - **By project** — totals per project
-5. Choose **format**: CSV, Excel, or PDF.
-6. Click **Export** — your browser downloads the file.
+1. Open **Time Tracker**.
+2. Set the period (or custom date range) you want — Export pre-fills that range.
+3. Click **Export** in the page header.
+4. Optionally filter by **project** or **billable** status, and choose CSV / Excel / PDF.
+5. Click **Download**.
 
-Filenames include your workspace slug and date range, with a `-my-timesheet` segment for member exports.
+Filenames include your workspace slug and a `-my-timesheet` segment.
 
-## My week summary
+## Import
 
-If the timesheet page shows a **week summary** widget, it uses your personal reporting totals for the visible week (hours and billable breakdown). Use export when you need a file for payroll or records.
+1. On **Time Tracker**, click **Import** in the page header.
+2. Download the **Template**.
+3. Fill rows with `project`, `task`, `date`, `start_time`, `end_time` (optional `description`, `billable`).
+4. Upload the `.xlsx` or `.csv` file and click **Import entries**.
+5. Review created vs failed rows. Successful entries appear in the list after refresh.
+
+Import only **creates** new entries for you. Locked periods, overlaps, and unknown projects/tasks fail that row without undoing the rest.
 
 ## What is not included
 
 - Other members’ hours
-- Workspace-wide revenue or admin-only reports
-- Projects you are not assigned to
+- Overwriting existing entries by id
+- Admin workspace-wide bulk import
 
 ## Related
 
 - [Timer and timesheet](timer-and-timesheet.md)
+- Spec: [timelog-import.md](../../specs/timelog-import.md)

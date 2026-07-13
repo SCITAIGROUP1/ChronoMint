@@ -65,6 +65,8 @@ import {
   reviewAmendmentSchema,
   updateCategorySchema,
   updateTimeLogSchema,
+  timelogImportRowSchema,
+  timelogImportResponseSchema,
   updateUserPreferencesSchema,
   userProfileSchema
 } from "./index";
@@ -104,6 +106,39 @@ describe("contracts", () => {
 
   it("exposes timelog occupancy route", () => {
     expect(ROUTES.TIMELOGS.OCCUPANCY).toBe("/timelogs/occupancy");
+  });
+
+  it("exposes timelog import routes", () => {
+    expect(ROUTES.TIMELOGS.IMPORT).toBe("/timelogs/import");
+    expect(ROUTES.TIMELOGS.IMPORT_TEMPLATE).toBe("/timelogs/import/template");
+  });
+
+  it("validates timelog import row and response schemas", () => {
+    const row = timelogImportRowSchema.safeParse({
+      project: "Acme",
+      task: "Build",
+      date: "2026-07-01",
+      start_time: "09:00",
+      end_time: "10:30",
+      description: "Work",
+      billable: "true"
+    });
+    expect(row.success).toBe(true);
+
+    const bad = timelogImportRowSchema.safeParse({
+      project: "Acme",
+      task: "Build",
+      date: "07/01/2026",
+      start_time: "9am",
+      end_time: "10:30"
+    });
+    expect(bad.success).toBe(false);
+
+    const response = timelogImportResponseSchema.safeParse({
+      created: 2,
+      failed: [{ row: 3, reason: "Unknown task" }]
+    });
+    expect(response.success).toBe(true);
   });
 
   it("exposes timesheet submissions route", () => {
