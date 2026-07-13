@@ -968,12 +968,11 @@ export default function ForAdminsPage() {
           id="team"
           badge="👥 Team Management"
           badgeColor="bg-blue-400/10 text-blue-400"
-          title="Invite, manage, and impersonate team members at scale."
-          subtitle="Complete control over your workspace roster. Invite individually or bulk-import hundreds via CSV. Set roles, manage rates, and use the view-as feature to debug any member's exact experience."
+          title="Invite, manage, and support team members at scale."
+          subtitle="Complete control over your workspace roster. Invite individually or bulk-import hundreds via CSV. Set roles, manage rates, and keep visibility into member activity."
           bullets={[
             "Invite members individually or bulk-import via CSV spreadsheet",
             "Set workspace roles: Admin or Member — with scoped permissions",
-            "View-as (impersonation) to see exactly what any member sees",
             "Last-active timestamps and weekly hours at a glance",
             "Manage hourly rates per member or per project for precise billing"
           ]}

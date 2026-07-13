@@ -43,7 +43,6 @@ export const ROUTES = {
     MEMBERS: (id: string) => `/workspaces/${id}/members`,
     MEMBERS_OVERVIEW: (id: string) => `/workspaces/${id}/members/overview`,
     PROJECT_MANAGERS_OVERVIEW: (id: string) => `/workspaces/${id}/project-managers/overview`,
-    TEAM_ACTIVITIES: (id: string) => `/workspaces/${id}/team-activities`,
     MEMBER: (workspaceId: string, memberId: string) =>
       `/workspaces/${workspaceId}/members/${memberId}`,
     INVITE: (id: string) => `/workspaces/${id}/members/invite`,
@@ -97,6 +96,8 @@ export const ROUTES = {
     OCCUPANCY: "/timelogs/occupancy",
     CREATE: "/timelogs",
     CREATE_BATCH: "/timelogs/batch",
+    IMPORT: "/timelogs/import",
+    IMPORT_TEMPLATE: "/timelogs/import/template",
     BY_ID: (id: string) => `/timelogs/${id}`,
     AUDIT_EVENTS: (id: string) => `/timelogs/${id}/audit-events`,
     AUDIT_EVENTS_WORKSPACE: "/timelogs/audit",

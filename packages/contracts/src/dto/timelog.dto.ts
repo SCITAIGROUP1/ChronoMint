@@ -121,6 +121,62 @@ export const batchTimeLogsResponseSchema = z.object({
   )
 });
 
+/** Max rows accepted in a single member time-entry import file. */
+export const TIMELOG_IMPORT_MAX_ROWS = 500;
+
+export const TIMELOG_IMPORT_COLUMNS = [
+  "project",
+  "task",
+  "date",
+  "start_time",
+  "end_time",
+  "description",
+  "billable"
+] as const;
+
+/** Human headers for the import template (aligned with member time-entry export labels). */
+export const TIMELOG_IMPORT_COLUMN_LABELS: Record<(typeof TIMELOG_IMPORT_COLUMNS)[number], string> =
+  {
+    project: "Project",
+    task: "Task",
+    date: "Date",
+    start_time: "Start",
+    end_time: "End",
+    description: "Description",
+    billable: "Billable"
+  };
+
+export const timelogImportRowSchema = z.object({
+  project: z.string().trim().min(1).max(200),
+  task: z.string().trim().min(1).max(200),
+  date: z
+    .string()
+    .trim()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "date must be YYYY-MM-DD"),
+  start_time: z
+    .string()
+    .trim()
+    .regex(/^\d{1,2}:\d{2}$/, "start_time must be HH:mm"),
+  end_time: z
+    .string()
+    .trim()
+    .regex(/^\d{1,2}:\d{2}$/, "end_time must be HH:mm"),
+  description: z.string().trim().max(2000).optional(),
+  billable: z.union([z.boolean(), z.enum(["true", "false", "yes", "no", "1", "0"])]).optional()
+});
+
+export const timelogImportFailedRowSchema = z.object({
+  row: z.number().int().positive(),
+  reason: z.string().min(1)
+});
+
+export const timelogImportResponseSchema = z.object({
+  created: z.number().int().nonnegative(),
+  /** Rows that already match an existing entry (same task + start/end); not created again. */
+  skipped: z.number().int().nonnegative().default(0),
+  failed: z.array(timelogImportFailedRowSchema)
+});
+
 export type TimeLogDto = z.infer<typeof timeLogSchema>;
 export type CreateTimeLogDto = z.infer<typeof createTimeLogSchema>;
 export type UpdateTimeLogDto = z.infer<typeof updateTimeLogSchema>;
@@ -128,3 +184,5 @@ export type ListTimeLogsQueryDto = z.infer<typeof listTimeLogsQuerySchema>;
 export type ListTimeLogsResponseDto = z.infer<typeof listTimeLogsResponseSchema>;
 export type CreateBatchTimeLogsDto = z.infer<typeof createBatchTimeLogsSchema>;
 export type BatchTimeLogsResponseDto = z.infer<typeof batchTimeLogsResponseSchema>;
+export type TimelogImportRowDto = z.infer<typeof timelogImportRowSchema>;
+export type TimelogImportResponseDto = z.infer<typeof timelogImportResponseSchema>;

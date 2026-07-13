@@ -26,12 +26,20 @@ import {
   toDateInputValue,
   useDisplayPreferences,
   useProjectsListQuery,
-  useCategoriesListQuery
+  useCategoriesListQuery,
+  isClientCommercialFeaturesEnabled
 } from "@kloqra/web-shared";
 import { useState } from "react";
 import { apiDownloadPost, saveDownloadResponse } from "@/lib/download";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
+const COMMERCIAL_EXPORT_COLUMNS = new Set(["rate", "amount", "billable_amount"]);
+
+function memberTimeEntryColumns(): string[] {
+  const cols = [...DEFAULT_MEMBER_EXPORT_COLUMNS.time_entries];
+  if (isClientCommercialFeaturesEnabled()) return cols;
+  return cols.filter((c) => !COMMERCIAL_EXPORT_COLUMNS.has(c));
+}
 type TimesheetExportProps = {
   workspaceSlug?: string;
   defaultFrom?: string;
@@ -76,7 +84,7 @@ export function TimesheetExport({
         ...(projectId ? { projectId } : {}),
         ...(categoryId ? { categoryId } : {}),
         ...(reportType === "time_entries"
-          ? { columns: { time_entries: [...DEFAULT_MEMBER_EXPORT_COLUMNS.time_entries] } }
+          ? { columns: { time_entries: memberTimeEntryColumns() } }
           : {})
       };
       const res = await apiDownloadPost(ROUTES.EXPORT.ME, ws, body);
@@ -89,8 +97,9 @@ export function TimesheetExport({
         ext: format === "xlsx" ? "xlsx" : format
       });
       await saveDownloadResponse(res, fallback);
-    } catch {
-      setError("Export failed. Check the date range and try again.");
+    } catch (e) {
+      const message = e instanceof Error ? e.message : null;
+      setError(message && message !== "Failed to fetch" ? message : "Export failed. Try again.");
     } finally {
       setExporting(false);
     }

@@ -4,6 +4,7 @@ import {
   listTimeLogOccupancyQuerySchema,
   updateTimeLogSchema,
   createBatchTimeLogsSchema,
+  ErrorCodes,
   ROUTES
 } from "@kloqra/contracts";
 import type { ListTimeLogsQueryDto, ListTimeLogOccupancyQueryDto } from "@kloqra/contracts";
@@ -12,21 +13,29 @@ import {
   Controller,
   Delete,
   Get,
+  HttpStatus,
   Param,
   Patch,
   Post,
   Query,
-  UseGuards
+  Res,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors
 } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
+import type { Response } from "express";
 import { Roles } from "../../../../common/decorators/roles.decorator";
 import {
   WorkspaceUser,
   type WorkspaceRequestUser
 } from "../../../../common/decorators/workspace-user.decorator";
+import { DomainException } from "../../../../common/errors/domain.exception";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../../../common/guards/roles.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
 import { TimelogAuditService } from "../../application/timelog-audit.service";
+import { TimelogImportService } from "../../application/timelog-import.service";
 import { TimelogsService } from "../../application/timelogs.service";
 
 @Controller()
@@ -34,7 +43,8 @@ import { TimelogsService } from "../../application/timelogs.service";
 export class TimelogsController {
   constructor(
     private timelogs: TimelogsService,
-    private audit: TimelogAuditService
+    private audit: TimelogAuditService,
+    private timelogImport: TimelogImportService
   ) {}
 
   @Get(ROUTES.TIMELOGS.LIST)
@@ -92,6 +102,35 @@ export class TimelogsController {
       yesterdayStart,
       yesterdayEnd
     );
+  }
+
+  @Get(ROUTES.TIMELOGS.IMPORT_TEMPLATE)
+  async importTemplate(@WorkspaceUser() _user: WorkspaceRequestUser, @Res() res: Response) {
+    await this.timelogImport.generateTemplate(res);
+  }
+
+  @Post(ROUTES.TIMELOGS.IMPORT)
+  @UseInterceptors(FileInterceptor("file", { limits: { fileSize: 2 * 1024 * 1024 } }))
+  async importTimeLogs(
+    @UploadedFile() file: { buffer: Buffer; originalname?: string } | undefined,
+    @WorkspaceUser() user: WorkspaceRequestUser,
+    @Body() body: { timezone?: string }
+  ) {
+    if (!file?.buffer?.length) {
+      throw new DomainException(
+        ErrorCodes.VALIDATION_ERROR,
+        "No file uploaded",
+        HttpStatus.BAD_REQUEST
+      );
+    }
+    return this.timelogImport.importFile({
+      workspaceId: user.workspaceId,
+      userId: user.userId,
+      role: user.role,
+      buffer: file.buffer,
+      filename: file.originalname,
+      timezone: body?.timezone
+    });
   }
 
   @Post(ROUTES.TIMELOGS.CREATE)

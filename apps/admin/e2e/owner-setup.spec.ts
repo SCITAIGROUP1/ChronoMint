@@ -178,47 +178,42 @@ async function mockProvisionedOwnerSession(page: Page) {
   }, accessToken);
 }
 
-test("provisioned owner sees organization setup form", async ({ page }) => {
-  await page.route("**/tenants/current", async (route) => {
-    if (route.request().method() !== "GET") {
-      await route.continue();
-      return;
-    }
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify(PENDING_TENANT)
+test.describe("organization setup with mocked tenant profile", () => {
+  test.use({ storageState: { cookies: [], origins: [] } });
+
+  test("provisioned owner sees organization setup form", async ({ page }) => {
+    await mockProvisionedOwnerSession(page);
+
+    await page.goto("/account/organization");
+    await expect(page.getByRole("heading", { name: "Finish setup" })).toBeVisible({
+      timeout: 30_000
     });
+    await expect(page.getByLabel("Organization name")).toBeVisible();
+    await expect(page.getByLabel("Organization ID")).toBeVisible();
   });
 
-  await page.goto("/account/organization");
-  await expect(page.getByRole("heading", { name: "Finish setup" })).toBeVisible({
-    timeout: 30_000
-  });
-  await expect(page.getByLabel("Organization name")).toBeVisible();
-  await expect(page.getByLabel("Organization ID")).toBeVisible();
-});
-
-test("organization page shows recoverable error when profile cannot be loaded", async ({
-  page
-}) => {
-  await page.route("**/tenants/current", async (route) => {
-    if (route.request().method() !== "GET") {
-      await route.continue();
-      return;
-    }
-    await route.fulfill({
-      status: 503,
-      contentType: "application/json",
-      body: JSON.stringify({ message: "Service unavailable" })
+  test("organization page shows recoverable error when profile cannot be loaded", async ({
+    page
+  }) => {
+    await mockProvisionedOwnerSession(page);
+    await page.route("**/tenants/current", async (route) => {
+      if (route.request().method() !== "GET") {
+        await route.continue();
+        return;
+      }
+      await route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ message: "Service unavailable" })
+      });
     });
-  });
 
-  await page.goto("/account/organization");
-  await expect(page.getByText("Unable to load organization profile")).toBeVisible({
-    timeout: 30_000
+    await page.goto("/account/organization");
+    await expect(page.getByText("Unable to load organization profile")).toBeVisible({
+      timeout: 30_000
+    });
+    await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
   });
-  await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
 });
 
 test.describe("provisioned owner without workspace", () => {
@@ -264,5 +259,96 @@ test.describe("provisioned owner without workspace", () => {
     await waitForAdminShell(page);
     await expect(page).toHaveURL(/\/account\/workspaces\?setup=required/, { timeout: 15_000 });
     await expect(page.getByRole("dialog", { name: /create your first workspace/i })).toBeVisible();
+  });
+
+  test("authenticated owner visiting login is redirected to onboarding", async ({ page }) => {
+    await mockProvisionedOwnerSession(page);
+
+    await page.goto("/login");
+    await expect(page).toHaveURL(/\/account\/organization/, { timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Admin sign in" })).toHaveCount(0);
+    await expect(page.getByLabel("Email")).toHaveCount(0);
+    await waitForAdminShell(page);
+    await expect(page.getByRole("heading", { name: "Finish setup" })).toBeVisible({
+      timeout: 30_000
+    });
+  });
+
+  test("login submit routes provisioned owner to onboarding without returning to login", async ({
+    page
+  }) => {
+    const accessToken = buildProvisionedOwnerAccessToken();
+    const loginBody = {
+      ...PROVISIONED_OWNER_SESSION,
+      accessToken
+    };
+
+    await page.route(/localhost:3001\/.*/, async (route) => {
+      const url = new URL(route.request().url());
+      const path = url.pathname;
+      const method = route.request().method();
+
+      if (path === "/auth/login" && method === "POST") {
+        await fulfillJson(route, loginBody);
+        return;
+      }
+      // Do not mint a session via refresh before the user submits the form.
+      if (path === "/auth/refresh" && method === "POST") {
+        await fulfillJson(route, { message: "Unauthorized" }, 401);
+        return;
+      }
+      if (path === "/auth/me") {
+        await fulfillJson(route, PROVISIONED_OWNER_SESSION);
+        return;
+      }
+      if (path === "/users/me") {
+        await fulfillJson(route, PROVISIONED_OWNER_USER_PROFILE);
+        return;
+      }
+      if (path === "/tenants/current" && method === "GET") {
+        await fulfillJson(route, PENDING_TENANT);
+        return;
+      }
+      if (path.startsWith("/tenants/current/")) {
+        if (path.startsWith("/tenants/current/overview")) {
+          await fulfillJson(route, PROVISIONED_OWNER_OVERVIEW);
+          return;
+        }
+        if (path.startsWith("/tenants/current/subscription")) {
+          await fulfillJson(route, PROVISIONED_OWNER_SUBSCRIPTION);
+          return;
+        }
+        await fulfillJson(route, {});
+        return;
+      }
+      if (path === "/workspaces" && method === "GET") {
+        await fulfillJson(route, []);
+        return;
+      }
+      await fulfillJson(route, {});
+    });
+
+    await page.addInitScript(() => {
+      for (const key of [
+        "cm-admin-access-token",
+        "cm-admin-workspace-id",
+        "cm-admin-refresh-token"
+      ]) {
+        localStorage.removeItem(key);
+      }
+    });
+
+    await page.goto("/login");
+    await expect(page.getByLabel("Email")).toBeVisible({ timeout: 15_000 });
+    await page.getByLabel("Email").fill("owner@example.com");
+    await page.getByLabel("Password", { exact: true }).fill("password123");
+    await page.getByRole("button", { name: "Sign in" }).click();
+
+    await expect(page).toHaveURL(/\/account\/organization/, { timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Admin sign in" })).toHaveCount(0);
+    await waitForAdminShell(page);
+    await expect(page.getByRole("heading", { name: "Finish setup" })).toBeVisible({
+      timeout: 30_000
+    });
   });
 });

@@ -59,13 +59,15 @@ import {
   bulkCategoryImportSchema,
   bulkCategoryImportResponseSchema,
   teamMembersOverviewSchema,
-  teamActivitiesSchema,
   timesheetSubmissionsQuerySchema,
   approveTimesheetSchema,
   rejectTimesheetSchema,
   reviewAmendmentSchema,
   updateCategorySchema,
   updateTimeLogSchema,
+  timelogImportRowSchema,
+  timelogImportResponseSchema,
+  TIMELOG_IMPORT_COLUMN_LABELS,
   updateUserPreferencesSchema,
   userProfileSchema
 } from "./index";
@@ -105,6 +107,45 @@ describe("contracts", () => {
 
   it("exposes timelog occupancy route", () => {
     expect(ROUTES.TIMELOGS.OCCUPANCY).toBe("/timelogs/occupancy");
+  });
+
+  it("exposes timelog import routes", () => {
+    expect(ROUTES.TIMELOGS.IMPORT).toBe("/timelogs/import");
+    expect(ROUTES.TIMELOGS.IMPORT_TEMPLATE).toBe("/timelogs/import/template");
+  });
+
+  it("validates timelog import row and response schemas", () => {
+    const row = timelogImportRowSchema.safeParse({
+      project: "Acme",
+      task: "Build",
+      date: "2026-07-01",
+      start_time: "09:00",
+      end_time: "10:30",
+      description: "Work",
+      billable: "true"
+    });
+    expect(row.success).toBe(true);
+
+    const bad = timelogImportRowSchema.safeParse({
+      project: "Acme",
+      task: "Build",
+      date: "07/01/2026",
+      start_time: "9am",
+      end_time: "10:30"
+    });
+    expect(bad.success).toBe(false);
+
+    const response = timelogImportResponseSchema.safeParse({
+      created: 2,
+      failed: [{ row: 3, reason: "Unknown task" }]
+    });
+    expect(response.success).toBe(true);
+    if (response.success) {
+      expect(response.data.skipped).toBe(0);
+    }
+
+    expect(TIMELOG_IMPORT_COLUMN_LABELS.start_time).toBe("Start");
+    expect(TIMELOG_IMPORT_COLUMN_LABELS.end_time).toBe("End");
   });
 
   it("exposes timesheet submissions route", () => {
@@ -618,7 +659,6 @@ describe("contracts", () => {
       "/workspaces/ws-1/project-managers/overview"
     );
     expect(ROUTES.WORKSPACES.MEMBERS_OVERVIEW("ws-1")).toBe("/workspaces/ws-1/members/overview");
-    expect(ROUTES.WORKSPACES.TEAM_ACTIVITIES("ws-1")).toBe("/workspaces/ws-1/team-activities");
     expect(ROUTES.WORKSPACES.MEMBER("ws-1", "m-1")).toBe("/workspaces/ws-1/members/m-1");
     expect(ROUTES.WORKSPACES.RESEND_CREDENTIALS("ws-1", "m-1")).toBe(
       "/workspaces/ws-1/members/m-1/resend-credentials"
@@ -683,33 +723,6 @@ describe("contracts", () => {
       limit: 20,
       total: 1,
       totalPages: 1
-    });
-    expect(r.success).toBe(true);
-  });
-
-  it("validates team activities shape", () => {
-    const r = teamActivitiesSchema.safeParse({
-      periodStart: "2025-06-09",
-      periodEnd: "2025-06-15",
-      members: [
-        {
-          userId: UUID,
-          userName: "Sam Rivera",
-          latestActivity: {
-            taskName: "Code review",
-            projectId: UUID,
-            projectName: "Annual Audit",
-            description: null,
-            durationSec: 3600,
-            endedAt: "2025-06-10T14:00:00.000Z"
-          },
-          periodTotalHours: 32.5,
-          dailyHours: [
-            { dateKey: "2025-06-09", hours: 6 },
-            { dateKey: "2025-06-10", hours: 8.5 }
-          ]
-        }
-      ]
     });
     expect(r.success).toBe(true);
   });

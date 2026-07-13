@@ -54,7 +54,6 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 import { formatLastActive, formatWeekHours } from "./format-last-active";
-import { buildClientImpersonationUrl } from "./impersonation-redirect";
 import { inviteMemberSuccessMessage } from "./invite-member-messages";
 import { validateInviteMemberForm } from "./invite-member-validation";
 import { TeamMemberActions } from "./team-member-actions";
@@ -247,39 +246,6 @@ export function TeamManagementPage() {
     } catch (err) {
       const message = err instanceof Error ? err.message : "Could not resend sign-in email.";
       toast.error(message);
-    } finally {
-      setMemberBusyId(null);
-    }
-  }
-
-  async function handleImpersonate(member: TeamMemberOverviewDto) {
-    setMemberBusyId(member.id);
-    try {
-      const result = await api<{ handoffToken: string }>(ROUTES.AUTH.IMPERSONATE, {
-        method: "POST",
-        workspaceId: ws,
-        body: JSON.stringify({ userId: member.userId })
-      });
-      if (!result.handoffToken) {
-        throw new Error("Impersonation handoff token missing from API response");
-      }
-      toast.success("Impersonation ready. Redirecting to Client...");
-      let clientUrl = process.env.NEXT_PUBLIC_CLIENT_URL;
-      if (!clientUrl) {
-        if (typeof window !== "undefined") {
-          const host = window.location.hostname;
-          if (host.includes("vercel.app")) {
-            clientUrl = `https://${host.replace("-admin", "-client")}`;
-          } else {
-            clientUrl = "http://localhost:3000";
-          }
-        } else {
-          clientUrl = "http://localhost:3000";
-        }
-      }
-      window.location.href = buildClientImpersonationUrl(clientUrl, result.handoffToken);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to view as member");
     } finally {
       setMemberBusyId(null);
     }
@@ -549,7 +515,6 @@ export function TeamManagementPage() {
                         busy={memberBusyId === member.id}
                         onViewProfile={() => setProfileTarget(member)}
                         onEditMember={() => setEditTarget(member)}
-                        onViewAsMember={() => handleImpersonate(member)}
                         onResendCredentials={() => handleResendCredentials(member)}
                         onChangeStatus={(isActive) => handleChangeStatus(member, isActive)}
                         onRemove={() => setRemoveTarget(member)}

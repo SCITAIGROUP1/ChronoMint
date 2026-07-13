@@ -20,6 +20,21 @@ describe("teamMemberSchema", () => {
       expect(result.success).toBe(true);
     }
   });
+
+  it("accepts optional createdAt when the member joined the team", () => {
+    const result = teamMemberSchema.safeParse({
+      id: MEMBER_ID,
+      teamId: TEAM_ID,
+      userId: USER_ID,
+      userName: "Alex PM",
+      userEmail: "alex@example.com",
+      role: "MEMBER",
+      isActive: true,
+      createdAt: "2026-07-01T12:00:00.000Z"
+    });
+    expect(result.success).toBe(true);
+    expect(result.data?.createdAt).toBe("2026-07-01T12:00:00.000Z");
+  });
 });
 
 describe("updateTeamMemberSchema", () => {

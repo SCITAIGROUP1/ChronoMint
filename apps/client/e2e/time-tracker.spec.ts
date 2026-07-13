@@ -18,6 +18,33 @@ test.describe("Time Tracker", () => {
     await expect(page.getByRole("button", { name: "Date range" })).toBeVisible();
   });
 
+  test("shows export and import actions", async ({ page }) => {
+    await expect(page.getByRole("button", { name: "Export" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Import" })).toBeVisible();
+  });
+
+  test("opens export modal with period defaults", async ({ page }) => {
+    await page.getByRole("button", { name: "Export" }).click();
+    await expect(page.getByRole("heading", { name: "Export my time" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Export date range" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Download" })).toBeVisible();
+    await expect(page.getByText("Report", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("Category", { exact: true })).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Export date range" }).click();
+    await expect(page.getByRole("group", { name: "Export date range" })).toBeVisible();
+    await page.getByRole("button", { name: "Apply" }).click();
+    await expect(page.getByRole("group", { name: "Export date range" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Export date range" })).toBeVisible();
+  });
+
+  test("opens import modal with template control", async ({ page }) => {
+    await page.getByRole("button", { name: "Import" }).click();
+    await expect(page.getByRole("heading", { name: "Import time entries" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Template" })).toBeVisible();
+    await expect(page.getByText(/Click or drag CSV \/ Excel here/i)).toBeVisible();
+  });
+
   test("supports custom date range selection while keeping week sections", async ({ page }) => {
     const currentYear = new Date().getFullYear();
     const currentMonth = String(new Date().getMonth() + 1).padStart(2, "0");

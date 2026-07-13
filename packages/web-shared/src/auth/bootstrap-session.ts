@@ -6,7 +6,9 @@ import { getAccessToken, useSessionStore } from "../stores/session.store";
 import { useWorkspacesStore } from "../stores/workspaces.store";
 import { canLoginToAdminApp } from "./admin-app-access";
 import { applyDefaultWorkspaceIfNeeded } from "./apply-default-workspace";
+import { classifyBootstrapError, type BootstrapFailureReason } from "./bootstrap-failure";
 import { isAccessTokenExpired, readUserIdFromToken } from "./jwt-payload";
+import { isLogoutInFlight } from "./logout-session";
 import { tryRefreshSession } from "./refresh-session";
 
 const AUTH_SCOPE = process.env.NEXT_PUBLIC_AUTH_SCOPE?.trim() || "app";
@@ -50,7 +52,9 @@ async function completeImpersonationHandoff(handoffToken: string): Promise<strin
 
 export type BootstrapResult =
   | { ok: true; session: AuthSessionDto; workspaces: WorkspaceListItemDto[] }
-  | { ok: false };
+  | { ok: false; reason: BootstrapFailureReason };
+
+export type { BootstrapFailureReason };
 
 export type BootstrapOptions = {
   /** Clear local session before refresh (legacy impersonation handoff). */
@@ -98,6 +102,10 @@ export function shouldApplyBootstrapSession(
  * Restore session from refresh cookie and/or access token, then load workspaces.
  */
 export async function bootstrapSession(options: BootstrapOptions = {}): Promise<BootstrapResult> {
+  if (isLogoutInFlight() && !options.handoffToken) {
+    return { ok: false, reason: "unauthenticated" };
+  }
+
   if (options.clearBeforeRefresh || options.handoffToken) {
     useSessionStore.getState().clear({
       boundaryReason: options.handoffToken ? "impersonation" : "login"
@@ -107,12 +115,12 @@ export async function bootstrapSession(options: BootstrapOptions = {}): Promise<
   let token: string | null = null;
   if (options.handoffToken) {
     token = await completeImpersonationHandoff(options.handoffToken);
-    if (!token) return { ok: false };
+    if (!token) return { ok: false, reason: "unauthenticated" };
   } else {
     token = getAccessToken();
     if (!token || isAccessTokenExpired(token) || options.clearBeforeRefresh) {
       token = await tryRefreshSession();
-      if (!token) return { ok: false };
+      if (!token) return { ok: false, reason: "unauthenticated" };
     }
   }
 
@@ -121,10 +129,10 @@ export async function bootstrapSession(options: BootstrapOptions = {}): Promise<
 
     if (options.requiredRole === "ADMIN") {
       if (!canLoginToAdminApp(session)) {
-        return { ok: false };
+        return { ok: false, reason: "forbidden" };
       }
     } else if (options.requiredRole && session.workspaceRole !== options.requiredRole) {
-      return { ok: false };
+      return { ok: false, reason: "forbidden" };
     }
 
     const switched = await applyDefaultWorkspaceIfNeeded(session, token);
@@ -133,10 +141,10 @@ export async function bootstrapSession(options: BootstrapOptions = {}): Promise<
 
     if (options.requiredRole === "ADMIN") {
       if (!canLoginToAdminApp(session)) {
-        return { ok: false };
+        return { ok: false, reason: "forbidden" };
       }
     } else if (options.requiredRole && session.workspaceRole !== options.requiredRole) {
-      return { ok: false };
+      return { ok: false, reason: "forbidden" };
     }
 
     if (!shouldApplyBootstrapSession(token, session)) {
@@ -144,7 +152,7 @@ export async function bootstrapSession(options: BootstrapOptions = {}): Promise<
       if (currentSession) {
         return { ok: true, session: currentSession, workspaces: [] };
       }
-      return { ok: false };
+      return { ok: false, reason: "unauthenticated" };
     }
 
     useSessionStore.getState().setSession(session, token, undefined, {
@@ -166,7 +174,7 @@ export async function bootstrapSession(options: BootstrapOptions = {}): Promise<
     }
 
     return { ok: true, session, workspaces };
-  } catch {
-    return { ok: false };
+  } catch (err) {
+    return { ok: false, reason: classifyBootstrapError(err) };
   }
 }

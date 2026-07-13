@@ -81,4 +81,42 @@ describe("DateRangePicker", () => {
     expect(screen.getByText("May 2026")).toBeInTheDocument();
     expect(screen.getByText("June 2026")).toBeInTheDocument();
   });
+
+  it("renders an inline calendar without a popover trigger", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(
+      <DateRangePicker
+        inline
+        from="2026-06-01"
+        to="2026-06-07"
+        onChange={onChange}
+        ariaLabel="Inline date range"
+        numberOfMonths={1}
+      />
+    );
+
+    expect(screen.getByRole("group", { name: "Inline date range" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Inline date range" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "2026-06-10" }));
+    await user.click(screen.getByRole("button", { name: "2026-06-12" }));
+    await user.click(screen.getByRole("button", { name: "Apply" }));
+    expect(onChange).toHaveBeenCalledWith("2026-06-10", "2026-06-12");
+  });
+
+  it("shows two months in an inline dual-month picker", () => {
+    render(
+      <DateRangePicker
+        inline
+        from="2026-07-01"
+        to="2026-07-13"
+        onChange={vi.fn()}
+        ariaLabel="Export date range"
+        numberOfMonths={2}
+      />
+    );
+
+    expect(screen.getByText("July 2026")).toBeInTheDocument();
+    expect(screen.getByText("August 2026")).toBeInTheDocument();
+  });
 });

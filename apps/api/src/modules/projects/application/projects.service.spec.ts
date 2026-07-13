@@ -349,6 +349,7 @@ describe("ProjectsService", () => {
       userId: "u-1",
       role: "MEMBER",
       isActive: true,
+      createdAt: new Date("2026-06-15T10:00:00.000Z"),
       user: { name: "Sam Rivera", email: "sam@kloqra.dev" }
     };
 
@@ -385,7 +386,8 @@ describe("ProjectsService", () => {
             userName: "Sam Rivera",
             userEmail: "sam@kloqra.dev",
             role: "MEMBER",
-            isActive: true
+            isActive: true,
+            createdAt: "2026-06-15T10:00:00.000Z"
           })
         ],
         page: 1,

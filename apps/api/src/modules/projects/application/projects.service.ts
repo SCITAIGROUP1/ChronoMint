@@ -413,6 +413,7 @@ export class ProjectsService {
     userId: string;
     role: string;
     isActive: boolean;
+    createdAt?: Date;
     user: { name: string; email: string };
   }): TeamMemberDto {
     return {
@@ -422,7 +423,8 @@ export class ProjectsService {
       userName: member.user.name,
       userEmail: member.user.email,
       role: member.role as TeamMemberDto["role"],
-      isActive: member.isActive ?? true
+      isActive: member.isActive ?? true,
+      createdAt: member.createdAt ? member.createdAt.toISOString() : undefined
     };
   }
 

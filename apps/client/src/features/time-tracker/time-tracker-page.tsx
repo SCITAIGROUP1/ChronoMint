@@ -1,7 +1,7 @@
 "use client";
 
 import type { TimeLogDto } from "@kloqra/contracts";
-import { AppBar, ConfirmDialog } from "@kloqra/ui";
+import { AppBar, AppBarActionButton, ConfirmDialog } from "@kloqra/ui";
 import {
   logStartDateKey,
   useDisplayPreferences,
@@ -9,6 +9,7 @@ import {
   useTimelogMutations,
   useTimesheetSubmissionStatusQuery
 } from "@kloqra/web-shared";
+import { Download, Upload } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { toDateKey, todayInZone } from "../timesheet/calendar-utils";
@@ -26,7 +27,9 @@ import {
   LOCKED_ENTRY_MESSAGE
 } from "./entry-approval-status";
 import { buildWeekGroupsForRange } from "./group-logs-by-week";
+import { TimeTrackerExportModal } from "./time-tracker-export-modal";
 import type { BillabilityFilter } from "./time-tracker-filters-panel";
+import { TimeTrackerImportModal } from "./time-tracker-import-modal";
 import { TimeEntryDialog, TimeTrackerWeekList } from "./time-tracker-lazy";
 import {
   inclusiveDateKeysFromPeriod,
@@ -74,6 +77,8 @@ export function TimeTrackerPage() {
   const [billability, setBillability] = useState<BillabilityFilter>("all");
 
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [editingLog, setEditingLog] = useState<TimeLogDto | null>(null);
   const [draft, setDraft] = useState<TimeEntryDraft | null>(null);
   const [saving, setSaving] = useState(false);
@@ -436,7 +441,24 @@ export function TimeTrackerPage() {
 
   return (
     <div className="space-y-6">
-      <AppBar title="Time Tracker" description="View and manage your time entries." />
+      <AppBar
+        title="Time Tracker"
+        description="View and manage your time entries."
+        actions={
+          <>
+            <AppBarActionButton type="button" onClick={() => setExportOpen(true)}>
+              <Download className="size-3.5" />
+              Export
+            </AppBarActionButton>
+            {!isImpersonating ? (
+              <AppBarActionButton type="button" onClick={() => setImportOpen(true)}>
+                <Upload className="size-3.5" />
+                Import
+              </AppBarActionButton>
+            ) : null}
+          </>
+        }
+      />
 
       <TimeTrackerToolbar
         search={search}
@@ -464,6 +486,21 @@ export function TimeTrackerPage() {
         onClearFilters={clearFilters}
         onAddEntry={openAddEntry}
         readOnly={isImpersonating}
+      />
+
+      <TimeTrackerExportModal
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        defaultFrom={rangeFrom}
+        defaultTo={rangeTo}
+        defaultProjectId={projectFilter}
+      />
+      <TimeTrackerImportModal
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        onImported={() => {
+          void refresh();
+        }}
       />
 
       <TimeTrackerStatCards stats={stats} loading={logsLoading || filtersPending} />

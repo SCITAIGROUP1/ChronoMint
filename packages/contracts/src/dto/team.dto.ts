@@ -10,7 +10,9 @@ export const teamMemberSchema = z.object({
   userName: z.string(),
   userEmail: z.string().email(),
   role: teamMemberRoleSchema,
-  isActive: z.boolean()
+  isActive: z.boolean(),
+  /** When the member was added to this project team. */
+  createdAt: isoDatetimeSchema.optional()
 });
 
 export const updateTeamMemberSchema = z

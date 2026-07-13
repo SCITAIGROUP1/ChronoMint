@@ -1,5 +1,10 @@
 export { applyDefaultWorkspaceIfNeeded } from "./auth/apply-default-workspace";
 export {
+  COMMERCIAL_ACCOUNT_WIDGET_IDS,
+  COMMERCIAL_DASHBOARD_WIDGET_IDS,
+  isClientCommercialFeaturesEnabled
+} from "./client-commercial-features";
+export {
   countAdminContexts,
   filterAdminAccessibleWorkspaces,
   resolveAdminContextBreadcrumb,
@@ -24,7 +29,14 @@ export {
   type PlatformContextBreadcrumbSegment
 } from "./auth/platform-context";
 export { hasMultipleWorkspaces } from "./auth/workspace-check";
-export { bootstrapSession, type BootstrapResult } from "./auth/bootstrap-session";
+export {
+  bootstrapSession,
+  type BootstrapFailureReason,
+  type BootstrapResult
+} from "./auth/bootstrap-session";
+export { classifyBootstrapError, shouldRedirectBootstrapToLogin } from "./auth/bootstrap-failure";
+export { resolveClientPostAuthPath } from "./auth/resolve-client-post-auth-path";
+export { useRedirectIfAuthenticated } from "./auth/use-redirect-if-authenticated";
 export {
   bootstrapPlatformSession,
   logoutPlatformSession,
@@ -79,8 +91,7 @@ export {
   COMPACT_LAPTOP_VIEWPORT_MAX,
   COMFORTABLE_DESKTOP_SHELL_MIN,
   EXPORT_TWO_COLUMN_SHELL_MIN,
-  SIDEBAR_COLLAPSED_STORAGE_KEY,
-  TEAM_ACTIVITIES_TABLE_MIN
+  SIDEBAR_COLLAPSED_STORAGE_KEY
 } from "./responsive-tiers";
 export {
   buildWidgetMinSizeMap,

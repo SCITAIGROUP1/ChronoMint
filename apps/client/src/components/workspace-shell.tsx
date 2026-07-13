@@ -9,6 +9,7 @@ import {
   logoutSession,
   SessionGenerationBoundary,
   ShellHeaderActions,
+  shouldRedirectBootstrapToLogin,
   SUBMISSIONS_LOOKBACK_WEEKS,
   useMySubmissionsLookbackQuery,
   useNotificationSocket,
@@ -26,7 +27,7 @@ import {
   Timer as TimerIcon
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AssistantProvider, useAssistant } from "@/features/assistant/assistant-provider";
 import { AssistantWidget } from "@/features/assistant/assistant-widget";
 import { OnboardingProvider, useOnboarding } from "@/features/onboarding/onboarding-provider";
@@ -46,8 +47,6 @@ const baseNav: readonly SidebarNavItem[] = [
   { href: "/notifications", label: "Notifications", Icon: Bell },
   { href: "/projects", label: "My projects", Icon: FolderKanban, tourId: "nav-projects" }
 ];
-
-const IMPERSONATION_HANDOFF_KEY = "kloqra:impersonation-handoff";
 
 function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
   const { openOnboarding, openTour } = useOnboarding();
@@ -74,9 +73,12 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
   const setWorkspaces = useWorkspacesStore((s) => s.setWorkspaces);
   const ensureWorkspacesLoaded = useWorkspacesStore((s) => s.ensureLoaded);
   const workspaces = useWorkspacesStore((s) => s.workspaces);
+  const [bootstrapFailure, setBootstrapFailure] = useState<"transient" | null>(null);
+  const [bootstrapAttempt, setBootstrapAttempt] = useState(0);
 
   useEffect(() => {
     if (session) {
+      setBootstrapFailure(null);
       if (workspaces.length > 0) {
         // Login / bootstrap already seeded the list — sync names without refetching.
         setWorkspaceNames(workspaces);
@@ -98,10 +100,6 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
     const handoffFromUrl = params.get("handoff");
     const legacyImpersonate = params.get("impersonate") === "true";
 
-    if (handoffFromUrl) {
-      sessionStorage.setItem(IMPERSONATION_HANDOFF_KEY, handoffFromUrl);
-    }
-
     if (handoffFromUrl || legacyImpersonate) {
       params.delete("handoff");
       params.delete("impersonate");
@@ -113,58 +111,39 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
       );
     }
 
-    const handoffToken =
-      handoffFromUrl ?? sessionStorage.getItem(IMPERSONATION_HANDOFF_KEY) ?? undefined;
-
-    void bootstrapSession({
-      handoffToken,
-      clearBeforeRefresh: legacyImpersonate && !handoffToken
-    })
+    let cancelled = false;
+    setBootstrapFailure(null);
+    void bootstrapSession()
       .then((result) => {
-        sessionStorage.removeItem(IMPERSONATION_HANDOFF_KEY);
+        if (cancelled) return;
         if (!result.ok) {
-          router.replace("/login");
+          if (shouldRedirectBootstrapToLogin(result.reason)) {
+            router.replace("/login");
+            return;
+          }
+          setBootstrapFailure("transient");
           return;
         }
         setWorkspaces(result.workspaces);
         setWorkspaceNames(result.workspaces);
       })
       .catch(() => {
-        sessionStorage.removeItem(IMPERSONATION_HANDOFF_KEY);
-        router.replace("/login");
+        if (cancelled) return;
+        setBootstrapFailure("transient");
       });
+
+    return () => {
+      cancelled = true;
+    };
   }, [
     session,
     setWorkspaces,
     setWorkspaceNames,
     ensureWorkspacesLoaded,
     router,
-    workspaces.length
+    workspaces,
+    bootstrapAttempt
   ]);
-
-  async function handleStopImpersonation() {
-    try {
-      await api(ROUTES.AUTH.STOP_IMPERSONATION, { method: "POST" });
-    } catch {
-      // Ignored
-    } finally {
-      useSessionStore.getState().clear({ boundaryReason: "impersonation" });
-      let adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL;
-      if (!adminUrl) {
-        if (typeof window !== "undefined") {
-          const host = window.location.hostname;
-          if (host.includes("vercel.app")) {
-            adminUrl = `https://${host.replace("-client", "-admin")}`;
-          } else {
-            adminUrl = "http://localhost:3002";
-          }
-        } else {
-          adminUrl = "http://localhost:3002";
-        }
-      }
-      window.location.href = `${adminUrl}/workspace`;
-    }
-  }
 
   const nav = useMemo((): readonly SidebarNavItem[] => {
     return baseNav.map((item) => {
@@ -176,11 +155,26 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
 
   if (!session) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <BrandMark size="sm" iconOnly className="animate-pulse" />
-          Loading workspace…
-        </div>
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-background px-6">
+        {bootstrapFailure === "transient" ? (
+          <>
+            <p className="max-w-sm text-center text-sm text-muted-foreground">
+              Couldn&apos;t restore your session. Check your connection and try again.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setBootstrapAttempt((n) => n + 1)}
+            >
+              Try again
+            </Button>
+          </>
+        ) : (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <BrandMark size="sm" iconOnly className="animate-pulse" />
+            Loading workspace…
+          </div>
+        )}
       </div>
     );
   }
@@ -202,36 +196,6 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
           onShowOnboardingTour={() => openTour({ replay: true })}
           onOpenAssistant={openAssistant}
         />
-      }
-      impersonationBanner={
-        session.impersonatorId ? (
-          <div className="sticky top-0 z-50 flex flex-col">
-            <div className="flex items-center justify-between border-b border-status-warning-border bg-status-warning-bg px-6 py-3 text-xs text-status-warning-fg backdrop-blur-md lg:px-8">
-              <div className="flex items-center gap-2.5">
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-warning opacity-75" />
-                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-warning" />
-                </span>
-                <span>
-                  👁 Viewing as <strong className="font-semibold">{session.user.name}</strong> —
-                  read-only mode{" "}
-                  <span className="opacity-70">
-                    (impersonated by Admin{" "}
-                    <strong className="font-semibold">{session.impersonatorName}</strong>)
-                  </span>
-                </span>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 border-status-warning-border px-3 text-xs text-status-warning-fg transition-colors hover:bg-status-warning-bg/80"
-                onClick={handleStopImpersonation}
-              >
-                Return to Admin
-              </Button>
-            </div>
-          </div>
-        ) : undefined
       }
       workspaceSwitcher={(collapsed) => (
         <WorkspaceSwitcher

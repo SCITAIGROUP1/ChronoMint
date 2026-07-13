@@ -40,7 +40,6 @@ import { WorkspaceAdminActions } from "./workspace-admin-actions";
 import { WorkspaceAdminProfileDialog } from "./workspace-admin-profile-dialog";
 import { DashboardStatCard } from "@/components/dashboard-stat-card";
 import { formatLastActive, formatWeekHours } from "@/features/team-management/format-last-active";
-import { buildClientImpersonationUrl } from "@/features/team-management/impersonation-redirect";
 import { api } from "@/lib/api";
 import { getWorkspaceId, useSessionStore } from "@/stores/session.store";
 
@@ -133,25 +132,6 @@ export function WorkspaceAdminsPage() {
       await reload();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not remove workspace admin.");
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  async function handleImpersonate(admin: WorkspaceAdminOverviewDto) {
-    setBusyId(admin.workspaceMemberId);
-    try {
-      const result = await api<{ handoffToken: string }>(ROUTES.AUTH.IMPERSONATE, {
-        method: "POST",
-        workspaceId: ws,
-        body: JSON.stringify({ userId: admin.userId })
-      });
-      if (!result.handoffToken) throw new Error("Impersonation handoff token missing");
-      toast.success("Impersonation ready. Redirecting to Client…");
-      const clientUrl = process.env.NEXT_PUBLIC_CLIENT_URL ?? "http://localhost:3000";
-      window.location.href = buildClientImpersonationUrl(clientUrl, result.handoffToken);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to view as member");
     } finally {
       setBusyId(null);
     }
@@ -353,7 +333,6 @@ export function WorkspaceAdminsPage() {
                         }
                         onDemote={() => setDemoteTarget(admin)}
                         onRemove={() => setRemoveTarget(admin)}
-                        onViewAsMember={() => void handleImpersonate(admin)}
                       />
                     </DataTableCell>
                   </TableRow>
