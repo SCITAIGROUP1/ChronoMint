@@ -10,16 +10,7 @@ import {
   ShellMenuPanel,
   cn
 } from "@kloqra/ui";
-import {
-  Eye,
-  Mail,
-  MoreVertical,
-  UserCircle,
-  UserMinus,
-  UserPlus,
-  UserX,
-  UserCheck
-} from "lucide-react";
+import { Eye, Mail, MoreVertical, UserMinus, UserPlus, UserX, UserCheck } from "lucide-react";
 import { useState } from "react";
 
 type WorkspaceAdminActionsProps = {
@@ -31,7 +22,6 @@ type WorkspaceAdminActionsProps = {
   onChangeStatus: (isActive: boolean) => void;
   onDemote: () => void;
   onRemove: () => void;
-  onViewAsMember: () => void;
 };
 
 export function WorkspaceAdminActions({
@@ -42,8 +32,7 @@ export function WorkspaceAdminActions({
   onResendCredentials,
   onChangeStatus,
   onDemote,
-  onRemove,
-  onViewAsMember
+  onRemove
 }: WorkspaceAdminActionsProps) {
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -86,15 +75,6 @@ export function WorkspaceAdminActions({
           >
             <UserPlus className="size-4 shrink-0" aria-hidden />
             Assign to workspace
-          </ShellMenuItem>
-          <ShellMenuItem
-            onClick={() => {
-              setMenuOpen(false);
-              onViewAsMember();
-            }}
-          >
-            <UserCircle className="size-4 shrink-0" aria-hidden />
-            View as member
           </ShellMenuItem>
           <div
             className="px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"

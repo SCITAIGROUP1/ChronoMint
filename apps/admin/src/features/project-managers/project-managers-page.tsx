@@ -34,7 +34,6 @@ import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 import { formatLastActive, formatWeekHours } from "../team-management/format-last-active";
-import { buildClientImpersonationUrl } from "../team-management/impersonation-redirect";
 import { AssignProjectManagerDialog } from "./assign-project-manager-dialog";
 import { ProjectManagerActions } from "./project-manager-actions";
 import { ProjectManagerAssignmentsDialog } from "./project-manager-assignments-dialog";
@@ -90,37 +89,6 @@ export function ProjectManagersPage() {
   const [assignOpen, setAssignOpen] = useState(false);
   const [assignPresetUserId, setAssignPresetUserId] = useState<string | undefined>();
   const [demoteAllTarget, setDemoteAllTarget] = useState<ProjectManagerOverviewDto | null>(null);
-
-  async function handleImpersonate(manager: ProjectManagerOverviewDto) {
-    setManagerBusyId(manager.userId);
-    try {
-      const result = await api<{ handoffToken: string }>(ROUTES.AUTH.IMPERSONATE, {
-        method: "POST",
-        workspaceId: ws,
-        body: JSON.stringify({ userId: manager.userId })
-      });
-      if (!result.handoffToken) {
-        throw new Error("Impersonation handoff token missing from API response");
-      }
-      toast.success("Impersonation ready. Redirecting to Client…");
-      let clientUrl = process.env.NEXT_PUBLIC_CLIENT_URL;
-      if (!clientUrl) {
-        if (typeof window !== "undefined") {
-          const host = window.location.hostname;
-          clientUrl = host.includes("vercel.app")
-            ? `https://${host.replace("-admin", "-client")}`
-            : "http://localhost:3000";
-        } else {
-          clientUrl = "http://localhost:3000";
-        }
-      }
-      window.location.href = buildClientImpersonationUrl(clientUrl, result.handoffToken);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to view as member");
-    } finally {
-      setManagerBusyId(null);
-    }
-  }
 
   async function handleDemoteAll(manager: ProjectManagerOverviewDto) {
     setManagerBusyId(manager.userId);
@@ -350,7 +318,6 @@ export function ProjectManagersPage() {
                         onViewProfile={() => setProfileTarget(manager)}
                         onManageAssignments={() => setAssignmentsTarget(manager)}
                         onAssignProject={() => openAssignForManager(manager)}
-                        onViewAsMember={() => void handleImpersonate(manager)}
                         onDemoteAll={() => setDemoteAllTarget(manager)}
                       />
                     </DataTableCell>

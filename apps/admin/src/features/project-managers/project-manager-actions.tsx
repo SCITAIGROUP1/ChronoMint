@@ -10,7 +10,7 @@ import {
   ShellMenuPanel,
   cn
 } from "@kloqra/ui";
-import { Briefcase, Eye, MoreVertical, UserCircle, UserMinus, UserPlus } from "lucide-react";
+import { Briefcase, Eye, MoreVertical, UserMinus, UserPlus } from "lucide-react";
 import { useState } from "react";
 
 type ProjectManagerActionsProps = {
@@ -19,7 +19,6 @@ type ProjectManagerActionsProps = {
   onViewProfile: () => void;
   onManageAssignments: () => void;
   onAssignProject: () => void;
-  onViewAsMember: () => void;
   onDemoteAll: () => void;
 };
 
@@ -29,7 +28,6 @@ export function ProjectManagerActions({
   onViewProfile,
   onManageAssignments,
   onAssignProject,
-  onViewAsMember,
   onDemoteAll
 }: ProjectManagerActionsProps) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -82,15 +80,6 @@ export function ProjectManagerActions({
           >
             <UserPlus className="size-4 shrink-0" aria-hidden />
             Assign to project
-          </ShellMenuItem>
-          <ShellMenuItem
-            onClick={() => {
-              setMenuOpen(false);
-              onViewAsMember();
-            }}
-          >
-            <UserCircle className="size-4 shrink-0" aria-hidden />
-            View as member
           </ShellMenuItem>
           <ShellMenuItem
             tone="destructive"

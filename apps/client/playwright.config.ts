@@ -28,7 +28,6 @@ export default defineConfig({
       testIgnore: [
         /auth\./,
         /smoke\.spec\.ts/,
-        /impersonation\.spec\.ts/,
         /submissions\.spec\.ts/,
         /screenshot\.spec\.ts/,
         /session-boundary\.spec\.ts/,
@@ -45,15 +44,6 @@ export default defineConfig({
       dependencies: ["setup-drew"],
       use: {
         storageState: "e2e/.auth/drew.json"
-      }
-    },
-    {
-      name: "impersonation",
-      testMatch: /impersonation\.spec\.ts/,
-      dependencies: ["setup-admin"],
-      use: {
-        storageState: "e2e/.auth/admin.json",
-        baseURL: process.env.ADMIN_BASE_URL ?? "http://localhost:3002"
       }
     },
     {

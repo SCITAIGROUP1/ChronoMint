@@ -26,7 +26,6 @@ describe("TeamMemberActions", () => {
         busy={false}
         onViewProfile={vi.fn()}
         onEditMember={vi.fn()}
-        onViewAsMember={vi.fn()}
         onChangeStatus={vi.fn()}
         onRemove={vi.fn()}
       />
@@ -43,12 +42,12 @@ describe("TeamMemberActions", () => {
         busy={false}
         onViewProfile={vi.fn()}
         onEditMember={vi.fn()}
-        onViewAsMember={vi.fn()}
         onChangeStatus={vi.fn()}
         onRemove={vi.fn()}
       />
     );
 
     expect(html).toContain('aria-label="Actions for Sam Rivera"');
+    expect(html).not.toContain("View As Member");
   });
 });

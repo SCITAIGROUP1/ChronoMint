@@ -48,8 +48,6 @@ const baseNav: readonly SidebarNavItem[] = [
   { href: "/projects", label: "My projects", Icon: FolderKanban, tourId: "nav-projects" }
 ];
 
-const IMPERSONATION_HANDOFF_KEY = "kloqra:impersonation-handoff";
-
 function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
   const { openOnboarding, openTour } = useOnboarding();
   const { openAssistant } = useAssistant();
@@ -102,10 +100,6 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
     const handoffFromUrl = params.get("handoff");
     const legacyImpersonate = params.get("impersonate") === "true";
 
-    if (handoffFromUrl) {
-      sessionStorage.setItem(IMPERSONATION_HANDOFF_KEY, handoffFromUrl);
-    }
-
     if (handoffFromUrl || legacyImpersonate) {
       params.delete("handoff");
       params.delete("impersonate");
@@ -117,18 +111,11 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
       );
     }
 
-    const handoffToken =
-      handoffFromUrl ?? sessionStorage.getItem(IMPERSONATION_HANDOFF_KEY) ?? undefined;
-
     let cancelled = false;
     setBootstrapFailure(null);
-    void bootstrapSession({
-      handoffToken,
-      clearBeforeRefresh: legacyImpersonate && !handoffToken
-    })
+    void bootstrapSession()
       .then((result) => {
         if (cancelled) return;
-        sessionStorage.removeItem(IMPERSONATION_HANDOFF_KEY);
         if (!result.ok) {
           if (shouldRedirectBootstrapToLogin(result.reason)) {
             router.replace("/login");
@@ -142,7 +129,6 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
       })
       .catch(() => {
         if (cancelled) return;
-        sessionStorage.removeItem(IMPERSONATION_HANDOFF_KEY);
         setBootstrapFailure("transient");
       });
 
@@ -158,30 +144,6 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
     workspaces,
     bootstrapAttempt
   ]);
-
-  async function handleStopImpersonation() {
-    try {
-      await api(ROUTES.AUTH.STOP_IMPERSONATION, { method: "POST" });
-    } catch {
-      // Ignored
-    } finally {
-      useSessionStore.getState().clear({ boundaryReason: "impersonation" });
-      let adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL;
-      if (!adminUrl) {
-        if (typeof window !== "undefined") {
-          const host = window.location.hostname;
-          if (host.includes("vercel.app")) {
-            adminUrl = `https://${host.replace("-client", "-admin")}`;
-          } else {
-            adminUrl = "http://localhost:3002";
-          }
-        } else {
-          adminUrl = "http://localhost:3002";
-        }
-      }
-      window.location.href = `${adminUrl}/workspace`;
-    }
-  }
 
   const nav = useMemo((): readonly SidebarNavItem[] => {
     return baseNav.map((item) => {
@@ -234,36 +196,6 @@ function WorkspaceShellInner({ children }: { children: React.ReactNode }) {
           onShowOnboardingTour={() => openTour({ replay: true })}
           onOpenAssistant={openAssistant}
         />
-      }
-      impersonationBanner={
-        session.impersonatorId ? (
-          <div data-testid="impersonation-banner" className="sticky top-0 z-50 flex flex-col">
-            <div className="flex items-center justify-between border-b border-status-warning-border bg-status-warning-bg px-6 py-3 text-xs text-status-warning-fg backdrop-blur-md lg:px-8">
-              <div className="flex items-center gap-2.5">
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-warning opacity-75" />
-                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-warning" />
-                </span>
-                <span>
-                  Viewing as <strong className="font-semibold">{session.user.name}</strong> —
-                  read-only mode{" "}
-                  <span className="opacity-70">
-                    (impersonated by Admin{" "}
-                    <strong className="font-semibold">{session.impersonatorName}</strong>)
-                  </span>
-                </span>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 border-status-warning-border px-3 text-xs text-status-warning-fg transition-colors hover:bg-status-warning-bg/80"
-                onClick={handleStopImpersonation}
-              >
-                Return to Admin
-              </Button>
-            </div>
-          </div>
-        ) : undefined
       }
       workspaceSwitcher={(collapsed) => (
         <WorkspaceSwitcher
