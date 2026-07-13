@@ -21,6 +21,7 @@ import {
 import { usePaginatedList } from "@kloqra/web-shared";
 import { ShieldCheck, User } from "lucide-react";
 import { useMemo, useState } from "react";
+import { formatTeamMemberJoinedAt } from "./format-team-member-joined";
 import { useMemberProjectDetail } from "./project-detail-context";
 
 type RoleFilter = "all" | "PROJECT_MANAGER" | "MEMBER";
@@ -121,12 +122,13 @@ export function MemberProjectTeamTab() {
                 <DataTableHead>Email</DataTableHead>
                 <DataTableHead>Role</DataTableHead>
                 <DataTableHead>Status</DataTableHead>
+                <DataTableHead>Joined</DataTableHead>
               </DataTableHeaderRow>
             </TableHeader>
 
             {/* TableLoadingRows renders its own <tbody> — must be a sibling of TableHeader, not nested inside TableBody */}
             {loading ? (
-              <TableLoadingRows rows={6} columns={4} />
+              <TableLoadingRows rows={6} columns={5} />
             ) : (
               <TableBody>
                 {members.map((m) => (
@@ -170,22 +172,25 @@ export function MemberProjectTeamTab() {
                         </Badge>
                       )}
                     </DataTableCell>
+
+                    <DataTableCell className="tabular-nums text-muted-foreground">
+                      {formatTeamMemberJoinedAt(m.createdAt)}
+                    </DataTableCell>
                   </TableRow>
                 ))}
               </TableBody>
             )}
           </Table>
 
-          {totalPages > 1 && (
-            <TablePagination
-              page={page}
-              totalPages={totalPages}
-              total={total}
-              limit={limit}
-              onPageChange={setPage}
-              onLimitChange={setLimit}
-            />
-          )}
+          <TablePagination
+            page={page}
+            totalPages={totalPages}
+            total={total}
+            limit={limit}
+            onPageChange={setPage}
+            onLimitChange={setLimit}
+            disabled={loading}
+          />
         </>
       )}
     </DataTableCard>

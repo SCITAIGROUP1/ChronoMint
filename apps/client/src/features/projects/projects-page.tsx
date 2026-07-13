@@ -4,6 +4,9 @@ import { ROUTES } from "@kloqra/contracts";
 import type { ProjectDto } from "@kloqra/contracts";
 import {
   AppBar,
+  AppBarListToolbar,
+  appBarListFilterTriggerClass,
+  Badge,
   DataTableCard,
   DataTableCell,
   DataTableHead,
@@ -11,6 +14,11 @@ import {
   EmptyState,
   entityRowClassName,
   ProjectNameWithColor,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Table,
   TableBody,
   TableHeader,
@@ -20,16 +28,22 @@ import {
 } from "@kloqra/ui";
 import { usePaginatedList } from "@kloqra/web-shared";
 import Link from "next/link";
+import { useMemo, useState } from "react";
+import { memberProjectsStatusFilters } from "@/features/projects/member-projects-filters";
 import { useProjectsStore } from "@/stores/projects.store";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
 export function ProjectsPage() {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
   const { workspaceNamesById } = useProjectsStore();
+  const [statusFilter, setStatusFilter] = useState<"ALL" | "active" | "inactive">("ALL");
+  const listFilters = useMemo(() => memberProjectsStatusFilters(statusFilter), [statusFilter]);
   const {
     items: projects,
     page,
     setPage,
+    search,
+    setSearch,
     total,
     totalPages,
     limit,
@@ -37,14 +51,43 @@ export function ProjectsPage() {
     loading
   } = usePaginatedList<ProjectDto>({
     workspaceId: ws,
-    basePath: ROUTES.PROJECTS.LIST
+    basePath: ROUTES.PROJECTS.LIST,
+    filters: listFilters
   });
+
+  const noFilters = !search && statusFilter === "ALL";
 
   return (
     <div className="space-y-6">
       <AppBar
         title="My projects"
         description="Projects where you are on the team. Ask an admin for a team invite link to join more."
+        secondary={
+          <AppBarListToolbar
+            searchValue={search}
+            onSearchChange={setSearch}
+            searchPlaceholder="Search by name or client…"
+            searchAriaLabel="Search projects"
+            filters={
+              <Select
+                value={statusFilter}
+                onValueChange={(value) => setStatusFilter(value as "ALL" | "active" | "inactive")}
+              >
+                <SelectTrigger
+                  className={appBarListFilterTriggerClass}
+                  aria-label="Filter by status"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All statuses</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            }
+          />
+        }
       />
       <DataTableCard>
         {loading ? (
@@ -52,8 +95,12 @@ export function ProjectsPage() {
         ) : projects.length === 0 ? (
           <div className="p-6">
             <EmptyState
-              title="No assigned projects"
-              description="You are not on any projects yet. Open an invite link from your admin to join."
+              title={noFilters ? "No assigned projects" : "No matching projects"}
+              description={
+                noFilters
+                  ? "You are not on any projects yet. Open an invite link from your admin to join."
+                  : "Try a different search term or filter."
+              }
             />
           </div>
         ) : (
@@ -64,7 +111,7 @@ export function ProjectsPage() {
                   <DataTableHead>Workspace</DataTableHead>
                   <DataTableHead>Project</DataTableHead>
                   <DataTableHead>Client</DataTableHead>
-                  <DataTableHead>Active</DataTableHead>
+                  <DataTableHead>Status</DataTableHead>
                 </DataTableHeaderRow>
               </TableHeader>
               <TableBody>
@@ -82,7 +129,11 @@ export function ProjectsPage() {
                       </Link>
                     </DataTableCell>
                     <DataTableCell>{p.clientName ?? "—"}</DataTableCell>
-                    <DataTableCell>{p.isActive ? "Yes" : "No"}</DataTableCell>
+                    <DataTableCell>
+                      <Badge variant={p.isActive ? "default" : "secondary"}>
+                        {p.isActive ? "Active" : "Inactive"}
+                      </Badge>
+                    </DataTableCell>
                   </TableRow>
                 ))}
               </TableBody>

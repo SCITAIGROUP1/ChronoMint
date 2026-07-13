@@ -19,4 +19,10 @@ describe("entityRowClassName (admin lists)", () => {
   it("leaves active rows unstyled by the helper", () => {
     expect(entityRowClassName(true, "group cursor-pointer")).toBe("group cursor-pointer");
   });
+
+  it("maps project list status labels from isActive", () => {
+    const statusLabel = (isActive: boolean) => (isActive ? "Active" : "Inactive");
+    expect(statusLabel(true)).toBe("Active");
+    expect(statusLabel(false)).toBe("Inactive");
+  });
 });

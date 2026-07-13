@@ -10,6 +10,7 @@ import {
   resolveMemberProjectDetailSection,
   type MemberProjectDetailSectionId
 } from "./member-project-detail-nav";
+import { memberProjectHeaderMeta } from "./member-project-header-meta";
 import { ProjectDetailProvider, useMemberProjectDetail } from "./project-detail-context";
 
 const SECTION_COPY: Record<MemberProjectDetailSectionId, { title: string; description: string }> = {
@@ -60,27 +61,22 @@ function ProjectDetailShellInner({ children }: { children: ReactNode }) {
   }
 
   const displayColor = project.myColor ?? project.color;
+  const { showInactiveBadge, clientSubtitle } = memberProjectHeaderMeta(project);
 
   return (
     <div className="space-y-6">
       <AppBar
         title={
-          <span className="inline-flex flex-wrap items-center gap-3">
+          <span className="inline-flex flex-wrap items-center gap-2.5">
             <ProjectNameWithColor
               name={project.name}
               color={displayColor}
               className="text-2xl font-semibold tracking-tight"
             />
-            <Badge variant={project.isActive ? "default" : "secondary"}>
-              {project.isActive ? "Active" : "Inactive"}
-            </Badge>
+            {showInactiveBadge ? <Badge variant="secondary">Inactive</Badge> : null}
           </span>
         }
-        description={
-          project.clientName
-            ? `Client: ${project.clientName}`
-            : "View your stats and assigned tasks for this project."
-        }
+        description={clientSubtitle ?? "View your stats and assigned tasks for this project."}
         actions={
           <Button
             asChild

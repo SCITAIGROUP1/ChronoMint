@@ -52,7 +52,7 @@ vi.mock("./refresh-session", () => ({
 vi.mock("../api/client", async (importOriginal) => {
   const actual = await importOriginal();
   return {
-    ...actual,
+    ...(actual as Record<string, unknown>),
     api: (...args: unknown[]) => mockApi(...args)
   };
 });
