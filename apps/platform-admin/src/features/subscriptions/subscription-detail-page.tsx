@@ -104,11 +104,12 @@ export function SubscriptionDetailPage({ tenantId }: SubscriptionDetailPageProps
             <div className="flex items-center gap-2">
               <Link
                 href="/subscriptions"
-                className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                aria-label="Back to subscriptions"
+                className="inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               >
                 <ArrowLeft className="h-4 w-4" />
+                <span>Subscriptions</span>
               </Link>
+              <span className="text-muted-foreground/60">/</span>
               <span>Subscription</span>
             </div>
           }
@@ -187,11 +188,12 @@ export function SubscriptionDetailPage({ tenantId }: SubscriptionDetailPageProps
           <div className="flex min-w-0 items-center gap-2">
             <Link
               href="/subscriptions"
-              className="shrink-0 rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              aria-label="Back to subscriptions"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               <ArrowLeft className="h-4 w-4" />
+              <span>Subscriptions</span>
             </Link>
+            <span className="text-muted-foreground/60">/</span>
             <span className="truncate font-semibold text-foreground">
               {subscription.tenantName}
             </span>

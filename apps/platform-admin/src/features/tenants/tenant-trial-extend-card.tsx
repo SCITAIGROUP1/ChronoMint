@@ -14,27 +14,30 @@ import {
   CardHeader,
   CardTitle,
   DatePicker,
-  Label
+  Label,
+  dateKeyFromDate,
+  formatDateKeyLabel
 } from "@kloqra/ui";
 import { api } from "@kloqra/web-shared";
 import { CalendarPlus } from "lucide-react";
 import { useMemo, useState } from "react";
-import { previewTrialEndsAtFromDays } from "./trial-extend.util";
+import {
+  formatTrialEndLabel,
+  localDateKeyToEndOfDayIso,
+  previewTrialEndsAtFromDays
+} from "./trial-extend.util";
 
 const PRESET_DAYS = [7, 14, 30] as const;
 const MAX_TRIAL_EXTEND_DAYS = 365;
 
 type PendingExtend =
-  | { kind: "days"; extendDays: number; previewEndsAt: Date }
-  | { kind: "date"; trialEndsAt: string; previewEndsAt: Date };
+  | { kind: "days"; extendDays: number; previewEndsAt: Date; previewLabel: string }
+  | { kind: "date"; trialEndsAt: string; previewEndsAt: Date; previewLabel: string };
 
 function maxTrialEndDateKey(now = new Date()): string {
   const max = new Date(now);
   max.setDate(max.getDate() + MAX_TRIAL_EXTEND_DAYS);
-  const y = max.getFullYear();
-  const m = String(max.getMonth() + 1).padStart(2, "0");
-  const d = String(max.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
+  return dateKeyFromDate(max);
 }
 
 type TenantTrialExtendCardProps = {
@@ -58,12 +61,10 @@ export function TenantTrialExtendCard({
   const [message, setMessage] = useState("");
   const maxDate = useMemo(() => maxTrialEndDateKey(), []);
 
-  const trialLabel = useMemo(() => {
-    if (!subscription.trialEndsAt) return "No trial end date";
-    const end = new Date(subscription.trialEndsAt);
-    const expired = end.getTime() < Date.now();
-    return `${expired ? "Expired" : "Ends"} ${end.toLocaleDateString()}`;
-  }, [subscription.trialEndsAt]);
+  const trialLabel = useMemo(
+    () => formatTrialEndLabel(subscription.trialEndsAt),
+    [subscription.trialEndsAt]
+  );
 
   if (subscription.status === "canceled") {
     return null;
@@ -83,10 +84,12 @@ export function TenantTrialExtendCard({
   function selectDays(extendDays: number) {
     setCustomDate("");
     setError("");
+    const previewEndsAt = previewTrialEndsAtFromDays(subscription.trialEndsAt, extendDays);
     setPending({
       kind: "days",
       extendDays,
-      previewEndsAt: previewTrialEndsAtFromDays(subscription.trialEndsAt, extendDays)
+      previewEndsAt,
+      previewLabel: formatDateKeyLabel(dateKeyFromDate(previewEndsAt))
     });
   }
 
@@ -97,11 +100,12 @@ export function TenantTrialExtendCard({
       setPending(null);
       return;
     }
-    const trialEndsAt = new Date(`${value}T23:59:59.000Z`).toISOString();
+    const trialEndsAt = localDateKeyToEndOfDayIso(value);
     setPending({
       kind: "date",
       trialEndsAt,
-      previewEndsAt: new Date(trialEndsAt)
+      previewEndsAt: new Date(trialEndsAt),
+      previewLabel: formatDateKeyLabel(value)
     });
   }
 
@@ -125,9 +129,7 @@ export function TenantTrialExtendCard({
           body: JSON.stringify(body)
         }
       );
-      setMessage(
-        `Trial extended. New end: ${new Date(result.subscription.trialEndsAt!).toLocaleString()}`
-      );
+      setMessage(`Trial extended. ${formatTrialEndLabel(result.subscription.trialEndsAt)}`);
       setOpen(false);
       resetModalState();
       onExtended?.(result);
@@ -259,7 +261,7 @@ export function TenantTrialExtendCard({
               data-testid="extend-trial-preview"
             >
               <span className="text-muted-foreground">New trial ends </span>
-              <span className="font-medium">{pending.previewEndsAt.toLocaleString()}</span>
+              <span className="font-medium">{pending.previewLabel}</span>
             </div>
           ) : null}
 

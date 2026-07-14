@@ -54,7 +54,7 @@ test.describe("Platform tenant trial extension", () => {
     await firstTenantLink.click();
     await expect(page).toHaveURL(/\/subscriptions\/[a-f0-9-]+/);
 
-    await expect(page.getByRole("link", { name: "Back to subscriptions" })).toBeVisible();
+    await expect(page.getByRole("link", { name: /subscriptions/i })).toBeVisible();
 
     const card = page.getByTestId("tenant-trial-extend-card");
     if (!(await card.isVisible().catch(() => false))) {

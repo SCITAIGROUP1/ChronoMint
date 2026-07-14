@@ -11,7 +11,6 @@ import {
   CardTitle,
   CenteredLoader,
   DashboardStatCard,
-  DatePicker,
   Input,
   Label,
   Select,
@@ -27,6 +26,7 @@ import { useEffect, useState } from "react";
 import { formatTenantStatusLabel, tenantStatusTone } from "./tenant-labels";
 import { TenantSalesInquiriesCard } from "./tenant-sales-inquiries-card";
 import { TenantTrialExtendCard } from "./tenant-trial-extend-card";
+import { formatTrialEndLabel } from "./trial-extend.util";
 
 function syncPlanId(
   tenant: PlatformTenantDetailDto,
@@ -42,7 +42,6 @@ export function TenantDetailPage({ tenantId }: { tenantId: string }) {
   const [slug, setSlug] = useState("");
   const [planId, setPlanId] = useState("");
   const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">("monthly");
-  const [trialEndsDate, setTrialEndsDate] = useState("");
   const [saving, setSaving] = useState(false);
   const [actionMessage, setActionMessage] = useState("");
   const [actionError, setActionError] = useState("");
@@ -54,9 +53,6 @@ export function TenantDetailPage({ tenantId }: { tenantId: string }) {
     setPlanId(syncPlanId(tenant, plans));
     const interval = tenant.subscription?.billingInterval;
     setBillingInterval(interval === "yearly" ? "yearly" : "monthly");
-    setTrialEndsDate(
-      tenant.subscription?.trialEndsAt ? tenant.subscription.trialEndsAt.slice(0, 10) : ""
-    );
   }, [tenant, plans]);
 
   async function patchTenant(body: Record<string, unknown>) {
@@ -138,7 +134,7 @@ export function TenantDetailPage({ tenantId }: { tenantId: string }) {
   const planHint = tenant.subscription
     ? [
         tenant.subscription.status === "trial"
-          ? `Trial ends: ${tenant.subscription.trialEndsAt ? new Date(tenant.subscription.trialEndsAt).toLocaleDateString() : "—"}`
+          ? formatTrialEndLabel(tenant.subscription.trialEndsAt)
           : `Renews: ${tenant.subscription.currentPeriodEnd ? new Date(tenant.subscription.currentPeriodEnd).toLocaleDateString() : "—"}`,
         tenant.subscription.billingInterval ? tenant.subscription.billingInterval : null
       ]
@@ -153,11 +149,12 @@ export function TenantDetailPage({ tenantId }: { tenantId: string }) {
           <div className="flex min-w-0 items-center gap-2">
             <Link
               href="/tenants"
-              className="shrink-0 rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              aria-label="Back to tenants"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               <ArrowLeft className="h-4 w-4" />
+              <span>Tenants</span>
             </Link>
+            <span className="text-muted-foreground/60">/</span>
             <span className="truncate font-semibold text-foreground">{tenant.name}</span>
           </div>
         }
@@ -278,20 +275,6 @@ export function TenantDetailPage({ tenantId }: { tenantId: string }) {
                 </Select>
               </div>
             </div>
-            <div className="space-y-2">
-              <Label>Trial end date (optional)</Label>
-              <DatePicker
-                value={trialEndsDate}
-                onChange={setTrialEndsDate}
-                placeholder="No trial end date"
-                ariaLabel="Trial end date"
-                className="h-10 w-full max-w-sm justify-start bg-background"
-                popoverAlign="start"
-              />
-              <p className="text-xs text-muted-foreground">
-                Setting a date puts the subscription on trial ending that day.
-              </p>
-            </div>
             <div className="flex justify-end">
               <Button
                 type="button"
@@ -301,13 +284,7 @@ export function TenantDetailPage({ tenantId }: { tenantId: string }) {
                     name: name.trim(),
                     slug: slug.trim(),
                     billingInterval,
-                    ...(planId ? { planId } : {}),
-                    ...(trialEndsDate
-                      ? {
-                          trialEndsAt: new Date(`${trialEndsDate}T23:59:59.000Z`).toISOString(),
-                          subscriptionStatus: "trial"
-                        }
-                      : {})
+                    ...(planId ? { planId } : {})
                   })
                 }
               >

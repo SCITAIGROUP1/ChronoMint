@@ -23,6 +23,7 @@ import { api, usePlatformPlans } from "@kloqra/web-shared";
 import { Building2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { localDateKeyToEndOfDayIso } from "./trial-extend.util";
 
 type TenantCreateModalProps = {
   open: boolean;
@@ -79,9 +80,7 @@ export function TenantCreateModal({ open, onOpenChange, onCreated }: TenantCreat
       billingInterval,
       ...(ownerName.trim() ? { ownerName: ownerName.trim() } : {}),
       ...(tenantAdminEmail.trim() ? { tenantAdminEmail: tenantAdminEmail.trim() } : {}),
-      ...(trial && trialEndsDate
-        ? { trialEndsAt: new Date(`${trialEndsDate}T23:59:59.000Z`).toISOString() }
-        : {})
+      ...(trial && trialEndsDate ? { trialEndsAt: localDateKeyToEndOfDayIso(trialEndsDate) } : {})
     };
     const parsed = createPlatformTenantSchema.safeParse(body);
     return parsed.success ? parsed.data : null;
