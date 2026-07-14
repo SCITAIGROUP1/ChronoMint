@@ -309,7 +309,6 @@ export function TenantDetailPage({ tenantId }: { tenantId: string }) {
                 subscriptionStatus: result.subscription.status,
                 subscription: result.subscription
               });
-              setActionMessage("Trial extended.");
             }}
           />
         ) : null}

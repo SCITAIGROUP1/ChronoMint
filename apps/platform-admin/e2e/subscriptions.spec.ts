@@ -53,9 +53,9 @@ test.describe("Platform Subscriptions Console E2E", () => {
     const tenantName = await firstTenantLink.innerText();
     await firstTenantLink.click();
 
-    // Verify URL change to detail page
+    // Verify URL change to detail page (AppBar title is a breadcrumb div, not an h1)
     await expect(page).toHaveURL(/\/subscriptions\/[a-f0-9-]+/);
-    await expect(page.getByRole("heading", { name: tenantName })).toBeVisible();
+    await expect(page.getByRole("main").getByText(tenantName, { exact: true })).toBeVisible();
 
     // Verify detail cards are rendered
     await expect(page.getByText("Billing Tenure", { exact: true })).toBeVisible();

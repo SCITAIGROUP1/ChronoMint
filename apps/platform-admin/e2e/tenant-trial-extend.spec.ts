@@ -40,11 +40,7 @@ test.describe("Platform tenant trial extension", () => {
 
     const res = await extendResponse;
     expect(res.ok()).toBeTruthy();
-    await expect(
-      page
-        .getByTestId("extend-trial-message")
-        .or(page.getByText("Trial extended.", { exact: false }))
-    ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId("extend-trial-message")).toBeVisible({ timeout: 10_000 });
   });
 
   test("subscription detail shows the same trial extend card", async ({ page }) => {
@@ -54,7 +50,9 @@ test.describe("Platform tenant trial extension", () => {
     await firstTenantLink.click();
     await expect(page).toHaveURL(/\/subscriptions\/[a-f0-9-]+/);
 
-    await expect(page.getByRole("link", { name: /subscriptions/i })).toBeVisible();
+    await expect(
+      page.getByRole("main").getByRole("link", { name: "Subscriptions", exact: true })
+    ).toBeVisible();
 
     const card = page.getByTestId("tenant-trial-extend-card");
     if (!(await card.isVisible().catch(() => false))) {
