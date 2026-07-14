@@ -9,6 +9,9 @@ import {
 } from "../tenant-rbac";
 import { emailSchema, isoDatetimeSchema, slugSchema, uuidSchema } from "./common.dto";
 import { planCatalogItemSchema, planCatalogListResponseSchema } from "./plan.dto";
+import { salesInquiryBillingIntervalSchema } from "./sales-inquiry.dto";
+
+export const platformBillingIntervalSchema = salesInquiryBillingIntervalSchema;
 
 export const platformUserSchema = z.object({
   id: uuidSchema,
@@ -80,6 +83,9 @@ export const createPlatformTenantSchema = z
     tenantAdminEmail: emailSchema.optional(),
     planId: uuidSchema,
     subscriptionStatus: z.enum(["trial", "active"]).optional(),
+    billingInterval: platformBillingIntervalSchema.optional(),
+    /** Optional override; when omitted and status is trial, API defaults to now+30d. */
+    trialEndsAt: isoDatetimeSchema.optional(),
     limitsOverride: planLimitsSchema.partial().optional(),
     firstWorkspace: createPlatformTenantFirstWorkspaceSchema.optional()
   })
@@ -91,6 +97,16 @@ export const createPlatformTenantSchema = z
       message: "Tenant admin email must differ from owner email",
       path: ["tenantAdminEmail"]
     }
+  )
+  .refine(
+    (value) =>
+      value.trialEndsAt === undefined ||
+      value.subscriptionStatus === undefined ||
+      value.subscriptionStatus === "trial",
+    {
+      message: "trialEndsAt is only allowed when subscriptionStatus is trial",
+      path: ["trialEndsAt"]
+    }
   );
 
 export const updatePlatformTenantSchema = z
@@ -100,6 +116,8 @@ export const updatePlatformTenantSchema = z
     status: z.enum(["active", "suspended", "churned"]).optional(),
     planId: uuidSchema.optional(),
     subscriptionStatus: subscriptionStatusSchema.optional(),
+    billingInterval: platformBillingIntervalSchema.optional(),
+    trialEndsAt: isoDatetimeSchema.nullable().optional(),
     limitsOverride: planLimitsSchema.partial().nullable().optional(),
     exportWaived: z.boolean().optional()
   })
@@ -110,10 +128,29 @@ export const updatePlatformTenantSchema = z
       value.status !== undefined ||
       value.planId !== undefined ||
       value.subscriptionStatus !== undefined ||
+      value.billingInterval !== undefined ||
+      value.trialEndsAt !== undefined ||
       value.limitsOverride !== undefined ||
       value.exportWaived !== undefined,
     { message: "At least one field is required" }
   );
+
+/** Exactly one of extendDays (1–90) or trialEndsAt (future, ≤365d). Absolute date “after now” is enforced at the API. */
+export const extendPlatformTenantTrialSchema = z
+  .object({
+    extendDays: z.number().int().min(1).max(90).optional(),
+    trialEndsAt: isoDatetimeSchema.optional()
+  })
+  .refine(
+    (value) =>
+      (value.extendDays !== undefined && value.trialEndsAt === undefined) ||
+      (value.extendDays === undefined && value.trialEndsAt !== undefined),
+    { message: "Provide exactly one of extendDays or trialEndsAt" }
+  );
+
+export const extendPlatformTenantTrialResponseSchema = z.object({
+  subscription: platformTenantSubscriptionSummarySchema
+});
 
 export const createPlatformTenantResponseSchema = z.object({
   tenant: platformTenantDetailSchema,
@@ -172,11 +209,18 @@ export type PlatformUserDto = z.infer<typeof platformUserSchema>;
 export type PlatformSessionDto = z.infer<typeof platformSessionSchema>;
 export type PlatformSessionWithTokenDto = z.infer<typeof platformSessionWithTokenSchema>;
 export type PlatformTenantListItemDto = z.infer<typeof platformTenantListItemSchema>;
+export type PlatformTenantSubscriptionSummaryDto = z.infer<
+  typeof platformTenantSubscriptionSummarySchema
+>;
 export type PlatformTenantDetailDto = z.infer<typeof platformTenantDetailSchema>;
 export type PlatformTenantListResponseDto = z.infer<typeof platformTenantListResponseSchema>;
 export type ListPlatformTenantsQuery = z.infer<typeof listPlatformTenantsQuerySchema>;
 export type CreatePlatformTenantDto = z.infer<typeof createPlatformTenantSchema>;
 export type UpdatePlatformTenantDto = z.infer<typeof updatePlatformTenantSchema>;
+export type ExtendPlatformTenantTrialDto = z.infer<typeof extendPlatformTenantTrialSchema>;
+export type ExtendPlatformTenantTrialResponseDto = z.infer<
+  typeof extendPlatformTenantTrialResponseSchema
+>;
 export type CreatePlatformTenantResponseDto = z.infer<typeof createPlatformTenantResponseSchema>;
 export type PlatformPlanListItemDto = z.infer<typeof platformPlanListItemSchema>;
 export type PlatformPlanListResponseDto = z.infer<typeof platformPlanListResponseSchema>;

@@ -20,11 +20,13 @@ import {
   SelectValue
 } from "@kloqra/ui";
 import { api, CopyableValue, usePlatformPlans, usePlatformTenantDetail } from "@kloqra/web-shared";
-import { Activity, CreditCard, Users } from "lucide-react";
+import { Activity, ArrowLeft, CreditCard, Users } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { formatTenantStatusLabel, tenantStatusTone } from "./tenant-labels";
 import { TenantSalesInquiriesCard } from "./tenant-sales-inquiries-card";
+import { TenantTrialExtendCard } from "./tenant-trial-extend-card";
+import { formatTrialEndLabel } from "./trial-extend.util";
 
 function syncPlanId(
   tenant: PlatformTenantDetailDto,
@@ -39,6 +41,7 @@ export function TenantDetailPage({ tenantId }: { tenantId: string }) {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [planId, setPlanId] = useState("");
+  const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">("monthly");
   const [saving, setSaving] = useState(false);
   const [actionMessage, setActionMessage] = useState("");
   const [actionError, setActionError] = useState("");
@@ -48,6 +51,8 @@ export function TenantDetailPage({ tenantId }: { tenantId: string }) {
     setName(tenant.name);
     setSlug(tenant.slug);
     setPlanId(syncPlanId(tenant, plans));
+    const interval = tenant.subscription?.billingInterval;
+    setBillingInterval(interval === "yearly" ? "yearly" : "monthly");
   }, [tenant, plans]);
 
   async function patchTenant(body: Record<string, unknown>) {
@@ -129,7 +134,7 @@ export function TenantDetailPage({ tenantId }: { tenantId: string }) {
   const planHint = tenant.subscription
     ? [
         tenant.subscription.status === "trial"
-          ? `Trial ends: ${tenant.subscription.trialEndsAt ? new Date(tenant.subscription.trialEndsAt).toLocaleDateString() : "—"}`
+          ? formatTrialEndLabel(tenant.subscription.trialEndsAt)
           : `Renews: ${tenant.subscription.currentPeriodEnd ? new Date(tenant.subscription.currentPeriodEnd).toLocaleDateString() : "—"}`,
         tenant.subscription.billingInterval ? tenant.subscription.billingInterval : null
       ]
@@ -140,13 +145,20 @@ export function TenantDetailPage({ tenantId }: { tenantId: string }) {
   return (
     <div className="space-y-6">
       <AppBar
-        title={tenant.name}
-        description="Organization account on Kloqra."
-        actions={
-          <Link href="/tenants" className="text-sm text-primary hover:underline">
-            Back to tenants
-          </Link>
+        title={
+          <div className="flex min-w-0 items-center gap-2">
+            <Link
+              href="/tenants"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <span>Tenants</span>
+            </Link>
+            <span className="text-muted-foreground/60">/</span>
+            <span className="truncate font-semibold text-foreground">{tenant.name}</span>
+          </div>
         }
+        description="Organization account on Kloqra."
       />
 
       <div className="mx-auto max-w-6xl space-y-6">
@@ -231,20 +243,37 @@ export function TenantDetailPage({ tenantId }: { tenantId: string }) {
                 />
               </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="plan-id">Plan</Label>
-              <Select value={planId} onValueChange={setPlanId}>
-                <SelectTrigger id="plan-id">
-                  <SelectValue placeholder="Select plan" />
-                </SelectTrigger>
-                <SelectContent>
-                  {plans.map((plan) => (
-                    <SelectItem key={plan.id} value={plan.id}>
-                      {plan.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="plan-id">Plan</Label>
+                <Select value={planId} onValueChange={setPlanId}>
+                  <SelectTrigger id="plan-id">
+                    <SelectValue placeholder="Select plan" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {plans.map((plan) => (
+                      <SelectItem key={plan.id} value={plan.id}>
+                        {plan.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="billing-interval">Billing interval</Label>
+                <Select
+                  value={billingInterval}
+                  onValueChange={(value) => setBillingInterval(value as "monthly" | "yearly")}
+                >
+                  <SelectTrigger id="billing-interval">
+                    <SelectValue placeholder="Select interval" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="yearly">Annual</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="flex justify-end">
               <Button
@@ -254,6 +283,7 @@ export function TenantDetailPage({ tenantId }: { tenantId: string }) {
                   void patchTenant({
                     name: name.trim(),
                     slug: slug.trim(),
+                    billingInterval,
                     ...(planId ? { planId } : {})
                   })
                 }
@@ -265,6 +295,23 @@ export function TenantDetailPage({ tenantId }: { tenantId: string }) {
         </Card>
 
         <TenantSalesInquiriesCard tenantId={tenantId} />
+
+        {tenant.subscription && tenant.subscription.status !== "canceled" ? (
+          <TenantTrialExtendCard
+            tenantId={tenantId}
+            subscription={tenant.subscription}
+            disabled={saving}
+            onExtended={(result) => {
+              // Soft-update subscription so the card stays mounted and can show success.
+              // Full reload() flips loading and remounts the page, wiping the message.
+              setTenant({
+                ...tenant,
+                subscriptionStatus: result.subscription.status,
+                subscription: result.subscription
+              });
+            }}
+          />
+        ) : null}
 
         <Card className="border-destructive/20">
           <CardHeader>

@@ -2,6 +2,7 @@
 
 import { ROUTES } from "@kloqra/contracts";
 import {
+  AppBar,
   AppModal,
   Button,
   Card,
@@ -31,6 +32,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { TenantTrialExtendCard } from "../tenants/tenant-trial-extend-card";
 
 type SubscriptionDetailPageProps = {
   tenantId: string;
@@ -97,13 +99,22 @@ export function SubscriptionDetailPage({ tenantId }: SubscriptionDetailPageProps
   if (error || !subscription) {
     return (
       <div className="space-y-6">
-        <Link
-          href="/subscriptions"
-          className="flex items-center gap-2 text-sm text-primary hover:underline"
-        >
-          <ArrowLeft className="h-4 w-4" /> Back to subscriptions
-        </Link>
-        <p className="text-sm text-destructive">{error ?? "Subscription not found"}</p>
+        <AppBar
+          title={
+            <div className="flex items-center gap-2">
+              <Link
+                href="/subscriptions"
+                className="inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span>Subscriptions</span>
+              </Link>
+              <span className="text-muted-foreground/60">/</span>
+              <span>Subscription</span>
+            </div>
+          }
+          description={error ?? "Subscription not found"}
+        />
       </div>
     );
   }
@@ -135,6 +146,9 @@ export function SubscriptionDetailPage({ tenantId }: SubscriptionDetailPageProps
         return <Settings className="h-4 w-4 text-amber-500" />;
       case "period_renewed":
         return <Calendar className="h-4 w-4 text-indigo-500" />;
+      case "trial_extended":
+      case "trial_started":
+        return <Calendar className="h-4 w-4 text-blue-500" />;
       case "canceled":
         return <FileText className="h-4 w-4 text-gray-500" />;
       default:
@@ -169,36 +183,43 @@ export function SubscriptionDetailPage({ tenantId }: SubscriptionDetailPageProps
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-        <div className="space-y-1">
-          <Link
-            href="/subscriptions"
-            className="flex items-center gap-2 text-sm text-primary hover:underline mb-2"
-          >
-            <ArrowLeft className="h-4 w-4" /> Back to subscriptions
-          </Link>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight">{subscription.tenantName}</h1>
+      <AppBar
+        title={
+          <div className="flex min-w-0 items-center gap-2">
+            <Link
+              href="/subscriptions"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <span>Subscriptions</span>
+            </Link>
+            <span className="text-muted-foreground/60">/</span>
+            <span className="truncate font-semibold text-foreground">
+              {subscription.tenantName}
+            </span>
             <span
-              className={`px-2 py-1 text-xs rounded-full font-semibold ${getStatusStyle(subscription.status)}`}
+              className={`shrink-0 px-2 py-1 text-xs rounded-full font-semibold ${getStatusStyle(subscription.status)}`}
             >
               {subscription.status.toUpperCase()}
             </span>
           </div>
-          <p className="text-sm text-muted-foreground font-mono">
+        }
+        description={
+          <span className="font-mono text-xs text-muted-foreground">
             Tenant ID: {subscription.tenantId}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button variant="outline" asChild>
-            <Link href={`/tenants/${subscription.tenantId}`}>View Org Profile</Link>
-          </Button>
-          <Button variant="default" onClick={openAssignPlanModal}>
-            Change / Assign Plan
-          </Button>
-        </div>
-      </div>
+          </span>
+        }
+        actions={
+          <div className="flex items-center gap-2">
+            <Button variant="outline" asChild>
+              <Link href={`/tenants/${subscription.tenantId}`}>View Org Profile</Link>
+            </Button>
+            <Button variant="default" onClick={openAssignPlanModal}>
+              Change / Assign Plan
+            </Button>
+          </div>
+        }
+      />
 
       <div className="grid gap-6 md:grid-cols-3">
         {/* Core Billing Parameters */}
@@ -366,6 +387,19 @@ export function SubscriptionDetailPage({ tenantId }: SubscriptionDetailPageProps
           </CardContent>
         </Card>
       </div>
+
+      {subscription.status !== "canceled" ? (
+        <TenantTrialExtendCard
+          tenantId={tenantId}
+          subscription={{
+            status: subscription.status,
+            trialEndsAt: subscription.trialEndsAt
+          }}
+          onExtended={() => {
+            void reload();
+          }}
+        />
+      ) : null}
 
       {/* Immutable Event Timeline */}
       <Card className="border-border/60 shadow-sm">
