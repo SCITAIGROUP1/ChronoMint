@@ -36,7 +36,7 @@ function syncPlanId(
 
 export function TenantDetailPage({ tenantId }: { tenantId: string }) {
   const { plans } = usePlatformPlans();
-  const { tenant, setTenant, loading, error, reload } = usePlatformTenantDetail(tenantId);
+  const { tenant, setTenant, loading, error } = usePlatformTenantDetail(tenantId);
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [planId, setPlanId] = useState("");
@@ -272,8 +272,15 @@ export function TenantDetailPage({ tenantId }: { tenantId: string }) {
             tenantId={tenantId}
             subscription={tenant.subscription}
             disabled={saving}
-            onExtended={() => {
-              void reload().then(() => setActionMessage("Trial extended."));
+            onExtended={(result) => {
+              // Soft-update subscription so the card stays mounted and can show success.
+              // Full reload() flips loading and remounts the page, wiping the message.
+              setTenant({
+                ...tenant,
+                subscriptionStatus: result.subscription.status,
+                subscription: result.subscription
+              });
+              setActionMessage("Trial extended.");
             }}
           />
         ) : null}

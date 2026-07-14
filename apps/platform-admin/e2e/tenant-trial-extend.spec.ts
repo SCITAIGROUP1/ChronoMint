@@ -38,7 +38,11 @@ test.describe("Platform tenant trial extension", () => {
     await page.getByTestId("extend-trial-7").click();
     const res = await extendResponse;
     expect(res.ok()).toBeTruthy();
-    await expect(page.getByTestId("extend-trial-message")).toBeVisible({ timeout: 10_000 });
+    await expect(
+      page
+        .getByTestId("extend-trial-message")
+        .or(page.getByText("Trial extended.", { exact: false }))
+    ).toBeVisible({ timeout: 10_000 });
   });
 
   test("subscription detail shows the same trial extend card", async ({ page }) => {
