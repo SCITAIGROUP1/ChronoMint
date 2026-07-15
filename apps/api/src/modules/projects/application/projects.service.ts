@@ -1,4 +1,5 @@
 import { randomBytes } from "crypto";
+import { ErrorCodes, pickDefaultProjectColor, buildPaginationMeta } from "@kloqra/contracts";
 import type {
   AddTeamMemberDto,
   CreateProjectDto,
@@ -7,12 +8,18 @@ import type {
   ListProjectsResponse,
   ListProjectTeamQuery,
   ProjectListItemDto,
+  ProvisionProjectTeamMembersDto,
+  ProvisionProjectTeamMembersResponseDto,
   TeamMemberDto,
   UpdateProjectDto,
-  UpdateTeamMemberDto
+  UpdateTeamMemberDto,
+  InviteMemberDto
 } from "@kloqra/contracts";
-import { ErrorCodes, pickDefaultProjectColor, buildPaginationMeta } from "@kloqra/contracts";
+import { InjectQueue } from "@nestjs/bullmq";
 import { Injectable, HttpStatus } from "@nestjs/common";
+import { Queue } from "bullmq";
+import * as ExcelJS from "exceljs";
+import type { Response } from "express";
 import { ProjectAccessService } from "../../../common/access/project-access.service";
 import { DomainException } from "../../../common/errors/domain.exception";
 import {
@@ -22,15 +29,19 @@ import {
 } from "../../../common/http/pagination.util";
 import { clientOrigin } from "../../../common/mailer/client-origin.util";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { QUEUES } from "../../../common/queues";
 import { waiveOpenTimesheetPeriods } from "../../../common/time/timesheet-approval-policy.util";
 import { NotificationsDispatchService } from "../../notifications/application/notifications-dispatch.service";
+import { PlanLimitService } from "../../subscriptions/application/plan-limit.service";
 
 @Injectable()
 export class ProjectsService {
   constructor(
     private prisma: PrismaService,
     private access: ProjectAccessService,
-    private notificationsDispatch: NotificationsDispatchService
+    private notificationsDispatch: NotificationsDispatchService,
+    @InjectQueue(QUEUES.BULK_INVITE) private bulkInviteQueue: Queue,
+    private planLimit: PlanLimitService
   ) {}
 
   private clientOrigin() {
@@ -635,7 +646,8 @@ export class ProjectsService {
     userId: string,
     role: "ADMIN" | "MEMBER",
     projectId: string,
-    dto: AddTeamMemberDto
+    dto: AddTeamMemberDto,
+    options?: { suppressAssignmentEmail?: boolean }
   ) {
     const project = await this.requireManageProject(workspaceId, userId, role, projectId);
     const workspaceMember = await this.prisma.workspaceMember.findUnique({
@@ -671,11 +683,153 @@ export class ProjectsService {
         userId: dto.userId,
         workspaceId,
         templateId: "project.assigned",
-        context: { projectName: project.name, projectId }
+        context: { projectName: project.name, projectId },
+        ...(options?.suppressAssignmentEmail ? { forceChannels: { email: false } } : {})
       })
       .catch(() => undefined);
 
     return this.mapTeamMemberRow(created);
+  }
+
+  /**
+   * Chip “Invite & add” — enqueue the same Bull job as Excel/CSV upload.
+   * Workspace + project membership and emails run asynchronously (MAIL queue).
+   */
+  async provisionTeamMembers(
+    workspaceId: string,
+    actorUserId: string,
+    actorRole: "ADMIN" | "MEMBER",
+    projectId: string,
+    dto: ProvisionProjectTeamMembersDto
+  ): Promise<ProvisionProjectTeamMembersResponseDto> {
+    return this.enqueueBulkProjectInvite(
+      workspaceId,
+      actorUserId,
+      actorRole,
+      projectId,
+      dto.members.map((m) => ({
+        email: m.email,
+        name: m.name,
+        role: "MEMBER" as const
+      }))
+    );
+  }
+
+  async generateBulkProjectInviteTemplate(
+    workspaceId: string,
+    actorUserId: string,
+    actorRole: "ADMIN" | "MEMBER",
+    projectId: string,
+    res: Response
+  ) {
+    if (actorRole !== "ADMIN") {
+      throw new DomainException(
+        ErrorCodes.FORBIDDEN,
+        "Only workspace admins can download the project invite template",
+        HttpStatus.FORBIDDEN
+      );
+    }
+    await this.requireManageProject(workspaceId, actorUserId, actorRole, projectId);
+
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Project invites");
+    sheet.columns = [
+      { header: "Email", key: "email", width: 34 },
+      { header: "Name", key: "name", width: 28 }
+    ];
+    sheet.addRow({ email: "ada@example.com", name: "Ada Lovelace" });
+    sheet.addRow({ email: "bob@example.com", name: "Bob Builder" });
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader("Content-Disposition", "attachment; filename=project_team_invite_template.xlsx");
+    await workbook.xlsx.write(res);
+    res.end();
+  }
+
+  async parseBulkProjectInviteFile(buffer: Buffer, filename?: string): Promise<InviteMemberDto[]> {
+    const lower = (filename ?? "").toLowerCase();
+    if (lower.endsWith(".csv") || looksLikeCsv(buffer)) {
+      return parseProjectInviteCsv(buffer);
+    }
+    return this.parseBulkProjectInviteExcel(buffer);
+  }
+
+  private async parseBulkProjectInviteExcel(buffer: Buffer): Promise<InviteMemberDto[]> {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer as any);
+    const sheet = workbook.worksheets[0];
+    if (!sheet) {
+      throw new DomainException(
+        ErrorCodes.VALIDATION_ERROR,
+        "Excel file is empty",
+        HttpStatus.BAD_REQUEST
+      );
+    }
+
+    const members: InviteMemberDto[] = [];
+    sheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return;
+      const email = row.getCell(1).text?.trim();
+      const name = row.getCell(2).text?.trim();
+      if (!email) return;
+      members.push({
+        email,
+        name: name || email.split("@")[0] || email,
+        role: "MEMBER"
+      });
+    });
+    return assertBulkInviteMembers(members);
+  }
+
+  async enqueueBulkProjectInvite(
+    workspaceId: string,
+    actorUserId: string,
+    actorRole: "ADMIN" | "MEMBER",
+    projectId: string,
+    members: InviteMemberDto[]
+  ): Promise<ProvisionProjectTeamMembersResponseDto> {
+    if (actorRole !== "ADMIN") {
+      throw new DomainException(
+        ErrorCodes.FORBIDDEN,
+        "Only workspace admins can bulk-invite onto a project",
+        HttpStatus.FORBIDDEN
+      );
+    }
+    await this.requireManageProject(workspaceId, actorUserId, actorRole, projectId);
+
+    const workspace = await this.prisma.workspace.findUnique({ where: { id: workspaceId } });
+    if (!workspace) {
+      throw new DomainException(ErrorCodes.NOT_FOUND, "Workspace not found", HttpStatus.NOT_FOUND);
+    }
+
+    const emails = members.map((m) => m.email.trim().toLowerCase());
+    await this.planLimit.assertSeatsForEmails((workspace as { tenantId: string }).tenantId, emails);
+
+    const normalized = members.map((m) => ({
+      email: m.email.trim().toLowerCase(),
+      name: m.name.trim(),
+      role: "MEMBER" as const
+    }));
+
+    const job = await this.bulkInviteQueue.add(
+      "bulkProjectInviteJob",
+      {
+        workspaceId,
+        projectId,
+        members: normalized,
+        invitedByUserId: actorUserId
+      },
+      { removeOnComplete: true, removeOnFail: false }
+    );
+
+    return {
+      jobId: String(job.id!),
+      status: "queued" as const,
+      enqueuedCount: normalized.length
+    };
   }
 
   async updateTeamMember(
@@ -912,4 +1066,83 @@ export class ProjectsService {
       projectName: invite.project.name
     };
   }
+}
+
+function looksLikeCsv(buffer: Buffer): boolean {
+  const head = buffer.subarray(0, Math.min(buffer.length, 64)).toString("utf8").trimStart();
+  return /^"?email"?\s*[,;]/i.test(head);
+}
+
+function parseProjectInviteCsv(buffer: Buffer): InviteMemberDto[] {
+  const text = buffer.toString("utf8").replace(/^\uFEFF/, "");
+  const lines = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (lines.length === 0) {
+    throw new DomainException(
+      ErrorCodes.VALIDATION_ERROR,
+      "CSV file is empty",
+      HttpStatus.BAD_REQUEST
+    );
+  }
+
+  const members: InviteMemberDto[] = [];
+  const start = /^email\b/i.test(lines[0]!) ? 1 : 0;
+  for (let i = start; i < lines.length; i++) {
+    const cols = splitCsvLine(lines[i]!);
+    const email = (cols[0] ?? "").trim();
+    const name = (cols[1] ?? "").trim();
+    if (!email) continue;
+    members.push({
+      email,
+      name: name || email.split("@")[0] || email,
+      role: "MEMBER"
+    });
+  }
+  return assertBulkInviteMembers(members);
+}
+
+function splitCsvLine(line: string): string[] {
+  const out: string[] = [];
+  let current = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i]!;
+    if (ch === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+    if ((ch === "," || ch === ";") && !inQuotes) {
+      out.push(current);
+      current = "";
+      continue;
+    }
+    current += ch;
+  }
+  out.push(current);
+  return out;
+}
+
+function assertBulkInviteMembers(members: InviteMemberDto[]): InviteMemberDto[] {
+  if (members.length === 0) {
+    throw new DomainException(
+      ErrorCodes.VALIDATION_ERROR,
+      "No valid members found in the file",
+      HttpStatus.BAD_REQUEST
+    );
+  }
+  if (members.length > 500) {
+    throw new DomainException(
+      ErrorCodes.VALIDATION_ERROR,
+      "Maximum 500 members allowed per batch",
+      HttpStatus.BAD_REQUEST
+    );
+  }
+  return members;
 }

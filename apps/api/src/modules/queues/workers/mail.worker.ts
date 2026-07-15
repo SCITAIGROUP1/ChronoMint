@@ -27,6 +27,20 @@ export class MailWorker extends WorkerHost {
         }
         return { ok: true, emailSent: result.sent, reason: result.reason };
       }
+      case "sendProjectInviteWelcome": {
+        const result = await this.memberMailer.sendProjectInviteWelcome(payload);
+        if (!result.sent && result.reason === "failed") {
+          throw new Error(`Email failed: ${result.detail || "Unknown SMTP error"}`);
+        }
+        return { ok: true, emailSent: result.sent, reason: result.reason };
+      }
+      case "sendProjectInviteExisting": {
+        const result = await this.memberMailer.sendProjectInviteExisting(payload);
+        if (!result.sent && result.reason === "failed") {
+          throw new Error(`Email failed: ${result.detail || "Unknown SMTP error"}`);
+        }
+        return { ok: true, emailSent: result.sent, reason: result.reason };
+      }
       default:
         throw new Error(`Unknown mail job type: ${type}`);
     }

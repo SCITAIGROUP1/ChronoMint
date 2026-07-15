@@ -327,7 +327,8 @@ export class WorkspaceService {
   async invite(
     workspaceId: string,
     dto: InviteMemberDto,
-    invitedByUserId: string
+    invitedByUserId: string,
+    options?: { projectInvite?: { projectName: string } }
   ): Promise<InviteMemberResponseDto> {
     const email = dto.email.trim().toLowerCase();
     const workspace = await this.prisma.workspace.findUnique({ where: { id: workspaceId } });
@@ -386,8 +387,27 @@ export class WorkspaceService {
         ? await this.auth.prepareInviteHandoff(user.id, temporaryPassword)
         : undefined;
 
-    const emailDelivery = await deliverMemberEmail(this.memberMailer.isConfigured, () =>
-      userCreated && temporaryPassword && inviteHandoff
+    const projectName = options?.projectInvite?.projectName;
+    const emailDelivery = await deliverMemberEmail(this.memberMailer.isConfigured, () => {
+      if (projectName) {
+        return userCreated && temporaryPassword && inviteHandoff
+          ? this.memberMailer.sendProjectInviteWelcome({
+              to: email,
+              workspaceName: workspace.name,
+              projectName,
+              inviterName,
+              temporaryPassword,
+              inviteHandoffToken: inviteHandoff.inviteHandoffToken
+            })
+          : this.memberMailer.sendProjectInviteExisting({
+              to: email,
+              workspaceName: workspace.name,
+              projectName,
+              inviterName,
+              workspaceJoined: true
+            });
+      }
+      return userCreated && temporaryPassword && inviteHandoff
         ? this.memberMailer.sendNewMemberCredentials({
             to: email,
             workspaceName: workspace.name,
@@ -401,8 +421,8 @@ export class WorkspaceService {
             workspaceName: workspace.name,
             inviterName,
             role: dto.role
-          })
-    );
+          });
+    });
 
     void this.notificationsDispatch
       .notifyWorkspaceAdmins(workspaceId, {

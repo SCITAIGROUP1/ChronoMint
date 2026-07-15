@@ -118,7 +118,7 @@ test.describe("Admin projects", () => {
       .getByRole("link", { name: "Team", exact: true })
       .click();
     await expect(page).toHaveURL(/\/projects\/[^/]+\/team$/);
-    await expect(page.getByRole("button", { name: "Add team member" }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "Add or invite" }).first()).toBeVisible();
   });
 
   test("add team member modal has searchable workspace member field", async ({ page }) => {
@@ -127,9 +127,29 @@ test.describe("Admin projects", () => {
       .getByRole("navigation", { name: "Project sections" })
       .getByRole("link", { name: "Team", exact: true })
       .click();
-    await page.getByRole("button", { name: "Add team member" }).first().click();
+    await page.getByRole("button", { name: "Add or invite" }).first().click();
     await expect(page.getByRole("heading", { name: "Add team member" })).toBeVisible();
+    await expect(page.getByRole("group")).toBeVisible();
     await page.getByRole("combobox", { name: "Workspace member" }).click();
     await expect(page.getByPlaceholder("Search by name or email…")).toBeVisible();
+  });
+
+  test("invite by email mode adds removable people chips", async ({ page }) => {
+    await page.locator("table tbody tr").first().click();
+    await page
+      .getByRole("navigation", { name: "Project sections" })
+      .getByRole("link", { name: "Team", exact: true })
+      .click();
+    await page.getByRole("button", { name: "Add or invite" }).first().click();
+    await page.getByRole("button", { name: "Invite by email" }).click();
+    await expect(page.getByRole("heading", { name: "Invite to project" })).toBeVisible();
+    await expect(page.getByText(/invites are queued/i)).toBeVisible();
+    await page.getByLabel("Email").fill("ada@example.com");
+    await page.getByLabel(/Name/).fill("Ada Lovelace");
+    await page.getByRole("button", { name: "Add", exact: true }).click();
+    await expect(page.getByText("Ada Lovelace")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Queue invite (1)" })).toBeEnabled();
+    await page.getByRole("button", { name: "Remove Ada Lovelace" }).click();
+    await expect(page.getByRole("button", { name: "Queue invite" })).toBeDisabled();
   });
 });

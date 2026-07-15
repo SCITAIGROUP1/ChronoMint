@@ -967,8 +967,7 @@ export function DashboardPage() {
       {!hasData ? (
         <EmptyState
           title="No time in this period"
-          description="Log time in the client app or seed demo data to see charts and breakdowns."
-          action={<code className="rounded-md bg-muted px-2 py-1 text-xs">pnpm prisma:seed</code>}
+          description="Log time in the client app, invite members, or adjust the date range to see charts and breakdowns."
         />
       ) : (
         <div className="relative">

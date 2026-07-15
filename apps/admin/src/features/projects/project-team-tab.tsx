@@ -1,16 +1,15 @@
 "use client";
 
 import { ROUTES, DEFAULT_TABLE_PAGE_SIZE } from "@kloqra/contracts";
-import type { TeamInviteDto, TeamMemberDto, WorkspaceMemberDto } from "@kloqra/contracts";
+import type {
+  ProvisionProjectTeamMembersResponseDto,
+  TeamMemberDto,
+  WorkspaceMemberDto
+} from "@kloqra/contracts";
 import {
   AppModal,
   Badge,
   Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
   ConfirmDialog,
   DataTableCard,
   DataTableCell,
@@ -20,6 +19,7 @@ import {
   Input,
   Label,
   SearchableSelect,
+  SegmentedControl,
   Select,
   SelectContent,
   SelectItem,
@@ -34,14 +34,38 @@ import {
   TableLoadingState
 } from "@kloqra/ui";
 import {
+  useSessionStore,
   buildTableQuery,
-  extractFieldErrorsFromMessage,
-  useSessionStore
+  apiDownloadGet,
+  saveDownloadResponse
 } from "@kloqra/web-shared";
+import {
+  ClipboardCheck,
+  Download,
+  FileSpreadsheet,
+  Mail,
+  Plus,
+  Upload,
+  UserPlus,
+  Users,
+  X
+} from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useProjectDetail } from "./project-detail-context";
+import {
+  buildProjectTeamApprovalsHref,
+  formatProjectPendingApprovalsTitle,
+  shouldShowProjectPendingApprovalsBanner
+} from "./project-team-approvals.util";
+import {
+  buildInvitePerson,
+  mergeInvitePeople,
+  parseProjectProvisionLines,
+  type ProjectProvisionLine
+} from "./project-team-provision.util";
+import { usePendingTimesheets } from "@/features/approvals/use-pending-timesheets";
 import { api } from "@/lib/api";
 
 function memberIsActive(m: TeamMemberDto): boolean {
@@ -56,6 +80,17 @@ export function ProjectTeamTab() {
   const { workspaceId, projectId } = useProjectDetail();
   const workspaceRole = useSessionStore((s) => s.session?.workspaceRole);
   const canAssignLeadRole = workspaceRole === "ADMIN";
+  const canProvisionOutside = workspaceRole === "ADMIN";
+  const { pendingCount, loading: loadingPendingApprovals } = usePendingTimesheets(
+    workspaceId,
+    { projectId: [projectId], page: 1, limit: 1 },
+    Boolean(workspaceId && projectId)
+  );
+  const approvalsHref = buildProjectTeamApprovalsHref(projectId);
+  const showPendingApprovals = shouldShowProjectPendingApprovalsBanner(
+    loadingPendingApprovals,
+    pendingCount
+  );
   const [teamMeta, setTeamMeta] = useState<{
     id: string;
     projectId: string;
@@ -72,18 +107,18 @@ export function ProjectTeamTab() {
   const [memberBusyId, setMemberBusyId] = useState<string | null>(null);
   const [loadingTeam, setLoadingTeam] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
+  const [addMode, setAddMode] = useState<"workspace" | "invite">("workspace");
+  const [invitePeople, setInvitePeople] = useState<ProjectProvisionLine[]>([]);
+  const [inviteEmailDraft, setInviteEmailDraft] = useState("");
+  const [inviteNameDraft, setInviteNameDraft] = useState("");
+  const [inviteFieldError, setInviteFieldError] = useState<string | null>(null);
+  const [bulkFile, setBulkFile] = useState<File | null>(null);
+  const [bulkUploading, setBulkUploading] = useState(false);
   const [workspaceMembers, setWorkspaceMembers] = useState<WorkspaceMemberDto[]>([]);
   const [loadingWorkspaceMembers, setLoadingWorkspaceMembers] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState("");
   const [addingMember, setAddingMember] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<TeamMemberDto | null>(null);
-  const [invite, setInvite] = useState<TeamInviteDto | null>(null);
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [creatingInvite, setCreatingInvite] = useState(false);
-
-  const parsedValidation = error
-    ? extractFieldErrorsFromMessage<"inviteEmail">(error, { inviteEmail: "Email" })
-    : { fieldErrors: {}, formError: "" };
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 300);
@@ -142,9 +177,42 @@ export function ProjectTeamTab() {
     [availableWorkspaceMembers, selectedUserId]
   );
 
+  function resetInviteDraft() {
+    setInvitePeople([]);
+    setInviteEmailDraft("");
+    setInviteNameDraft("");
+    setInviteFieldError(null);
+    setBulkFile(null);
+  }
+
+  function addInvitePerson(person: ProjectProvisionLine) {
+    setInvitePeople((prev) => mergeInvitePeople(prev, [person]));
+    setInviteEmailDraft("");
+    setInviteNameDraft("");
+    setInviteFieldError(null);
+    if (error) setError(null);
+  }
+
+  function tryAddFromDraft() {
+    const person = buildInvitePerson(inviteEmailDraft, inviteNameDraft);
+    if (!person) {
+      setInviteFieldError(
+        inviteEmailDraft.trim() ? "Enter a valid email address." : "Email is required."
+      );
+      return;
+    }
+    addInvitePerson(person);
+  }
+
+  function removeInvitePerson(email: string) {
+    setInvitePeople((prev) => prev.filter((p) => p.email !== email));
+  }
+
   async function openAddModal() {
     setAddOpen(true);
+    setAddMode("workspace");
     setSelectedUserId("");
+    resetInviteDraft();
     setLoadingWorkspaceMembers(true);
     try {
       const list = await api<WorkspaceMemberDto[]>(ROUTES.WORKSPACES.MEMBERS(workspaceId), {
@@ -179,6 +247,83 @@ export function ProjectTeamTab() {
       toast.error(message);
     } finally {
       setAddingMember(false);
+    }
+  }
+
+  async function provisionOutsideMembers() {
+    if (invitePeople.length === 0) {
+      setError("Add at least one person to invite.");
+      return;
+    }
+    setAddingMember(true);
+    setError(null);
+    try {
+      const result = await api<ProvisionProjectTeamMembersResponseDto>(
+        ROUTES.PROJECTS.TEAM_MEMBERS_PROVISION(projectId),
+        {
+          method: "POST",
+          workspaceId,
+          body: JSON.stringify({ members: invitePeople })
+        }
+      );
+      setAddOpen(false);
+      resetInviteDraft();
+      toast.success(
+        `Queued ${result.enqueuedCount} invite${result.enqueuedCount === 1 ? "" : "s"}. Members will be added and emailed shortly.`
+      );
+      window.setTimeout(() => void loadTeam(), 2500);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Could not invite members.";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setAddingMember(false);
+    }
+  }
+
+  async function downloadBulkTemplate() {
+    try {
+      const res = await apiDownloadGet(
+        ROUTES.PROJECTS.TEAM_MEMBERS_BULK_TEMPLATE(projectId),
+        workspaceId
+      );
+      await saveDownloadResponse(res, "project_team_invite_template.xlsx");
+      toast.success("Template downloaded.");
+    } catch {
+      toast.error("Could not download template.");
+    }
+  }
+
+  async function uploadBulkInvite() {
+    if (!bulkFile) {
+      toast.error("Choose an Excel or CSV file first.");
+      return;
+    }
+    setBulkUploading(true);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", bulkFile);
+      const res = await api<{ jobId: string; status: string; enqueuedCount: number }>(
+        ROUTES.PROJECTS.TEAM_MEMBERS_BULK_UPLOAD(projectId),
+        {
+          method: "POST",
+          workspaceId,
+          body: formData
+        }
+      );
+      toast.success(
+        `Queued ${res.enqueuedCount} invite${res.enqueuedCount === 1 ? "" : "s"}. Members will be added and emailed shortly.`
+      );
+      setAddOpen(false);
+      resetInviteDraft();
+      await loadTeam();
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Could not upload invite file.";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setBulkUploading(false);
     }
   }
 
@@ -223,37 +368,6 @@ export function ProjectTeamTab() {
     }
   }
 
-  async function createInviteLink() {
-    setError(null);
-    setCreatingInvite(true);
-    try {
-      const body = inviteEmail.trim() ? { email: inviteEmail.trim() } : {};
-      const link = await api<TeamInviteDto>(ROUTES.PROJECTS.TEAM_INVITES(projectId), {
-        method: "POST",
-        workspaceId,
-        body: JSON.stringify(body)
-      });
-      setInvite(link);
-      toast.success("Invite link generated.");
-    } catch {
-      const message = "Could not create invite link.";
-      setError(message);
-      toast.error(message);
-    } finally {
-      setCreatingInvite(false);
-    }
-  }
-
-  async function copyInvite() {
-    if (!invite?.inviteUrl) return;
-    try {
-      await navigator.clipboard.writeText(invite.inviteUrl);
-      toast.success("Invite link copied.");
-    } catch {
-      toast.error("Could not copy invite link.");
-    }
-  }
-
   async function removeMember(member: TeamMemberDto) {
     setMemberBusyId(member.id);
     setError(null);
@@ -278,50 +392,26 @@ export function ProjectTeamTab() {
 
   return (
     <div className="space-y-6">
-      <Card className="border-primary/10 shadow-sm">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-base">Invite link (legacy)</CardTitle>
-          <CardDescription>
-            Optional fallback for members who cannot be added directly. Link expires in 7 days.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="max-w-md space-y-2">
-            <Label htmlFor="invite-email">Email (optional)</Label>
-            <Input
-              id="invite-email"
-              type="email"
-              placeholder="member@example.com"
-              value={inviteEmail}
-              onChange={(e) => {
-                setInviteEmail(e.target.value);
-                if (error) setError(null);
-              }}
-              aria-invalid={Boolean(parsedValidation.fieldErrors.inviteEmail)}
-            />
-            {parsedValidation.fieldErrors.inviteEmail ? (
-              <p className="text-xs text-destructive">{parsedValidation.fieldErrors.inviteEmail}</p>
-            ) : null}
-          </div>
-          <Button type="button" onClick={() => void createInviteLink()} disabled={creatingInvite}>
-            {creatingInvite ? "Generating…" : "Generate invite link"}
-          </Button>
-          {invite ? (
-            <div className="max-w-2xl rounded-lg border bg-muted/30 p-4 text-sm">
-              <p className="break-all font-mono text-xs">{invite.inviteUrl}</p>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                className="mt-3"
-                onClick={() => void copyInvite()}
-              >
-                Copy link
-              </Button>
+      {showPendingApprovals ? (
+        <div className="flex flex-col gap-3 rounded-xl border border-primary/20 bg-primary/[0.04] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <ClipboardCheck className="size-4" aria-hidden />
+            </span>
+            <div>
+              <p className="text-sm font-medium text-foreground">
+                {formatProjectPendingApprovalsTitle(pendingCount)}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Review submitted time for this project team.
+              </p>
             </div>
-          ) : null}
-        </CardContent>
-      </Card>
+          </div>
+          <Button type="button" variant="outline" className="h-9 shrink-0" asChild>
+            <Link href={approvalsHref}>Review approvals</Link>
+          </Button>
+        </div>
+      ) : null}
 
       <DataTableCard>
         <TableToolbar
@@ -331,7 +421,7 @@ export function ProjectTeamTab() {
           searchAriaLabel="Search project team members"
           actions={
             <Button type="button" className="h-10" onClick={() => void openAddModal()}>
-              Add team member
+              {canProvisionOutside ? "Add or invite" : "Add team member"}
             </Button>
           }
         />
@@ -350,16 +440,15 @@ export function ProjectTeamTab() {
           <div className="p-6">
             <EmptyState
               title="No one on this team yet"
-              description="Add workspace members from Team Management, then assign them to this project."
+              description={
+                canProvisionOutside
+                  ? "Invite people by email, or add someone already in this workspace."
+                  : "Ask a workspace admin to invite members, or add someone already in this workspace."
+              }
               action={
-                <div className="flex flex-wrap justify-center gap-2">
-                  <Button type="button" onClick={() => void openAddModal()}>
-                    Add team member
-                  </Button>
-                  <Button type="button" variant="outline" asChild>
-                    <Link href="/team-management">Go to Team Management</Link>
-                  </Button>
-                </div>
+                <Button type="button" onClick={() => void openAddModal()}>
+                  {canProvisionOutside ? "Add or invite" : "Add team member"}
+                </Button>
               }
             />
           </div>
@@ -453,76 +542,313 @@ export function ProjectTeamTab() {
           setAddOpen(open);
           if (!open) {
             setSelectedUserId("");
+            resetInviteDraft();
+            setAddMode("workspace");
+            setError(null);
           }
         }}
-        title="Add team member"
-        description="Choose a workspace member to add to this project team."
+        title={addMode === "invite" ? "Invite to project" : "Add team member"}
+        description={
+          addMode === "invite"
+            ? "Add people by email. Invites are queued — they join this workspace and project together and get one welcome email."
+            : "Pick someone already in this workspace to assign to the project."
+        }
+        icon={<UserPlus className="size-5" />}
         size="lg"
         footer={
           <>
             <Button type="button" variant="outline" onClick={() => setAddOpen(false)}>
               Cancel
             </Button>
-            <Button
-              type="button"
-              disabled={!selectedUserId || addingMember || loadingWorkspaceMembers}
-              onClick={() => void addMember()}
-            >
-              {addingMember ? "Adding…" : "Add member"}
-            </Button>
+            {addMode === "invite" ? (
+              <Button
+                type="button"
+                disabled={addingMember || invitePeople.length === 0}
+                onClick={() => void provisionOutsideMembers()}
+              >
+                {addingMember
+                  ? "Queueing…"
+                  : invitePeople.length > 0
+                    ? `Queue invite (${invitePeople.length})`
+                    : "Queue invite"}
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                disabled={!selectedUserId || addingMember || loadingWorkspaceMembers}
+                onClick={() => void addMember()}
+              >
+                {addingMember ? "Adding…" : "Add member"}
+              </Button>
+            )}
           </>
         }
       >
-        <div className="space-y-3">
-          <Label htmlFor="member-search">Workspace member</Label>
-          {loadingWorkspaceMembers ? (
-            <p className="text-sm text-muted-foreground">Loading members…</p>
-          ) : availableWorkspaceMembers.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No available members.{" "}
-              <Link href="/team-management" className="text-primary hover:underline">
-                Add members in Team Management
-              </Link>
-              .
-            </p>
-          ) : (
-            <>
-              <SearchableSelect
-                id="member-search"
-                value={selectedUserId}
-                onValueChange={setSelectedUserId}
-                options={availableWorkspaceMembers.map((member) => ({
-                  value: member.userId,
-                  label: member.userName,
-                  keywords: member.userEmail
-                }))}
-                placeholder="Select a workspace member"
-                searchPlaceholder="Search by name or email…"
-                emptyMessage="No members match your search."
-                aria-label="Workspace member"
-                contentClassName="z-[100]"
-                renderOption={(option) => {
-                  const member = availableWorkspaceMembers.find(
-                    (item) => item.userId === option.value
-                  );
-                  return (
-                    <span className="flex flex-col items-start gap-0.5">
-                      <span className="font-medium">{option.label}</span>
-                      {member ? (
-                        <span className="text-xs text-muted-foreground">{member.userEmail}</span>
-                      ) : null}
-                    </span>
-                  );
-                }}
-              />
-              {selectedMember ? (
-                <p className="text-sm text-muted-foreground">
-                  Selected:{" "}
-                  <span className="font-medium text-foreground">{selectedMember.userName}</span> (
-                  {selectedMember.userEmail})
+        <div className="space-y-4">
+          {canProvisionOutside ? (
+            <SegmentedControl
+              fullWidth
+              value={addMode}
+              onChange={(mode) => {
+                setAddMode(mode);
+                setError(null);
+                setInviteFieldError(null);
+              }}
+              options={[
+                { value: "workspace" as const, label: "From workspace" },
+                { value: "invite" as const, label: "Invite by email" }
+              ]}
+            />
+          ) : null}
+
+          {addMode === "invite" ? (
+            <div className="space-y-3">
+              <p className="flex items-start gap-2 rounded-md bg-muted/40 px-2.5 py-2 text-xs text-muted-foreground">
+                <Mail className="mt-0.5 size-3.5 shrink-0 text-primary" aria-hidden />
+                <span>
+                  New users get sign-in credentials by email. Existing accounts get a workspace
+                  notice, then a project assignment email.
+                </span>
+              </p>
+
+              <div className="grid items-end gap-2 sm:grid-cols-[1.2fr_1fr_auto]">
+                <div className="space-y-1.5">
+                  <Label htmlFor="invite-email-draft">Email</Label>
+                  <Input
+                    id="invite-email-draft"
+                    type="email"
+                    autoComplete="off"
+                    placeholder="ada@example.com"
+                    value={inviteEmailDraft}
+                    onChange={(e) => {
+                      setInviteEmailDraft(e.target.value);
+                      if (inviteFieldError) setInviteFieldError(null);
+                    }}
+                    onPaste={(e) => {
+                      const text = e.clipboardData.getData("text");
+                      if (!text.includes("\n") && !text.includes(",") && !text.includes(";")) {
+                        return;
+                      }
+                      e.preventDefault();
+                      const parsed = parseProjectProvisionLines(text);
+                      if (parsed.members.length === 0) {
+                        setInviteFieldError(parsed.errors[0] ?? "Could not parse pasted emails.");
+                        return;
+                      }
+                      setInvitePeople((prev) => mergeInvitePeople(prev, parsed.members));
+                      setInviteEmailDraft("");
+                      setInviteNameDraft("");
+                      setInviteFieldError(null);
+                      toast.success(
+                        parsed.members.length === 1
+                          ? "Added 1 person from paste."
+                          : `Added ${parsed.members.length} people from paste.`
+                      );
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        tryAddFromDraft();
+                      }
+                    }}
+                    aria-invalid={Boolean(inviteFieldError)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="invite-name-draft">
+                    Name <span className="font-normal text-muted-foreground">(optional)</span>
+                  </Label>
+                  <Input
+                    id="invite-name-draft"
+                    autoComplete="off"
+                    placeholder="Ada Lovelace"
+                    value={inviteNameDraft}
+                    onChange={(e) => setInviteNameDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        tryAddFromDraft();
+                      }
+                    }}
+                  />
+                </div>
+                <Button type="button" onClick={() => tryAddFromDraft()}>
+                  <Plus className="size-4" aria-hidden />
+                  Add
+                </Button>
+              </div>
+              {inviteFieldError ? (
+                <p className="text-xs text-destructive">{inviteFieldError}</p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Add people one by one, or paste a list into Email. Blank name uses the email
+                  address name.
                 </p>
-              ) : null}
-            </>
+              )}
+
+              {invitePeople.length > 0 ? (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-medium text-foreground">
+                      Ready to invite ({invitePeople.length})
+                    </p>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => setInvitePeople([])}
+                    >
+                      Clear all
+                    </Button>
+                  </div>
+                  <div className="flex max-h-36 flex-wrap gap-1.5 overflow-y-auto rounded-md border border-border/70 bg-muted/15 p-2">
+                    {invitePeople.map((person) => (
+                      <Badge
+                        key={person.email}
+                        variant="secondary"
+                        className="max-w-full gap-1 py-1 pl-2 pr-0.5 font-normal"
+                      >
+                        <span className="min-w-0 truncate text-xs sm:text-sm">
+                          <span className="font-medium">{person.name}</span>
+                          <span className="text-muted-foreground"> · {person.email}</span>
+                        </span>
+                        <button
+                          type="button"
+                          className="rounded-sm p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                          aria-label={`Remove ${person.name}`}
+                          onClick={() => removeInvitePerson(person.email)}
+                        >
+                          <X className="size-3.5" aria-hidden />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-md border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground">
+                  No one added yet — enter an email, then Add.
+                </div>
+              )}
+
+              <div className="space-y-2 border-t border-border/70 pt-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-medium">Or import Excel / CSV (queued)</p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 gap-1.5 text-xs"
+                    onClick={() => void downloadBulkTemplate()}
+                  >
+                    <Download className="size-3.5" aria-hidden />
+                    Template
+                  </Button>
+                </div>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <label className="relative flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-md border border-dashed border-border px-3 py-3 hover:bg-muted/30">
+                    <input
+                      type="file"
+                      accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
+                      className="absolute inset-0 cursor-pointer opacity-0"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] ?? null;
+                        setBulkFile(file);
+                      }}
+                    />
+                    <FileSpreadsheet
+                      className="size-5 shrink-0 text-muted-foreground"
+                      aria-hidden
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">
+                        {bulkFile ? bulkFile.name : "Choose .xlsx or .csv"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Background queue · up to 500 people
+                      </p>
+                    </div>
+                  </label>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="shrink-0 gap-1.5"
+                    disabled={!bulkFile || bulkUploading}
+                    onClick={() => void uploadBulkInvite()}
+                  >
+                    <Upload className="size-3.5" aria-hidden />
+                    {bulkUploading ? "Queueing…" : "Queue import"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <Label htmlFor="member-search">Workspace member</Label>
+              {loadingWorkspaceMembers ? (
+                <p className="text-sm text-muted-foreground">Loading members…</p>
+              ) : availableWorkspaceMembers.length === 0 ? (
+                <div className="space-y-3 rounded-lg border border-dashed border-border px-4 py-5 text-center">
+                  <Users className="mx-auto size-8 text-muted-foreground/70" aria-hidden />
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-foreground">No one left to add</p>
+                    <p className="text-sm text-muted-foreground">
+                      Everyone in this workspace is already on the project, or the workspace is
+                      empty.
+                    </p>
+                  </div>
+                  {canProvisionOutside ? (
+                    <Button type="button" size="sm" onClick={() => setAddMode("invite")}>
+                      Invite someone by email
+                    </Button>
+                  ) : (
+                    <Button type="button" size="sm" variant="outline" asChild>
+                      <Link href="/team-management">Open Team Management</Link>
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <SearchableSelect
+                    id="member-search"
+                    value={selectedUserId}
+                    onValueChange={setSelectedUserId}
+                    options={availableWorkspaceMembers.map((member) => ({
+                      value: member.userId,
+                      label: member.userName,
+                      keywords: member.userEmail
+                    }))}
+                    placeholder="Search by name or email…"
+                    searchPlaceholder="Search by name or email…"
+                    emptyMessage="No members match your search."
+                    aria-label="Workspace member"
+                    contentClassName="z-[100]"
+                    renderOption={(option) => {
+                      const member = availableWorkspaceMembers.find(
+                        (item) => item.userId === option.value
+                      );
+                      return (
+                        <span className="flex flex-col items-start gap-0.5">
+                          <span className="font-medium">{option.label}</span>
+                          {member ? (
+                            <span className="text-xs text-muted-foreground">
+                              {member.userEmail}
+                            </span>
+                          ) : null}
+                        </span>
+                      );
+                    }}
+                  />
+                  {selectedMember ? (
+                    <p className="rounded-md bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+                      Adding{" "}
+                      <span className="font-medium text-foreground">{selectedMember.userName}</span>{" "}
+                      ({selectedMember.userEmail}) to this project only.
+                    </p>
+                  ) : null}
+                </>
+              )}
+            </div>
           )}
         </div>
       </AppModal>
@@ -543,13 +869,7 @@ export function ProjectTeamTab() {
         onCancel={() => setRemoveTarget(null)}
       />
 
-      {error && parsedValidation.fieldErrors.inviteEmail ? (
-        parsedValidation.formError ? (
-          <p className="text-sm text-destructive">{parsedValidation.formError}</p>
-        ) : null
-      ) : error ? (
-        <p className="text-sm text-destructive">{error}</p>
-      ) : null}
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
     </div>
   );
 }

@@ -28,6 +28,32 @@ export const addTeamMemberSchema = z.object({
   userId: uuidSchema
 });
 
+/** Provision outside-workspace users onto workspace + this project in one call. */
+export const provisionProjectTeamMemberSchema = z.object({
+  email: z.string().email(),
+  name: z.string().trim().min(1).max(120)
+});
+
+export const provisionProjectTeamMembersSchema = z.object({
+  members: z.array(provisionProjectTeamMemberSchema).min(1).max(100)
+});
+
+export const provisionProjectTeamMemberResultSchema = z.object({
+  email: z.string().email(),
+  status: z.enum(["added", "workspace_invited_and_added", "already_on_team", "failed"]),
+  member: teamMemberSchema.optional(),
+  userCreated: z.boolean().optional(),
+  emailSent: z.boolean().optional(),
+  error: z.string().optional()
+});
+
+/** Chip invite & Excel/CSV upload both enqueue the same Bull job. */
+export const provisionProjectTeamMembersResponseSchema = z.object({
+  jobId: z.string().min(1),
+  status: z.literal("queued"),
+  enqueuedCount: z.number().int().nonnegative()
+});
+
 export const teamSchema = z.object({
   id: uuidSchema,
   projectId: uuidSchema,
@@ -76,6 +102,14 @@ export const projectTeamResponseSchema = z.object({
 export type TeamMemberDto = z.infer<typeof teamMemberSchema>;
 export type UpdateTeamMemberDto = z.infer<typeof updateTeamMemberSchema>;
 export type AddTeamMemberDto = z.infer<typeof addTeamMemberSchema>;
+export type ProvisionProjectTeamMemberDto = z.infer<typeof provisionProjectTeamMemberSchema>;
+export type ProvisionProjectTeamMembersDto = z.infer<typeof provisionProjectTeamMembersSchema>;
+export type ProvisionProjectTeamMemberResultDto = z.infer<
+  typeof provisionProjectTeamMemberResultSchema
+>;
+export type ProvisionProjectTeamMembersResponseDto = z.infer<
+  typeof provisionProjectTeamMembersResponseSchema
+>;
 export type TeamDto = z.infer<typeof teamSchema>;
 export type ListProjectTeamQuery = z.infer<typeof listProjectTeamQuerySchema>;
 export type ProjectTeamResponseDto = z.infer<typeof projectTeamResponseSchema>;
