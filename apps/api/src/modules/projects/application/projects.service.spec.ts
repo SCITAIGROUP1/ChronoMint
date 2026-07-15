@@ -12,7 +12,7 @@ describe("ProjectsService", () => {
     notify: ReturnType<typeof vi.fn>;
     notifyWorkspaceAdmins: ReturnType<typeof vi.fn>;
   };
-  let mockBulkQueue: { add: ReturnType<typeof vi.fn> };
+  let mockBulkQueue: { add: ReturnType<typeof vi.fn>; getJob: ReturnType<typeof vi.fn> };
   let mockPlanLimit: { assertSeatsForEmails: ReturnType<typeof vi.fn> };
 
   const workspaceId = "ws-1";
@@ -80,7 +80,10 @@ describe("ProjectsService", () => {
       notify: vi.fn().mockResolvedValue(undefined),
       notifyWorkspaceAdmins: vi.fn().mockResolvedValue(undefined)
     };
-    mockBulkQueue = { add: vi.fn().mockResolvedValue({ id: "job-1" }) };
+    mockBulkQueue = {
+      add: vi.fn().mockResolvedValue({ id: "job-1" }),
+      getJob: vi.fn()
+    };
     mockPlanLimit = { assertSeatsForEmails: vi.fn().mockResolvedValue(undefined) };
     service = new ProjectsService(
       mockPrisma,
@@ -499,6 +502,57 @@ describe("ProjectsService", () => {
         status: "queued",
         enqueuedCount: 2
       });
+    });
+  });
+
+  describe("getBulkInviteJobStatus", () => {
+    const projectId = "proj-1";
+
+    beforeEach(() => {
+      mockAccess.assertCanManageProject.mockResolvedValue(undefined);
+      mockPrisma.project.findFirst.mockResolvedValue({
+        id: projectId,
+        workspaceId,
+        name: "Alpha"
+      });
+    });
+
+    it("returns completed result for a matching job", async () => {
+      mockBulkQueue.getJob.mockResolvedValue({
+        data: { workspaceId, projectId },
+        getState: vi.fn().mockResolvedValue("completed"),
+        returnvalue: {
+          successCount: 1,
+          skippedCount: 0,
+          projectAddedCount: 1,
+          totalProcessed: 1
+        }
+      });
+
+      await expect(
+        service.getBulkInviteJobStatus(workspaceId, userId, "ADMIN", projectId, "job-1")
+      ).resolves.toEqual({
+        jobId: "job-1",
+        status: "completed",
+        result: {
+          successCount: 1,
+          skippedCount: 0,
+          projectAddedCount: 1,
+          totalProcessed: 1
+        }
+      });
+    });
+
+    it("hides jobs that belong to another project", async () => {
+      mockBulkQueue.getJob.mockResolvedValue({
+        data: { workspaceId, projectId: "other" },
+        getState: vi.fn().mockResolvedValue("completed"),
+        returnvalue: {}
+      });
+
+      await expect(
+        service.getBulkInviteJobStatus(workspaceId, userId, "ADMIN", projectId, "job-1")
+      ).rejects.toMatchObject({ code: ErrorCodes.NOT_FOUND });
     });
   });
 });

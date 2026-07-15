@@ -115,6 +115,9 @@ describe("contracts", () => {
     expect(ROUTES.PROJECTS.TEAM_MEMBERS_BULK_UPLOAD(UUID)).toBe(
       `/projects/${UUID}/team/members/bulk/upload`
     );
+    expect(ROUTES.PROJECTS.TEAM_MEMBERS_BULK_JOB(UUID, "job-1")).toBe(
+      `/projects/${UUID}/team/members/bulk/jobs/job-1`
+    );
   });
 
   it("exposes timelog occupancy route", () => {

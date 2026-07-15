@@ -143,13 +143,13 @@ test.describe("Admin projects", () => {
     await page.getByRole("button", { name: "Add or invite" }).first().click();
     await page.getByRole("button", { name: "Invite by email" }).click();
     await expect(page.getByRole("heading", { name: "Invite to project" })).toBeVisible();
-    await expect(page.getByText(/invites are queued/i)).toBeVisible();
+    await expect(page.getByText(/they join this workspace and project/i)).toBeVisible();
     await page.getByLabel("Email").fill("ada@example.com");
     await page.getByLabel(/Name/).fill("Ada Lovelace");
     await page.getByRole("button", { name: "Add", exact: true }).click();
     await expect(page.getByText("Ada Lovelace")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Queue invite (1)" })).toBeEnabled();
+    await expect(page.getByRole("button", { name: "Invite 1" })).toBeEnabled();
     await page.getByRole("button", { name: "Remove Ada Lovelace" }).click();
-    await expect(page.getByRole("button", { name: "Queue invite" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Invite", exact: true })).toBeDisabled();
   });
 });

@@ -175,6 +175,22 @@ export class ProjectsController {
     );
   }
 
+  @Roles("ADMIN")
+  @Get(ROUTES.PROJECTS.TEAM_MEMBERS_BULK_JOB(":id", ":jobId"))
+  getBulkProjectInviteJob(
+    @WorkspaceUser() user: WorkspaceRequestUser,
+    @Param("id") id: string,
+    @Param("jobId") jobId: string
+  ) {
+    return this.projects.getBulkInviteJobStatus(
+      user.workspaceId,
+      user.userId,
+      user.role,
+      id,
+      jobId
+    );
+  }
+
   @UseGuards(AdminOrProjectManagerGuard)
   @Patch(ROUTES.PROJECTS.TEAM_MEMBER(":projectId", ":memberId"))
   updateTeamMember(

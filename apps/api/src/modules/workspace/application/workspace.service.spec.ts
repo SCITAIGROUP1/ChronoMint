@@ -676,7 +676,10 @@ describe("WorkspaceService", () => {
           members,
           invitedByUserId: inviterId
         },
-        { removeOnComplete: true, removeOnFail: false }
+        {
+          removeOnComplete: { age: 60 * 60, count: 200 },
+          removeOnFail: { age: 24 * 60 * 60, count: 200 }
+        }
       );
       expect(mockPlanLimit.assertSeatsForEmails).toHaveBeenCalledWith("t-1", ["test@example.com"]);
     });

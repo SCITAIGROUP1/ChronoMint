@@ -10,6 +10,7 @@ import { assertUserNotInOtherTenant } from "../../../common/tenant/assert-user-n
 // eslint-disable-next-line no-restricted-imports
 import { AuthService } from "../../auth/application/auth.service";
 import { NotificationsDispatchService } from "../../notifications/application/notifications-dispatch.service";
+import { PlanLimitService } from "../../subscriptions/application/plan-limit.service";
 import { splitDisplayName } from "../../users/application/user-name.util";
 
 export interface BulkInviteJobPayload {
@@ -26,6 +27,7 @@ export class BulkInviteWorker extends WorkerHost {
     private readonly prisma: PrismaService,
     private readonly auth: AuthService,
     private readonly notificationsDispatch: NotificationsDispatchService,
+    private readonly planLimit: PlanLimitService,
     @InjectQueue(QUEUES.MAIL) private readonly mailQueue: Queue
   ) {
     super();
@@ -36,6 +38,14 @@ export class BulkInviteWorker extends WorkerHost {
 
     const workspace = await this.prisma.workspace.findUnique({ where: { id: workspaceId } });
     if (!workspace) throw new Error("Workspace not found");
+    const tenantId = (workspace as { tenantId?: string }).tenantId;
+    if (!tenantId) throw new Error("Workspace is not linked to an organization");
+
+    // Re-check seats at run time (enqueue check can race with concurrent invites).
+    await this.planLimit.assertSeatsForEmails(
+      tenantId,
+      members.map((m) => m.email.trim().toLowerCase())
+    );
 
     let project: { id: string; name: string; workspaceId: string } | null = null;
     let teamId: string | null = null;
@@ -88,7 +98,7 @@ export class BulkInviteWorker extends WorkerHost {
         userCreated = true;
       } else {
         try {
-          await assertUserNotInOtherTenant(this.prisma, user.id, (workspace as any).tenantId);
+          await assertUserNotInOtherTenant(this.prisma, user.id, tenantId);
         } catch (err) {
           if (err instanceof DomainException && err.code === ErrorCodes.CONFLICT) {
             skippedCount++;
@@ -109,6 +119,16 @@ export class BulkInviteWorker extends WorkerHost {
           continue; // Gracefully skip existing members (workspace-only bulk)
         }
       } else {
+        try {
+          await this.planLimit.assertSeatsForEmails(tenantId, [email]);
+        } catch (err) {
+          if (err instanceof DomainException && err.code === ErrorCodes.PLAN_LIMIT_EXCEEDED) {
+            skippedCount++;
+            continue;
+          }
+          throw err;
+        }
+
         const membership = await this.prisma.workspaceMember.create({
           data: { workspaceId, userId: user.id, role: workspaceRole },
           include: { user: true }

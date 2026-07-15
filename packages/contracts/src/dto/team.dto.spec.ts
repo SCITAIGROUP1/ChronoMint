@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  bulkInviteJobStatusSchema,
   listProjectTeamQuerySchema,
   provisionProjectTeamMembersResponseSchema,
   provisionProjectTeamMembersSchema,
@@ -131,5 +132,22 @@ describe("provisionProjectTeamMembersResponseSchema", () => {
         failedCount: 0
       }).success
     ).toBe(false);
+  });
+});
+
+describe("bulkInviteJobStatusSchema", () => {
+  it("accepts completed job status with result", () => {
+    expect(
+      bulkInviteJobStatusSchema.safeParse({
+        jobId: "job-1",
+        status: "completed",
+        result: {
+          successCount: 2,
+          skippedCount: 1,
+          projectAddedCount: 2,
+          totalProcessed: 3
+        }
+      }).success
+    ).toBe(true);
   });
 });

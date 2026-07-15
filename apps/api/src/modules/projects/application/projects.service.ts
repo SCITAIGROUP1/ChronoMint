@@ -2,6 +2,7 @@ import { randomBytes } from "crypto";
 import { ErrorCodes, pickDefaultProjectColor, buildPaginationMeta } from "@kloqra/contracts";
 import type {
   AddTeamMemberDto,
+  BulkInviteJobStatusDto,
   CreateProjectDto,
   CreateTeamInviteDto,
   ListProjectsQuery,
@@ -822,7 +823,11 @@ export class ProjectsService {
         members: normalized,
         invitedByUserId: actorUserId
       },
-      { removeOnComplete: true, removeOnFail: false }
+      {
+        // Keep finished jobs briefly so the admin UI can poll for outcome.
+        removeOnComplete: { age: 60 * 60, count: 200 },
+        removeOnFail: { age: 24 * 60 * 60, count: 200 }
+      }
     );
 
     return {
@@ -830,6 +835,66 @@ export class ProjectsService {
       status: "queued" as const,
       enqueuedCount: normalized.length
     };
+  }
+
+  async getBulkInviteJobStatus(
+    workspaceId: string,
+    actorUserId: string,
+    actorRole: "ADMIN" | "MEMBER",
+    projectId: string,
+    jobId: string
+  ): Promise<BulkInviteJobStatusDto> {
+    if (actorRole !== "ADMIN") {
+      throw new DomainException(
+        ErrorCodes.FORBIDDEN,
+        "Only workspace admins can check project invite job status",
+        HttpStatus.FORBIDDEN
+      );
+    }
+    await this.requireManageProject(workspaceId, actorUserId, actorRole, projectId);
+
+    const job = await this.bulkInviteQueue.getJob(jobId);
+    if (!job) {
+      throw new DomainException(ErrorCodes.NOT_FOUND, "Invite job not found", HttpStatus.NOT_FOUND);
+    }
+
+    const data = job.data as {
+      workspaceId?: string;
+      projectId?: string;
+    };
+    if (data.workspaceId !== workspaceId || data.projectId !== projectId) {
+      throw new DomainException(ErrorCodes.NOT_FOUND, "Invite job not found", HttpStatus.NOT_FOUND);
+    }
+
+    const state = await job.getState();
+    if (state === "completed") {
+      const result = job.returnvalue as BulkInviteJobStatusDto["result"];
+      return {
+        jobId,
+        status: "completed",
+        ...(result
+          ? {
+              result: {
+                successCount: Number(result.successCount ?? 0),
+                skippedCount: Number(result.skippedCount ?? 0),
+                projectAddedCount: Number(result.projectAddedCount ?? 0),
+                totalProcessed: Number(result.totalProcessed ?? 0)
+              }
+            }
+          : {})
+      };
+    }
+    if (state === "failed") {
+      return {
+        jobId,
+        status: "failed",
+        failedReason: String(job.failedReason ?? "Invite job failed").slice(0, 500)
+      };
+    }
+    if (state === "active") {
+      return { jobId, status: "active" };
+    }
+    return { jobId, status: "queued" };
   }
 
   async updateTeamMember(

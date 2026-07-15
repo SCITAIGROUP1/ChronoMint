@@ -54,6 +54,20 @@ export const provisionProjectTeamMembersResponseSchema = z.object({
   enqueuedCount: z.number().int().nonnegative()
 });
 
+export const bulkInviteJobResultSchema = z.object({
+  successCount: z.number().int().nonnegative(),
+  skippedCount: z.number().int().nonnegative(),
+  projectAddedCount: z.number().int().nonnegative(),
+  totalProcessed: z.number().int().nonnegative()
+});
+
+export const bulkInviteJobStatusSchema = z.object({
+  jobId: z.string().min(1),
+  status: z.enum(["queued", "active", "completed", "failed"]),
+  result: bulkInviteJobResultSchema.optional(),
+  failedReason: z.string().max(500).optional()
+});
+
 export const teamSchema = z.object({
   id: uuidSchema,
   projectId: uuidSchema,
@@ -110,6 +124,8 @@ export type ProvisionProjectTeamMemberResultDto = z.infer<
 export type ProvisionProjectTeamMembersResponseDto = z.infer<
   typeof provisionProjectTeamMembersResponseSchema
 >;
+export type BulkInviteJobResultDto = z.infer<typeof bulkInviteJobResultSchema>;
+export type BulkInviteJobStatusDto = z.infer<typeof bulkInviteJobStatusSchema>;
 export type TeamDto = z.infer<typeof teamSchema>;
 export type ListProjectTeamQuery = z.infer<typeof listProjectTeamQuerySchema>;
 export type ProjectTeamResponseDto = z.infer<typeof projectTeamResponseSchema>;

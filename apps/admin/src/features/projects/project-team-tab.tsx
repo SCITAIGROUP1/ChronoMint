@@ -43,7 +43,6 @@ import {
   ClipboardCheck,
   Download,
   FileSpreadsheet,
-  Mail,
   Plus,
   Upload,
   UserPlus,
@@ -59,6 +58,7 @@ import {
   formatProjectPendingApprovalsTitle,
   shouldShowProjectPendingApprovalsBanner
 } from "./project-team-approvals.util";
+import { formatBulkInviteJobToast, waitForBulkInviteJob } from "./project-team-invite-job";
 import {
   buildInvitePerson,
   mergeInvitePeople,
@@ -268,10 +268,27 @@ export function ProjectTeamTab() {
       );
       setAddOpen(false);
       resetInviteDraft();
-      toast.success(
-        `Queued ${result.enqueuedCount} invite${result.enqueuedCount === 1 ? "" : "s"}. Members will be added and emailed shortly.`
+      toast.info(
+        result.enqueuedCount === 1 ? "Invite started…" : `${result.enqueuedCount} invites started…`
       );
-      window.setTimeout(() => void loadTeam(), 2500);
+      void (async () => {
+        try {
+          const status = await waitForBulkInviteJob({
+            api,
+            workspaceId,
+            projectId,
+            jobId: result.jobId
+          });
+          const toastInfo = formatBulkInviteJobToast(status);
+          if (toastInfo.tone === "error") toast.error(toastInfo.message);
+          else if (toastInfo.tone === "warning") toast.warning(toastInfo.message);
+          else toast.success(toastInfo.message);
+          await loadTeam();
+        } catch (e) {
+          toast.warning(e instanceof Error ? e.message : "Invite is still processing.");
+          await loadTeam();
+        }
+      })();
     } catch (e) {
       const message = e instanceof Error ? e.message : "Could not invite members.";
       setError(message);
@@ -312,12 +329,29 @@ export function ProjectTeamTab() {
           body: formData
         }
       );
-      toast.success(
-        `Queued ${res.enqueuedCount} invite${res.enqueuedCount === 1 ? "" : "s"}. Members will be added and emailed shortly.`
+      toast.info(
+        res.enqueuedCount === 1 ? "Import started…" : `Import started for ${res.enqueuedCount}…`
       );
       setAddOpen(false);
       resetInviteDraft();
-      await loadTeam();
+      void (async () => {
+        try {
+          const status = await waitForBulkInviteJob({
+            api,
+            workspaceId,
+            projectId,
+            jobId: res.jobId
+          });
+          const toastInfo = formatBulkInviteJobToast(status);
+          if (toastInfo.tone === "error") toast.error(toastInfo.message);
+          else if (toastInfo.tone === "warning") toast.warning(toastInfo.message);
+          else toast.success(toastInfo.message);
+          await loadTeam();
+        } catch (e) {
+          toast.warning(e instanceof Error ? e.message : "Import is still processing.");
+          await loadTeam();
+        }
+      })();
     } catch (e) {
       const message = e instanceof Error ? e.message : "Could not upload invite file.";
       setError(message);
@@ -550,7 +584,7 @@ export function ProjectTeamTab() {
         title={addMode === "invite" ? "Invite to project" : "Add team member"}
         description={
           addMode === "invite"
-            ? "Add people by email. Invites are queued — they join this workspace and project together and get one welcome email."
+            ? "They join this workspace and project, then get one welcome email."
             : "Pick someone already in this workspace to assign to the project."
         }
         icon={<UserPlus className="size-5" />}
@@ -567,10 +601,10 @@ export function ProjectTeamTab() {
                 onClick={() => void provisionOutsideMembers()}
               >
                 {addingMember
-                  ? "Queueing…"
+                  ? "Sending…"
                   : invitePeople.length > 0
-                    ? `Queue invite (${invitePeople.length})`
-                    : "Queue invite"}
+                    ? `Invite ${invitePeople.length}`
+                    : "Invite"}
               </Button>
             ) : (
               <Button
@@ -602,16 +636,8 @@ export function ProjectTeamTab() {
           ) : null}
 
           {addMode === "invite" ? (
-            <div className="space-y-3">
-              <p className="flex items-start gap-2 rounded-md bg-muted/40 px-2.5 py-2 text-xs text-muted-foreground">
-                <Mail className="mt-0.5 size-3.5 shrink-0 text-primary" aria-hidden />
-                <span>
-                  New users get sign-in credentials by email. Existing accounts get a workspace
-                  notice, then a project assignment email.
-                </span>
-              </p>
-
-              <div className="grid items-end gap-2 sm:grid-cols-[1.2fr_1fr_auto]">
+            <div className="space-y-4">
+              <div className="grid items-end gap-2 sm:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)_auto]">
                 <div className="space-y-1.5">
                   <Label htmlFor="invite-email-draft">Email</Label>
                   <Input
@@ -672,25 +698,20 @@ export function ProjectTeamTab() {
                     }}
                   />
                 </div>
-                <Button type="button" onClick={() => tryAddFromDraft()}>
+                <Button type="button" variant="outline" onClick={() => tryAddFromDraft()}>
                   <Plus className="size-4" aria-hidden />
                   Add
                 </Button>
               </div>
               {inviteFieldError ? (
                 <p className="text-xs text-destructive">{inviteFieldError}</p>
-              ) : (
-                <p className="text-xs text-muted-foreground">
-                  Add people one by one, or paste a list into Email. Blank name uses the email
-                  address name.
-                </p>
-              )}
+              ) : null}
 
               {invitePeople.length > 0 ? (
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-medium text-foreground">
-                      Ready to invite ({invitePeople.length})
+                    <p className="text-xs text-muted-foreground">
+                      {invitePeople.length} ready to invite
                     </p>
                     <Button
                       type="button"
@@ -699,10 +720,10 @@ export function ProjectTeamTab() {
                       className="h-7 px-2 text-xs"
                       onClick={() => setInvitePeople([])}
                     >
-                      Clear all
+                      Clear
                     </Button>
                   </div>
-                  <div className="flex max-h-36 flex-wrap gap-1.5 overflow-y-auto rounded-md border border-border/70 bg-muted/15 p-2">
+                  <div className="flex max-h-28 flex-wrap gap-1.5 overflow-y-auto">
                     {invitePeople.map((person) => (
                       <Badge
                         key={person.email}
@@ -725,62 +746,60 @@ export function ProjectTeamTab() {
                     ))}
                   </div>
                 </div>
-              ) : (
-                <div className="rounded-md border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground">
-                  No one added yet — enter an email, then Add.
-                </div>
-              )}
+              ) : null}
 
-              <div className="space-y-2 border-t border-border/70 pt-3">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-medium">Or import Excel / CSV (queued)</p>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-7 gap-1.5 text-xs"
-                    onClick={() => void downloadBulkTemplate()}
-                  >
-                    <Download className="size-3.5" aria-hidden />
-                    Template
-                  </Button>
-                </div>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                  <label className="relative flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-md border border-dashed border-border px-3 py-3 hover:bg-muted/30">
-                    <input
-                      type="file"
-                      accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
-                      className="absolute inset-0 cursor-pointer opacity-0"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0] ?? null;
-                        setBulkFile(file);
-                      }}
-                    />
-                    <FileSpreadsheet
-                      className="size-5 shrink-0 text-muted-foreground"
-                      aria-hidden
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">
+              <details className="group rounded-md border border-border/60">
+                <summary className="cursor-pointer list-none px-3 py-2 text-sm text-muted-foreground marker:content-none [&::-webkit-details-marker]:hidden">
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="inline-flex items-center gap-2">
+                      <FileSpreadsheet className="size-3.5" aria-hidden />
+                      Import from Excel or CSV
+                    </span>
+                    <span className="text-xs group-open:hidden">Optional</span>
+                  </span>
+                </summary>
+                <div className="space-y-2 border-t border-border/60 px-3 py-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 gap-1.5 px-2 text-xs"
+                      onClick={() => void downloadBulkTemplate()}
+                    >
+                      <Download className="size-3.5" aria-hidden />
+                      Download template
+                    </Button>
+                  </div>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <label className="relative flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md border border-dashed border-border/80 px-3 py-2 hover:bg-muted/20">
+                      <input
+                        type="file"
+                        accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
+                        className="absolute inset-0 cursor-pointer opacity-0"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] ?? null;
+                          setBulkFile(file);
+                        }}
+                      />
+                      <Upload className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                      <p className="truncate text-sm">
                         {bulkFile ? bulkFile.name : "Choose .xlsx or .csv"}
                       </p>
-                      <p className="text-xs text-muted-foreground">
-                        Background queue · up to 500 people
-                      </p>
-                    </div>
-                  </label>
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="shrink-0 gap-1.5"
-                    disabled={!bulkFile || bulkUploading}
-                    onClick={() => void uploadBulkInvite()}
-                  >
-                    <Upload className="size-3.5" aria-hidden />
-                    {bulkUploading ? "Queueing…" : "Queue import"}
-                  </Button>
+                    </label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0"
+                      disabled={!bulkFile || bulkUploading}
+                      onClick={() => void uploadBulkInvite()}
+                    >
+                      {bulkUploading ? "Importing…" : "Import"}
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              </details>
             </div>
           ) : (
             <div className="space-y-3">
