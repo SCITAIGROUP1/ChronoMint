@@ -94,4 +94,25 @@ describe("NotificationsDispatchService", () => {
       })
     );
   });
+
+  it("notify forceChannels can suppress email while keeping in-app", async () => {
+    mockPrisma.user.findUnique.mockResolvedValue({
+      email: "member@kloqra.dev",
+      preferences: {}
+    });
+
+    await service.notify({
+      userId: "u-1",
+      workspaceId: "ws-1",
+      templateId: "project.assigned",
+      context: {
+        projectName: "Alpha",
+        projectId: "11111111-1111-4111-8111-111111111111"
+      },
+      forceChannels: { email: false }
+    });
+
+    expect(mockNotifications.createInApp).toHaveBeenCalledTimes(1);
+    expect(mockMailer.send).not.toHaveBeenCalled();
+  });
 });

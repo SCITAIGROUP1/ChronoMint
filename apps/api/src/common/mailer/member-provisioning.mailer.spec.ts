@@ -93,4 +93,47 @@ describe("MemberProvisioningMailer", () => {
       })
     );
   });
+
+  it("sends combined welcome + project email for new users", async () => {
+    const inviteHandoffToken = "invite-jwt-token";
+    await mailer.sendProjectInviteWelcome({
+      to: "new@example.com",
+      workspaceName: "Acme",
+      projectName: "Alpha",
+      temporaryPassword: "TempPass123!",
+      inviteHandoffToken,
+      inviterName: "Sam"
+    });
+
+    const loginUrl = buildInviteLoginUrl(memberClientOrigin(), inviteHandoffToken);
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: ["new@example.com"],
+        subject: expect.stringContaining("Welcome — you're on Alpha"),
+        text: expect.stringContaining(loginUrl)
+      })
+    );
+    const text = send.mock.calls[0]?.[0]?.text as string;
+    expect(text).toContain("Acme");
+    expect(text).toContain("Alpha");
+    expect(text).toContain("TempPass123!");
+  });
+
+  it("sends combined project email for existing users", async () => {
+    await mailer.sendProjectInviteExisting({
+      to: "old@example.com",
+      workspaceName: "Acme",
+      projectName: "Alpha",
+      workspaceJoined: true,
+      inviterName: "Sam"
+    });
+
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: ["old@example.com"],
+        subject: expect.stringContaining("You're on Alpha"),
+        text: expect.stringContaining("Sign in to Kloqra")
+      })
+    );
+  });
 });

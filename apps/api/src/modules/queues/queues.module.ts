@@ -3,6 +3,7 @@ import { Module } from "@nestjs/common";
 import { QUEUES } from "../../common/queues";
 import { AuthModule } from "../auth/auth.module";
 import { NotificationsModule } from "../notifications/notifications.module";
+import { SubscriptionsModule } from "../subscriptions/subscriptions.module";
 import { TimelogsModule } from "../timelogs/timelogs.module";
 import { BulkCategoryWorker } from "./workers/bulk-category.worker";
 import { BulkInviteWorker } from "./workers/bulk-invite.worker";
@@ -43,6 +44,7 @@ import { TimesheetBulkReviewWorker } from "./workers/timesheet-bulk-review.worke
     }),
     AuthModule,
     NotificationsModule,
+    SubscriptionsModule,
     TimelogsModule
   ],
   providers: [MailWorker, BulkInviteWorker, BulkCategoryWorker, TimesheetBulkReviewWorker],

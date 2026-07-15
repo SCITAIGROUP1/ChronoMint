@@ -59,6 +59,11 @@ export const ROUTES = {
     BY_ID: (id: string) => `/projects/${id}`,
     TEAM: (id: string) => `/projects/${id}/team`,
     TEAM_MEMBERS: (id: string) => `/projects/${id}/team/members`,
+    TEAM_MEMBERS_PROVISION: (id: string) => `/projects/${id}/team/members/provision`,
+    TEAM_MEMBERS_BULK_TEMPLATE: (id: string) => `/projects/${id}/team/members/bulk/template`,
+    TEAM_MEMBERS_BULK_UPLOAD: (id: string) => `/projects/${id}/team/members/bulk/upload`,
+    TEAM_MEMBERS_BULK_JOB: (projectId: string, jobId: string) =>
+      `/projects/${projectId}/team/members/bulk/jobs/${jobId}`,
     TEAM_MEMBER: (projectId: string, memberId: string) =>
       `/projects/${projectId}/team/members/${memberId}`,
     TEAM_INVITES: (id: string) => `/projects/${id}/team/invites`,

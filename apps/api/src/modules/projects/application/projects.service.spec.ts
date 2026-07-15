@@ -12,6 +12,8 @@ describe("ProjectsService", () => {
     notify: ReturnType<typeof vi.fn>;
     notifyWorkspaceAdmins: ReturnType<typeof vi.fn>;
   };
+  let mockBulkQueue: { add: ReturnType<typeof vi.fn>; getJob: ReturnType<typeof vi.fn> };
+  let mockPlanLimit: { assertSeatsForEmails: ReturnType<typeof vi.fn> };
 
   const workspaceId = "ws-1";
   const userId = "user-1";
@@ -47,7 +49,22 @@ describe("ProjectsService", () => {
         create: vi.fn()
       },
       teamMember: {
-        findMany: vi.fn().mockResolvedValue([])
+        findMany: vi.fn().mockResolvedValue([]),
+        findUnique: vi.fn(),
+        create: vi.fn()
+      },
+      user: {
+        findUnique: vi.fn()
+      },
+      workspaceMember: {
+        findUnique: vi.fn()
+      },
+      workspace: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: workspaceId,
+          name: "Demo Workspace",
+          tenantId: "t-1"
+        })
       },
       userProjectColor: {
         findMany: vi.fn().mockResolvedValue([])
@@ -63,7 +80,18 @@ describe("ProjectsService", () => {
       notify: vi.fn().mockResolvedValue(undefined),
       notifyWorkspaceAdmins: vi.fn().mockResolvedValue(undefined)
     };
-    service = new ProjectsService(mockPrisma, mockAccess, mockDispatch as never);
+    mockBulkQueue = {
+      add: vi.fn().mockResolvedValue({ id: "job-1" }),
+      getJob: vi.fn()
+    };
+    mockPlanLimit = { assertSeatsForEmails: vi.fn().mockResolvedValue(undefined) };
+    service = new ProjectsService(
+      mockPrisma,
+      mockAccess,
+      mockDispatch as never,
+      mockBulkQueue as never,
+      mockPlanLimit as never
+    );
   });
 
   it("list returns empty paginated result when user has no accessible projects", async () => {
@@ -424,6 +452,107 @@ describe("ProjectsService", () => {
       await expect(
         service.getMemberTeamRoster(workspaceId, userId, "MEMBER", projectId, baseQuery)
       ).rejects.toThrow();
+    });
+  });
+
+  describe("provisionTeamMembers", () => {
+    const projectId = "proj-1";
+
+    beforeEach(() => {
+      mockAccess.assertCanManageProject.mockResolvedValue(undefined);
+      mockPrisma.project.findFirst.mockResolvedValue({
+        id: projectId,
+        workspaceId,
+        name: "Alpha"
+      });
+    });
+
+    it("rejects non-admin actors", async () => {
+      await expect(
+        service.provisionTeamMembers(workspaceId, userId, "MEMBER", projectId, {
+          members: [{ email: "a@example.com", name: "Ada" }]
+        })
+      ).rejects.toMatchObject({ code: ErrorCodes.FORBIDDEN });
+    });
+
+    it("enqueues chip invites onto the bulk-invite queue", async () => {
+      const result = await service.provisionTeamMembers(workspaceId, userId, "ADMIN", projectId, {
+        members: [
+          { email: "a@example.com", name: "Ada" },
+          { email: "b@example.com", name: "Bea" }
+        ]
+      });
+
+      expect(mockPlanLimit.assertSeatsForEmails).toHaveBeenCalled();
+      expect(mockBulkQueue.add).toHaveBeenCalledWith(
+        "bulkProjectInviteJob",
+        expect.objectContaining({
+          workspaceId,
+          projectId,
+          invitedByUserId: userId,
+          members: [
+            { email: "a@example.com", name: "Ada", role: "MEMBER" },
+            { email: "b@example.com", name: "Bea", role: "MEMBER" }
+          ]
+        }),
+        expect.any(Object)
+      );
+      expect(result).toEqual({
+        jobId: "job-1",
+        status: "queued",
+        enqueuedCount: 2
+      });
+    });
+  });
+
+  describe("getBulkInviteJobStatus", () => {
+    const projectId = "proj-1";
+
+    beforeEach(() => {
+      mockAccess.assertCanManageProject.mockResolvedValue(undefined);
+      mockPrisma.project.findFirst.mockResolvedValue({
+        id: projectId,
+        workspaceId,
+        name: "Alpha"
+      });
+    });
+
+    it("returns completed result for a matching job", async () => {
+      mockBulkQueue.getJob.mockResolvedValue({
+        data: { workspaceId, projectId },
+        getState: vi.fn().mockResolvedValue("completed"),
+        returnvalue: {
+          successCount: 1,
+          skippedCount: 0,
+          projectAddedCount: 1,
+          totalProcessed: 1
+        }
+      });
+
+      await expect(
+        service.getBulkInviteJobStatus(workspaceId, userId, "ADMIN", projectId, "job-1")
+      ).resolves.toEqual({
+        jobId: "job-1",
+        status: "completed",
+        result: {
+          successCount: 1,
+          skippedCount: 0,
+          projectAddedCount: 1,
+          totalProcessed: 1
+        }
+      });
+    });
+
+    it("hides jobs that belong to another project", async () => {
+      mockBulkQueue.getJob.mockResolvedValue({
+        data: { workspaceId, projectId: "other" },
+        getState: vi.fn().mockResolvedValue("completed"),
+        returnvalue: {}
+      });
+
+      await expect(
+        service.getBulkInviteJobStatus(workspaceId, userId, "ADMIN", projectId, "job-1")
+      ).rejects.toMatchObject({ code: ErrorCodes.NOT_FOUND });
     });
   });
 });

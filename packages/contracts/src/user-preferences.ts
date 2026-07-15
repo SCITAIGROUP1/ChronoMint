@@ -96,7 +96,7 @@ export type ResolvedUserNotifications = {
 
 const memberChannelDefaults: Record<MemberNotificationKey, NotificationChannels> = {
   workspaceAdded: { inApp: true, email: false },
-  projectAssignment: { inApp: true, email: false },
+  projectAssignment: { inApp: true, email: true },
   taskAssignment: { inApp: true, email: false },
   timesheetReminders: { inApp: true, email: true },
   idleTimerAlert: { inApp: true, email: false },

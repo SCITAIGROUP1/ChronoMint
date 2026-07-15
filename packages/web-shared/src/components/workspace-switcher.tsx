@@ -23,12 +23,25 @@ import {
   formatTenantRoleLabel
 } from "../auth/admin-access-label";
 import type { AdminContextMode } from "../auth/admin-context";
+import { canManageOrganization } from "../auth/organization-access";
 import { isPendingWorkspaceSetup } from "../auth/tenant-onboarding";
 import { useTenantCurrent } from "../features/tenant/use-tenant-current";
 import { getWorkspaceId, useSessionStore } from "../stores/session.store";
 import { useWorkspacesStore } from "../stores/workspaces.store";
 
 export type { AdminContextMode } from "../auth/admin-context";
+
+/** Same workspace id while already in org/account chrome → navigate into workspace (no switch API). */
+export function resolveWorkspaceSwitchAction(opts: {
+  nextId: string;
+  currentId: string | null | undefined;
+  isAccountContext: boolean;
+}): "noop" | "enter-workspace" | "switch" {
+  if (opts.nextId === opts.currentId) {
+    return opts.isAccountContext ? "enter-workspace" : "noop";
+  }
+  return "switch";
+}
 
 export type WorkspaceSwitcherProps = {
   /** Only list workspaces where user has this role (e.g. ADMIN for admin app). */
@@ -123,8 +136,7 @@ export function WorkspaceSwitcher({
       : workspaces;
   const currentId = session?.workspaceId ?? getWorkspaceId() ?? "";
   const currentWorkspace = visible.find((w) => w.id === currentId);
-  const isAdmin = session?.workspaceRole === "ADMIN";
-  const isOwner = session?.tenantRole === "OWNER";
+  const canCreateWorkspace = canManageOrganization(session);
   const filtered = useMemo(() => filterWorkspacesByQuery(visible, query), [visible, query]);
   const canOpen = unifiedContext ? !switching : !switching && visible.length > 0;
 
@@ -210,9 +222,23 @@ export function WorkspaceSwitcher({
   }, [open, collapsed]);
 
   async function switchWorkspace(nextId: string) {
-    if (!session || nextId === currentId || switching) return;
+    if (!session || switching) return;
     if (adminOnly && !visible.find((w) => w.id === nextId)) return;
     if (filterAdminAccess && !visible.find((w) => w.id === nextId)) return;
+
+    const action = resolveWorkspaceSwitchAction({
+      nextId,
+      currentId,
+      isAccountContext
+    });
+    if (action === "noop") return;
+    if (action === "enter-workspace") {
+      setOpen(false);
+      setQuery("");
+      router.push(defaultRedirect);
+      router.refresh();
+      return;
+    }
 
     setSwitching(true);
     try {
@@ -373,7 +399,7 @@ export function WorkspaceSwitcher({
               )}
             </div>
 
-            {unifiedContext && isOwner && isAdmin ? (
+            {unifiedContext && canCreateWorkspace ? (
               <div className="space-y-1 border-t border-border/60 p-1.5">
                 <button
                   type="button"
@@ -384,7 +410,7 @@ export function WorkspaceSwitcher({
                   Create workspace
                 </button>
               </div>
-            ) : !unifiedContext && (organizationHref || (isOwner && isAdmin)) ? (
+            ) : !unifiedContext && (organizationHref || canCreateWorkspace) ? (
               <div className="space-y-1 border-t border-border/60 p-1.5">
                 {organizationHref ? (
                   <button
@@ -397,7 +423,7 @@ export function WorkspaceSwitcher({
                     Organization settings
                   </button>
                 ) : null}
-                {isOwner && isAdmin ? (
+                {canCreateWorkspace ? (
                   <button
                     type="button"
                     onClick={onCreateWorkspace}

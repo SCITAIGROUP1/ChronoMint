@@ -17,6 +17,8 @@ export type TemplateNotifyInput<T extends NotificationTemplateId> = {
   workspaceId: string;
   templateId: T;
   context: NotificationTemplateContextMap[T];
+  /** Override resolved preference channels (e.g. suppress email when a custom mail was sent). */
+  forceChannels?: Partial<NotificationChannels>;
 };
 
 @Injectable()
@@ -35,10 +37,13 @@ export class NotificationsDispatchService {
     if (!user) return;
 
     const rendered = buildNotificationTemplate(input.templateId, input.context);
-    const channels = resolveNotificationChannels(
-      parseUserPreferences(user.preferences),
-      rendered.preferenceKey
-    );
+    const channels = {
+      ...resolveNotificationChannels(
+        parseUserPreferences(user.preferences),
+        rendered.preferenceKey
+      ),
+      ...input.forceChannels
+    };
 
     await this.deliver(input.userId, input.workspaceId, rendered, user.email, channels);
   }

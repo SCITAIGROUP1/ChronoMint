@@ -13,12 +13,24 @@ function makePrisma() {
     workspace: {
       findUnique: vi.fn() as AnyMock
     },
+    project: {
+      findFirst: vi.fn() as AnyMock
+    },
+    team: {
+      findUnique: vi.fn() as AnyMock,
+      create: vi.fn() as AnyMock
+    },
+    teamMember: {
+      findUnique: vi.fn() as AnyMock,
+      create: vi.fn() as AnyMock
+    },
     user: {
       findUnique: vi.fn() as AnyMock,
       create: vi.fn() as AnyMock
     },
     workspaceMember: {
       findUnique: vi.fn() as AnyMock,
+      findFirst: vi.fn() as AnyMock,
       create: vi.fn() as AnyMock
     },
     tenantMember: {
@@ -36,6 +48,7 @@ describe("BulkInviteWorker", () => {
     notifyWorkspaceAdmins: AnyMock;
     notify: AnyMock;
   };
+  let planLimit: { assertSeatsForEmails: AnyMock };
 
   beforeEach(() => {
     prisma = makePrisma();
@@ -47,10 +60,14 @@ describe("BulkInviteWorker", () => {
       notifyWorkspaceAdmins: vi.fn().mockResolvedValue(undefined),
       notify: vi.fn().mockResolvedValue(undefined)
     };
+    planLimit = {
+      assertSeatsForEmails: vi.fn().mockResolvedValue(undefined)
+    };
     worker = new BulkInviteWorker(
       prisma as never,
       auth as never,
       notificationsDispatch as never,
+      planLimit as never,
       mailQueue as never
     );
     prisma.workspace.findUnique.mockResolvedValue({
@@ -76,7 +93,12 @@ describe("BulkInviteWorker", () => {
     } as never);
 
     expect(prisma.workspaceMember.create).not.toHaveBeenCalled();
-    expect(result).toEqual({ successCount: 0, skippedCount: 1, totalProcessed: 1 });
+    expect(result).toEqual({
+      successCount: 0,
+      skippedCount: 1,
+      projectAddedCount: 0,
+      totalProcessed: 1
+    });
   });
 
   it("creates membership for new emails", async () => {
@@ -103,6 +125,170 @@ describe("BulkInviteWorker", () => {
     } as never);
 
     expect(prisma.workspaceMember.create).toHaveBeenCalledTimes(1);
-    expect(result).toEqual({ successCount: 1, skippedCount: 0, totalProcessed: 1 });
+    expect(result).toEqual({
+      successCount: 1,
+      skippedCount: 0,
+      projectAddedCount: 0,
+      totalProcessed: 1
+    });
+  });
+
+  it("with projectId adds existing workspace members onto the project team", async () => {
+    prisma.user.findUnique
+      .mockResolvedValueOnce({ id: "inviter", name: "Inviter" })
+      .mockResolvedValueOnce({ id: "u-existing", email: "existing@kloqra.dev", name: "Existing" });
+    prisma.project.findFirst.mockResolvedValue({
+      id: "p1",
+      name: "Alpha",
+      workspaceId: "w1"
+    });
+    prisma.team.findUnique.mockResolvedValue({ id: "team-1", projectId: "p1" });
+    prisma.workspaceMember.findUnique.mockResolvedValue({
+      id: "wm1",
+      workspaceId: "w1",
+      userId: "u-existing"
+    });
+    prisma.workspaceMember.findFirst.mockResolvedValue({
+      workspace: { tenantId: "t-1" }
+    });
+    prisma.tenantMember.findUnique.mockResolvedValue(null);
+    prisma.teamMember.findUnique.mockResolvedValue(null);
+    prisma.teamMember.create.mockResolvedValue({ id: "tm1" });
+
+    const result = await worker.process({
+      data: {
+        workspaceId: "w1",
+        projectId: "p1",
+        invitedByUserId: "inviter",
+        members: [{ email: "existing@kloqra.dev", name: "Existing", role: "MEMBER" as const }]
+      }
+    } as never);
+
+    expect(prisma.workspaceMember.create).not.toHaveBeenCalled();
+    expect(prisma.teamMember.create).toHaveBeenCalledWith({
+      data: { teamId: "team-1", userId: "u-existing" }
+    });
+    expect(notificationsDispatch.notify).toHaveBeenCalledWith(
+      expect.objectContaining({
+        templateId: "project.assigned",
+        forceChannels: { email: false }
+      })
+    );
+    expect(mailQueue.add).toHaveBeenCalledWith(
+      "sendProjectInviteExisting",
+      expect.objectContaining({
+        type: "sendProjectInviteExisting",
+        payload: expect.objectContaining({
+          to: "existing@kloqra.dev",
+          projectName: "Alpha",
+          workspaceJoined: false
+        })
+      }),
+      expect.any(Object)
+    );
+    expect(result).toEqual({
+      successCount: 0,
+      skippedCount: 0,
+      projectAddedCount: 1,
+      totalProcessed: 1
+    });
+  });
+
+  it("with projectId queues combined welcome email for brand-new users", async () => {
+    prisma.user.findUnique
+      .mockResolvedValueOnce({ id: "inviter", name: "Inviter" })
+      .mockResolvedValueOnce(null);
+    prisma.user.create.mockResolvedValue({
+      id: "u-new",
+      email: "new@kloqra.dev",
+      name: "New"
+    });
+    prisma.project.findFirst.mockResolvedValue({
+      id: "p1",
+      name: "Alpha",
+      workspaceId: "w1"
+    });
+    prisma.team.findUnique.mockResolvedValue({ id: "team-1", projectId: "p1" });
+    prisma.workspaceMember.findUnique.mockResolvedValue(null);
+    prisma.workspaceMember.create.mockResolvedValue({
+      id: "m1",
+      user: { name: "New", email: "new@kloqra.dev" }
+    });
+    prisma.teamMember.findUnique.mockResolvedValue(null);
+    prisma.teamMember.create.mockResolvedValue({ id: "tm1" });
+
+    const result = await worker.process({
+      data: {
+        workspaceId: "w1",
+        projectId: "p1",
+        invitedByUserId: "inviter",
+        members: [{ email: "new@kloqra.dev", name: "New", role: "MEMBER" as const }]
+      }
+    } as never);
+
+    expect(mailQueue.add).toHaveBeenCalledWith(
+      "sendProjectInviteWelcome",
+      expect.objectContaining({
+        type: "sendProjectInviteWelcome",
+        payload: expect.objectContaining({
+          to: "new@kloqra.dev",
+          projectName: "Alpha",
+          temporaryPassword: "TempPass123!"
+        })
+      }),
+      expect.any(Object)
+    );
+    expect(mailQueue.add).not.toHaveBeenCalledWith(
+      "sendNewMemberCredentials",
+      expect.anything(),
+      expect.anything()
+    );
+    expect(notificationsDispatch.notify).toHaveBeenCalledWith(
+      expect.objectContaining({
+        templateId: "project.assigned",
+        forceChannels: { email: false }
+      })
+    );
+    expect(result).toEqual({
+      successCount: 1,
+      skippedCount: 0,
+      projectAddedCount: 1,
+      totalProcessed: 1
+    });
+  });
+
+  it("skips new workspace members when seat limit is exceeded mid-job", async () => {
+    const { DomainException } = await import("../../../common/errors/domain.exception");
+    const { ErrorCodes } = await import("@kloqra/contracts");
+    prisma.user.findUnique
+      .mockResolvedValueOnce({ id: "inviter", name: "Inviter" })
+      .mockResolvedValueOnce(null);
+    prisma.user.create.mockResolvedValue({
+      id: "u-new",
+      email: "new@kloqra.dev",
+      name: "New"
+    });
+    prisma.workspaceMember.findUnique.mockResolvedValue(null);
+    planLimit.assertSeatsForEmails
+      .mockResolvedValueOnce(undefined) // batch check at start
+      .mockRejectedValueOnce(
+        new DomainException(ErrorCodes.PLAN_LIMIT_EXCEEDED, "Seat limit", 402)
+      );
+
+    const result = await worker.process({
+      data: {
+        workspaceId: "w1",
+        invitedByUserId: "inviter",
+        members: [{ email: "new@kloqra.dev", name: "New", role: "MEMBER" as const }]
+      }
+    } as never);
+
+    expect(prisma.workspaceMember.create).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      successCount: 0,
+      skippedCount: 1,
+      projectAddedCount: 0,
+      totalProcessed: 1
+    });
   });
 });

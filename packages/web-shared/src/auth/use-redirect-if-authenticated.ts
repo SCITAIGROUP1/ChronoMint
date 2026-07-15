@@ -1,7 +1,7 @@
 "use client";
 
 import type { AuthSessionDto } from "@kloqra/contracts";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { bootstrapSession, type BootstrapOptions } from "./bootstrap-session";
 
@@ -13,19 +13,30 @@ type UseRedirectIfAuthenticatedOptions = {
 /**
  * On auth screens: if a session can be restored, replace to the post-auth path
  * instead of showing the login form.
+ *
+ * Invite handoff links (`?invite=`) skip this redirect so a logged-in owner/admin
+ * can still reach set-password for the invitee. The existing session is left
+ * untouched until set-password succeeds and establishes the invitee session.
  */
 export function useRedirectIfAuthenticated({
   resolvePath,
   bootstrapOptions
 }: UseRedirectIfAuthenticatedOptions): { checking: boolean } {
   const router = useRouter();
-  const [checking, setChecking] = useState(true);
+  const searchParams = useSearchParams();
+  const inviteToken = searchParams.get("invite");
+  const [checking, setChecking] = useState(() => !inviteToken);
   const resolvePathRef = useRef(resolvePath);
   const bootstrapOptionsRef = useRef(bootstrapOptions);
   resolvePathRef.current = resolvePath;
   bootstrapOptionsRef.current = bootstrapOptions;
 
   useEffect(() => {
+    if (inviteToken) {
+      setChecking(false);
+      return;
+    }
+
     let cancelled = false;
 
     void bootstrapSession(bootstrapOptionsRef.current ?? {})
@@ -46,7 +57,7 @@ export function useRedirectIfAuthenticated({
     return () => {
       cancelled = true;
     };
-  }, [router]);
+  }, [router, inviteToken]);
 
   return { checking };
 }

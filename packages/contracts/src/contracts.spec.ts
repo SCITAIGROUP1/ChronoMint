@@ -105,6 +105,21 @@ describe("contracts", () => {
     expect(ROUTES.TIMELOGS.AUDIT_EVENTS("abc")).toBe("/timelogs/abc/audit-events");
   });
 
+  it("exposes project team provision route", () => {
+    expect(ROUTES.PROJECTS.TEAM_MEMBERS_PROVISION(UUID)).toBe(
+      `/projects/${UUID}/team/members/provision`
+    );
+    expect(ROUTES.PROJECTS.TEAM_MEMBERS_BULK_TEMPLATE(UUID)).toBe(
+      `/projects/${UUID}/team/members/bulk/template`
+    );
+    expect(ROUTES.PROJECTS.TEAM_MEMBERS_BULK_UPLOAD(UUID)).toBe(
+      `/projects/${UUID}/team/members/bulk/upload`
+    );
+    expect(ROUTES.PROJECTS.TEAM_MEMBERS_BULK_JOB(UUID, "job-1")).toBe(
+      `/projects/${UUID}/team/members/bulk/jobs/job-1`
+    );
+  });
+
   it("exposes timelog occupancy route", () => {
     expect(ROUTES.TIMELOGS.OCCUPANCY).toBe("/timelogs/occupancy");
   });
@@ -247,7 +262,7 @@ describe("contracts", () => {
     const notifications = resolveEffectiveNotifications(merged);
     expect(notifications.timesheetReminders.email).toBe(true);
     expect(notifications.timesheetReminders.inApp).toBe(false);
-    expect(notifications.projectAssignment.email).toBe(false);
+    expect(notifications.projectAssignment.email).toBe(true);
   });
 
   it("normalizes legacy notification channel objects to email booleans", () => {

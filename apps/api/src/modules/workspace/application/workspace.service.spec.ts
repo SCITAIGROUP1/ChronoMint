@@ -72,6 +72,8 @@ describe("WorkspaceService", () => {
     mockMailer = {
       sendNewMemberCredentials: vi.fn().mockResolvedValue({ sent: true }),
       sendWorkspaceAdded: vi.fn().mockResolvedValue({ sent: true }),
+      sendProjectInviteWelcome: vi.fn().mockResolvedValue({ sent: true }),
+      sendProjectInviteExisting: vi.fn().mockResolvedValue({ sent: true }),
       isConfigured: true
     } as unknown as MemberProvisioningMailer;
     mockQueue = {
@@ -122,6 +124,80 @@ describe("WorkspaceService", () => {
         userEmail: "admin@kloqra.dev"
       }
     ]);
+  });
+
+  it("invite with projectInvite sends combined welcome email for new users", async () => {
+    mockPrisma.workspace.findUnique.mockResolvedValue({
+      id: workspaceId,
+      name: "Kloqra",
+      tenantId: "t-1"
+    });
+    mockPrisma.user.findUnique.mockResolvedValueOnce(null);
+    mockPrisma.user.create.mockResolvedValue({
+      id: "u-new",
+      email: "new@kloqra.dev",
+      name: "New User"
+    });
+    mockPrisma.workspaceMember.findUnique.mockResolvedValue(null);
+    mockPrisma.workspaceMember.create.mockResolvedValue({
+      id: "m-new",
+      workspaceId,
+      userId: "u-new",
+      role: "MEMBER",
+      user: { name: "New User", email: "new@kloqra.dev" }
+    });
+
+    await service.invite(
+      workspaceId,
+      { email: "new@kloqra.dev", role: "MEMBER", name: "New User" },
+      inviterId,
+      { projectInvite: { projectName: "Alpha" } }
+    );
+
+    expect(mockMailer.sendProjectInviteWelcome).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: "new@kloqra.dev",
+        workspaceName: "Kloqra",
+        projectName: "Alpha",
+        temporaryPassword: "TempPass123!",
+        inviteHandoffToken: "invite-jwt"
+      })
+    );
+    expect(mockMailer.sendNewMemberCredentials).not.toHaveBeenCalled();
+  });
+
+  it("invite with projectInvite sends combined existing-user email", async () => {
+    mockPrisma.workspace.findUnique.mockResolvedValue({
+      id: workspaceId,
+      name: "Kloqra",
+      tenantId: "t-1"
+    });
+    mockPrisma.user.findUnique.mockResolvedValue({ id: "u2", email: "member@kloqra.dev" });
+    mockPrisma.tenantMember.findUnique.mockResolvedValue({ tenantId: "t-1" });
+    mockPrisma.workspaceMember.findUnique.mockResolvedValue(null);
+    mockPrisma.workspaceMember.create.mockResolvedValue({
+      id: "m2",
+      workspaceId,
+      userId: "u2",
+      role: "MEMBER",
+      user: { name: "Member User", email: "member@kloqra.dev" }
+    });
+
+    await service.invite(
+      workspaceId,
+      { email: "member@kloqra.dev", role: "MEMBER", name: "Member User" },
+      inviterId,
+      { projectInvite: { projectName: "Alpha" } }
+    );
+
+    expect(mockMailer.sendProjectInviteExisting).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: "member@kloqra.dev",
+        projectName: "Alpha",
+        workspaceJoined: true
+      })
+    );
+    expect(mockMailer.sendWorkspaceAdded).not.toHaveBeenCalled();
   });
 
   it("invite creates user and membership for new email", async () => {
@@ -600,7 +676,10 @@ describe("WorkspaceService", () => {
           members,
           invitedByUserId: inviterId
         },
-        { removeOnComplete: true, removeOnFail: false }
+        {
+          removeOnComplete: { age: 60 * 60, count: 200 },
+          removeOnFail: { age: 24 * 60 * 60, count: 200 }
+        }
       );
       expect(mockPlanLimit.assertSeatsForEmails).toHaveBeenCalledWith("t-1", ["test@example.com"]);
     });

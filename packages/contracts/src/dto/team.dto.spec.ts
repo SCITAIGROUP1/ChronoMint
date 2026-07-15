@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { listProjectTeamQuerySchema, teamMemberSchema, updateTeamMemberSchema } from "./team.dto";
+import {
+  bulkInviteJobStatusSchema,
+  listProjectTeamQuerySchema,
+  provisionProjectTeamMembersResponseSchema,
+  provisionProjectTeamMembersSchema,
+  teamMemberSchema,
+  updateTeamMemberSchema
+} from "./team.dto";
 
 const MEMBER_ID = "00000000-0000-4000-8000-000000000001";
 const TEAM_ID = "00000000-0000-4000-8000-000000000002";
@@ -82,5 +89,65 @@ describe("listProjectTeamQuerySchema", () => {
       role: "ADMIN"
     });
     expect(result.success).toBe(false);
+  });
+});
+
+describe("provisionProjectTeamMembersSchema", () => {
+  it("accepts 1–100 email+name members", () => {
+    const result = provisionProjectTeamMembersSchema.safeParse({
+      members: [{ email: "a@example.com", name: "Ada" }]
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects empty members", () => {
+    expect(provisionProjectTeamMembersSchema.safeParse({ members: [] }).success).toBe(false);
+  });
+
+  it("rejects missing name", () => {
+    expect(
+      provisionProjectTeamMembersSchema.safeParse({
+        members: [{ email: "a@example.com", name: "" }]
+      }).success
+    ).toBe(false);
+  });
+});
+
+describe("provisionProjectTeamMembersResponseSchema", () => {
+  it("accepts queued bulk response", () => {
+    expect(
+      provisionProjectTeamMembersResponseSchema.safeParse({
+        jobId: "job-1",
+        status: "queued",
+        enqueuedCount: 2
+      }).success
+    ).toBe(true);
+  });
+
+  it("rejects sync-style result payloads", () => {
+    expect(
+      provisionProjectTeamMembersResponseSchema.safeParse({
+        results: [],
+        addedCount: 0,
+        failedCount: 0
+      }).success
+    ).toBe(false);
+  });
+});
+
+describe("bulkInviteJobStatusSchema", () => {
+  it("accepts completed job status with result", () => {
+    expect(
+      bulkInviteJobStatusSchema.safeParse({
+        jobId: "job-1",
+        status: "completed",
+        result: {
+          successCount: 2,
+          skippedCount: 1,
+          projectAddedCount: 2,
+          totalProcessed: 3
+        }
+      }).success
+    ).toBe(true);
   });
 });

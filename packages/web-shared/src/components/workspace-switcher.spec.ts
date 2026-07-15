@@ -4,7 +4,7 @@ import {
   formatMemberPortalWorkspaceLabel,
   formatWorkspaceRole
 } from "../auth/admin-access-label";
-import { filterWorkspacesByQuery } from "./workspace-switcher";
+import { filterWorkspacesByQuery, resolveWorkspaceSwitchAction } from "./workspace-switcher";
 
 const workspaces = [
   { id: "1", name: "Acme Corporation", role: "ADMIN" as const },
@@ -51,5 +51,37 @@ describe("filterWorkspacesByQuery", () => {
   it("filters workspaces by name", () => {
     expect(filterWorkspacesByQuery(workspaces, "tech")).toEqual([workspaces[1]]);
     expect(filterWorkspacesByQuery(workspaces, "design")).toEqual([workspaces[2]]);
+  });
+});
+
+describe("resolveWorkspaceSwitchAction", () => {
+  it("navigates into workspace when picking current id from account context", () => {
+    expect(
+      resolveWorkspaceSwitchAction({
+        nextId: "ws-1",
+        currentId: "ws-1",
+        isAccountContext: true
+      })
+    ).toBe("enter-workspace");
+  });
+
+  it("noops when picking current id outside account context", () => {
+    expect(
+      resolveWorkspaceSwitchAction({
+        nextId: "ws-1",
+        currentId: "ws-1",
+        isAccountContext: false
+      })
+    ).toBe("noop");
+  });
+
+  it("switches when picking a different workspace", () => {
+    expect(
+      resolveWorkspaceSwitchAction({
+        nextId: "ws-2",
+        currentId: "ws-1",
+        isAccountContext: true
+      })
+    ).toBe("switch");
   });
 });

@@ -2,42 +2,12 @@ import { ErrorCodes } from "@kloqra/contracts";
 import { HttpStatus } from "@nestjs/common";
 import { DomainException } from "../errors/domain.exception";
 import type { PrismaService } from "../prisma/prisma.service";
+import { resolveUserTenantId } from "./resolve-user-tenant-id";
 
 export type TenantMemberRole = "OWNER" | "ADMIN";
 
-export async function resolveUserTenantId(
-  prisma: PrismaService,
-  userId: string
-): Promise<string | null> {
-  const tenantMember = await prisma.tenantMember.findUnique({
-    where: { userId },
-    select: { tenantId: true }
-  });
-  if (tenantMember) return tenantMember.tenantId;
-
-  const membership = await prisma.workspaceMember.findFirst({
-    where: { userId, isActive: true },
-    select: { workspace: { select: { tenantId: true } } },
-    orderBy: { createdAt: "asc" }
-  });
-  return membership?.workspace.tenantId ?? null;
-}
-
-/** D08 — reject if the user already belongs to a different organization. */
-export async function assertUserNotInOtherTenant(
-  prisma: PrismaService,
-  userId: string,
-  tenantId: string
-): Promise<void> {
-  const existingTenantId = await resolveUserTenantId(prisma, userId);
-  if (existingTenantId && existingTenantId !== tenantId) {
-    throw new DomainException(
-      ErrorCodes.CONFLICT,
-      "User already belongs to another organization",
-      HttpStatus.CONFLICT
-    );
-  }
-}
+export { resolveUserTenantId } from "./resolve-user-tenant-id";
+export { assertUserNotInOtherTenant } from "./assert-user-not-in-other-tenant";
 
 export async function assertWorkspaceInUserTenant(
   prisma: PrismaService,

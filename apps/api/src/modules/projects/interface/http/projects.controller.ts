@@ -6,8 +6,10 @@ import {
   updateProjectSchema,
   updateTeamMemberSchema,
   createTeamInviteSchema,
+  provisionProjectTeamMembersSchema,
   type ListProjectsQuery,
   type ListProjectTeamQuery,
+  type ProvisionProjectTeamMembersDto,
   type UpdateTeamMemberDto,
   ROUTES
 } from "@kloqra/contracts";
@@ -21,8 +23,13 @@ import {
   Patch,
   Post,
   Query,
-  UseGuards
+  Res,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors
 } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
+import type { Response } from "express";
 import { Roles } from "../../../../common/decorators/roles.decorator";
 import {
   WorkspaceUser,
@@ -117,6 +124,70 @@ export class ProjectsController {
       user.role,
       id,
       body as Parameters<ProjectsService["addTeamMember"]>[4]
+    );
+  }
+
+  @Roles("ADMIN")
+  @Post(ROUTES.PROJECTS.TEAM_MEMBERS_PROVISION(":id"))
+  provisionTeamMembers(
+    @WorkspaceUser() user: WorkspaceRequestUser,
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(provisionProjectTeamMembersSchema))
+    body: ProvisionProjectTeamMembersDto
+  ) {
+    return this.projects.provisionTeamMembers(user.workspaceId, user.userId, user.role, id, body);
+  }
+
+  @Roles("ADMIN")
+  @Get(ROUTES.PROJECTS.TEAM_MEMBERS_BULK_TEMPLATE(":id"))
+  async getBulkProjectInviteTemplate(
+    @Param("id") id: string,
+    @WorkspaceUser() user: WorkspaceRequestUser,
+    @Res() res: Response
+  ) {
+    return this.projects.generateBulkProjectInviteTemplate(
+      user.workspaceId,
+      user.userId,
+      user.role,
+      id,
+      res
+    );
+  }
+
+  @Roles("ADMIN")
+  @Post(ROUTES.PROJECTS.TEAM_MEMBERS_BULK_UPLOAD(":id"))
+  @UseInterceptors(FileInterceptor("file", { limits: { fileSize: 2 * 1024 * 1024 } }))
+  async bulkProjectInviteUpload(
+    @Param("id") id: string,
+    @UploadedFile() file: { buffer: Buffer; originalname?: string } | undefined,
+    @WorkspaceUser() user: WorkspaceRequestUser
+  ) {
+    if (!file?.buffer) {
+      throw new Error("No file uploaded");
+    }
+    const members = await this.projects.parseBulkProjectInviteFile(file.buffer, file.originalname);
+    return this.projects.enqueueBulkProjectInvite(
+      user.workspaceId,
+      user.userId,
+      user.role,
+      id,
+      members
+    );
+  }
+
+  @Roles("ADMIN")
+  @Get(ROUTES.PROJECTS.TEAM_MEMBERS_BULK_JOB(":id", ":jobId"))
+  getBulkProjectInviteJob(
+    @WorkspaceUser() user: WorkspaceRequestUser,
+    @Param("id") id: string,
+    @Param("jobId") jobId: string
+  ) {
+    return this.projects.getBulkInviteJobStatus(
+      user.workspaceId,
+      user.userId,
+      user.role,
+      id,
+      jobId
     );
   }
 
