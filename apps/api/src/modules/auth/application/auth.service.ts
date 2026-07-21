@@ -1070,10 +1070,15 @@ export class AuthService {
     }
 
     await assertTenantAllowsOperations(this.prisma, tenantMember.tenantId);
+    const existingWorkspace = await this.prisma.workspace.findFirst({
+      where: { tenantId: tenantMember.tenantId },
+      select: { id: true }
+    });
     return this.buildTenantOperatorSession(
       user,
       tenantMember.tenantId,
       tenantMember.role as "OWNER" | "ADMIN",
+      !existingWorkspace,
       impersonatorId,
       impersonatorName
     );
@@ -1091,6 +1096,7 @@ export class AuthService {
     },
     tenantId: string,
     tenantRole: "OWNER" | "ADMIN",
+    requiresWorkspaceSetup: boolean,
     impersonatorId?: string,
     impersonatorName?: string
   ): AuthSessionDto {
@@ -1109,7 +1115,9 @@ export class AuthService {
       tenantId,
       tenantRole,
       capabilities: this.capabilitiesFor(tenantRole),
-      requiresWorkspaceSetup: true,
+      ...(requiresWorkspaceSetup
+        ? { requiresWorkspaceSetup: true as const }
+        : { organizationOnly: true as const }),
       ...(preferences.defaultWorkspaceId
         ? { defaultWorkspaceId: preferences.defaultWorkspaceId }
         : {}),

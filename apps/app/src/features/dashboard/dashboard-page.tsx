@@ -165,7 +165,7 @@ export function ManagementDashboardPage({
 }: ManagementDashboardPageProps) {
   const session = useSessionStore((s) => s.session);
   const ws = getEffectiveWorkspaceId() ?? session?.workspaceId ?? "";
-  const { timezone } = useWorkspaceOperationalSettings(ws, Boolean(ws));
+  const { timezone } = useWorkspaceOperationalSettings(ws, Boolean(ws && showManagement));
   const canReadPresence =
     capabilities.includes("workspace:ReadPresence") ||
     capabilities.includes("project:ReadPresence");

@@ -31,6 +31,7 @@ import {
   listTimeLogOccupancyQuerySchema,
   listTimeLogsQuerySchema,
   loginSchema,
+  authSessionSchema,
   authScopeSchema,
   productAuthScopeSchema,
   inviteHandoffSchema,
@@ -82,6 +83,17 @@ describe("contracts", () => {
   it("validates login", () => {
     const r = loginSchema.safeParse({ email: "a@b.com", password: "secret" });
     expect(r.success).toBe(true);
+  });
+
+  it("validates an organization-only tenant admin session", () => {
+    expect(
+      authSessionSchema.safeParse({
+        user: { id: UUID, name: "Second Admin" },
+        tenantId: UUID_2,
+        tenantRole: "ADMIN",
+        organizationOnly: true
+      }).success
+    ).toBe(true);
   });
 
   it("exports unified auth scope contracts", () => {

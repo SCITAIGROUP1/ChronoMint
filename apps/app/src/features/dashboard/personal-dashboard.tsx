@@ -4,6 +4,7 @@ import { ROUTES, type TimeLogDto } from "@kloqra/contracts";
 import { DashboardStatCard } from "@kloqra/ui";
 import {
   SUBMISSIONS_LOOKBACK_WEEKS,
+  localMidnightUtcInZone,
   logStartDateKey,
   todayInZone,
   toDateKeyInZone,
@@ -47,10 +48,20 @@ export function usePersonalDashboardData(
   const session = useSessionStore((state) => state.session);
   const workspaceId = session?.workspaceId ?? "";
   const { timezone } = useDisplayPreferences();
-  const logsPath = `${ROUTES.TIMELOGS.LIST}?${new URLSearchParams({
-    from: `${range.startDate}T00:00:00.000Z`,
-    to: `${range.endDate}T23:59:59.999Z`
-  })}`;
+  const logsPath = useMemo(() => {
+    const [startYear, startMonth, startDay] = range.startDate.split("-").map(Number);
+    const [endYear, endMonth, endDay] = range.endDate.split("-").map(Number);
+    const from = localMidnightUtcInZone(startYear!, startMonth!, startDay!, timezone);
+    const to = new Date(
+      localMidnightUtcInZone(endYear!, endMonth!, endDay!, timezone).getTime() +
+        24 * 60 * 60 * 1000 -
+        1
+    );
+    return `${ROUTES.TIMELOGS.LIST}?${new URLSearchParams({
+      from: from.toISOString(),
+      to: to.toISOString()
+    })}`;
+  }, [range.endDate, range.startDate, timezone]);
 
   const queryEnabled = Boolean(enabled && workspaceId);
   const catalog = useEntryCatalogQueries(workspaceId, { enabled: queryEnabled });

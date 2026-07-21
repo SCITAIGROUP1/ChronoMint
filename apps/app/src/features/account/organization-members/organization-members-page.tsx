@@ -32,6 +32,7 @@ import { isOrganizationOwner, useTenantMembers } from "@kloqra/web-shared";
 import { UserPlus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { PermissionToggleDialog } from "@/components/permission-toggle-dialog";
 import { api } from "@/lib/api";
 import { getWorkspaceId, useSessionStore } from "@/stores/session.store";
 
@@ -54,6 +55,7 @@ export function OrganizationMembersPage() {
   const [inviting, setInviting] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [deactivateTarget, setDeactivateTarget] = useState<TenantMemberDto | null>(null);
+  const [permissionTarget, setPermissionTarget] = useState<TenantMemberDto | null>(null);
 
   const filteredMembers = useMemo(() => {
     const normalized = search.trim().toLowerCase();
@@ -233,19 +235,29 @@ export function OrganizationMembersPage() {
                     {member.role === "OWNER" ? (
                       <span className="text-xs italic text-muted-foreground">Owner</span>
                     ) : (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        disabled={busyId === member.id}
-                        onClick={() =>
-                          member.isActive
-                            ? setDeactivateTarget(member)
-                            : void toggleActive(member, true)
-                        }
-                      >
-                        {member.isActive ? "Deactivate" : "Activate"}
-                      </Button>
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setPermissionTarget(member)}
+                        >
+                          Permissions
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={busyId === member.id}
+                          onClick={() =>
+                            member.isActive
+                              ? setDeactivateTarget(member)
+                              : void toggleActive(member, true)
+                          }
+                        >
+                          {member.isActive ? "Deactivate" : "Activate"}
+                        </Button>
+                      </div>
                     )}
                   </DataTableCell>
                 </TableRow>
@@ -307,6 +319,18 @@ export function OrganizationMembersPage() {
         onConfirm={() => deactivateTarget && void toggleActive(deactivateTarget, false)}
         onCancel={() => setDeactivateTarget(null)}
       />
+
+      {permissionTarget ? (
+        <PermissionToggleDialog
+          open={permissionTarget !== null}
+          onOpenChange={(open) => !open && setPermissionTarget(null)}
+          memberName={permissionTarget.userName}
+          memberEmail={permissionTarget.userEmail}
+          memberRole={permissionTarget.role}
+          memberId={permissionTarget.id}
+          scope="organization"
+        />
+      ) : null}
     </div>
   );
 }

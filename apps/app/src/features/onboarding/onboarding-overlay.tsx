@@ -39,6 +39,10 @@ export function OnboardingOverlay({
 
   useEffect(() => {
     if (isImpersonating) return;
+    if (!session?.workspaceId) {
+      setShow(false);
+      return;
+    }
     if (forceOpen !== undefined) {
       setShow(forceOpen);
       if (forceOpen && replay) setStepIndex(0);

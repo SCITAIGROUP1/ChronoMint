@@ -13,7 +13,6 @@ import {
 } from "@kloqra/ui";
 import { canManageOrganization } from "@kloqra/web-shared";
 import { Plus, UserPlus } from "lucide-react";
-import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { CreateWorkspaceDialog } from "./components/create-workspace-dialog";
 import { WorkspaceAdminAssignDialog } from "./components/workspace-admin-assign-dialog";
@@ -22,12 +21,10 @@ import { useSessionStore } from "@/stores/session.store";
 import { useWorkspacesStore } from "@/stores/workspaces.store";
 
 export function AccountWorkspacesPage() {
-  const searchParams = useSearchParams();
   const session = useSessionStore((s) => s.session);
   const workspaces = useWorkspacesStore((s) => s.workspaces);
   const canManage = canManageOrganization(session);
-  const setupRequired =
-    session?.requiresWorkspaceSetup === true || searchParams.get("setup") === "required";
+  const setupRequired = session?.requiresWorkspaceSetup === true;
   const [createOpen, setCreateOpen] = useState(false);
   const [assignTarget, setAssignTarget] = useState<{ id: string; name: string } | null>(null);
 

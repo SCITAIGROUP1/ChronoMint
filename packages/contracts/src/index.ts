@@ -54,6 +54,7 @@ export * from "./platform-preferences";
 export * from "./platform-notification-realtime";
 export * from "./dto/compliance.dto";
 export * from "./dto/role-grant-audit.dto";
+export * from "./dto/permission-matrix.dto";
 export * from "./legal-urls";
 
 export const TimerSource = {

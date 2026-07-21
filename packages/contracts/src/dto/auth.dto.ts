@@ -44,6 +44,8 @@ const authSessionCoreSchema = z.object({
   workspaceRole: workspaceRoleSchema.optional(),
   /** Tenant owner/admin with no workspace yet — must create one before workspace ops. */
   requiresWorkspaceSetup: z.literal(true).optional(),
+  /** Tenant owner/admin managing the organization without a direct workspace assignment. */
+  organizationOnly: z.literal(true).optional(),
   /** Preferred workspace from user preferences — avoids bootstrap GET /users/me. */
   defaultWorkspaceId: uuidSchema.optional(),
   /** Project IDs where user is team_members.role = PROJECT_MANAGER (MEMBER workspace role only; not in JWT). */
@@ -64,10 +66,10 @@ function refineAuthSession<T extends z.ZodTypeAny>(schema: T) {
         path: ["workspaceRole"]
       });
     }
-    if (!session.workspaceId && !session.requiresWorkspaceSetup) {
+    if (!session.workspaceId && !session.requiresWorkspaceSetup && !session.organizationOnly) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "workspaceId or requiresWorkspaceSetup is required",
+        message: "workspaceId, requiresWorkspaceSetup, or organizationOnly is required",
         path: ["workspaceId"]
       });
     }
@@ -80,6 +82,31 @@ function refineAuthSession<T extends z.ZodTypeAny>(schema: T) {
         code: z.ZodIssueCode.custom,
         message: "requiresWorkspaceSetup requires tenant owner or admin role",
         path: ["requiresWorkspaceSetup"]
+      });
+    }
+    if (
+      session.organizationOnly &&
+      session.tenantRole !== "OWNER" &&
+      session.tenantRole !== "ADMIN"
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "organizationOnly requires tenant owner or admin role",
+        path: ["organizationOnly"]
+      });
+    }
+    if (session.workspaceId && session.organizationOnly) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "organizationOnly cannot include workspaceId",
+        path: ["organizationOnly"]
+      });
+    }
+    if (session.requiresWorkspaceSetup && session.organizationOnly) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "workspace setup and organization-only states are mutually exclusive",
+        path: ["organizationOnly"]
       });
     }
   });

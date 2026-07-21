@@ -50,6 +50,7 @@ describe("resolveAppShellNav", () => {
       "/account/workspaces",
       "/account/workspaces-tree",
       "/account/workspace-admins",
+      "/account/permissions-matrix",
       "/account/access-audit",
       "/account/organization",
       "/account/members",
@@ -73,6 +74,7 @@ describe("resolveAppShellNav", () => {
     expect(navItems.map((item) => item.href)).toEqual([
       "/account/workspaces",
       "/account/workspace-admins",
+      "/account/permissions-matrix",
       "/account/access-audit",
       "/account/organization",
       "/account/settings"

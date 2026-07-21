@@ -50,6 +50,16 @@ describe("authSessionSchema", () => {
     expect(result.success).toBe(true);
   });
 
+  it("accepts organization-only admin when the tenant already has workspaces", () => {
+    const result = authSessionSchema.safeParse({
+      user: { id: USER_ID, name: "Second Admin" },
+      tenantId: TENANT_ID,
+      tenantRole: "ADMIN",
+      organizationOnly: true
+    });
+    expect(result.success).toBe(true);
+  });
+
   it("validates an optional presentation-only capability snapshot", () => {
     const base = {
       user: { id: USER_ID, name: "Admin User" },

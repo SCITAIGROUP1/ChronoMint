@@ -5,6 +5,8 @@ import {
   ROUTES,
   roleGrantAuditQuerySchema,
   tenantAnalyticsQuerySchema,
+  updatePermissionMatrixPolicySchema,
+  updateMemberPermissionSchema,
   updateTenantMemberSchema,
   updateTenantCurrentSchema,
   updateWorkspaceMemberSchema,
@@ -14,6 +16,8 @@ import {
   type InviteTenantMemberDto,
   type RoleGrantAuditQuery,
   type TenantAnalyticsQueryDto,
+  type UpdatePermissionMatrixPolicyDto,
+  type UpdateMemberPermissionDto,
   type UpdateTenantCurrentDto,
   type UpdateTenantMemberDto,
   type UpdateWorkspaceMemberDto,
@@ -43,6 +47,7 @@ import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe"
 import { SubscriptionsService } from "../../../subscriptions/application/subscriptions.service";
 import { WorkspaceService } from "../../../workspace/application/workspace.service";
 /* eslint-enable no-restricted-imports */
+import { PermissionMatrixService } from "../../application/permission-matrix.service";
 import { RoleGrantAuditLogService } from "../../application/role-grant-audit-log.service";
 import { TenantAnalyticsService } from "../../application/tenant-analytics.service";
 import { TenantWorkspaceAdminsOverviewService } from "../../application/tenant-workspace-admins-overview.service";
@@ -58,7 +63,8 @@ export class TenantsController {
     private workspaceAdminsOverviewService: TenantWorkspaceAdminsOverviewService,
     private workspace: WorkspaceService,
     private subscriptions: SubscriptionsService,
-    private roleGrantAuditLog: RoleGrantAuditLogService
+    private roleGrantAuditLog: RoleGrantAuditLogService,
+    private permissionMatrix: PermissionMatrixService
   ) {}
 
   @Get(ROUTES.TENANTS.CURRENT)
@@ -216,5 +222,44 @@ export class TenantsController {
     @Query(new ZodValidationPipe(roleGrantAuditQuerySchema)) query: RoleGrantAuditQuery
   ) {
     return this.roleGrantAuditLog.getTenantAuditLog(user.tenantId, query);
+  }
+
+  @TenantRoles("OWNER", "ADMIN")
+  @Get(ROUTES.TENANTS.PERMISSION_MATRIX)
+  getPermissionMatrix(@CurrentUser() user: RequestUser) {
+    return this.permissionMatrix.getMatrix(user.tenantId);
+  }
+
+  @TenantRoles("OWNER", "ADMIN")
+  @Patch(ROUTES.TENANTS.PERMISSION_MATRIX)
+  updatePermissionMatrixPolicy(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodValidationPipe(updatePermissionMatrixPolicySchema))
+    body: UpdatePermissionMatrixPolicyDto
+  ) {
+    return this.permissionMatrix.updatePolicy(user.userId, user.tenantId, body);
+  }
+
+  @TenantRoles("OWNER", "ADMIN")
+  @Get(ROUTES.TENANTS.MEMBER_PERMISSIONS(":memberId"))
+  getMemberPermissions(@CurrentUser() user: RequestUser, @Param("memberId") memberId: string) {
+    return this.permissionMatrix.getMemberPermissions(user.tenantId, memberId);
+  }
+
+  @TenantRoles("OWNER", "ADMIN")
+  @Patch(ROUTES.TENANTS.MEMBER_PERMISSIONS(":memberId"))
+  updateMemberPermission(
+    @CurrentUser() user: RequestUser,
+    @Param("memberId") memberId: string,
+    @Body(new ZodValidationPipe(updateMemberPermissionSchema))
+    body: UpdateMemberPermissionDto
+  ) {
+    return this.permissionMatrix.updateMemberPermission(user.userId, user.tenantId, memberId, body);
+  }
+
+  @TenantRoles("OWNER", "ADMIN")
+  @Post(ROUTES.TENANTS.MEMBER_RESTORE_ROLE_DEFAULTS(":memberId"))
+  restoreMemberRoleDefaults(@CurrentUser() user: RequestUser, @Param("memberId") memberId: string) {
+    return this.permissionMatrix.restoreRoleDefaults(user.userId, user.tenantId, memberId);
   }
 }

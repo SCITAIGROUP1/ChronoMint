@@ -39,6 +39,7 @@ import { useWorkspaceAdminsOverview } from "./use-workspace-admins-overview";
 import { WorkspaceAdminActions } from "./workspace-admin-actions";
 import { WorkspaceAdminProfileDialog } from "./workspace-admin-profile-dialog";
 import { DashboardStatCard } from "@/components/dashboard-stat-card";
+import { PermissionToggleDialog } from "@/components/permission-toggle-dialog";
 import { formatLastActive, formatWeekHours } from "@/features/team-management/format-last-active";
 import { api } from "@/lib/api";
 import { getWorkspaceId, useSessionStore } from "@/stores/session.store";
@@ -75,6 +76,7 @@ export function WorkspaceAdminsPage() {
 
   const [busyId, setBusyId] = useState<string | null>(null);
   const [profileTarget, setProfileTarget] = useState<WorkspaceAdminOverviewDto | null>(null);
+  const [permissionTarget, setPermissionTarget] = useState<WorkspaceAdminOverviewDto | null>(null);
   const [assignTarget, setAssignTarget] = useState<{ id: string; name: string } | null>(null);
   const [assignOpen, setAssignOpen] = useState(false);
   const [demoteTarget, setDemoteTarget] = useState<WorkspaceAdminOverviewDto | null>(null);
@@ -315,6 +317,7 @@ export function WorkspaceAdminsPage() {
                         admin={admin}
                         busy={busyId === admin.workspaceMemberId}
                         onViewProfile={() => setProfileTarget(admin)}
+                        onManagePermissions={() => setPermissionTarget(admin)}
                         onAssignWorkspace={() => {
                           setAssignTarget({ id: admin.workspaceId, name: admin.workspaceName });
                           setAssignOpen(true);
@@ -349,6 +352,18 @@ export function WorkspaceAdminsPage() {
       </DataTableCard>
 
       <WorkspaceAdminProfileDialog admin={profileTarget} onClose={() => setProfileTarget(null)} />
+
+      {permissionTarget ? (
+        <PermissionToggleDialog
+          open={permissionTarget !== null}
+          onOpenChange={(open) => !open && setPermissionTarget(null)}
+          memberName={permissionTarget.userName}
+          memberEmail={permissionTarget.userEmail}
+          memberRole="WORKSPACE_ADMIN"
+          memberId={permissionTarget.workspaceMemberId}
+          scope="workspace"
+        />
+      ) : null}
 
       {assignOpen ? (
         <WorkspaceAdminAssignDialog

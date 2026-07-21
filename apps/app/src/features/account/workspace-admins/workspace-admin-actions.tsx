@@ -10,13 +10,23 @@ import {
   ShellMenuPanel,
   cn
 } from "@kloqra/ui";
-import { Eye, Mail, MoreVertical, UserMinus, UserPlus, UserX, UserCheck } from "lucide-react";
+import {
+  Eye,
+  Mail,
+  MoreVertical,
+  Shield,
+  UserMinus,
+  UserPlus,
+  UserX,
+  UserCheck
+} from "lucide-react";
 import { useState } from "react";
 
 type WorkspaceAdminActionsProps = {
   admin: WorkspaceAdminOverviewDto;
   busy: boolean;
   onViewProfile: () => void;
+  onManagePermissions?: () => void;
   onAssignWorkspace: () => void;
   onResendCredentials?: () => void;
   onChangeStatus: (isActive: boolean) => void;
@@ -28,6 +38,7 @@ export function WorkspaceAdminActions({
   admin,
   busy,
   onViewProfile,
+  onManagePermissions,
   onAssignWorkspace,
   onResendCredentials,
   onChangeStatus,
@@ -67,6 +78,17 @@ export function WorkspaceAdminActions({
             <Eye className="size-4 shrink-0" aria-hidden />
             View profile
           </ShellMenuItem>
+          {onManagePermissions && (
+            <ShellMenuItem
+              onClick={() => {
+                setMenuOpen(false);
+                onManagePermissions();
+              }}
+            >
+              <Shield className="size-4 shrink-0" aria-hidden />
+              Manage permissions
+            </ShellMenuItem>
+          )}
           <ShellMenuItem
             onClick={() => {
               setMenuOpen(false);

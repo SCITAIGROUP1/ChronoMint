@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Settings,
   Shield,
+  SlidersHorizontal,
   UserCog,
   Users,
   FolderTree
@@ -23,6 +24,7 @@ export const ACCOUNT_NAV_ITEMS: readonly AccountNavItem[] = [
   { href: "/account/workspaces", label: "Workspaces", Icon: Building2 },
   { href: "/account/workspaces-tree", label: "Workspaces Tree", Icon: FolderTree, ownerOnly: true },
   { href: "/account/workspace-admins", label: "Workspace admins", Icon: UserCog },
+  { href: "/account/permissions-matrix", label: "Permission matrix", Icon: SlidersHorizontal },
   { href: "/account/access-audit", label: "Access audit log", Icon: ClipboardList },
   { href: "/account/organization", label: "Organization", Icon: Users },
   { href: "/account/members", label: "Organization members", Icon: Users, ownerOnly: true },

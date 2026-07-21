@@ -33,4 +33,17 @@ describe("tenant onboarding", () => {
     );
     expect(resolveWorkspaceSetupRedirect("/account/organization", onboardingSession)).toBeNull();
   });
+
+  it("keeps organization-only admins in account mode without requiring creation", () => {
+    const organizationAdmin = {
+      user: { id: "u2", name: "Second Admin" },
+      tenantId: "t1",
+      tenantRole: "ADMIN" as const,
+      organizationOnly: true as const
+    };
+    expect(resolveWorkspaceSetupRedirect("/dashboard", organizationAdmin)).toBe(
+      "/account/workspaces"
+    );
+    expect(resolveWorkspaceSetupRedirect("/account/workspaces", organizationAdmin)).toBeNull();
+  });
 });

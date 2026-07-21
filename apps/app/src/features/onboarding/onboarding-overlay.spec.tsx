@@ -54,4 +54,18 @@ describe("OnboardingOverlay project step", () => {
     expect(screen.queryByRole("link", { name: "Create your first project" })).toBeNull();
     expect(api).not.toHaveBeenCalled();
   });
+
+  it("does not open product onboarding without a workspace context", () => {
+    sessionState.session = {
+      user: { id: "user-2", name: "Second Admin" },
+      tenantId: "tenant-1",
+      tenantRole: "ADMIN",
+      organizationOnly: true,
+      capabilities: ["tenant:ManageMembers"]
+    };
+
+    render(<OnboardingOverlay />);
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
 });

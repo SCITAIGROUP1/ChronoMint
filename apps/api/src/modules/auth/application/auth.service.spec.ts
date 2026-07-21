@@ -29,6 +29,9 @@ describe("AuthService unit tests", () => {
       workspaceMember: {
         findFirst: vi.fn().mockResolvedValue({ workspace: { tenantId: "tenant-1" } }),
         findUnique: vi.fn()
+      },
+      workspace: {
+        findFirst: vi.fn().mockResolvedValue(null)
       }
     } as any;
     mockJwt = {
@@ -292,6 +295,42 @@ describe("AuthService unit tests", () => {
       expect(result.workspaceId).toBeUndefined();
       expect(result.capabilities).toContain("tenant:ManageBilling");
       expect(result.capabilities).not.toContain("workspace:ReadReports");
+    });
+
+    it("returns organization-only session when a second admin has no workspace assignment", async () => {
+      vi.mocked(bcrypt.compare).mockResolvedValue(true as never);
+      mockPrisma.user = {
+        findUnique: vi.fn().mockResolvedValue({
+          id: "admin-2",
+          email: "admin2@scit.com",
+          name: "Second Admin",
+          passwordHash: "hash",
+          mustChangePassword: false,
+          emailVerifiedAt: new Date("2025-01-01"),
+          totpEnabledAt: null,
+          totpSecret: null,
+          defaultHourlyRate: null,
+          memberships: []
+        })
+      };
+      mockPrisma.tenantMember.findUnique.mockResolvedValue({
+        tenantId: "tenant-1",
+        role: "ADMIN",
+        isActive: true
+      });
+      mockPrisma.workspace.findFirst.mockResolvedValue({ id: "workspace-1" });
+
+      const result = await authService.login({
+        email: "admin2@scit.com",
+        password: "password123"
+      });
+
+      if ("requires2fa" in result || "requiresPasswordChange" in result) {
+        expect.fail("expected session");
+      }
+      expect(result.organizationOnly).toBe(true);
+      expect(result.requiresWorkspaceSetup).toBeUndefined();
+      expect(result.workspaceId).toBeUndefined();
     });
 
     it("rejects login when user has no workspace or tenant operator membership", async () => {

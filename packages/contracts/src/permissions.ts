@@ -81,6 +81,445 @@ export const LEGACY_PERMISSION_MAP: Readonly<Record<string, Permission>> = {
   ManageTimer: "personal:ManageTimer"
 } as const;
 
+export type PermissionCategory =
+  | "organization"
+  | "billing"
+  | "workspaces"
+  | "projects"
+  | "timelogs";
+export type PermissionActionType =
+  | "VIEW"
+  | "CREATE"
+  | "EDIT"
+  | "DELETE"
+  | "EXPORT"
+  | "read"
+  | "write"
+  | "delete"
+  | "export";
+export type PermissionRiskLevel = "low" | "medium" | "high";
+
+export interface PermissionMeta {
+  id: Permission;
+  label: string;
+  category: PermissionCategory;
+  parentGroup?: string;
+  actionDimension?: "VIEW" | "CREATE" | "EDIT" | "DELETE" | "EXPORT";
+  actionType: PermissionActionType;
+  riskLevel: PermissionRiskLevel;
+  description: string;
+}
+
+export const PERMISSION_METADATA: Readonly<Record<Permission, PermissionMeta>> = {
+  "platform:AccessConsole": {
+    id: "platform:AccessConsole",
+    label: "Access Platform Console",
+    category: "organization",
+    actionType: "read",
+    riskLevel: "high",
+    description: "Access internal platform console"
+  },
+  "platform:ListTenants": {
+    id: "platform:ListTenants",
+    label: "List All Tenants",
+    category: "organization",
+    actionType: "read",
+    riskLevel: "medium",
+    description: "List all tenants across the platform"
+  },
+  "platform:ManageTenants": {
+    id: "platform:ManageTenants",
+    label: "Manage Tenants",
+    category: "organization",
+    actionType: "write",
+    riskLevel: "high",
+    description: "Create, suspend, or manage platform tenants"
+  },
+  "platform:ReadAuditLog": {
+    id: "platform:ReadAuditLog",
+    label: "Read Platform Audit Log",
+    category: "organization",
+    actionType: "read",
+    riskLevel: "medium",
+    description: "View platform operations audit trail"
+  },
+  "tenant:Access": {
+    id: "tenant:Access",
+    label: "Access Organization",
+    category: "organization",
+    actionType: "read",
+    riskLevel: "low",
+    description: "Sign in and view organization workspace shell"
+  },
+  "tenant:ReadOrganization": {
+    id: "tenant:ReadOrganization",
+    label: "View Organization Details",
+    category: "organization",
+    actionType: "read",
+    riskLevel: "low",
+    description: "View tenant profile and general organization overview"
+  },
+  "tenant:UpdateOrganization": {
+    id: "tenant:UpdateOrganization",
+    label: "Update Organization Settings",
+    category: "organization",
+    actionType: "write",
+    riskLevel: "medium",
+    description: "Modify tenant name, slug, and organization settings"
+  },
+  "tenant:ReadAnalytics": {
+    id: "tenant:ReadAnalytics",
+    label: "View Executive Analytics",
+    category: "organization",
+    actionType: "read",
+    riskLevel: "low",
+    description: "View high-level tenant usage and reporting analytics"
+  },
+  "tenant:ListWorkspaces": {
+    id: "tenant:ListWorkspaces",
+    label: "List Workspaces",
+    category: "workspaces",
+    actionType: "read",
+    riskLevel: "low",
+    description: "List all workspaces within the organization"
+  },
+  "tenant:CreateWorkspace": {
+    id: "tenant:CreateWorkspace",
+    label: "Create Workspaces",
+    category: "workspaces",
+    actionType: "write",
+    riskLevel: "medium",
+    description: "Create new workspaces under the organization"
+  },
+  "tenant:ManageWorkspaceAdmins": {
+    id: "tenant:ManageWorkspaceAdmins",
+    label: "Manage Workspace Admins",
+    category: "organization",
+    actionType: "write",
+    riskLevel: "high",
+    description: "Assign or revoke workspace administrators"
+  },
+  "tenant:ListMembers": {
+    id: "tenant:ListMembers",
+    label: "List Organization Members",
+    category: "organization",
+    actionType: "read",
+    riskLevel: "low",
+    description: "View all members in the organization"
+  },
+  "tenant:ManageMembers": {
+    id: "tenant:ManageMembers",
+    label: "Manage Organization Members",
+    category: "organization",
+    actionType: "write",
+    riskLevel: "high",
+    description: "Invite, update, or remove organization members"
+  },
+  "tenant:ReadBilling": {
+    id: "tenant:ReadBilling",
+    label: "View Subscription & Billing",
+    category: "billing",
+    actionType: "read",
+    riskLevel: "medium",
+    description: "View tenant subscription plan, invoices, and payment details"
+  },
+  "tenant:ManageBilling": {
+    id: "tenant:ManageBilling",
+    label: "Manage Subscription & Billing",
+    category: "billing",
+    actionType: "write",
+    riskLevel: "high",
+    description: "Change subscription plan, billing details, and checkout"
+  },
+  "tenant:ExportData": {
+    id: "tenant:ExportData",
+    label: "Export Organization Data",
+    category: "billing",
+    actionType: "export",
+    riskLevel: "high",
+    description: "Export full tenant data packages and compliance backups"
+  },
+  "workspace:Access": {
+    id: "workspace:Access",
+    label: "Access Workspace",
+    category: "workspaces",
+    actionType: "read",
+    riskLevel: "low",
+    description: "Access the workspace shell and dashboard"
+  },
+  "workspace:ReadSettings": {
+    id: "workspace:ReadSettings",
+    label: "View Workspace Settings",
+    category: "workspaces",
+    actionType: "read",
+    riskLevel: "low",
+    description: "View workspace profile and settings"
+  },
+  "workspace:UpdateSettings": {
+    id: "workspace:UpdateSettings",
+    label: "Update Workspace Settings",
+    category: "workspaces",
+    actionType: "write",
+    riskLevel: "medium",
+    description: "Update workspace configuration and preferences"
+  },
+  "workspace:ListMembers": {
+    id: "workspace:ListMembers",
+    label: "List Workspace Members",
+    category: "workspaces",
+    actionType: "read",
+    riskLevel: "low",
+    description: "View members of the workspace"
+  },
+  "workspace:ManageMembers": {
+    id: "workspace:ManageMembers",
+    label: "Manage Workspace Members",
+    category: "workspaces",
+    actionType: "write",
+    riskLevel: "medium",
+    description: "Invite, edit, or remove workspace team members"
+  },
+  "workspace:ListProjects": {
+    id: "workspace:ListProjects",
+    label: "List Workspace Projects",
+    category: "projects",
+    actionType: "read",
+    riskLevel: "low",
+    description: "List all projects in the workspace"
+  },
+  "workspace:CreateProject": {
+    id: "workspace:CreateProject",
+    label: "Create Projects",
+    category: "projects",
+    actionType: "write",
+    riskLevel: "medium",
+    description: "Create new projects in the workspace"
+  },
+  "workspace:UpdateProject": {
+    id: "workspace:UpdateProject",
+    label: "Update Workspace Projects",
+    category: "projects",
+    actionType: "write",
+    riskLevel: "medium",
+    description: "Modify any project configuration in the workspace"
+  },
+  "workspace:DeleteProject": {
+    id: "workspace:DeleteProject",
+    label: "Delete Projects",
+    category: "projects",
+    actionType: "delete",
+    riskLevel: "high",
+    description: "Delete projects and associated data from the workspace"
+  },
+  "workspace:ManageCategories": {
+    id: "workspace:ManageCategories",
+    label: "Manage Task Categories",
+    category: "projects",
+    actionType: "write",
+    riskLevel: "low",
+    description: "Manage global task categories and billing tags"
+  },
+  "workspace:ReadReports": {
+    id: "workspace:ReadReports",
+    label: "View Workspace Reports",
+    category: "timelogs",
+    actionType: "read",
+    riskLevel: "low",
+    description: "View workspace utilization and hours reports"
+  },
+  "workspace:CreateExport": {
+    id: "workspace:CreateExport",
+    label: "Export Workspace Reports",
+    category: "timelogs",
+    actionType: "export",
+    riskLevel: "medium",
+    description: "Generate and download workspace reports"
+  },
+  "workspace:ManageBillingRates": {
+    id: "workspace:ManageBillingRates",
+    label: "Manage Workspace Billing Rates",
+    category: "billing",
+    actionType: "write",
+    riskLevel: "high",
+    description: "Set hourly rates and monetary billing values"
+  },
+  "workspace:ManageApiKeys": {
+    id: "workspace:ManageApiKeys",
+    label: "Manage Reporting API Keys",
+    category: "workspaces",
+    actionType: "write",
+    riskLevel: "high",
+    description: "Generate or revoke public reporting API keys"
+  },
+  "workspace:ReadPresence": {
+    id: "workspace:ReadPresence",
+    label: "View Live Team Status",
+    category: "timelogs",
+    actionType: "read",
+    riskLevel: "low",
+    description: "View active user timers and presence status"
+  },
+  "project:Read": {
+    id: "project:Read",
+    label: "View Project",
+    category: "projects",
+    actionType: "read",
+    riskLevel: "low",
+    description: "View project detail and tasks"
+  },
+  "project:Update": {
+    id: "project:Update",
+    label: "Update Project Settings",
+    category: "projects",
+    actionType: "write",
+    riskLevel: "medium",
+    description: "Update project metadata and configuration"
+  },
+  "project:ManageTasks": {
+    id: "project:ManageTasks",
+    label: "Manage Project Tasks",
+    category: "projects",
+    actionType: "write",
+    riskLevel: "low",
+    description: "Create, update, or archive project tasks"
+  },
+  "project:ListTeam": {
+    id: "project:ListTeam",
+    label: "List Project Team",
+    category: "projects",
+    actionType: "read",
+    riskLevel: "low",
+    description: "View team members assigned to the project"
+  },
+  "project:ManageTeam": {
+    id: "project:ManageTeam",
+    label: "Manage Project Team",
+    category: "projects",
+    actionType: "write",
+    riskLevel: "medium",
+    description: "Assign or remove project managers and team members"
+  },
+  "project:ReviewTimesheets": {
+    id: "project:ReviewTimesheets",
+    label: "Review & Approve Timesheets",
+    category: "timelogs",
+    actionType: "write",
+    riskLevel: "medium",
+    description: "Approve or reject submitted project timesheets"
+  },
+  "project:ReadReports": {
+    id: "project:ReadReports",
+    label: "View Project Reports",
+    category: "timelogs",
+    actionType: "read",
+    riskLevel: "low",
+    description: "View budget and hour reports for the project"
+  },
+  "project:ReadPresence": {
+    id: "project:ReadPresence",
+    label: "View Project Activity",
+    category: "timelogs",
+    actionType: "read",
+    riskLevel: "low",
+    description: "View real-time project active timers"
+  },
+  "personal:ManageTimer": {
+    id: "personal:ManageTimer",
+    label: "Use Personal Timer",
+    category: "timelogs",
+    actionType: "write",
+    riskLevel: "low",
+    description: "Start, pause, and stop personal time tracking timer"
+  },
+  "personal:ManageTimelogs": {
+    id: "personal:ManageTimelogs",
+    label: "Manage Personal Timelogs",
+    category: "timelogs",
+    actionType: "write",
+    riskLevel: "low",
+    description: "Create, edit, or delete personal time logs"
+  },
+  "personal:SubmitTimesheets": {
+    id: "personal:SubmitTimesheets",
+    label: "Submit Timesheets",
+    category: "timelogs",
+    actionType: "write",
+    riskLevel: "low",
+    description: "Submit weekly timesheets for manager review"
+  },
+  "personal:ListProjects": {
+    id: "personal:ListProjects",
+    label: "View Assigned Projects",
+    category: "projects",
+    actionType: "read",
+    riskLevel: "low",
+    description: "View projects the user belongs to"
+  },
+  "personal:ReadNotifications": {
+    id: "personal:ReadNotifications",
+    label: "View Notifications",
+    category: "organization",
+    actionType: "read",
+    riskLevel: "low",
+    description: "Receive and view personal system notifications"
+  },
+  "personal:ManageProfile": {
+    id: "personal:ManageProfile",
+    label: "Manage Personal Profile",
+    category: "organization",
+    actionType: "write",
+    riskLevel: "low",
+    description: "Update personal profile, avatar, and preferences"
+  },
+  "personal:CreateExport": {
+    id: "personal:CreateExport",
+    label: "Export Personal Timelogs",
+    category: "timelogs",
+    actionType: "export",
+    riskLevel: "low",
+    description: "Download personal time entry reports"
+  }
+} as const;
+
+export function getPermissionMeta(id: Permission): PermissionMeta {
+  const base = PERMISSION_METADATA[id] ?? {
+    id,
+    label: id,
+    category: "organization",
+    actionType: "read",
+    riskLevel: "low",
+    description: id
+  };
+
+  const actionDimension: "VIEW" | "CREATE" | "EDIT" | "DELETE" | "EXPORT" =
+    base.actionType === "delete"
+      ? "DELETE"
+      : base.actionType === "export"
+        ? "EXPORT"
+        : base.id.includes("Create")
+          ? "CREATE"
+          : base.actionType === "write"
+            ? "EDIT"
+            : "VIEW";
+
+  const parentGroup =
+    base.category === "billing"
+      ? "Billing & Data Export"
+      : base.category === "workspaces"
+        ? "Workspaces & API"
+        : base.category === "projects"
+          ? "Projects & Tasks"
+          : base.category === "timelogs"
+            ? "Time Tracking & Approvals"
+            : "Organization Settings";
+
+  return {
+    ...base,
+    parentGroup: (base as any).parentGroup ?? parentGroup,
+    actionDimension: (base as any).actionDimension ?? actionDimension
+  };
+}
+
 export const permissionSchema = z.enum(PERMISSIONS);
 export const resourceScopeSchema = z.enum(["platform", "tenant", "workspace", "project", "self"]);
 export const policyEffectSchema = z.enum(["allow", "deny"]);

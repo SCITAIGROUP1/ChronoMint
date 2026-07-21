@@ -1,16 +1,61 @@
 "use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, AppBar } from "@kloqra/ui";
+import {
+  AppBar,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  DashboardStatCard,
+  type DashboardStatTone
+} from "@kloqra/ui";
 import { SupportTicketForm, getApiBase } from "@kloqra/web-shared";
-import { Clock, ShieldCheck } from "lucide-react";
+import { Clock, CreditCard, MessageSquare, ShieldCheck, type LucideIcon } from "lucide-react";
 import { useSessionStore } from "@/stores/session.store";
 
-const SLA_SUMMARY = [
-  { icon: <ShieldCheck className="h-4 w-4 text-rose-500" />, label: "Security", value: "15 min" },
-  { icon: <Clock className="h-4 w-4 text-red-500" />, label: "Bug Reports", value: "1 hour" },
-  { icon: <Clock className="h-4 w-4 text-amber-500" />, label: "Billing", value: "2 hours" },
-  { icon: <Clock className="h-4 w-4 text-blue-500" />, label: "Plans", value: "4 hours" },
-  { icon: <Clock className="h-4 w-4 text-violet-500" />, label: "General", value: "8 hours" }
+const SLA_SUMMARY: {
+  icon: LucideIcon;
+  label: string;
+  value: string;
+  hint: string;
+  tone: DashboardStatTone;
+}[] = [
+  {
+    icon: ShieldCheck,
+    label: "Security",
+    value: "15 min",
+    hint: "Priority response",
+    tone: "warning"
+  },
+  {
+    icon: Clock,
+    label: "Bug Reports",
+    value: "1 hour",
+    hint: "Technical support",
+    tone: "primary"
+  },
+  {
+    icon: CreditCard,
+    label: "Billing",
+    value: "2 hours",
+    hint: "Payments and invoices",
+    tone: "premium"
+  },
+  {
+    icon: Clock,
+    label: "Plans",
+    value: "4 hours",
+    hint: "Subscription support",
+    tone: "success"
+  },
+  {
+    icon: MessageSquare,
+    label: "General",
+    value: "8 hours",
+    hint: "General inquiries",
+    tone: "primary"
+  }
 ];
 
 export default function TenantSupportPage() {
@@ -24,22 +69,25 @@ export default function TenantSupportPage() {
       />
 
       {/* SLA at-a-glance */}
-      <div className="flex flex-wrap gap-2 md:grid md:grid-cols-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {SLA_SUMMARY.map((s) => (
-          <div
-            key={s.label}
-            className="flex-1 min-w-[120px] flex flex-col items-center gap-1 p-3 rounded-xl border bg-muted/30 text-center"
-          >
-            {s.icon}
-            <span className="text-xs font-semibold">{s.value}</span>
-            <span className="text-xs text-muted-foreground">{s.label}</span>
-          </div>
+          <Card key={s.label} className="min-w-0">
+            <CardContent className="h-full p-4">
+              <DashboardStatCard
+                label={s.label}
+                value={s.value}
+                hint={s.hint}
+                icon={s.icon}
+                tone={s.tone}
+              />
+            </CardContent>
+          </Card>
         ))}
       </div>
 
       {/* Main form */}
-      <div className="max-w-3xl">
-        <Card>
+      <section className="w-full" role="region" aria-label="Support request form">
+        <Card className="w-full">
           <CardHeader>
             <CardTitle>New Support Request</CardTitle>
             <CardDescription>
@@ -57,7 +105,7 @@ export default function TenantSupportPage() {
             />
           </CardContent>
         </Card>
-      </div>
+      </section>
     </div>
   );
 }

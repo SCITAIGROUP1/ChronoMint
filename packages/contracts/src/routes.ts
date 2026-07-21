@@ -225,7 +225,11 @@ export const ROUTES = {
     DATA_EXPORT_JOB: (id: string) => `/tenants/current/data-export/${id}`,
     DATA_EXPORT_JOB_DOWNLOAD: (id: string) => `/tenants/current/data-export/${id}/download`,
     DATA_IMPORT: "/tenants/current/data-import",
-    ROLE_GRANT_AUDIT: "/tenants/current/role-grant-audit"
+    ROLE_GRANT_AUDIT: "/tenants/current/role-grant-audit",
+    PERMISSION_MATRIX: "/tenants/current/permission-matrix",
+    MEMBER_PERMISSIONS: (memberId: string) => `/tenants/current/members/${memberId}/permissions`,
+    MEMBER_RESTORE_ROLE_DEFAULTS: (memberId: string) =>
+      `/tenants/current/members/${memberId}/permissions/restore-defaults`
   },
   WEBHOOKS: {
     STRIPE: "/webhooks/stripe"
