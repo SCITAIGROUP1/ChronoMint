@@ -22,13 +22,16 @@ import { Queue } from "bullmq";
 import * as ExcelJS from "exceljs";
 import type { Response } from "express";
 import { ProjectAccessService } from "../../../common/access/project-access.service";
+import { RoleGrantAuditService } from "../../../common/access/role-grant-audit.service";
+import { RoleGrantPolicyService } from "../../../common/access/role-grant-policy.service";
+import { AuthRevocationService } from "../../../common/auth/auth-revocation.service";
 import { DomainException } from "../../../common/errors/domain.exception";
 import {
   emptyPaginatedResponse,
   paginationSkipTake,
   toPaginatedResponse
 } from "../../../common/http/pagination.util";
-import { clientOrigin } from "../../../common/mailer/client-origin.util";
+import { appOrigin } from "../../../common/mailer/app-origin.util";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { QUEUES } from "../../../common/queues";
 import { waiveOpenTimesheetPeriods } from "../../../common/time/timesheet-approval-policy.util";
@@ -42,11 +45,14 @@ export class ProjectsService {
     private access: ProjectAccessService,
     private notificationsDispatch: NotificationsDispatchService,
     @InjectQueue(QUEUES.BULK_INVITE) private bulkInviteQueue: Queue,
-    private planLimit: PlanLimitService
+    private planLimit: PlanLimitService,
+    private roleGrantPolicy: RoleGrantPolicyService,
+    private roleGrantAudit: RoleGrantAuditService,
+    private authRevocation: AuthRevocationService
   ) {}
 
-  private clientOrigin() {
-    return clientOrigin();
+  private appOrigin() {
+    return appOrigin();
   }
 
   private async ensureTeam(projectId: string) {
@@ -919,6 +925,13 @@ export class ProjectsService {
     if (!project) {
       throw new DomainException(ErrorCodes.NOT_FOUND, "Project not found", HttpStatus.NOT_FOUND);
     }
+    const workspace = await this.prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: { tenantId: true }
+    });
+    if (!workspace) {
+      throw new DomainException(ErrorCodes.NOT_FOUND, "Workspace not found", HttpStatus.NOT_FOUND);
+    }
     const team = await this.ensureTeam(projectId);
     const member = await this.prisma.teamMember.findFirst({
       where: { id: memberId, teamId: team.id }
@@ -956,14 +969,61 @@ export class ProjectsService {
       }
     }
 
-    const updated = await this.prisma.teamMember.update({
-      where: { id: memberId },
-      data: {
-        ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
-        ...(dto.role !== undefined && actorRole === "ADMIN" ? { role: dto.role } : {})
-      },
-      include: { user: true }
+    const outcome = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT 1 FROM projects WHERE id = ${projectId} AND workspace_id = ${workspaceId} FOR UPDATE`;
+      const lockedMember = await tx.teamMember.findFirst({
+        where: { id: memberId, teamId: team.id }
+      });
+      if (!lockedMember) {
+        throw new DomainException(
+          ErrorCodes.NOT_FOUND,
+          "Team member not found",
+          HttpStatus.NOT_FOUND
+        );
+      }
+
+      const roleChanged = dto.role !== undefined && dto.role !== lockedMember.role;
+      if (roleChanged) {
+        await this.roleGrantPolicy.assertProjectManagerGrant(
+          {
+            actorId: actorUserId,
+            targetUserId: lockedMember.userId,
+            tenantId: workspace.tenantId,
+            workspaceId,
+            projectId,
+            currentRole: lockedMember.role as "MEMBER" | "PROJECT_MANAGER",
+            requestedRole: dto.role!
+          },
+          tx
+        );
+      }
+
+      const saved = await tx.teamMember.update({
+        where: { id: memberId },
+        data: {
+          ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
+          ...(dto.role !== undefined && actorRole === "ADMIN" ? { role: dto.role } : {})
+        },
+        include: { user: true }
+      });
+      if (roleChanged) {
+        await this.roleGrantAudit.record(tx, {
+          actorUserId,
+          targetUserId: lockedMember.userId,
+          role: "PROJECT_MANAGER",
+          scope: "project",
+          resourceId: projectId,
+          reason: "project_team_role_update",
+          outcome: dto.role === "PROJECT_MANAGER" ? "GRANTED" : "REVOKED"
+        });
+      }
+      return { saved, roleChanged };
     });
+    const updated = outcome.saved;
+
+    if (outcome.roleChanged) {
+      await this.authRevocation.revokeUser(updated.userId);
+    }
 
     if (dto.isActive === false && member.isActive !== false) {
       this.notifyProjectUnassigned(workspaceId, updated.userId, projectId, project.name);
@@ -1020,7 +1080,7 @@ export class ProjectsService {
       }
     });
 
-    const inviteUrl = `${this.clientOrigin()}/invite/${token}`;
+    const inviteUrl = `${this.appOrigin()}/invite/${token}`;
     return {
       id: invite.id,
       projectId,

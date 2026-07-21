@@ -2,7 +2,7 @@
 
 ## Scope (v1)
 
-- Member client app only (`apps/client`)
+- Unified product (`apps/app`), available to member-capable sessions
 - Conversational help powered by OpenAI via `apps/assistant-api` (FastAPI)
 - Public API: `POST /assistant/chat` (NestJS proxy, JWT required)
 - Answers product questions and returns in-app deep links
@@ -11,7 +11,7 @@
 ## Architecture
 
 ```
-Client → NestJS POST /assistant/chat → FastAPI POST /internal/chat → OpenAI
+Unified product → NestJS POST /assistant/chat → FastAPI POST /internal/chat → OpenAI
 ```
 
 - `OPENAI_API_KEY` lives on the assistant service only
@@ -36,7 +36,7 @@ SSOT: [`apps/assistant-api/src/knowledge.py`](../../apps/assistant-api/src/knowl
 
 Update when:
 
-- Member nav routes change (`workspace-shell.tsx`)
+- Capability-driven product navigation changes (`app-nav.ts`)
 - Member user guides under `docs/user-guides/member/`
 - Onboarding copy in `onboarding-steps.ts`
 

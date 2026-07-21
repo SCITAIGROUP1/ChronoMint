@@ -35,11 +35,11 @@ describe("Platform tenant suspend E2E", () => {
 
     const loginRes = await request(app.getHttpServer())
       .post(ROUTES.AUTH.LOGIN)
-      .set("X-Auth-Scope", "admin")
+      .set("X-Auth-Scope", "app")
       .send({ email: ownerEmail, password: temporaryPassword });
     const setPasswordRes = await request(app.getHttpServer())
       .post(ROUTES.AUTH.SET_PASSWORD)
-      .set("X-Auth-Scope", "admin")
+      .set("X-Auth-Scope", "app")
       .send({
         pendingToken: loginRes.body.pendingToken,
         newPassword: "SuspendPass123!"
@@ -63,7 +63,7 @@ describe("Platform tenant suspend E2E", () => {
   it("suspended tenant owner cannot log in", async () => {
     const loginRes = await request(app.getHttpServer())
       .post(ROUTES.AUTH.LOGIN)
-      .set("X-Auth-Scope", "admin")
+      .set("X-Auth-Scope", "app")
       .send({ email: ownerEmail, password: "SuspendPass123!" });
 
     expect(loginRes.status).toBe(403);
@@ -106,11 +106,11 @@ describe("Platform tenant suspend — reporting API keys", () => {
 
     const loginRes = await request(app.getHttpServer())
       .post(ROUTES.AUTH.LOGIN)
-      .set("X-Auth-Scope", "admin")
+      .set("X-Auth-Scope", "app")
       .send({ email: ownerEmail, password: temporaryPassword });
     const setPasswordRes = await request(app.getHttpServer())
       .post(ROUTES.AUTH.SET_PASSWORD)
-      .set("X-Auth-Scope", "admin")
+      .set("X-Auth-Scope", "app")
       .send({
         pendingToken: loginRes.body.pendingToken,
         newPassword: "SuspendKeys123!"

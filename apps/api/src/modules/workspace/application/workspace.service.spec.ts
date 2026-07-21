@@ -22,6 +22,9 @@ describe("WorkspaceService", () => {
   };
   let mockQueue: any;
   let mockPlanLimit: any;
+  let mockRoleGrantPolicy: { assertWorkspaceRoleGrant: ReturnType<typeof vi.fn> };
+  let mockRoleGrantAudit: { record: ReturnType<typeof vi.fn> };
+  let mockAuthRevocation: { revokeUser: ReturnType<typeof vi.fn> };
 
   const workspaceId = "ws-1";
   const inviterId = "admin-1";
@@ -36,7 +39,7 @@ describe("WorkspaceService", () => {
       $transaction: vi.fn().mockImplementation((cb) => cb(mockPrisma)),
       $queryRaw: vi.fn().mockResolvedValue([1]),
       workspace: {
-        findUnique: vi.fn(),
+        findUnique: vi.fn().mockResolvedValue({ id: workspaceId, tenantId: "t-1", name: "Kloqra" }),
         findFirst: vi.fn(),
         create: vi.fn()
       },
@@ -83,6 +86,11 @@ describe("WorkspaceService", () => {
       assertWorkspaceCreateAllowed: vi.fn().mockResolvedValue(undefined),
       assertSeatsForEmails: vi.fn().mockResolvedValue(undefined)
     };
+    mockRoleGrantPolicy = {
+      assertWorkspaceRoleGrant: vi.fn().mockResolvedValue(undefined)
+    };
+    mockRoleGrantAudit = { record: vi.fn().mockResolvedValue(undefined) };
+    mockAuthRevocation = { revokeUser: vi.fn().mockResolvedValue(undefined) };
     const mockProjectAccess = {
       managedProjectIds: vi.fn().mockResolvedValue([])
     };
@@ -99,6 +107,9 @@ describe("WorkspaceService", () => {
       } as never,
       mockPlanLimit,
       mockProjectAccess as never,
+      mockRoleGrantPolicy as never,
+      mockRoleGrantAudit as never,
+      mockAuthRevocation as never,
       mockQueue as any
     );
   });
@@ -429,12 +440,33 @@ describe("WorkspaceService", () => {
       isActive: true,
       user: { name: "Member User", email: "member@kloqra.dev" }
     });
-    mockPrisma.workspace.findUnique.mockResolvedValue({ name: "Kloqra" });
+    mockPrisma.workspace.findUnique.mockResolvedValue({ name: "Kloqra", tenantId: "t-1" });
     mockPrisma.user.findUnique.mockResolvedValue({ name: "Admin User" });
 
     const result = await service.updateMember(workspaceId, "m2", { role: "ADMIN" }, "u1");
 
     expect(result.role).toBe("ADMIN");
+    expect(mockRoleGrantPolicy.assertWorkspaceRoleGrant).toHaveBeenCalledWith(
+      {
+        actorId: "u1",
+        targetUserId: "u2",
+        tenantId: "t-1",
+        workspaceId,
+        currentRole: "MEMBER",
+        requestedRole: "ADMIN"
+      },
+      mockPrisma
+    );
+    expect(mockRoleGrantAudit.record).toHaveBeenCalledWith(
+      mockPrisma,
+      expect.objectContaining({
+        actorUserId: "u1",
+        targetUserId: "u2",
+        role: "WORKSPACE_ADMIN",
+        outcome: "GRANTED"
+      })
+    );
+    expect(mockAuthRevocation.revokeUser).toHaveBeenCalledWith("u2");
     expect(mockNotificationsDispatch.notify).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: "u2",

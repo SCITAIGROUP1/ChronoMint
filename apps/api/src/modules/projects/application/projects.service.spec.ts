@@ -14,12 +14,17 @@ describe("ProjectsService", () => {
   };
   let mockBulkQueue: { add: ReturnType<typeof vi.fn>; getJob: ReturnType<typeof vi.fn> };
   let mockPlanLimit: { assertSeatsForEmails: ReturnType<typeof vi.fn> };
+  let mockRoleGrantPolicy: { assertProjectManagerGrant: ReturnType<typeof vi.fn> };
+  let mockRoleGrantAudit: { record: ReturnType<typeof vi.fn> };
+  let mockAuthRevocation: { revokeUser: ReturnType<typeof vi.fn> };
 
   const workspaceId = "ws-1";
   const userId = "user-1";
 
   beforeEach(() => {
     mockPrisma = {
+      $transaction: vi.fn().mockImplementation((cb) => cb(mockPrisma)),
+      $queryRaw: vi.fn().mockResolvedValue([1]),
       project: {
         count: vi.fn().mockResolvedValue(0),
         create: vi.fn(),
@@ -51,7 +56,9 @@ describe("ProjectsService", () => {
       teamMember: {
         findMany: vi.fn().mockResolvedValue([]),
         findUnique: vi.fn(),
-        create: vi.fn()
+        findFirst: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn()
       },
       user: {
         findUnique: vi.fn()
@@ -85,12 +92,20 @@ describe("ProjectsService", () => {
       getJob: vi.fn()
     };
     mockPlanLimit = { assertSeatsForEmails: vi.fn().mockResolvedValue(undefined) };
+    mockRoleGrantPolicy = {
+      assertProjectManagerGrant: vi.fn().mockResolvedValue(undefined)
+    };
+    mockRoleGrantAudit = { record: vi.fn().mockResolvedValue(undefined) };
+    mockAuthRevocation = { revokeUser: vi.fn().mockResolvedValue(undefined) };
     service = new ProjectsService(
       mockPrisma,
       mockAccess,
       mockDispatch as never,
       mockBulkQueue as never,
-      mockPlanLimit as never
+      mockPlanLimit as never,
+      mockRoleGrantPolicy as never,
+      mockRoleGrantAudit as never,
+      mockAuthRevocation as never
     );
   });
 
@@ -553,6 +568,86 @@ describe("ProjectsService", () => {
       await expect(
         service.getBulkInviteJobStatus(workspaceId, userId, "ADMIN", projectId, "job-1")
       ).rejects.toMatchObject({ code: ErrorCodes.NOT_FOUND });
+    });
+  });
+
+  describe("updateTeamMember role grants", () => {
+    beforeEach(() => {
+      mockAccess.assertCanManageProject.mockResolvedValue(undefined);
+      mockPrisma.project.findFirst.mockResolvedValue({
+        id: "project-1",
+        workspaceId,
+        name: "Alpha"
+      });
+      mockPrisma.team.findUnique.mockResolvedValue({ id: "team-1", projectId: "project-1" });
+      mockPrisma.teamMember.findFirst.mockResolvedValue({
+        id: "member-1",
+        userId: "target-1",
+        role: "MEMBER",
+        isActive: true
+      });
+      mockPrisma.teamMember.update.mockResolvedValue({
+        id: "member-1",
+        teamId: "team-1",
+        userId: "target-1",
+        role: "PROJECT_MANAGER",
+        isActive: true,
+        user: { name: "Target", email: "target@example.com" }
+      });
+    });
+
+    it("authorizes, audits, and invalidates a project-manager grant", async () => {
+      await service.updateTeamMember(
+        workspaceId,
+        "project-1",
+        "member-1",
+        { role: "PROJECT_MANAGER" },
+        "ADMIN",
+        "admin-1"
+      );
+
+      expect(mockRoleGrantPolicy.assertProjectManagerGrant).toHaveBeenCalledWith(
+        {
+          actorId: "admin-1",
+          targetUserId: "target-1",
+          tenantId: "t-1",
+          workspaceId,
+          projectId: "project-1",
+          currentRole: "MEMBER",
+          requestedRole: "PROJECT_MANAGER"
+        },
+        mockPrisma
+      );
+      expect(mockRoleGrantAudit.record).toHaveBeenCalledWith(
+        mockPrisma,
+        expect.objectContaining({
+          actorUserId: "admin-1",
+          targetUserId: "target-1",
+          role: "PROJECT_MANAGER",
+          outcome: "GRANTED"
+        })
+      );
+      expect(mockAuthRevocation.revokeUser).toHaveBeenCalledWith("target-1");
+    });
+
+    it("does not mutate when authoritative grant authorization denies", async () => {
+      mockRoleGrantPolicy.assertProjectManagerGrant.mockRejectedValue(
+        new DomainException(ErrorCodes.FORBIDDEN, "Forbidden", HttpStatus.FORBIDDEN)
+      );
+
+      await expect(
+        service.updateTeamMember(
+          workspaceId,
+          "project-1",
+          "member-1",
+          { role: "PROJECT_MANAGER" },
+          "ADMIN",
+          "stale-admin"
+        )
+      ).rejects.toMatchObject({ code: ErrorCodes.FORBIDDEN });
+
+      expect(mockPrisma.teamMember.update).not.toHaveBeenCalled();
+      expect(mockRoleGrantAudit.record).not.toHaveBeenCalled();
     });
   });
 });

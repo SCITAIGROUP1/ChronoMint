@@ -1,6 +1,16 @@
 export { cn } from "./lib/utils.js";
 
 export {
+  COMPACT_LAPTOP_SHELL_MAX,
+  COMPACT_LAPTOP_SHELL_MIN,
+  COMPACT_LAPTOP_VIEWPORT,
+  COMPACT_LAPTOP_VIEWPORT_MAX,
+  COMFORTABLE_DESKTOP_SHELL_MIN,
+  EXPORT_TWO_COLUMN_SHELL_MIN,
+  SIDEBAR_COLLAPSED_STORAGE_KEY
+} from "./responsive-tiers.js";
+
+export {
   DashboardSkeleton,
   EmptyState,
   PageHeader,

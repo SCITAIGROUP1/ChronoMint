@@ -91,7 +91,7 @@ describe("bootstrapSession impersonation handoff", () => {
         user: { id: "user-1", email: "sam@kloqra.dev", name: "Sam", defaultHourlyRate: null }
       })
       .mockResolvedValueOnce([{ id: "ws-1", name: "Acme", role: "MEMBER" }]);
-    process.env.NEXT_PUBLIC_AUTH_SCOPE = "client";
+    process.env.NEXT_PUBLIC_AUTH_SCOPE = "app";
   });
 
   afterEach(() => {
@@ -108,7 +108,7 @@ describe("bootstrapSession impersonation handoff", () => {
       expect.objectContaining({
         method: "POST",
         credentials: "include",
-        headers: expect.objectContaining({ "X-Auth-Scope": "client" }),
+        headers: expect.objectContaining({ "X-Auth-Scope": "app" }),
         body: JSON.stringify({ handoffToken: "one-time-token" })
       })
     );

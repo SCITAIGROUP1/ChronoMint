@@ -30,7 +30,7 @@ services:
         generateValue: true
       - key: FRONTEND_ORIGIN
         sync: false
-      - key: PUBLIC_ADMIN_URL
+      - key: APP_URL
         sync: false
       - key: CLIENT_COMMERCIAL_FEATURES_ENABLED
         # Default ON. Set false for UAT without rates/revenue/budgets/invoices (not SaaS billing).

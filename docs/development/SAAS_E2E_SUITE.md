@@ -31,5 +31,5 @@ pnpm --filter @kloqra/api test:e2e:saas
 
 ## Playwright
 
-- Admin: `apps/admin/e2e/` (account, billing, compliance footer)
+- Admin: `apps/app/e2e/` (account, billing, compliance footer)
 - Platform-admin: `apps/platform-admin/e2e/` (included in CI `e2e` job)

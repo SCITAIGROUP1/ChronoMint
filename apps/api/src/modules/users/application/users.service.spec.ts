@@ -276,13 +276,13 @@ describe("UsersService", () => {
       preferences: {
         dashboardLayouts: {
           [workspaceId]: {
-            client: { layout, defaultLayout: layout }
+            app: { layout, defaultLayout: layout }
           }
         }
       }
     });
 
-    const result = await service.getDashboardLayout("user-1", workspaceId, "client");
+    const result = await service.getDashboardLayout("user-1", workspaceId, "app");
 
     expect(result.layout).toEqual(layout);
     expect(result.defaultLayout).toEqual(layout);
@@ -296,14 +296,14 @@ describe("UsersService", () => {
       .mockResolvedValueOnce({
         preferences: {
           dashboardLayouts: {
-            [workspaceId]: { admin: { layout } }
+            [workspaceId]: { app: { layout } }
           }
         }
       });
     mockPrisma.user.update.mockResolvedValue(baseUser);
 
     const result = await service.updateDashboardLayout("user-1", workspaceId, {
-      app: "admin",
+      app: "app",
       layout
     });
 
@@ -313,7 +313,7 @@ describe("UsersService", () => {
           preferences: expect.objectContaining({
             dashboardLayouts: expect.objectContaining({
               [workspaceId]: expect.objectContaining({
-                admin: expect.objectContaining({ layout })
+                app: expect.objectContaining({ layout })
               })
             })
           })

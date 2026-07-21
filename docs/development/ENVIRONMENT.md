@@ -4,119 +4,51 @@
 
 Copy `apps/api/.env.example` to `apps/api/.env`.
 
-| Variable                              | Required            | Description                                                                                                                                                                                                         |
-| ------------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`                        | Yes                 | PostgreSQL connection string. Postgres.app: `postgresql://YOUR_MAC_USER@localhost:5432/kloqra`. Docker: `postgresql://kloqra:kloqra@localhost:5432/kloqra`                                                          |
-| `REDIS_USE_MEMORY`                    | Local dev           | Set `true` to run the timer without Redis (in-memory store). Remove when using real Redis                                                                                                                           |
-| `REDIS_URL`                           | Production / Docker | e.g. `redis://localhost:6379`. Used when `REDIS_USE_MEMORY` is not set                                                                                                                                              |
-| `JWT_ACCESS_SECRET`                   | Yes                 | Min 32 characters. Signs short-lived access tokens                                                                                                                                                                  |
-| `JWT_REFRESH_SECRET`                  | Yes                 | Min 32 characters. Signs refresh tokens (httpOnly cookie)                                                                                                                                                           |
-| `JWT_ACCESS_EXPIRES`                  | No                  | Default `15m`                                                                                                                                                                                                       |
-| `JWT_REFRESH_EXPIRES`                 | No                  | Default `7d`                                                                                                                                                                                                        |
-| `PORT`                                | No                  | API listen port. Default `3001`                                                                                                                                                                                     |
-| `HARD_AUTO_STOP_HOURS`                | No                  | Max running timer length before auto-stop. Default `12`. Set `NEXT_PUBLIC_HARD_AUTO_STOP_HOURS` to the same value on the client.                                                                                    |
-| `PUBLIC_CLIENT_URL`                   | Production          | Client app URL for member login links in email. Default dev: `http://localhost:3000`.                                                                                                                               |
-| `SMTP_HOST`                           | Production          | **Required in production** for invite/password emails (e.g. `smtp-relay.brevo.com`). Without mail config, members are created but no email is sent.                                                                 |
-| `SMTP_PORT`                           | With SMTP           | Usually `587` (local dev). Railway Hobby blocks outbound SMTP — see `BREVO_API_KEY` below.                                                                                                                          |
-| `SMTP_USER`                           | With SMTP           | SMTP login                                                                                                                                                                                                          |
-| `SMTP_PASS`                           | With SMTP           | Brevo SMTP key (`xsmtpsib-…`) for local SMTP only                                                                                                                                                                   |
-| `SMTP_FROM`                           | With SMTP           | From address for outbound mail (must be authorized by your SMTP provider)                                                                                                                                           |
-| `BREVO_API_KEY`                       | Railway / Brevo API | Brevo **API** key (`xkeysib-…`) from SMTP & API → API keys. **Not** the same as `SMTP_PASS`. Required on Railway.                                                                                                   |
-| `ASSISTANT_ENABLED`                   | No                  | Member help assistant kill switch. Default on unless `false`/`0`.                                                                                                                                                   |
-| `CLIENT_COMMERCIAL_FEATURES_ENABLED`  | No                  | Client revenue/rates/budgets/invoices. **Default on.** Set `false` for UAT. Does **not** disable SaaS `/account/billing` or billable-hour tracking. Pair with admin `NEXT_PUBLIC_CLIENT_COMMERCIAL_FEATURES=false`. |
-| `STRIPE_SECRET_KEY`                   | Paid SaaS           | Stripe secret key (`sk_test_…` / `sk_live_…`). Required for Checkout, Portal, reconciliation. Omit locally to enable simulated billing.                                                                             |
-| `BILLING_STRIPE_CHECKOUT`             | No                  | Set `true` to use real Stripe Checkout on tenant billing. **Default is simulated** (instant plan change) even when `STRIPE_SECRET_KEY` is set.                                                                      |
-| `BILLING_SIMULATE_CHECKOUT`           | No                  | Legacy alias. `false` disables simulation. Prefer `BILLING_STRIPE_CHECKOUT=true` for Stripe.                                                                                                                        |
-| `STRIPE_WEBHOOK_SECRET`               | Paid SaaS webhooks  | Signing secret from Stripe Dashboard or `stripe listen`.                                                                                                                                                            |
-| `STRIPE_PRICE_STARTER`                | No                  | Overrides seeded `starter` price id (default `price_test_starter`).                                                                                                                                                 |
-| `STRIPE_PRICE_PRO`                    | No                  | Overrides seeded `pro` price id (default `price_test_pro`).                                                                                                                                                         |
-| `STRIPE_PRODUCT_STARTER`              | No                  | Overrides seeded `starter` product id (default `prod_test_starter`).                                                                                                                                                |
-| `STRIPE_PRODUCT_PRO`                  | No                  | Overrides seeded `pro` product id (default `prod_test_pro`).                                                                                                                                                        |
-| `EMAIL_TRANSPORT`                     | No                  | `brevo_api` forces HTTPS API; `smtp` forces SMTP (local). Default: auto (API on Railway + Brevo, else SMTP).                                                                                                        |
-| `PUBLIC_ADMIN_URL`                    | No                  | Admin app URL for billing checkout return links and emails. Default dev: `http://localhost:3002`                                                                                                                    |
-| `BILLING_MANUAL_PAYMENT_INSTRUCTIONS` | No                  | Wire/bank copy included when platform sends Enterprise payment instructions email                                                                                                                                   |
-| `BILLING_RECEIPTS_DIR`                | No                  | Local directory for tenant-uploaded payment receipts. Default: `.billing-receipts` under API cwd                                                                                                                    |
-| `PLATFORM_SUPERADMIN_EMAIL`           | No                  | Seed email for platform superadmin (`platform@kloqra.dev` default). SaaS-F14.                                                                                                                                       |
-| `PLATFORM_SUPERADMIN_PASSWORD`        | No                  | Seed password for platform superadmin (`password123` default). SaaS-F14.                                                                                                                                            |
-| `PUBLIC_PLATFORM_URL`                 | No                  | Platform-admin URL for password-reset emails. Default dev: `http://localhost:3003`                                                                                                                                  |
+Required production values include `DATABASE_URL`, `REDIS_URL`, `JWT_ACCESS_SECRET`,
+`JWT_REFRESH_SECRET`, and exact `PUBLIC_APP_URL`. Local API defaults to port 3001 and can use
+`REDIS_USE_MEMORY=true`; production must use shared Redis.
 
-## Client (`apps/client`)
+`PUBLIC_APP_URL` resolves to the canonical product `APP_URL` and is used for generated links and
+browser-origin checks.
 
-Copy `apps/client/.env.example` to `apps/client/.env.local`.
+Mail uses SMTP or Brevo configuration. Stripe variables enable paid subscription flows. Keep
+`HARD_AUTO_STOP_HOURS` aligned with `NEXT_PUBLIC_HARD_AUTO_STOP_HOURS`.
 
-| Variable                           | Required | Description                                                                                      |
-| ---------------------------------- | -------- | ------------------------------------------------------------------------------------------------ |
-| `NEXT_PUBLIC_API_BASE_URL`         | Yes      | API base URL. Default dev: `http://localhost:3001`                                               |
-| `NEXT_PUBLIC_HARD_AUTO_STOP_HOURS` | No       | Timer auto-stop ceiling shown in UI toasts. Default `12`; must match API `HARD_AUTO_STOP_HOURS`. |
+## Product (`apps/app`)
 
-## Admin (`apps/admin`)
+Copy `apps/app/.env.example` to `apps/app/.env.local`.
 
-Copy `apps/admin/.env.example` to `apps/admin/.env.local`.
-
-| Variable                                 | Required | Description                                                                                                                               |
-| ---------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `NEXT_PUBLIC_API_BASE_URL`               | Yes      | API base URL. Default dev: `http://localhost:3001`                                                                                        |
-| `NEXT_PUBLIC_CLIENT_COMMERCIAL_FEATURES` | No       | Client revenue/rates/budgets/invoices UI. **Default on.** Set `false` for UAT (pair with API `CLIENT_COMMERCIAL_FEATURES_ENABLED=false`). |
+| Variable                                 | Required | Description                                                  |
+| ---------------------------------------- | -------- | ------------------------------------------------------------ |
+| `NEXT_PUBLIC_API_BASE_URL`               | Yes      | API URL; local default `http://localhost:3001`               |
+| `NEXT_PUBLIC_AUTH_SCOPE`                 | Yes      | Must be `app` for every customer persona                     |
+| `NEXT_PUBLIC_APP_URL`                    | No       | Canonical product URL; local default `http://localhost:3000` |
+| `NEXT_PUBLIC_HARD_AUTO_STOP_HOURS`       | No       | Must match the API timer ceiling                             |
+| `NEXT_PUBLIC_CLIENT_COMMERCIAL_FEATURES` | No       | Match API commercial-feature configuration                   |
 
 ## Platform admin (`apps/platform-admin`)
 
-Copy `apps/platform-admin/.env.example` to `apps/platform-admin/.env.local`.
-
-| Variable                   | Required | Description                                        |
-| -------------------------- | -------- | -------------------------------------------------- |
-| `NEXT_PUBLIC_AUTH_SCOPE`   | Yes      | Must be `platform`                                 |
-| `NEXT_PUBLIC_API_BASE_URL` | Yes      | API base URL. Default dev: `http://localhost:3001` |
-
-First sign-in to the platform console requires mandatory two-factor authentication (TOTP) setup before accessing tenant ops routes.
+Use `NEXT_PUBLIC_AUTH_SCOPE=platform` and `NEXT_PUBLIC_API_BASE_URL`. The console is isolated from
+product sessions and runs locally on port 3003.
 
 ## Local ports
 
-| App            | URL                   |
+| Service        | URL                   |
 | -------------- | --------------------- |
-| Client         | http://localhost:3000 |
+| Product        | http://localhost:3000 |
 | API            | http://localhost:3001 |
-| Admin          | http://localhost:3002 |
 | Platform admin | http://localhost:3003 |
 
-## Local database and seed
-
-Create the database once (Postgres.app):
+## Database and seed
 
 ```bash
 createdb kloqra
-```
-
-Set `DATABASE_URL` in `apps/api/.env` (see table above). Apply schema and demo data:
-
-```bash
 pnpm prisma:migrate
 pnpm prisma:seed
 ```
 
-| Account             | Password      | Role             | App    |
-| ------------------- | ------------- | ---------------- | ------ |
-| `admin@kloqra.dev`  | `password123` | Workspace ADMIN  | Admin  |
-| `member@kloqra.dev` | `password123` | Workspace MEMBER | Client |
+Seed accounts are `admin@kloqra.dev` and `member@kloqra.dev`, password `password123`. CI uses the
+`kloqra_test` database and applies migrations before integration and browser tests.
 
-Demo workspaces after seed: **Acme Corporation** (client services) and **Meridian Product Co** (internal product).
-
-**Upgrading from ChronoMint:** rename is branding-only for the app; the breaking local change is the default DB name `chronomint` → `kloqra`. Create `kloqra`, update `.env`, migrate, and seed — or keep your old DB name in `DATABASE_URL` until you are ready to reset.
-
-## CI / integration tests
-
-GitHub Actions (`.github/workflows/ci.yml`) uses ephemeral Postgres:
-
-- User / password: `kloqra` / `kloqra`
-- Database: `kloqra_test`
-- `DATABASE_URL`: `postgresql://kloqra:kloqra@localhost:5432/kloqra_test`
-
-Each `integration` and `e2e` job runs `prisma migrate deploy` then `pnpm prisma:seed` before tests.
-
-## Production notes
-
-- Set `secure: true` on auth cookies in production (see auth controller).
-- Use strong, unique `JWT_*_SECRET` values; rotate on compromise.
-- `FRONTEND_ORIGIN` must list every deployed frontend origin (no wildcards in production unless intentional).
-- Run `pnpm prisma:migrate` (or `prisma migrate deploy`) before starting the API.
-
-See also [SECURITY.md](SECURITY.md) and [runbooks/deploy.md](../runbooks/deploy.md).
+Production requires secure cookies, exact origins, strong unique JWT secrets, and migrations before
+API startup. See [security](./SECURITY.md) and [deployment](../runbooks/deploy.md).

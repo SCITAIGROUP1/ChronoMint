@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Native local dev — no Docker. Ensures Postgres + Redis, builds shared packages,
-# then runs shared/api/client/admin watchers in the background.
+# then runs shared/API/product app/platform console watchers in the background.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -8,10 +8,10 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 source "$ROOT/scripts/lib/dev-bootstrap.sh"
 
 RUN_DIR="$ROOT/.local-serve"
-DEV_NAMES=(shared api client admin platform)
-DEV_COMMANDS=(dev:shared dev:api dev:client dev:admin dev:platform)
-DEV_PORTS=("" 3001 3000 3002 3003)
-DEV_URLS=("" "http://localhost:3001" "http://localhost:3000" "http://localhost:3002" "http://localhost:3003")
+DEV_NAMES=(shared api app platform)
+DEV_COMMANDS=(dev:shared dev:api dev:app dev:platform)
+DEV_PORTS=("" 3001 3000 3003)
+DEV_URLS=("" "http://localhost:3001" "http://localhost:3000" "http://localhost:3003")
 
 usage() {
   cat <<EOF
@@ -31,9 +31,8 @@ Options:
   --install   Run pnpm install during prep
 
 URLs:
-  Client          http://localhost:3000
+  Product app     http://localhost:3000
   API             http://localhost:3001
-  Admin           http://localhost:3002
   Platform admin  http://localhost:3003
 
 Login: member@kloqra.dev / admin@kloqra.dev  password: password123
@@ -149,14 +148,12 @@ cmd_start() {
   dev_split_start_one shared "$pnpm_exec" dev:shared
   sleep 5
   dev_split_start_one api "$pnpm_exec" dev:api
-  dev_split_start_one client "$pnpm_exec" dev:client
-  dev_split_start_one admin "$pnpm_exec" dev:admin
+  dev_split_start_one app "$pnpm_exec" dev:app
   dev_split_start_one platform "$pnpm_exec" dev:platform
 
   dev_bootstrap_log "==> Waiting for app ports..."
   dev_split_wait_for_port 3001 api
-  dev_split_wait_for_port 3000 client
-  dev_split_wait_for_port 3002 admin
+  dev_split_wait_for_port 3000 app
   dev_split_wait_for_port 3003 platform
 
   echo ""
@@ -197,7 +194,7 @@ cmd_status() {
     echo ""
   done
   echo ""
-  echo "Logs: .local-serve/{shared,api,client,admin,platform}.log"
+  echo "Logs: .local-serve/{shared,api,app,platform}.log"
   echo "Stop: pnpm serve:split:stop"
 }
 
@@ -206,7 +203,7 @@ cmd_logs() {
   mkdir -p "$RUN_DIR"
   local target="${1:-all}"
   case "$target" in
-    shared | api | client | admin | platform)
+    shared | api | app | platform)
       tail -f "$RUN_DIR/${target}.log"
       ;;
     all | *)

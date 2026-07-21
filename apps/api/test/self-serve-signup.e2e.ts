@@ -91,7 +91,7 @@ describe("Self-serve signup E2E", () => {
 
     const verifyRes = await request(app.getHttpServer())
       .post(ROUTES.AUTH.VERIFY_EMAIL)
-      .set("X-Auth-Scope", "admin")
+      .set("X-Auth-Scope", "app")
       .send({ token: verifyToken });
     expect(verifyRes.status).toBe(201);
     expect(verifyRes.body.tenantRole).toBe("OWNER");

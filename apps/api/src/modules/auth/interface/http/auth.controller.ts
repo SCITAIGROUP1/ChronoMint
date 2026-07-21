@@ -35,8 +35,10 @@ import { assertAllowedAuthOrigin } from "../../../../common/auth/allowed-origins
 import {
   accessCookieName,
   getAuthScope,
+  isProductAuthScope,
   refreshCookieName
 } from "../../../../common/auth/auth-scope";
+import type { AuthScope } from "../../../../common/auth/auth-scope";
 import { getClearCookieOpts, getCookieOpts } from "../../../../common/auth/cookie-options";
 import {
   CurrentPlatformUser,
@@ -58,13 +60,13 @@ import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe"
 import { PlatformAuditService } from "../../../platform/application/platform-audit.service";
 import { AuthService } from "../../application/auth.service";
 
-function requireProductionAuthScope(req: Request): string {
+function requireProductionAuthScope(req: Request): AuthScope {
   const scope = getAuthScope(req);
-  if (scope === "client" || scope === "admin" || scope === "platform") return scope;
+  if (isProductAuthScope(scope) || scope === "platform") return scope;
   if (process.env.NODE_ENV === "production") {
     throw new DomainException(
       ErrorCodes.UNAUTHORIZED,
-      "X-Auth-Scope header required (client, admin, or platform)",
+      "X-Auth-Scope header required (app or platform)",
       HttpStatus.UNAUTHORIZED
     );
   }
@@ -269,10 +271,7 @@ export class AuthController {
   ) {
     guardCookieAuthRequest(req);
     const scope = getAuthScope(req);
-    const refresh =
-      req.cookies?.[refreshCookieName(scope)] ??
-      req.cookies?.refresh_token ??
-      body.refreshToken?.trim();
+    const refresh = req.cookies?.[refreshCookieName(scope)] ?? body.refreshToken?.trim();
     if (!refresh) {
       throw new DomainException(
         ErrorCodes.UNAUTHORIZED,
@@ -310,12 +309,14 @@ export class AuthController {
       };
     }
 
-    const { session, newRefreshToken, family } = await this.auth.rotateRefreshToken(refresh, {
-      userAgent: req.headers["user-agent"]
-    });
+    const { session, newRefreshToken, family } = await this.auth.rotateRefreshToken(
+      refresh,
+      { userAgent: req.headers["user-agent"] },
+      scope
+    );
     if (!session) return { error: "No workspace" };
 
-    const tokenScope = scope === "client" || scope === "admin" ? scope : undefined;
+    const tokenScope = isProductAuthScope(scope) ? scope : undefined;
     const access = session.workspaceId
       ? this.auth.signAccessToken(
           session.user.id,
@@ -433,13 +434,13 @@ export class AuthController {
         body.userId
       );
 
-    const clientScope = "client" as const;
+    const appScope = "app" as const;
     const cookieOpts = getCookieOpts();
-    res.cookie(accessCookieName(clientScope), accessToken, {
+    res.cookie(accessCookieName(appScope), accessToken, {
       ...cookieOpts,
       maxAge: 15 * 60 * 1000
     });
-    res.cookie(refreshCookieName(clientScope), refreshToken, {
+    res.cookie(refreshCookieName(appScope), refreshToken, {
       ...cookieOpts,
       maxAge: 7 * 24 * 60 * 60 * 1000
     });
@@ -464,13 +465,13 @@ export class AuthController {
       );
     }
 
-    const clientScope = "client" as const;
+    const appScope = "app" as const;
     const cookieOpts = getCookieOpts();
-    res.cookie(accessCookieName(clientScope), handoff.accessToken, {
+    res.cookie(accessCookieName(appScope), handoff.accessToken, {
       ...cookieOpts,
       maxAge: 15 * 60 * 1000
     });
-    res.cookie(refreshCookieName(clientScope), handoff.refreshToken, {
+    res.cookie(refreshCookieName(appScope), handoff.refreshToken, {
       ...cookieOpts,
       maxAge: 7 * 24 * 60 * 60 * 1000
     });
@@ -486,18 +487,13 @@ export class AuthController {
   @Post(ROUTES.AUTH.STOP_IMPERSONATION)
   async stopImpersonation(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     guardCookieAuthRequest(req);
-    const refresh =
-      req.cookies?.[refreshCookieName("client")] ??
-      req.cookies?.refresh_token_client ??
-      req.cookies?.refresh_token;
+    const refresh = req.cookies?.[refreshCookieName("app")];
     if (refresh) {
       await this.auth.revokeRefreshToken(refresh);
     }
     const clearOpts = getClearCookieOpts();
-    res.clearCookie(accessCookieName("client"), clearOpts);
-    res.clearCookie(refreshCookieName("client"), clearOpts);
-    res.clearCookie("access_token", clearOpts);
-    res.clearCookie("refresh_token", clearOpts);
+    res.clearCookie(accessCookieName("app"), clearOpts);
+    res.clearCookie(refreshCookieName("app"), clearOpts);
     return { ok: true };
   }
 
@@ -509,8 +505,7 @@ export class AuthController {
   ) {
     guardCookieAuthRequest(req);
     const scope = getAuthScope(req);
-    const cookieRefresh =
-      req.cookies?.[refreshCookieName(scope)] ?? req.cookies?.refresh_token ?? undefined;
+    const cookieRefresh = req.cookies?.[refreshCookieName(scope)] ?? undefined;
     const refresh = body.refreshToken?.trim() ?? cookieRefresh;
     if (refresh) {
       if (scope === "platform") {
@@ -524,8 +519,6 @@ export class AuthController {
       const clearOpts = getClearCookieOpts();
       res.clearCookie(accessCookieName(scope), clearOpts);
       res.clearCookie(refreshCookieName(scope), clearOpts);
-      res.clearCookie("access_token", clearOpts);
-      res.clearCookie("refresh_token", clearOpts);
     }
     return { ok: true };
   }
@@ -544,7 +537,7 @@ export class AuthController {
     impersonatorId?: string
   ): Promise<{ accessToken: string; refreshToken: string }> {
     const scope = requireProductionAuthScope(req);
-    const tokenScope = scope === "client" || scope === "admin" ? scope : undefined;
+    const tokenScope = isProductAuthScope(scope) ? scope : undefined;
     const workspaceId = session.workspaceId;
     const issued = await this.auth.signAndStoreRefreshToken(
       session.user.id,

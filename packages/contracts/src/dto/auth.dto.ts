@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { permissionSchema } from "../permissions";
 import { PLAN_SLUGS } from "../plan-catalog";
 import { tenantMemberRoleSchema } from "../tenant-rbac";
 import {
@@ -7,6 +8,9 @@ import {
   workspaceRoleSchema,
   passwordValidationSchema
 } from "./common.dto";
+
+export const productAuthScopeSchema = z.literal("app");
+export const authScopeSchema = z.enum(["app", "platform"]);
 
 export const loginSchema = z.object({
   email: emailSchema,
@@ -44,6 +48,8 @@ const authSessionCoreSchema = z.object({
   defaultWorkspaceId: uuidSchema.optional(),
   /** Project IDs where user is team_members.role = PROJECT_MANAGER (MEMBER workspace role only; not in JWT). */
   managedProjectIds: z.array(uuidSchema).optional(),
+  /** Presentation hint only; API authorization is always reevaluated server-side. */
+  capabilities: z.array(permissionSchema).optional(),
   impersonatorId: uuidSchema.optional(),
   impersonatorName: z.string().optional()
 });
@@ -166,6 +172,8 @@ export const signupSchema = z.object({
 export const signupResponseSchema = okResponseSchema;
 
 export type SignupPlanSlug = z.infer<typeof signupPlanSlugSchema>;
+export type ProductAuthScope = z.infer<typeof productAuthScopeSchema>;
+export type AuthScope = z.infer<typeof authScopeSchema>;
 
 export type LoginDto = z.infer<typeof loginSchema>;
 export type LoginRequiresPasswordChangeResponseDto = z.infer<

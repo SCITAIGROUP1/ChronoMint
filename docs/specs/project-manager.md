@@ -1,73 +1,82 @@
-# Project lead (PM) role — F17
+# Project manager role — F17
 
-## Persona
+## Persona and binding
 
-A **project lead** is a workspace `MEMBER` with `team_members.role = LEAD` on one or more projects. They act as a project manager for those projects only.
+A project manager is an active workspace member with
+`team_members.role = PROJECT_MANAGER` on one or more projects. `PROJECT_MANAGER` is the canonical
+role name; `LEAD` is obsolete terminology.
 
-- LEAD is **not** a JWT claim; it is resolved from the database per request.
-- `/auth/me` may include `ledProjectIds` as a UI hint for the admin app.
-- The same user may lead multiple projects within a workspace.
+- The binding is resolved from the database for the requested project and is not trusted from a
+  browser route or hidden-navigation state.
+- A user may manage multiple projects in one workspace.
+- A project-manager binding does not imply workspace-admin or tenant-admin authority.
+- The unified product capability snapshot may include manageable project IDs as a UI hint, but the
+  API reevaluates authorization for every protected request.
 
-## Permissions (led projects only)
+## Capabilities
 
-| Action                                  | LEAD                | Workspace ADMIN    |
-| --------------------------------------- | ------------------- | ------------------ |
-| Tasks CRUD                              | Yes                 | Yes (all projects) |
-| Project team list / invite / add member | Yes                 | Yes                |
-| Assign LEAD role on team member         | No                  | Yes                |
-| Timesheet approve / reject / amendments | Yes                 | Yes                |
-| Reporting dashboard & summaries         | Scoped              | All projects       |
-| Team live / presence                    | Scoped to led teams | All                |
-| Projects / categories CRUD              | No                  | Yes                |
-| Workspace team management               | No                  | Yes                |
-| Billing, export wizard, API keys        | No                  | Yes                |
-| Account / tenant billing                | No                  | Tenant OWNER/ADMIN |
+| Action                                   | Project manager             | Workspace admin   |
+| ---------------------------------------- | --------------------------- | ----------------- |
+| Personal timer/timesheet/submissions     | Yes                         | Yes               |
+| Tasks CRUD                               | Assigned projects only      | All projects      |
+| Project team list/invite/add member      | Assigned projects only      | All projects      |
+| Assign `PROJECT_MANAGER` role            | No                          | Yes               |
+| Timesheet approve/reject/amendments      | Assigned projects only      | All projects      |
+| Reporting dashboard and summaries        | Assigned projects only      | All projects      |
+| Team live/presence                       | Assigned project teams only | Workspace-wide    |
+| Projects/categories CRUD                 | No                          | Yes               |
+| Workspace team, billing, export/API keys | No                          | Yes               |
+| Tenant/account billing                   | No                          | Tenant owner only |
+
+## Unified product experience
+
+Project managers sign in to the same product URL and `app` auth scope as every member. There is no
+persona or portal switch.
+
+Their shell combines personal routes with scoped management:
+
+- Dashboard, Timer, Timesheet, Submissions, Projects, Tasks, Time Tracker, Notifications, Profile,
+  and Settings.
+- Approvals and project-management actions for assigned projects.
+- No workspace-wide Team Management, Categories, Billing, Exports, Workspace settings, or tenant
+  account controls unless another effective role grants them.
+
+`/dashboard` and `/projects` compose the authorized experience; entering a workspace-admin URL
+directly must not broaden access.
 
 ## API enforcement
 
-- Controllers that previously required `@Roles("ADMIN")` for matrix F17 rows now use `AdminOrProjectLeadGuard`.
-- Services call `ProjectAccessService.assertCanManageProject(workspaceId, userId, workspaceRole, projectId)` for mutations.
-- List endpoints filter by `manageableProjectIds` when the actor is not workspace ADMIN.
+- Policy evaluation combines principal, action, project resource, workspace/tenant context, and
+  active role bindings.
+- Services scope list and mutation access to manageable project IDs.
+- Project-manager assignment is allowed only to an authorized workspace admin, within the same
+  tenant/workspace/project boundary.
+- A user cannot grant itself broader access.
+- Grant/revoke operations are audited with actor, target, role, scope, resource, reason, timestamp,
+  and outcome.
 
 ### Key routes
 
-| Route                                 | LEAD access                          |
-| ------------------------------------- | ------------------------------------ |
-| `POST/PATCH/DELETE /tasks`            | Led project only                     |
-| `GET/POST/PATCH /projects/:id/team/*` | Led project; `PATCH role` ADMIN only |
-| `GET /timesheets/pending` etc.        | Filtered to led projects             |
-| `PATCH /timesheets/:id/approve`       | Led project period only              |
-| `GET /reporting/dashboard` etc.       | Scoped                               |
-| `GET /presence/snapshot`              | Scoped                               |
+| Route                                 | Project-manager access                       |
+| ------------------------------------- | -------------------------------------------- |
+| `POST/PATCH/DELETE /tasks`            | Assigned project only                        |
+| `GET/POST/PATCH /projects/:id/team/*` | Assigned project; role assignment admin-only |
+| `GET /timesheets/pending` etc.        | Filtered to assigned projects                |
+| `PATCH /timesheets/:id/approve`       | Assigned project period only                 |
+| `GET /reporting/dashboard` etc.       | Project-scoped                               |
+| `GET /presence/snapshot`              | Assigned teams only                          |
 
-## Admin app
+## Assigning and revoking
 
-Workspace MEMBERs with `ledProjectIds.length > 0` may sign in to the admin app.
+A workspace admin updates the project team member role using
+`PATCH /projects/:projectId/team/members/:memberId` with
+`{ role: "PROJECT_MANAGER" | "MEMBER" }`.
 
-### Nav (LEAD-only MEMBER)
+Any project role change writes a user-revocation timestamp after the audited database change.
+Access tokens issued before the change fail immediately with `session_revoked`; refresh-family rows
+are not deleted by this role-change path. The product clears stale local state, and the user signs
+in again to receive a capability snapshot reflecting the new role. This applies to both promotion
+and demotion, so access does not linger until token expiry.
 
-| Item               | Visible                   |
-| ------------------ | ------------------------- |
-| Dashboard          | Yes                       |
-| Projects           | Yes (led only in data)    |
-| Approvals          | Yes                       |
-| Time Tracker       | Yes                       |
-| Team Live          | Yes                       |
-| Notifications      | Yes                       |
-| Exports            | No (use client export-me) |
-| Team Management    | No                        |
-| Categories         | No                        |
-| Billing            | No                        |
-| Workspace settings | No                        |
-
-Bootstrap: `bootstrapSession({ requiredRole: "ADMIN", allowProjectLead: true })`.
-
-## Assigning LEAD
-
-Workspace **ADMIN** sets role via `PATCH /projects/:projectId/team/members/:memberId` with `{ role: "LEAD" | "MEMBER" }`.
-
-LEAD cannot demote another LEAD.
-
-## Dual app usage
-
-Project leads may use both the client app (timer, personal logs) and the admin app (scoped PM tools).
+The same revocation semantics apply to workspace role changes. Ordinary logout remains
+refresh-family scoped and does not log out unrelated devices.

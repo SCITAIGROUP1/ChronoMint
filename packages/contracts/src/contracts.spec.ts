@@ -31,6 +31,8 @@ import {
   listTimeLogOccupancyQuerySchema,
   listTimeLogsQuerySchema,
   loginSchema,
+  authScopeSchema,
+  productAuthScopeSchema,
   inviteHandoffSchema,
   mergeUserPreferences,
   normalizeNotificationChannels,
@@ -38,6 +40,7 @@ import {
   parseWorkspaceSettings,
   reportQuerySchema,
   refreshSessionSchema,
+  hasManagedRolePermission,
   resolveEffectiveDailyTargetHours,
   resolveEffectiveLanguage,
   resolveEffectiveNotifications,
@@ -79,6 +82,11 @@ describe("contracts", () => {
   it("validates login", () => {
     const r = loginSchema.safeParse({ email: "a@b.com", password: "secret" });
     expect(r.success).toBe(true);
+  });
+
+  it("exports unified auth scope contracts", () => {
+    expect(authScopeSchema.options).toEqual(["app", "platform"]);
+    expect(productAuthScopeSchema.parse("app")).toBe("app");
   });
 
   it("validates invite handoff token", () => {
@@ -655,6 +663,15 @@ describe("contracts", () => {
     expect(ROUTES.TENANTS.DATA_EXPORT).toBe("/tenants/current/data-export");
     expect(ROUTES.TENANTS.DATA_EXPORT_JOB("job-1")).toBe("/tenants/current/data-export/job-1");
     expect(ROUTES.WORKSPACES.ASSIGN_ADMIN("ws-1")).toBe("/workspaces/ws-1/admins/assign");
+  });
+
+  it("exports centralized managed-role permissions", () => {
+    expect(
+      hasManagedRolePermission("WORKSPACE_ADMIN", "workspace:ManageMembers", "workspace")
+    ).toBe(true);
+    expect(
+      hasManagedRolePermission("WORKSPACE_MEMBER", "workspace:ManageMembers", "workspace")
+    ).toBe(false);
   });
 
   it("exposes tenant workspace admin routes", () => {

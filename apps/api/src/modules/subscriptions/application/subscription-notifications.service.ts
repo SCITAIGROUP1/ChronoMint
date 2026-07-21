@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { BillingMailer } from "../../../common/mailer/billing.mailer";
 import { generatedPrisma } from "../../../common/prisma/generated-prisma.util";
 import { PrismaService } from "../../../common/prisma/prisma.service";
-import { resolvePublicAdminUrl } from "../admin-app-url.util";
+import { resolvePublicAppUrl } from "../app-url.util";
 import type { SubscriptionWithPlan } from "./subscriptions.mapper";
 
 @Injectable()
@@ -13,7 +13,7 @@ export class SubscriptionNotificationsService {
   ) {}
 
   private billingUrl(): string {
-    return `${resolvePublicAdminUrl()}/account/billing`;
+    return `${resolvePublicAppUrl()}/account/billing`;
   }
 
   private async loadOwner(tenantId: string) {

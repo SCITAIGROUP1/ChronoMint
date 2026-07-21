@@ -3,6 +3,7 @@ import {
   createTenantWorkspaceSchema,
   inviteTenantMemberSchema,
   ROUTES,
+  roleGrantAuditQuerySchema,
   tenantAnalyticsQuerySchema,
   updateTenantMemberSchema,
   updateTenantCurrentSchema,
@@ -11,6 +12,7 @@ import {
   type AssignWorkspaceAdminDto,
   type CreateTenantWorkspaceDto,
   type InviteTenantMemberDto,
+  type RoleGrantAuditQuery,
   type TenantAnalyticsQueryDto,
   type UpdateTenantCurrentDto,
   type UpdateTenantMemberDto,
@@ -41,6 +43,7 @@ import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe"
 import { SubscriptionsService } from "../../../subscriptions/application/subscriptions.service";
 import { WorkspaceService } from "../../../workspace/application/workspace.service";
 /* eslint-enable no-restricted-imports */
+import { RoleGrantAuditLogService } from "../../application/role-grant-audit-log.service";
 import { TenantAnalyticsService } from "../../application/tenant-analytics.service";
 import { TenantWorkspaceAdminsOverviewService } from "../../application/tenant-workspace-admins-overview.service";
 import { TenantsService } from "../../application/tenants.service";
@@ -54,7 +57,8 @@ export class TenantsController {
     private tenantAnalytics: TenantAnalyticsService,
     private workspaceAdminsOverviewService: TenantWorkspaceAdminsOverviewService,
     private workspace: WorkspaceService,
-    private subscriptions: SubscriptionsService
+    private subscriptions: SubscriptionsService,
+    private roleGrantAuditLog: RoleGrantAuditLogService
   ) {}
 
   @Get(ROUTES.TENANTS.CURRENT)
@@ -203,5 +207,14 @@ export class TenantsController {
       workspaceId,
       memberId
     );
+  }
+
+  @TenantRoles("OWNER", "ADMIN")
+  @Get(ROUTES.TENANTS.ROLE_GRANT_AUDIT)
+  getRoleGrantAuditLog(
+    @CurrentUser() user: RequestUser,
+    @Query(new ZodValidationPipe(roleGrantAuditQuerySchema)) query: RoleGrantAuditQuery
+  ) {
+    return this.roleGrantAuditLog.getTenantAuditLog(user.tenantId, query);
   }
 }

@@ -67,9 +67,10 @@ See [AUTH.md](../architecture/AUTH.md) and [SECURITY.md](../development/SECURITY
 
 ## UI
 
-- Client: `/login`, `/register`
-- Admin: `/login`
-- Admin workspace: [apps/admin/src/app/(admin)/workspace/page.tsx](<../../apps/admin/src/app/(admin)/workspace/page.tsx>)
+- Unified product (`apps/app`): `/login`, `/signup`, `/select-context`, `/select-workspace`
+- Workspace management:
+  [apps/app/src/app/(app)/workspace/page.tsx](<../../apps/app/src/app/(app)/workspace/page.tsx>)
+- All customer personas use `NEXT_PUBLIC_AUTH_SCOPE=app`; platform operations use isolated scope `platform`.
 
 ## Edge cases
 

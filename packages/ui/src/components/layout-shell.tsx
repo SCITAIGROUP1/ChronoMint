@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import React, { useState, useEffect } from "react";
 import { cn } from "../lib/utils.js";
+import { COMPACT_LAPTOP_VIEWPORT_MAX, SIDEBAR_COLLAPSED_STORAGE_KEY } from "../responsive-tiers.js";
 import { resolveActiveNavHref } from "./resolve-active-nav-href.js";
 import {
   shellMainClass,
@@ -20,10 +21,6 @@ import {
   shellSidebarScrollCollapsedClass
 } from "./shell/shell-styles.js";
 import { ShellToolbarProvider, type ShellToolbarValue } from "./shell-toolbar-context.js";
-
-const SIDEBAR_COLLAPSED_STORAGE_KEY = "kloqra-sidebar-collapsed";
-/** Viewport width below which the sidebar defaults to collapsed when no preference is saved. */
-const COMPACT_LAPTOP_VIEWPORT_MAX = 1400;
 
 export type SidebarNavItem = {
   href: string;

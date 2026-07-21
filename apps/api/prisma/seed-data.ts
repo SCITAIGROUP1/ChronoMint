@@ -235,42 +235,42 @@ export const SEED_DEMO_HIERARCHY = [
     email: SEED_DEMO_PERSONAS.tenantOwner,
     displayName: "Avery Org Owner",
     scope: "Billing, org members, all workspaces (account mode)",
-    app: "admin → Organization"
+    app: "app → Organization"
   },
   {
     level: "Organization admin",
     email: SEED_DEMO_PERSONAS.tenantAdmin,
     displayName: "Morgan Org Admin",
     scope: "Org profile, workspace creation, workspace-admin assignment (Acme only)",
-    app: "admin → Organization"
+    app: "app → Organization"
   },
   {
     level: "Workspace admin (Acme)",
     email: SEED_DEMO_PERSONAS.acmeWorkspaceAdmin,
     displayName: "Casey Acme Admin",
     scope: "Acme Corporation workspace ops only",
-    app: "admin → Workspace"
+    app: "app → Workspace"
   },
   {
     level: "Workspace admin (Meridian)",
     email: SEED_DEMO_PERSONAS.meridianWorkspaceAdmin,
     displayName: "Riley Meridian Admin",
     scope: "Meridian Product Co workspace ops only",
-    app: "admin → Workspace"
+    app: "app → Workspace"
   },
   {
     level: "Project manager",
     email: SEED_DEMO_PERSONAS.projectManager,
     displayName: "Alex Chen",
     scope: "Project PROJECT_MANAGER on both workspaces",
-    app: "admin (project-lead subset)"
+    app: "app (project-lead subset)"
   },
   {
     level: "Member",
     email: SEED_DEMO_PERSONAS.member,
     displayName: "Sam Rivera",
     scope: "Time tracking only",
-    app: "client"
+    app: "app"
   }
 ] as const;
 

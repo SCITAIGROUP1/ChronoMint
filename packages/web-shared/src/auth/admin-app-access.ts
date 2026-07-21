@@ -5,7 +5,7 @@ function hasProjectLeadAccess(managedProjectIds?: string[] | null): boolean {
   return Boolean(managedProjectIds && managedProjectIds.length > 0);
 }
 
-/** Workspace operators (admin app workspace mode). */
+/** Workspace operators who may enter management mode. */
 export function canAccessAdminApp(
   workspaceRole: "ADMIN" | "MEMBER" | undefined,
   managedProjectIds?: string[] | null
@@ -14,7 +14,7 @@ export function canAccessAdminApp(
   return hasProjectLeadAccess(managedProjectIds);
 }
 
-/** Anyone allowed to authenticate into the admin app (workspace ops or organization mode). */
+/** Anyone allowed to use management or organization mode. */
 export function canLoginToAdminApp(
   session:
     | Partial<

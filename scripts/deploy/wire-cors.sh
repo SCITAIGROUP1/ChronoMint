@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Print FRONTEND_ORIGIN value for Railway API after Vercel frontends are deployed.
+# Print FRONTEND_ORIGIN value for Railway API after the product app is deployed.
 #
 # Usage:
-#   bash scripts/deploy/wire-cors.sh https://client.vercel.app https://admin.vercel.app
+#   bash scripts/deploy/wire-cors.sh https://app.vercel.app [EXTRA_URL...]
 set -euo pipefail
 
-if [[ $# -lt 2 ]]; then
-  echo "usage: bash scripts/deploy/wire-cors.sh <CLIENT_URL> <ADMIN_URL> [EXTRA_URL...]" >&2
+if [[ $# -lt 1 ]]; then
+  echo "usage: bash scripts/deploy/wire-cors.sh <APP_URL> [EXTRA_URL...]" >&2
   exit 1
 fi
 
@@ -18,5 +18,3 @@ done
 
 IFS=,
 echo "${ORIGINS[*]}"
-echo ""
-echo "Set this as FRONTEND_ORIGIN on the API service, then redeploy or restart."

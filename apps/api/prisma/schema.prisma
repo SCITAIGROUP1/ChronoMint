@@ -756,6 +756,41 @@ model TimeLogAuditEvent {
   @@map("time_log_audit_events")
 }
 
+/// Durable audit trail for managed-role grants and revocations.
+/// Actor and target IDs intentionally are not foreign keys so audit evidence
+/// survives user deletion. tenantId is stored for composite query performance.
+model RoleGrantAuditEvent {
+  id           String   @id @default(uuid())
+  actorUserId  String   @map("actor_user_id")
+  targetUserId String   @map("target_user_id")
+  role         String
+  scope        String
+  resourceId   String   @map("resource_id")
+  reason       String
+  outcome      String
+  /// Tenant that owns the resource at the time of the grant. Not a FK — survives tenant deletion.
+  tenantId     String   @default("") @map("tenant_id")
+  /// Policy version that was active when the decision was made (e.g. "v1").
+  policyVersion String  @default("v1") @map("policy_version")
+  /// The role held by the target before this mutation, if known.
+  priorRole    String?  @map("prior_role")
+  /// Idempotency / correlation key from the originating request, if provided.
+  requestId    String?  @map("request_id")
+  /// Structured reason code from the evaluator decision (e.g. "managed_role", "default_deny").
+  decisionReason String? @map("decision_reason")
+  /// Who performed the action: "user" | "system" | "worker" | "platform_staff"
+  actorType    String   @default("user") @map("actor_type")
+  /// Where the request originated: "api" | "worker" | "webhook" | "migration"
+  requestSource String  @default("api") @map("request_source")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([tenantId, scope, resourceId, createdAt(sort: Desc)])
+  @@index([resourceId, createdAt(sort: Desc)])
+  @@index([targetUserId, createdAt(sort: Desc)])
+  @@index([actorUserId, createdAt(sort: Desc)])
+  @@map("role_grant_audit_events")
+}
+
 /// API key + secret pairs for third-party read-only reporting access (Postman / integrations).
 model ReportingApiCredential {
   id          String    @id @default(uuid())

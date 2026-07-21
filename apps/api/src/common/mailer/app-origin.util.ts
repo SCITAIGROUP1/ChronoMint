@@ -1,14 +1,13 @@
-import { adminClientOrigin } from "./admin-origin.util";
-import { memberClientOrigin } from "./client-origin.util";
 import { platformClientOrigin } from "./platform-origin.util";
 
-export function clientOrigin(): string {
-  return memberClientOrigin();
-}
-
-/** Second origin in FRONTEND_ORIGIN list, or localhost admin default. */
-export function adminOrigin(): string {
-  return adminClientOrigin();
+export function appOrigin(): string {
+  const explicit = process.env.PUBLIC_APP_URL?.trim();
+  if (!explicit) return "http://localhost:3000";
+  const [first] = explicit
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  return (first ?? "http://localhost:3000").replace(/\/$/, "");
 }
 
 export function originForNotificationHref(href: string): string {
@@ -18,14 +17,5 @@ export function originForNotificationHref(href: string): string {
     return platformClientOrigin();
   }
 
-  const adminPaths = [
-    "/approvals",
-    "/team-management",
-    "/exports",
-    "/billing",
-    "/workspace",
-    "/account"
-  ];
-  const isAdmin = adminPaths.some((p) => href === p || href.startsWith(`${p}/`));
-  return isAdmin ? adminOrigin() : clientOrigin();
+  return appOrigin();
 }

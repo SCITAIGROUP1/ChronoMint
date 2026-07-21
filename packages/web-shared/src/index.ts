@@ -60,11 +60,15 @@ export {
   getSessionIdentity,
   type SessionIdentity
 } from "./auth/session-identity";
+export {
+  getSessionCapabilities,
+  resolveSessionManagedRoles,
+  sessionCan
+} from "./auth/session-capabilities";
 export { useSessionGeneration } from "./hooks/use-session-generation";
 export { SessionGenerationBoundary } from "./components/session-generation-boundary";
 export {
   readScopedJSON,
-  readScopedWithLegacyMigration,
   removeScopedKey,
   scopedStorageKey,
   writeScopedJSON,

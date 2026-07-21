@@ -16,6 +16,9 @@ import { Queue } from "bullmq";
 import * as ExcelJS from "exceljs";
 import type { Response } from "express";
 import { ProjectAccessService } from "../../../common/access/project-access.service";
+import { RoleGrantAuditService } from "../../../common/access/role-grant-audit.service";
+import { RoleGrantPolicyService } from "../../../common/access/role-grant-policy.service";
+import { AuthRevocationService } from "../../../common/auth/auth-revocation.service";
 import { generateTempPassword, hashPassword } from "../../../common/auth/password.util";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { deliverMemberEmail } from "../../../common/mailer/member-email-delivery.util";
@@ -48,6 +51,9 @@ export class WorkspaceService {
     private auth: AuthService,
     private planLimit: PlanLimitService,
     private projectAccess: ProjectAccessService,
+    private roleGrantPolicy: RoleGrantPolicyService,
+    private roleGrantAudit: RoleGrantAuditService,
+    private authRevocation: AuthRevocationService,
     @InjectQueue(QUEUES.BULK_INVITE) private readonly bulkInviteQueue: Queue
   ) {}
 
@@ -115,6 +121,17 @@ export class WorkspaceService {
 
       const nextRole = dto.role ?? (member.role as "ADMIN" | "MEMBER");
       const nextIsActive = dto.isActive ?? member.isActive;
+      const workspace = await tx.workspace.findUnique({
+        where: { id: workspaceId },
+        select: { tenantId: true }
+      });
+      if (!workspace) {
+        throw new DomainException(
+          ErrorCodes.NOT_FOUND,
+          "Workspace not found",
+          HttpStatus.NOT_FOUND
+        );
+      }
 
       if (dto.isActive === false && member.userId === actingUserId) {
         throw new DomainException(
@@ -126,6 +143,21 @@ export class WorkspaceService {
 
       if (nextRole === member.role && nextIsActive === member.isActive) {
         return { kind: "unchanged" as const, member: this.toMemberDto(member) };
+      }
+
+      const roleChanged = dto.role !== undefined && dto.role !== member.role;
+      if (roleChanged) {
+        await this.roleGrantPolicy.assertWorkspaceRoleGrant(
+          {
+            actorId: actingUserId,
+            targetUserId: member.userId,
+            tenantId: workspace.tenantId,
+            workspaceId,
+            currentRole: member.role as "ADMIN" | "MEMBER",
+            requestedRole: dto.role!
+          },
+          tx
+        );
       }
 
       if (member.role === "ADMIN" && nextRole === "MEMBER") {
@@ -181,8 +213,24 @@ export class WorkspaceService {
         });
       }
 
-      const roleChanged = dto.role !== undefined && dto.role !== member.role;
       const statusChanged = dto.isActive !== undefined && dto.isActive !== member.isActive;
+      if (roleChanged) {
+        await this.roleGrantAudit.record(tx, {
+          actorUserId: actingUserId,
+          targetUserId: member.userId,
+          role: "WORKSPACE_ADMIN",
+          scope: "workspace",
+          resourceId: workspaceId,
+          reason: "workspace_member_role_update",
+          outcome: dto.role === "ADMIN" ? "GRANTED" : "REVOKED",
+          tenantId: workspace.tenantId,
+          policyVersion: "v1",
+          priorRole: member.role as string,
+          decisionReason: "managed_role",
+          actorType: "user",
+          requestSource: "api"
+        });
+      }
 
       return {
         kind: roleChanged ? ("roleChanged" as const) : ("statusChanged" as const),
@@ -191,6 +239,10 @@ export class WorkspaceService {
         statusChanged
       };
     });
+
+    if (outcome.kind === "roleChanged") {
+      await this.authRevocation.revokeUser(outcome.member.userId);
+    }
 
     if (outcome.kind === "roleChanged" && outcome.newRole) {
       const [workspace, actor] = await Promise.all([
@@ -898,7 +950,14 @@ export class WorkspaceService {
     memberId: string,
     dto: UpdateWorkspaceMemberDto
   ) {
-    await requireTenantOwnerOrAdmin(this.prisma, actingUserId, tenantId);
+    // Route through the authoritative evaluator so tenant-admin authorization
+    // is logged and enforced consistently with workspace-level paths.
+    await this.roleGrantPolicy.assertTenantRoleGrant({
+      actorId: actingUserId,
+      targetUserId: memberId, // placeholder — actual target resolved inside updateMember
+      tenantId,
+      workspaceId
+    });
     await this.assertTenantWorkspace(tenantId, workspaceId);
     return this.updateMember(workspaceId, memberId, dto, actingUserId);
   }
@@ -909,7 +968,12 @@ export class WorkspaceService {
     workspaceId: string,
     memberId: string
   ) {
-    await requireTenantOwnerOrAdmin(this.prisma, actingUserId, tenantId);
+    await this.roleGrantPolicy.assertTenantRoleGrant({
+      actorId: actingUserId,
+      targetUserId: memberId, // placeholder — actual target resolved inside removeMember
+      tenantId,
+      workspaceId
+    });
     await this.assertTenantWorkspace(tenantId, workspaceId);
     return this.removeMember(workspaceId, memberId, actingUserId);
   }
@@ -920,6 +984,8 @@ export class WorkspaceService {
     workspaceId: string,
     memberId: string
   ): Promise<MemberEmailDeliveryDto> {
+    // This is a read-adjacent operation (resend credentials) — use requireTenantOwnerOrAdmin
+    // as it does not modify role bindings and therefore does not need audit through the evaluator.
     await requireTenantOwnerOrAdmin(this.prisma, actingUserId, tenantId);
     await this.assertTenantWorkspace(tenantId, workspaceId);
     return this.resendMemberCredentials(workspaceId, memberId);

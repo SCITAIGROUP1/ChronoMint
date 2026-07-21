@@ -42,15 +42,15 @@ describe("TimelogsService listOccupancy", () => {
     );
   });
 
-  it("rejects admin role", async () => {
+  it("allows workspace admins to read their own occupancy", async () => {
+    mockPrisma.timeLog.findMany.mockResolvedValue([]);
+
     await expect(
-      service.listOccupancy("user-1", "ADMIN", {
+      service.listOccupancy("user-1", {
         from: "2025-01-01T00:00:00.000Z",
         to: "2025-01-08T00:00:00.000Z"
       })
-    ).rejects.toSatisfy(
-      (err: unknown) => err instanceof DomainException && err.getStatus() === 403
-    );
+    ).resolves.toEqual({ items: [] });
   });
 
   it("maps logs to occupancy items with labels", async () => {
@@ -86,7 +86,7 @@ describe("TimelogsService listOccupancy", () => {
       }
     ]);
 
-    const res = await service.listOccupancy("user-1", "MEMBER", {
+    const res = await service.listOccupancy("user-1", {
       from: "2025-01-01T00:00:00.000Z",
       to: "2025-01-08T00:00:00.000Z"
     });

@@ -229,17 +229,8 @@ export class TimelogsService {
 
   async listOccupancy(
     userId: string,
-    role: string,
     query: ListTimeLogOccupancyQueryDto
   ): Promise<ListTimeLogOccupancyResponseDto> {
-    if (role === "ADMIN") {
-      throw new DomainException(
-        ErrorCodes.FORBIDDEN,
-        "Occupancy is only available for members",
-        HttpStatus.FORBIDDEN
-      );
-    }
-
     const from = new Date(query.from);
     const to = new Date(query.to);
 

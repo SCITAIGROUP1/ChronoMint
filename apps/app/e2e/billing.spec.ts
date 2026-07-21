@@ -1,0 +1,22 @@
+import { test, expect } from "@playwright/test";
+import { waitForAppShell } from "./helpers/shell";
+
+test.describe("Billing", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/billing");
+    await waitForAppShell(page);
+    await expect(page.getByRole("heading", { name: "Hourly rates", exact: true })).toBeVisible();
+  });
+
+  test("shows scope filter in the app bar toolbar", async ({ page }) => {
+    const scopeFilter = page.getByRole("combobox", { name: "Filter by scope" });
+    await expect(scopeFilter).toBeVisible();
+    await expect(scopeFilter).toHaveText("All scopes");
+
+    await scopeFilter.click();
+    await expect(page.getByRole("option", { name: "Workspace default" })).toBeVisible();
+    await expect(page.getByRole("option", { name: "Per member" })).toBeVisible();
+    await page.getByRole("option", { name: "Workspace default" }).click();
+    await expect(scopeFilter).toHaveText("Workspace default");
+  });
+});

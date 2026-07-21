@@ -66,11 +66,7 @@ export class TimelogsController {
     @WorkspaceUser() user: WorkspaceRequestUser,
     @Query(new ZodValidationPipe(listTimeLogOccupancyQuerySchema)) query: unknown
   ) {
-    return this.timelogs.listOccupancy(
-      user.userId,
-      user.role,
-      query as ListTimeLogOccupancyQueryDto
-    );
+    return this.timelogs.listOccupancy(user.userId, query as ListTimeLogOccupancyQueryDto);
   }
 
   @Get(ROUTES.TIMELOGS.AUDIT_EVENTS(":id"))

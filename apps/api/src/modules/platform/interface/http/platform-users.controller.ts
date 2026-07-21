@@ -107,7 +107,7 @@ export class PlatformUsersController {
   @Get(ROUTES.PLATFORM.ME_SESSIONS)
   listSessions(@CurrentPlatformUser() user: PlatformRequestUser, @Req() req: Request) {
     const scope = getAuthScope(req);
-    const refresh = req.cookies?.[refreshCookieName(scope)] ?? req.cookies?.refresh_token_platform;
+    const refresh = req.cookies?.[refreshCookieName(scope)];
     return this.sessions.listSessions(user.platformUserId, refresh);
   }
 
@@ -119,7 +119,7 @@ export class PlatformUsersController {
   @Post(ROUTES.PLATFORM.ME_SESSIONS_REVOKE_OTHERS)
   revokeOtherSessions(@CurrentPlatformUser() user: PlatformRequestUser, @Req() req: Request) {
     const scope = getAuthScope(req);
-    const refresh = req.cookies?.[refreshCookieName(scope)] ?? req.cookies?.refresh_token_platform;
+    const refresh = req.cookies?.[refreshCookieName(scope)];
     return this.sessions.revokeOtherSessions(user.platformUserId, refresh);
   }
 

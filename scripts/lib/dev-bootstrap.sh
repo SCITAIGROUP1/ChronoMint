@@ -339,13 +339,11 @@ dev_bootstrap_patch_chronomint_env() {
 }
 
 dev_bootstrap_ensure_frontend_env_files() {
-  for app in client admin; do
-    local env_file="apps/$app/.env.local"
-    if [[ ! -f "$env_file" ]]; then
-      cp "apps/$app/.env.example" "$env_file"
-      dev_bootstrap_log "==> Created $env_file"
-    fi
-  done
+  local env_file="apps/app/.env.local"
+  if [[ ! -f "$env_file" ]]; then
+    cp "apps/app/.env.example" "$env_file"
+    dev_bootstrap_log "==> Created $env_file"
+  fi
 }
 
 dev_bootstrap_configure_redis_env() {
@@ -503,16 +501,15 @@ dev_bootstrap_print_dev_terminals() {
   echo "==> Ready [$mode_label]. Pick one dev workflow:"
   echo ""
   echo "    Option 1 — all apps in one terminal:"
-  echo "        pnpm dev:all"
+  echo "        pnpm dev"
   echo ""
   echo "    Option 2 — one app per terminal (run dev:shared first):"
   echo "        pnpm dev:shared    # terminal 1 — contracts + ui watch"
   echo "        pnpm dev:api       # terminal 2 — http://localhost:3001"
-  echo "        pnpm dev:client    # terminal 3 — http://localhost:3000"
-  echo "        pnpm dev:admin     # terminal 4 — http://localhost:3002"
-  echo "        pnpm dev:platform  # terminal 5 — http://localhost:3003"
+  echo "        pnpm dev:app       # terminal 3 — unified product, http://localhost:3000"
+  echo "        pnpm dev:platform  # terminal 4 — internal console, http://localhost:3003"
   echo ""
   echo "    Split prep only (no apps): pnpm dev:split  (same as pnpm local)"
-  echo "    Login: member@kloqra.dev / admin@kloqra.dev  password: password123"
+  echo "    Unified login: member@kloqra.dev / admin@kloqra.dev  password: password123"
   echo ""
 }

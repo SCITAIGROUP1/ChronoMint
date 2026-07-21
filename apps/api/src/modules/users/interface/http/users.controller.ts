@@ -10,7 +10,8 @@ import {
   twoFactorVerifySchema,
   updateDashboardLayoutSchema,
   updateUserPreferencesSchema,
-  updateUserProfileSchema
+  updateUserProfileSchema,
+  type DashboardLayoutQueryDto
 } from "@kloqra/contracts";
 import {
   Body,
@@ -88,7 +89,7 @@ export class UsersController {
   @Get(ROUTES.USERS.DASHBOARD_LAYOUT)
   getDashboardLayout(
     @WorkspaceUser() user: WorkspaceRequestUser,
-    @Query(new ZodValidationPipe(dashboardLayoutQuerySchema)) query: { app: "client" | "admin" }
+    @Query(new ZodValidationPipe(dashboardLayoutQuerySchema)) query: DashboardLayoutQueryDto
   ) {
     return this.users.getDashboardLayout(user.userId, user.workspaceId, query.app);
   }
@@ -146,7 +147,7 @@ export class UsersController {
   @TenantScoped()
   listSessions(@CurrentUser() user: RequestUser, @Req() req: Request) {
     const scope = getAuthScope(req);
-    const refresh = req.cookies?.[refreshCookieName(scope)] ?? req.cookies?.refresh_token;
+    const refresh = req.cookies?.[refreshCookieName(scope)];
     return this.sessions.listSessions(user.userId, refresh);
   }
 
@@ -162,7 +163,7 @@ export class UsersController {
   revokeOtherSessions(@CurrentUser() user: RequestUser, @Req() req: Request) {
     this.assertNotImpersonating(user);
     const scope = getAuthScope(req);
-    const refresh = req.cookies?.[refreshCookieName(scope)] ?? req.cookies?.refresh_token;
+    const refresh = req.cookies?.[refreshCookieName(scope)];
     return this.sessions.revokeOtherSessions(user.userId, refresh);
   }
 

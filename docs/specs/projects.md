@@ -25,7 +25,8 @@ See [DOMAIN_MODEL.md](../architecture/DOMAIN_MODEL.md).
 
 1. Creating a project auto-creates an empty **team**.
 2. Only **team members** (or workspace admins) may log time on that project’s tasks.
-3. Invite flow: admin creates link → member opens `/invite/[token]` on client → accepts → `TeamMember` row created.
+3. Invite flow: authorized manager creates link → member opens `/invite/[token]` in the unified
+   product → accepts → `TeamMember` row created.
 4. **Project color:** admins set a workspace color from the curated palette or a custom hex (`projectColorSchema`). Members may override display color per project (`displayColor` on list responses).
 5. **Common tasks:** tasks with `isCommon: true` are workspace-wide; any member can log time without being on the project team (see `project-access.service.ts`).
 6. **Delete with logged time:** deleting a project moves its task logs to an **Uncategorized** fallback project/task so hours are preserved.
@@ -59,9 +60,10 @@ See [DOMAIN_MODEL.md](../architecture/DOMAIN_MODEL.md).
 
 ## UI
 
-- Admin projects: [apps/admin/src/app/(admin)/projects/page.tsx](<../../apps/admin/src/app/(admin)/projects/page.tsx>)
-- Client projects: [apps/client/src/app/(workspace)/projects/page.tsx](<../../apps/client/src/app/(workspace)/projects/page.tsx>)
-- Invite accept: [apps/client/src/app/invite/[token]/page.tsx](../../apps/client/src/app/invite/[token]/page.tsx)
+- Unified projects:
+  [apps/app/src/app/(app)/projects/page.tsx](<../../apps/app/src/app/(app)/projects/page.tsx>)
+- Invite accept:
+  [apps/app/src/app/invite/[token]/page.tsx](../../apps/app/src/app/invite/[token]/page.tsx)
 
 ## Edge cases
 

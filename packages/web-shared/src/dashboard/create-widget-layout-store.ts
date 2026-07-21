@@ -49,6 +49,22 @@ function mergeLayoutsWithRegistry(
   defaultLayout: WidgetLayoutItem[]
 ): WidgetLayoutItem[] {
   const finalLayouts: WidgetLayoutItem[] = [];
+  let nextAvailableY = savedLayouts.reduce(
+    (max, item) => (item.visible === false ? max : Math.max(max, item.y + item.h)),
+    0
+  );
+
+  const overlapsVisibleItem = (candidate: WidgetLayoutItem) =>
+    [...savedLayouts, ...finalLayouts].some(
+      (item) =>
+        item.visible !== false &&
+        candidate.visible !== false &&
+        candidate.i !== item.i &&
+        candidate.x < item.x + item.w &&
+        candidate.x + candidate.w > item.x &&
+        candidate.y < item.y + item.h &&
+        candidate.y + candidate.h > item.y
+    );
 
   for (const registryWidget of widgetRegistry) {
     const saved = savedLayouts.find((item) => item.i === registryWidget.id);
@@ -64,7 +80,14 @@ function mergeLayoutsWithRegistry(
     } else {
       const defaultItem = defaultLayout.find((item) => item.i === registryWidget.id);
       if (defaultItem) {
-        finalLayouts.push({ ...defaultItem });
+        const candidate = { ...defaultItem };
+        if (overlapsVisibleItem(candidate)) {
+          candidate.y = nextAvailableY;
+        }
+        finalLayouts.push(candidate);
+        if (candidate.visible !== false) {
+          nextAvailableY = Math.max(nextAvailableY, candidate.y + candidate.h);
+        }
       } else {
         finalLayouts.push({
           i: registryWidget.id,

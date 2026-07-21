@@ -67,7 +67,7 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
       const { userId, isPlatform } = await this.authenticate(client);
       client.data.userId = userId;
       client.data.isPlatform = isPlatform;
-      await client.join(this.userRoom(userId));
+      await client.join(this.userRoom(userId, isPlatform));
       await this.ensureUserSubscription(userId, isPlatform);
     } catch (err) {
       this.logger.debug(
@@ -83,8 +83,16 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
     await this.releaseUserSubscription(userId, client.data.isPlatform === true);
   }
 
-  private userRoom(userId: string): string {
-    return `user:${userId}`;
+  /**
+   * Returns the scoped Socket.io room name for a user.
+   *
+   * Product and platform users get distinct prefixes so their rooms cannot clash
+   * even if a product user ID and a platform user ID happen to be equal.
+   *   product:user:<userId>   — workspace product sessions
+   *   platform:user:<userId> — platform-admin sessions
+   */
+  private userRoom(userId: string, isPlatform = false): string {
+    return isPlatform ? `platform:user:${userId}` : `product:user:${userId}`;
   }
 
   private poolKey(userId: string, isPlatform: boolean): string {
@@ -109,8 +117,10 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
       return { userId: payload.platformUserId, isPlatform: true };
     }
 
-    const scope = auth.scope === "client" || auth.scope === "admin" ? auth.scope : undefined;
-    const payload = this.jwtTokens.verifyAccessToken(token, scope);
+    if (auth.scope !== "app") {
+      throw new UnauthorizedException("Invalid auth scope");
+    }
+    const payload = this.jwtTokens.verifyAccessToken(token, "app");
     await this.authRevocation.assertNotRevoked(payload.sub, payload.family);
     return { userId: payload.sub, isPlatform: false };
   }
@@ -137,12 +147,14 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
       try {
         if (channelName === channel) {
           const payload = JSON.parse(raw) as NotificationCreatedEvent;
-          this.server.to(this.userRoom(userId)).emit(eventName, payload);
+          this.server.to(this.userRoom(userId, isPlatform)).emit(eventName, payload);
           return;
         }
         if (workspaceDataChannel && channelName === workspaceDataChannel) {
           const payload = JSON.parse(raw) as WorkspaceDataStaleEvent;
-          this.server.to(this.userRoom(userId)).emit(WORKSPACE_DATA_STALE_SOCKET_EVENT, payload);
+          this.server
+            .to(this.userRoom(userId, isPlatform))
+            .emit(WORKSPACE_DATA_STALE_SOCKET_EVENT, payload);
         }
       } catch {
         // ignore malformed payloads

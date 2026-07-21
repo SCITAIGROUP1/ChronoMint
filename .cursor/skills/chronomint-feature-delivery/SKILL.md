@@ -13,7 +13,7 @@ description: >-
 2. Update `packages/contracts` (LSA / contract gate)
 3. QA writes failing tests (required — pre-commit blocks code without tests)
 4. BE implements `apps/api/src/modules/<feature>/`
-5. FE implements `apps/client` or `apps/admin`
+5. FE implements `apps/app`
 6. Verify with `pnpm test:coverage` and `pnpm test:dashboard`
 7. Update `docs/agent/ROC.md` and `TASK_BOARD.json`
 

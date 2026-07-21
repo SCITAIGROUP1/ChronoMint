@@ -211,7 +211,7 @@ pnpm dev:platform     # :3003
 pnpm prisma:seed      # seeds platform@kloqra.dev / password123
 ```
 
-Ensure `FRONTEND_ORIGIN` includes `http://localhost:3003`.
+Ensure `PUBLIC_PLATFORM_URL` is `http://localhost:3003`.
 
 ## Deploy runbook (stub)
 

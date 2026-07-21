@@ -36,6 +36,7 @@ import { CommercialFeaturesGuard } from "../../../../common/guards/commercial-fe
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../../../common/guards/roles.guard";
 import { sendAttachment } from "../../../../common/http/attachment.util";
+import { appOrigin } from "../../../../common/mailer/app-origin.util";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
 import { ExportJobService } from "../../application/export-job.service";
 import { ExportPresetService } from "../../application/export-preset.service";
@@ -207,22 +208,10 @@ export class ExportController {
     @WorkspaceUser() user: WorkspaceRequestUser,
     @Body(new ZodValidationPipe(createReportShareSchema)) body: unknown
   ) {
-    const rawAdmin = process.env.PUBLIC_ADMIN_URL ?? process.env.ADMIN_PUBLIC_URL;
-    let adminBase: string;
-    if (rawAdmin) {
-      const parts = rawAdmin
-        .split(",")
-        .map((o) => o.trim())
-        .filter(Boolean);
-      const adminLike = parts.find((o) => o.includes(":3002") || /admin/i.test(o));
-      adminBase = (adminLike ?? parts[0] ?? "http://localhost:3002").replace(/\/$/, "");
-    } else {
-      adminBase = "http://localhost:3002";
-    }
     return this.exportShares.create(
       user.workspaceId,
       body as Parameters<ExportShareService["create"]>[1],
-      adminBase
+      appOrigin()
     );
   }
 

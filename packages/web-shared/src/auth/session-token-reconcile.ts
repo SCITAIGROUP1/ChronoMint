@@ -1,10 +1,11 @@
 import { ROUTES, type AuthSessionDto } from "@kloqra/contracts";
 import { getApiBase } from "../api/base";
 import { applySessionFromPeer, getAccessToken, useSessionStore } from "../stores/session.store";
+import { configuredAuthScope } from "./configured-auth-scope";
 import { forceTenantAuthSignOut } from "./force-auth-sign-out";
 import { readUserIdFromToken } from "./jwt-payload";
 
-const AUTH_SCOPE = process.env.NEXT_PUBLIC_AUTH_SCOPE?.trim() || "app";
+const AUTH_SCOPE = configuredAuthScope(process.env.NEXT_PUBLIC_AUTH_SCOPE, "app");
 
 let syncPromise: Promise<boolean> | null = null;
 

@@ -12,18 +12,30 @@ describe("allowed-origins", () => {
     process.env = originalEnv;
   });
 
-  it("allows configured dedicated app URLs", () => {
-    process.env.PUBLIC_CLIENT_URL = "https://client-only.example.com";
-    process.env.PUBLIC_ADMIN_URL = "https://admin-only.example.com";
+  it("allows configured app and platform URLs", () => {
+    process.env.PUBLIC_APP_URL = "https://app.example.com";
     process.env.PUBLIC_PLATFORM_URL = "https://platform-only.example.com";
 
-    expect(isAllowedBrowserOrigin("https://client-only.example.com")).toBe(true);
-    expect(isAllowedBrowserOrigin("https://admin-only.example.com")).toBe(true);
+    expect(isAllowedBrowserOrigin("https://app.example.com")).toBe(true);
     expect(isAllowedBrowserOrigin("https://platform-only.example.com")).toBe(true);
     expect(isAllowedBrowserOrigin("https://evil.com")).toBe(false);
   });
 
-  it("allows vercel preview origins", () => {
-    expect(isAllowedBrowserOrigin("https://kloqra-client-staging.vercel.app")).toBe(true);
+  it("rejects unconfigured Vercel origins in production", () => {
+    process.env.NODE_ENV = "production";
+    expect(isAllowedBrowserOrigin("https://untrusted-preview.vercel.app")).toBe(false);
+  });
+
+  it("allows explicitly configured Vercel origins in production", () => {
+    process.env.NODE_ENV = "production";
+    process.env.PUBLIC_APP_URL = "https://kloqra-unified.vercel.app";
+    expect(isAllowedBrowserOrigin("https://kloqra-unified.vercel.app")).toBe(true);
+  });
+
+  it("allows previews outside production only when explicitly enabled", () => {
+    process.env.NODE_ENV = "development";
+    expect(isAllowedBrowserOrigin("https://kloqra-preview.vercel.app")).toBe(false);
+    process.env.ALLOW_VERCEL_PREVIEW_ORIGINS = "true";
+    expect(isAllowedBrowserOrigin("https://kloqra-preview.vercel.app")).toBe(true);
   });
 });

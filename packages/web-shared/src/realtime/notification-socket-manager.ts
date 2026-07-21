@@ -12,6 +12,7 @@ import {
 import { io, type Socket } from "socket.io-client";
 import { getApiBase } from "../api/base";
 import { subscribeSessionUpdates } from "../auth/auth-channel";
+import { configuredAuthScope } from "../auth/configured-auth-scope";
 import { getAccessToken } from "../stores/session.store";
 
 export type NotificationSocketConnectionState =
@@ -24,7 +25,7 @@ type PushHandler = (payload: NotificationCreatedEvent) => void;
 type WorkspaceDataStaleHandler = (payload: WorkspaceDataStaleEvent) => void;
 type ConnectionHandler = (state: NotificationSocketConnectionState) => void;
 
-const AUTH_SCOPE = process.env.NEXT_PUBLIC_AUTH_SCOPE?.trim() || "app";
+const AUTH_SCOPE = configuredAuthScope(process.env.NEXT_PUBLIC_AUTH_SCOPE, "app");
 
 let socket: Socket | null = null;
 let connectionState: NotificationSocketConnectionState = "idle";

@@ -51,7 +51,7 @@ describe("Platform tenant provision E2E", () => {
   it("owner must change password before session", async () => {
     const loginRes = await request(app.getHttpServer())
       .post(ROUTES.AUTH.LOGIN)
-      .set("X-Auth-Scope", "admin")
+      .set("X-Auth-Scope", "app")
       .send({ email: ownerEmail, password: temporaryPassword });
 
     expect(loginRes.status).toBe(201);
@@ -59,7 +59,7 @@ describe("Platform tenant provision E2E", () => {
 
     const setPasswordRes = await request(app.getHttpServer())
       .post(ROUTES.AUTH.SET_PASSWORD)
-      .set("X-Auth-Scope", "admin")
+      .set("X-Auth-Scope", "app")
       .send({
         pendingToken: loginRes.body.pendingToken,
         newPassword: "NewPassword123!"
@@ -73,7 +73,7 @@ describe("Platform tenant provision E2E", () => {
   it("owner completes organization setup and tenant becomes active", async () => {
     const loginRes = await request(app.getHttpServer())
       .post(ROUTES.AUTH.LOGIN)
-      .set("X-Auth-Scope", "admin")
+      .set("X-Auth-Scope", "app")
       .send({ email: ownerEmail, password: "NewPassword123!" });
 
     expect(loginRes.status).toBe(201);
@@ -108,7 +108,7 @@ describe("Platform tenant provision E2E", () => {
   it("owner without workspace can set password and receive tenant-operator session", async () => {
     const loginRes = await request(app.getHttpServer())
       .post(ROUTES.AUTH.LOGIN)
-      .set("X-Auth-Scope", "admin")
+      .set("X-Auth-Scope", "app")
       .send({ email: ownerWithoutWorkspaceEmail, password: noWorkspaceTemporaryPassword });
 
     expect(loginRes.status).toBe(201);
@@ -116,7 +116,7 @@ describe("Platform tenant provision E2E", () => {
 
     const setPasswordRes = await request(app.getHttpServer())
       .post(ROUTES.AUTH.SET_PASSWORD)
-      .set("X-Auth-Scope", "admin")
+      .set("X-Auth-Scope", "app")
       .send({
         pendingToken: loginRes.body.pendingToken,
         newPassword: "NewPassword123!"

@@ -16,14 +16,14 @@ Start here for architecture, development, API reference, feature specs, user gui
 | Realtime notifications       | [specs/notifications-realtime.md](specs/notifications-realtime.md)                                 |
 | Call the API                 | [api/ROUTES.md](api/ROUTES.md)                                                                     |
 | Connect as external client   | [api/public-reporting-client-guide.md](api/public-reporting-client-guide.md)                       |
-| Issue API keys (admin)       | [user-guides/admin/public-reporting-api.md](user-guides/admin/public-reporting-api.md)             |
-| Use the member app           | [user-guides/member/getting-started.md](user-guides/member/getting-started.md)                     |
-| Use the admin app            | [user-guides/admin/getting-started.md](user-guides/admin/getting-started.md)                       |
+| Issue API keys (admin)       | [user-guides/management/public-reporting-api.md](user-guides/management/public-reporting-api.md)   |
+| Use Kloqra as a member       | [user-guides/member/getting-started.md](user-guides/member/getting-started.md)                     |
+| Use management capabilities  | [user-guides/management/getting-started.md](user-guides/management/getting-started.md)             |
 | **40-min technical demo**    | [user-guides/demo-40min-script.md](user-guides/demo-40min-script.md)                               |
 | **Demo slide deck (PDF)**    | [presentations/kloqra-demo-and-roadmap.pdf](presentations/kloqra-demo-and-roadmap.pdf)             |
 | Deploy to staging            | [runbooks/deploy.md](runbooks/deploy.md)                                                           |
 | Deploy API (Railway)         | [runbooks/railway.md](runbooks/railway.md)                                                         |
-| Deploy frontends (Vercel)    | [runbooks/vercel.md](runbooks/vercel.md)                                                           |
+| Deploy the product (Vercel)  | [runbooks/vercel.md](runbooks/vercel.md)                                                           |
 | Fix local dev issues         | [runbooks/local-troubleshooting.md](runbooks/local-troubleshooting.md)                             |
 | Work with AI agents          | [agent/AGENTS.md](agent/AGENTS.md)                                                                 |
 
@@ -49,21 +49,22 @@ Start here for architecture, development, API reference, feature specs, user gui
 - [architecture/ci-cd-pipeline.md](architecture/ci-cd-pipeline.md) — CI/CD workflow and deploy gates
 - [api/OVERVIEW.md](api/OVERVIEW.md) — API conventions
 - [api/ROUTES.md](api/ROUTES.md) — endpoint catalog
-- Per-app READMEs: [apps/api](../apps/api/README.md), [apps/client](../apps/client/README.md), [apps/admin](../apps/admin/README.md)
+- Active app READMEs: [apps/api](../apps/api/README.md), [unified product](../apps/app/README.md)
+- Platform operations: [platform-admin spec](specs/platform-admin.md)
 - Package READMEs: [packages/ui](../packages/ui/README.md), [packages/web-shared](../packages/web-shared/README.md)
 
-### User (member or admin)
+### Product user
 
-- [user-guides/README.md](user-guides/README.md) — which guide to read
-- Member (client app): [user-guides/member/](user-guides/member/)
-- Admin app: [user-guides/admin/](user-guides/admin/)
+- [user-guides/README.md](user-guides/README.md) — capability-based guide index
+- Personal member workflows: [user-guides/member/](user-guides/member/)
+- Project/workspace/organization management: [user-guides/management/](user-guides/management/)
 - QA / manual testing: [user-guides/qa/testing-guide.md](user-guides/qa/testing-guide.md)
 
 ### Ops
 
 - [runbooks/deploy.md](runbooks/deploy.md) — staging/production deployment hub
 - [runbooks/railway.md](runbooks/railway.md) — API, Postgres, Redis on Railway
-- [runbooks/vercel.md](runbooks/vercel.md) — client and admin on Vercel
+- [runbooks/vercel.md](runbooks/vercel.md) — unified product on Vercel
 - [deploy/](../deploy/) — env templates and deploy scripts
 - [runbooks/local-troubleshooting.md](runbooks/local-troubleshooting.md) — common local failures
 - [runbooks/tenant-migration.md](runbooks/tenant-migration.md) — SaaS pilot tenant backfill (F21)

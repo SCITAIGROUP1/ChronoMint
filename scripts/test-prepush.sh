@@ -27,11 +27,8 @@ $PNPM --filter @kloqra/contracts --filter @kloqra/ui --filter @kloqra/web-shared
 echo "→ Resetting database to clean seeded state for Playwright tests"
 $PNPM --filter @kloqra/api prisma:seed
 
-echo "→ Admin Playwright e2e (NEXT_PUBLIC_AUTH_SCOPE=admin)"
-NEXT_PUBLIC_AUTH_SCOPE=admin $PNPM --filter @kloqra/admin test:e2e
-
-echo "→ Client Playwright e2e (NEXT_PUBLIC_AUTH_SCOPE=client)"
-NEXT_PUBLIC_AUTH_SCOPE=client $PNPM --filter @kloqra/client test:e2e
+echo "→ Unified product Playwright e2e (NEXT_PUBLIC_AUTH_SCOPE=app)"
+NEXT_PUBLIC_AUTH_SCOPE=app $PNPM --filter @kloqra/app test:e2e
 
 echo "→ Platform-admin Playwright e2e"
 $PNPM --filter @kloqra/platform-admin test:e2e

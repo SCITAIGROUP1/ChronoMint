@@ -1,4 +1,5 @@
 import { FATAL_AUTH_REASONS } from "../auth/auth-fatal-reasons";
+import { configuredAuthScope } from "../auth/configured-auth-scope";
 import { isAccessTokenExpired, readUserIdFromToken } from "../auth/jwt-payload";
 import { isWorkspaceMismatchError, resolveApiWorkspaceId } from "../auth/workspace-context";
 import { getPlatformAccessToken, usePlatformSessionStore } from "../stores/platform-session.store";
@@ -9,7 +10,7 @@ export { clearInflightGetRequests, clearInflightGetRequestsForPath } from "./inf
 
 export { getApiBase } from "./base";
 
-const AUTH_SCOPE = process.env.NEXT_PUBLIC_AUTH_SCOPE?.trim() || "app";
+const AUTH_SCOPE = configuredAuthScope(process.env.NEXT_PUBLIC_AUTH_SCOPE, "app");
 
 /** Coalesce concurrent identical GET requests (e.g. React Strict Mode double-mount). */
 const inflightGetRequests = getInflightGetRequests();

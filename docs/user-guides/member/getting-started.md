@@ -1,13 +1,14 @@
 # Member: Getting started
 
-Use the **client app** at http://localhost:3000 (or your deployed client URL).
+Use the Kloqra product at http://localhost:3000 locally or your team's canonical product URL. You
+do not switch to a separate member portal.
 
 ## Sign in
 
-Self-registration is disabled. Your workspace admin adds you from **Team Management** in the admin app.
+Self-registration is disabled. Your workspace admin adds you from **Team Management** in Kloqra.
 
 1. Check your email for a sign-in link and temporary password (new accounts) or a notification that you were added (existing Kloqra users).
-2. Open **Login** on the client app.
+2. Open **Login** on the product URL.
 3. Enter your email and the temporary password from the email.
 4. Set a new password when prompted, then continue to your startup page (timer, dashboard, or timesheet).
 
@@ -42,7 +43,9 @@ You must already belong to the workspace before accepting a project invite.
 - **Export** your own hours (CSV, Excel, or PDF)
 - Manage **profile** and **account settings**
 
-You cannot create projects, set billing rates, or see other members’ detailed hours.
+You cannot create projects, set billing rates, or see other members’ detailed hours unless a
+separate project/workspace role grants the specific action. The API enforces those capabilities;
+manually entering a management URL does not grant access.
 
 ## Next steps
 

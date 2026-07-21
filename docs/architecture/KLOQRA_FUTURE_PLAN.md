@@ -5,6 +5,10 @@ Master roadmap for product, engineering, and production. Supersedes the phased t
 **Last updated:** June 2026  
 **Current baseline:** Phases 1–2 shipped, level-up sprints largely complete, realtime notifications live on `dev`.
 
+> **Current-state note (July 2026):** Customer work is unified in `apps/app` with auth scope `app`.
+> Historical persona columns below describe capability ownership, not separate applications.
+> `apps/platform-admin` remains isolated. See [Unified product site](../specs/unified-product-site.md).
+
 ---
 
 ## 1. Vision
@@ -86,23 +90,23 @@ flowchart LR
 
 ### Product
 
-| Feature                         | App            | Description                                                          | Priority |
-| ------------------------------- | -------------- | -------------------------------------------------------------------- | -------- |
-| **Budget burn-down widget**     | Admin          | Chart + alerts vs `budgetHours` (export `budget_vs_actual` exists)   | P0       |
-| **Budget / idle notifications** | Admin + API    | `budget.near` / `budget.over`; missing-time digest polish            | P0       |
-| **Project detail hub**          | Admin          | Per-project dashboard, team, tasks, “export this project”            | P1       |
-| **Member quick actions**        | Client         | Duplicate yesterday, pin favorite project/task                       | P1       |
-| **Personal goals**              | Client         | Daily target widget (workspace setting already supports targets)     | P2       |
-| **Role-change session refresh** | Client + Admin | On `member.roleChanged`, refresh nav/permissions without full reload | P2       |
+| Feature                         | App         | Description                                                          | Priority |
+| ------------------------------- | ----------- | -------------------------------------------------------------------- | -------- |
+| **Budget burn-down widget**     | Admin       | Chart + alerts vs `budgetHours` (export `budget_vs_actual` exists)   | P0       |
+| **Budget / idle notifications** | Admin + API | `budget.near` / `budget.over`; missing-time digest polish            | P0       |
+| **Project detail hub**          | Admin       | Per-project dashboard, team, tasks, “export this project”            | P1       |
+| **Member quick actions**        | Product     | Duplicate yesterday, pin favorite project/task                       | P1       |
+| **Personal goals**              | Product     | Daily target widget (workspace setting already supports targets)     | P2       |
+| **Role-change session refresh** | Product     | On `member.roleChanged`, refresh nav/permissions without full reload | P2       |
 
 ### Engineering
 
-| Initiative                      | Notes                                                                                 |
-| ------------------------------- | ------------------------------------------------------------------------------------- |
-| **Audit log (v1)**              | Immutable log: approve/reject, role change, export download, billing edit             |
-| **E2E expansion**               | Realtime flows: admin approve → member submissions update; task assign → timer picker |
-| **Pagination at scale**         | Cursor pagination on timelogs list; composite indexes                                 |
-| **Workspace settings contract** | Zod SSOT for `Workspace.settings` (timezone, weekStart, rounding)                     |
+| Initiative                      | Notes                                                                                   |
+| ------------------------------- | --------------------------------------------------------------------------------------- |
+| **Audit log (v1)**              | Immutable log: approve/reject, role change, export download, billing edit               |
+| **E2E expansion**               | Realtime flows: product approve → member submissions update; task assign → timer picker |
+| **Pagination at scale**         | Cursor pagination on timelogs list; composite indexes                                   |
+| **Workspace settings contract** | Zod SSOT for `Workspace.settings` (timezone, weekStart, rounding)                       |
 
 ### Realtime (scoped — do not over-build)
 
@@ -120,15 +124,15 @@ flowchart LR
 
 ### Product
 
-| Feature                        | App    | Description                                                  |
-| ------------------------------ | ------ | ------------------------------------------------------------ |
-| **Utilization report**         | Admin  | Member × week: logged vs expected hours                      |
-| **Invoice generation (v1)**    | Admin  | Draft invoice from billable export; PDF template             |
-| **Period compare**             | Admin  | This month vs last: Δ hours / Δ revenue                      |
-| **Task-level rollup**          | Admin  | Hours by task for SOW / retro                                |
-| **Scheduled export email**     | Admin  | SMTP delivery for `ExportSchedule` (level-up: partial)       |
-| **Read-only own rate**         | Client | Show billable rate on entry if admin enables transparency    |
-| **Multi-currency / tax lines** | Admin  | GST/VAT columns; currency per project (research spike first) |
+| Feature                        | App     | Description                                                  |
+| ------------------------------ | ------- | ------------------------------------------------------------ |
+| **Utilization report**         | Admin   | Member × week: logged vs expected hours                      |
+| **Invoice generation (v1)**    | Admin   | Draft invoice from billable export; PDF template             |
+| **Period compare**             | Admin   | This month vs last: Δ hours / Δ revenue                      |
+| **Task-level rollup**          | Admin   | Hours by task for SOW / retro                                |
+| **Scheduled export email**     | Admin   | SMTP delivery for `ExportSchedule` (level-up: partial)       |
+| **Read-only own rate**         | Product | Show billable rate on entry if admin enables transparency    |
+| **Multi-currency / tax lines** | Admin   | GST/VAT columns; currency per project (research spike first) |
 
 ### API / contracts
 
@@ -193,7 +197,7 @@ Runs alongside product horizons.
 
 ## 5. App-specific backlogs
 
-### Client (`apps/client`) — members
+### Product — personal capabilities
 
 | Priority | Item                                                              |
 | -------- | ----------------------------------------------------------------- |
@@ -202,7 +206,7 @@ Runs alongside product horizons.
 | P2       | PWA, offline queue, push reminders                                |
 | Never    | Team rankings, org revenue, billing config, admin export wizard   |
 
-### Admin (`apps/admin`) — operators
+### Product — management capabilities
 
 | Priority | Item                                                   |
 | -------- | ------------------------------------------------------ |

@@ -7,7 +7,7 @@ import { usePlatformUserProfileStore } from "../stores/platform-user-profile.sto
 import { getRefreshToken, useSessionStore } from "../stores/session.store";
 import { beginLogout, isLogoutEpochCurrent } from "./logout-session";
 
-/** Clears httpOnly API cookies (shared across client + admin) and this app's local session. */
+/** Clears the API auth cookie and this app's local session. */
 export async function logoutSession(workspaceId?: string | null): Promise<void> {
   const epoch = beginLogout();
   const userId = useSessionStore.getState().session?.user?.id;

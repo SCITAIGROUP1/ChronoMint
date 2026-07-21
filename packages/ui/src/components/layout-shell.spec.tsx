@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { Home } from "lucide-react";
 import type { ReactNode } from "react";
+import { SIDEBAR_COLLAPSED_STORAGE_KEY } from "../responsive-tiers.js";
 import { ResponsiveLayoutShell } from "./layout-shell.js";
 import { AppBar } from "./shell/app-bar.js";
 
@@ -95,7 +96,7 @@ describe("ResponsiveLayoutShell", () => {
   });
 
   it("uses consistent vertical spacing in the collapsed sidebar scroll region", async () => {
-    localStorage.setItem("kloqra-sidebar-collapsed", "true");
+    localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, "true");
 
     const { container } = render(
       <ResponsiveLayoutShell
@@ -116,11 +117,11 @@ describe("ResponsiveLayoutShell", () => {
       expect(scrollRegion?.className).toContain("gap-5");
     });
 
-    localStorage.removeItem("kloqra-sidebar-collapsed");
+    localStorage.removeItem(SIDEBAR_COLLAPSED_STORAGE_KEY);
   });
 
   it("auto-collapses the sidebar on compact laptop viewports when no preference is saved", async () => {
-    localStorage.removeItem("kloqra-sidebar-collapsed");
+    localStorage.removeItem(SIDEBAR_COLLAPSED_STORAGE_KEY);
     Object.defineProperty(window, "innerWidth", { configurable: true, value: 1366 });
 
     const { container } = render(
@@ -164,7 +165,7 @@ describe("ResponsiveLayoutShell", () => {
   });
 
   it("renders a compact count badge on nav icons when the sidebar is collapsed", async () => {
-    localStorage.setItem("kloqra-sidebar-collapsed", "true");
+    localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, "true");
 
     const { container } = render(
       <ResponsiveLayoutShell
@@ -191,7 +192,7 @@ describe("ResponsiveLayoutShell", () => {
       expect(badge?.className).toContain("text-[7px]");
     });
 
-    localStorage.removeItem("kloqra-sidebar-collapsed");
+    localStorage.removeItem(SIDEBAR_COLLAPSED_STORAGE_KEY);
   });
 
   it("renders optional nav section label", () => {

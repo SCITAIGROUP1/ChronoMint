@@ -1,6 +1,7 @@
 import { ErrorCodes } from "@kloqra/contracts";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { DomainException } from "../errors/domain.exception";
+import { AuthorizationPolicyService } from "./authorization-policy.service";
 import { ProjectAccessService } from "./project-access.service";
 
 describe("ProjectAccessService", () => {
@@ -10,6 +11,7 @@ describe("ProjectAccessService", () => {
     task: { findFirst: ReturnType<typeof vi.fn> };
     taskAssignee: { findFirst: ReturnType<typeof vi.fn> };
   };
+  let bindings: { forProject: ReturnType<typeof vi.fn> };
   let service: ProjectAccessService;
 
   beforeEach(() => {
@@ -19,7 +21,12 @@ describe("ProjectAccessService", () => {
       task: { findFirst: vi.fn() },
       taskAssignee: { findFirst: vi.fn() }
     };
-    service = new ProjectAccessService(prisma as never);
+    bindings = { forProject: vi.fn() };
+    service = new ProjectAccessService(
+      prisma as never,
+      bindings as never,
+      new AuthorizationPolicyService()
+    );
   });
 
   it("returns led project ids for MEMBER", async () => {
@@ -32,17 +39,45 @@ describe("ProjectAccessService", () => {
   });
 
   it("assertCanManageProject allows ADMIN", async () => {
-    prisma.project.findFirst.mockResolvedValue({ id: "proj-1" });
+    bindings.forProject.mockResolvedValue({
+      isolationPassed: true,
+      bindings: [{ role: "WORKSPACE_ADMIN", resourceId: "ws-1" }]
+    });
     await expect(
       service.assertCanManageProject("ws-1", "admin-1", "ADMIN", "proj-1")
     ).resolves.toBeUndefined();
   });
 
   it("assertCanManageProject rejects MEMBER without PROJECT_MANAGER", async () => {
-    prisma.teamMember.findFirst.mockResolvedValue(null);
+    bindings.forProject.mockResolvedValue({
+      isolationPassed: true,
+      bindings: [{ role: "WORKSPACE_MEMBER", resourceId: "ws-1" }]
+    });
     await expect(
       service.assertCanManageProject("ws-1", "user-1", "MEMBER", "proj-1")
     ).rejects.toBeInstanceOf(DomainException);
+  });
+
+  it("assertCanManageProject limits PROJECT_MANAGER to the bound project", async () => {
+    bindings.forProject.mockResolvedValue({
+      isolationPassed: true,
+      bindings: [{ role: "PROJECT_MANAGER", resourceId: "proj-other" }]
+    });
+
+    await expect(
+      service.assertCanManageProject("ws-1", "manager-1", "MEMBER", "proj-1")
+    ).rejects.toMatchObject({ code: ErrorCodes.FORBIDDEN });
+  });
+
+  it("assertCanManageProject denies an isolation failure before role allows", async () => {
+    bindings.forProject.mockResolvedValue({
+      isolationPassed: false,
+      bindings: [{ role: "WORKSPACE_ADMIN", resourceId: "ws-1" }]
+    });
+
+    await expect(
+      service.assertCanManageProject("ws-1", "admin-1", "ADMIN", "proj-1")
+    ).rejects.toMatchObject({ code: ErrorCodes.FORBIDDEN });
   });
 
   describe("assertTaskLoggable", () => {
@@ -87,7 +122,10 @@ describe("ProjectAccessService", () => {
         category: { isActive: true },
         project: { isActive: true }
       });
-      prisma.project.findFirst.mockResolvedValue({ id: "p1" });
+      bindings.forProject.mockResolvedValue({
+        isolationPassed: true,
+        bindings: [{ role: "WORKSPACE_ADMIN", resourceId: "w1" }]
+      });
 
       await expect(service.assertCanLogTask("w1", "u1", "ADMIN", "t1")).rejects.toBeInstanceOf(
         DomainException

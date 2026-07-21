@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Fail if client dashboard first-load JS (uncompressed on-disk chunks) exceeds budget.
- * Run after: pnpm --filter @kloqra/client exec next build
+ * Fail if the unified dashboard first-load JS (uncompressed chunks) exceeds budget.
+ * Run after: pnpm --filter @kloqra/app exec next build
  *
  * Note: Next's build table "First Load JS" is a gzip estimate; this gate sums raw .js chunks
  * for the dashboard route (page + layout). Default ~1.45 MB raw ≈ 400 KB transferred.
@@ -12,12 +12,13 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 const ROOT = join(import.meta.dirname, "..");
-const CLIENT_NEXT = join(ROOT, "apps/client/.next");
-const MANIFEST_PATH = join(CLIENT_NEXT, "app-build-manifest.json");
+const APP_NAME = process.env.BUNDLE_BUDGET_APP ?? "app";
+const APP_NEXT = join(ROOT, `apps/${APP_NAME}/.next`);
+const MANIFEST_PATH = join(APP_NEXT, "app-build-manifest.json");
 const BUDGET_BYTES = Number(process.env.BUNDLE_BUDGET_DASHBOARD_BYTES ?? 1_450_000);
 
 function chunkSize(relativePath) {
-  const absolute = join(CLIENT_NEXT, relativePath);
+  const absolute = join(APP_NEXT, relativePath);
   if (!existsSync(absolute)) {
     return 0;
   }
@@ -26,7 +27,7 @@ function chunkSize(relativePath) {
 
 function main() {
   if (!existsSync(MANIFEST_PATH)) {
-    console.error(`Missing ${MANIFEST_PATH}. Run client production build first.`);
+    console.error(`Missing ${MANIFEST_PATH}. Run ${APP_NAME} production build first.`);
     process.exit(1);
   }
 

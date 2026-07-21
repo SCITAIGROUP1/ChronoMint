@@ -18,6 +18,7 @@ import { AdminOrProjectManagerGuard } from "../../../../common/guards/admin-or-p
 import { CommercialFeaturesGuard } from "../../../../common/guards/commercial-features.guard";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../../../common/guards/roles.guard";
+import { appOrigin } from "../../../../common/mailer/app-origin.util";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
 import { ReportingService } from "../../application/reporting.service";
 import { WidgetShareService } from "../../application/widget-share.service";
@@ -151,22 +152,10 @@ export class ReportingController {
     @WorkspaceUser() user: WorkspaceRequestUser,
     @Body(new ZodValidationPipe(createWidgetShareSchema)) body: unknown
   ) {
-    const rawAdmin = process.env.PUBLIC_ADMIN_URL ?? process.env.ADMIN_PUBLIC_URL;
-    let adminBase: string;
-    if (rawAdmin) {
-      const parts = rawAdmin
-        .split(",")
-        .map((o) => o.trim())
-        .filter(Boolean);
-      const adminLike = parts.find((o) => o.includes(":3002") || /admin/i.test(o));
-      adminBase = (adminLike ?? parts[0] ?? "http://localhost:3002").replace(/\/$/, "");
-    } else {
-      adminBase = "http://localhost:3002";
-    }
     return this.widgetShares.create(
       user.workspaceId,
       body as Parameters<WidgetShareService["create"]>[1],
-      adminBase
+      appOrigin()
     );
   }
 }

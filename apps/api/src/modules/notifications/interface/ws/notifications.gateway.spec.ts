@@ -56,7 +56,7 @@ describe("NotificationsGateway", () => {
 
   it("joins user room and subscribes to redis on valid token", async () => {
     const client = {
-      handshake: { auth: { token: "valid-token", scope: "client" } },
+      handshake: { auth: { token: "valid-token", scope: "app" } },
       join: vi.fn().mockResolvedValue(undefined),
       disconnect: vi.fn(),
       data: {} as { userId?: string }
@@ -64,8 +64,8 @@ describe("NotificationsGateway", () => {
 
     await gateway.handleConnection(client as never);
 
-    expect(jwtTokens.verifyAccessToken).toHaveBeenCalledWith("valid-token", "client");
-    expect(client.join).toHaveBeenCalledWith("user:user-1");
+    expect(jwtTokens.verifyAccessToken).toHaveBeenCalledWith("valid-token", "app");
+    expect(client.join).toHaveBeenCalledWith("product:user:user-1");
     expect(redisSub.subscribe).toHaveBeenCalled();
     expect(redisSub.subscribe).toHaveBeenCalledTimes(2);
     expect(redisSub.subscribe).toHaveBeenCalledWith("notifications:user:user-1");
@@ -74,7 +74,7 @@ describe("NotificationsGateway", () => {
 
   it("unsubscribes each redis channel when the last socket disconnects", async () => {
     const client = {
-      handshake: { auth: { token: "valid-token", scope: "client" } },
+      handshake: { auth: { token: "valid-token", scope: "app" } },
       join: vi.fn().mockResolvedValue(undefined),
       disconnect: vi.fn(),
       data: {} as { userId?: string; isPlatform?: boolean }
@@ -95,7 +95,7 @@ describe("NotificationsGateway", () => {
     server.to.mockReturnValue({ emit });
 
     const client = {
-      handshake: { auth: { token: "valid-token" } },
+      handshake: { auth: { token: "valid-token", scope: "app" } },
       join: vi.fn().mockResolvedValue(undefined),
       disconnect: vi.fn(),
       data: {} as { userId?: string }
@@ -119,7 +119,7 @@ describe("NotificationsGateway", () => {
     };
     messageHandler!("notifications:user:user-1", JSON.stringify(payload));
 
-    expect(server.to).toHaveBeenCalledWith("user:user-1");
+    expect(server.to).toHaveBeenCalledWith("product:user:user-1");
     expect(emit).toHaveBeenCalledWith(NOTIFICATION_CREATED_EVENT, payload);
   });
 
@@ -128,7 +128,7 @@ describe("NotificationsGateway", () => {
     server.to.mockReturnValue({ emit });
 
     const client = {
-      handshake: { auth: { token: "valid-token", scope: "client" } },
+      handshake: { auth: { token: "valid-token", scope: "app" } },
       join: vi.fn().mockResolvedValue(undefined),
       disconnect: vi.fn(),
       data: {} as { userId?: string }

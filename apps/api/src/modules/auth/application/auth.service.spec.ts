@@ -101,7 +101,9 @@ describe("AuthService unit tests", () => {
           workspaceId: "workspace-1",
           tenantId: "tenant-1",
           role: "MEMBER",
-          typ: "access"
+          typ: "access",
+          issuedAtMs: expect.any(Number),
+          scope: "app"
         },
         { secret: "my-secret-key-32-chars-long-or-more", expiresIn: "10m" }
       );
@@ -116,7 +118,9 @@ describe("AuthService unit tests", () => {
           userId: "user-1",
           tenantId: "tenant-1",
           tenantRole: "OWNER",
-          typ: "access"
+          typ: "access",
+          issuedAtMs: expect.any(Number),
+          scope: "app"
         },
         expect.any(Object)
       );
@@ -126,12 +130,35 @@ describe("AuthService unit tests", () => {
   describe("verifyRefresh", () => {
     it("calls jwt.verify with the refresh secret", () => {
       process.env.JWT_REFRESH_SECRET = "refresh-secret";
-      mockJwt.verify.mockReturnValue({ sub: "user-1", workspaceId: "ws-1", family: "fam-1" });
+      mockJwt.verify.mockReturnValue({
+        sub: "user-1",
+        workspaceId: "ws-1",
+        family: "fam-1",
+        typ: "refresh",
+        scope: "app"
+      });
 
       const payload = authService.verifyRefresh("some-token");
 
-      expect(payload).toEqual({ userId: "user-1", workspaceId: "ws-1", family: "fam-1" });
+      expect(payload).toEqual({
+        userId: "user-1",
+        workspaceId: "ws-1",
+        family: "fam-1",
+        scope: "app"
+      });
       expect(mockJwt.verify).toHaveBeenCalledWith("some-token", { secret: "refresh-secret" });
+    });
+
+    it.each(["client", "admin", undefined])("rejects retired scope %s", (scope) => {
+      process.env.JWT_REFRESH_SECRET = "refresh-secret";
+      mockJwt.verify.mockReturnValue({
+        sub: "user-1",
+        workspaceId: "ws-1",
+        typ: "refresh",
+        scope
+      });
+
+      expect(() => authService.verifyRefresh("some-token")).toThrow();
     });
   });
 
@@ -208,6 +235,9 @@ describe("AuthService unit tests", () => {
       expect(result.user.defaultHourlyRate).toBeNull();
       expect(result.user.firstName).toBe("Avery");
       expect(result.user.lastName).toBe("Admin");
+      expect(result.capabilities).toContain("workspace:ManageMembers");
+      expect(result.capabilities).toContain("tenant:CreateWorkspace");
+      expect(result.capabilities).not.toContain("tenant:ManageBilling");
       expect(mockPrisma.user.findUnique).toHaveBeenCalledWith(
         expect.objectContaining({
           include: expect.objectContaining({
@@ -260,6 +290,8 @@ describe("AuthService unit tests", () => {
       expect(result.tenantRole).toBe("OWNER");
       expect(result.requiresWorkspaceSetup).toBe(true);
       expect(result.workspaceId).toBeUndefined();
+      expect(result.capabilities).toContain("tenant:ManageBilling");
+      expect(result.capabilities).not.toContain("workspace:ReadReports");
     });
 
     it("rejects login when user has no workspace or tenant operator membership", async () => {
