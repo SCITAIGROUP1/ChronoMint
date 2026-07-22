@@ -92,7 +92,7 @@ function resolveNavSections(
   navSectionLabel: string | undefined
 ): SidebarNavSection[] {
   if (navSections?.length) {
-    return navSections.filter((section) => section.items.length > 0);
+    return navSections.filter((section) => (section.items?.length ?? 0) > 0);
   }
   if (navItems?.length) {
     return [{ id: "default", label: navSectionLabel ?? "", items: navItems }];
@@ -196,7 +196,7 @@ function SidebarNavSections({
               {section.label}
             </p>
           ) : null}
-          {section.items.map((item) => (
+          {(section.items ?? []).map((item) => (
             <SidebarNavLink
               key={item.href}
               {...item}
@@ -227,7 +227,7 @@ export function ResponsiveLayoutShell({
   navAriaLabel = "Desktop Navigation"
 }: ResponsiveLayoutShellProps) {
   const sections = resolveNavSections(navSections, navItems, navSectionLabel);
-  const allHrefs = sections.flatMap((section) => section.items.map((item) => item.href));
+  const allHrefs = sections.flatMap((section) => (section.items ?? []).map((item) => item.href));
   const pathname = usePathname();
   const activeHref = resolveActiveNavHref(pathname, allHrefs);
   const [isCollapsed, setIsCollapsed] = useState(false);

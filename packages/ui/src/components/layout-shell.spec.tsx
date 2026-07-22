@@ -276,6 +276,34 @@ describe("ResponsiveLayoutShell", () => {
     expect(screen.queryByText("My time")).not.toBeInTheDocument();
   });
 
+  it("does not crash when navSections are passed without navItems", () => {
+    render(
+      <ResponsiveLayoutShell
+        navSections={[
+          {
+            id: "operations",
+            label: "Operations",
+            items: [{ href: "/ops", label: "Ops", Icon: Home }]
+          },
+          // Defensive: treat missing items like an empty section.
+          { id: "broken", label: "Broken", items: undefined as unknown as [] }
+        ]}
+        logoIcon={<span>K</span>}
+        logoTitle="Kloqra"
+        logoSubtitle="Platform"
+        logoLinkHref="/ops"
+        workspaceSwitcher={() => <div>Switcher</div>}
+        footerContent={() => <div>Footer</div>}
+        navAriaLabel="Platform navigation"
+      >
+        <div>Page content</div>
+      </ResponsiveLayoutShell>
+    );
+
+    expect(screen.getAllByText("Ops").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Broken")).not.toBeInTheDocument();
+  });
+
   it("marks only the most specific account nav item active", () => {
     mockPathname = "/account/organization";
 
