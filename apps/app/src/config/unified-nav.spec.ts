@@ -13,9 +13,9 @@ describe("unified capability navigation", () => {
       "/timer",
       "/timesheet",
       "/submissions",
-      "/projects",
-      "/tasks",
+      "/my-projects",
       "/time-tracker",
+      "/tasks",
       "/notifications",
       "/support"
     ]);
@@ -27,6 +27,10 @@ describe("unified capability navigation", () => {
 
     expect(hrefs).toContain("/approvals");
     expect(hrefs).toContain("/team");
+    expect(hrefs).toContain("/projects");
+    expect(hrefs).toContain("/my-projects");
+    expect(hrefs).toContain("/team-time-tracker");
+    expect(hrefs).toContain("/time-tracker");
     expect(hrefs).not.toContain("/team-management");
     expect(hrefs).not.toContain("/billing");
   });
@@ -40,5 +44,9 @@ describe("unified capability navigation", () => {
     expect(hrefs).toContain("/categories");
     expect(hrefs).toContain("/billing");
     expect(hrefs).toContain("/exports");
+    expect(hrefs).toContain("/team-time-tracker");
+    expect(hrefs).toContain("/time-tracker");
+    expect(hrefs).toContain("/projects");
+    expect(hrefs).toContain("/my-projects");
   });
 });

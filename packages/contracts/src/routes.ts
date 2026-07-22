@@ -86,7 +86,10 @@ export const ROUTES = {
   TASKS: {
     LIST: "/tasks",
     CREATE: "/tasks",
-    BY_ID: (id: string) => `/tasks/${id}`
+    BY_ID: (id: string) => `/tasks/${id}`,
+    BULK_TEMPLATE: "/tasks/bulk/template",
+    BULK_UPLOAD: "/tasks/bulk/upload",
+    EXPORT: "/tasks/export"
   },
   CATEGORIES: {
     LIST: "/categories",

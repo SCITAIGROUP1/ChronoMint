@@ -61,4 +61,29 @@ describe("WidgetControlPanel", () => {
     expect(screen.queryByText("My Time Today")).toBeNull();
     expect(screen.getByText("Team Utilization")).toBeTruthy();
   });
+
+  it("hides management scope when only personal widgets are available", () => {
+    render(
+      <WidgetControlPanel
+        layoutItems={[
+          {
+            i: "personal_today",
+            x: 0,
+            y: 0,
+            w: 3,
+            h: 2,
+            visible: true
+          }
+        ]}
+        widgets={[widgets[0]!]}
+        onToggleWidget={vi.fn()}
+        onResetLayout={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByRole("tablist", { name: "Widget scope" })).toBeNull();
+    expect(screen.queryByRole("tab", { name: "Management" })).toBeNull();
+    expect(screen.getByText("My Time Today")).toBeTruthy();
+  });
 });

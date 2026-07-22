@@ -103,6 +103,43 @@ export function usePersonalDashboardData(
 
 export type PersonalDashboardData = ReturnType<typeof usePersonalDashboardData>;
 
+export function filterPersonalDashboardData(
+  data: PersonalDashboardData,
+  filters: {
+    projectIds?: readonly string[];
+    categoryId?: string;
+    taskId?: string;
+  }
+): PersonalDashboardData {
+  const projectIds = filters.projectIds ?? [];
+  const hasProjectFilter = projectIds.length > 0;
+  const categoryId = filters.categoryId ?? "";
+  const taskId = filters.taskId ?? "";
+
+  if (!hasProjectFilter && !categoryId && !taskId) return data;
+
+  const taskById = new Map(data.tasks.map((task) => [task.id, task]));
+  const logs = data.logs.filter((log) => {
+    const task = taskById.get(log.taskId);
+    if (!task) return false;
+    if (taskId && task.id !== taskId) return false;
+    if (categoryId && task.categoryId !== categoryId) return false;
+    if (hasProjectFilter && !projectIds.includes(task.projectId)) return false;
+    return true;
+  });
+
+  const todayKey = toDateKeyInZone(todayInZone(data.timezone), data.timezone);
+  const todayLogs = logs.filter((log) => logStartDateKey(log, data.timezone) === todayKey);
+
+  return {
+    ...data,
+    logs,
+    todayLogs,
+    todaySeconds: sumDuration(todayLogs),
+    recentSeconds: sumDuration(logs)
+  };
+}
+
 function TodayLogsContainer({ data }: { data: PersonalDashboardData }) {
   const mutations = useTimelogMutations(data.workspaceId);
   const timer = useTimerActions(data.workspaceId);

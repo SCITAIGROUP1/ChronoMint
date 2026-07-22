@@ -13,6 +13,22 @@ vi.mock("@/stores/session.store", () => ({
     selector({ session })
 }));
 
+vi.mock("next/link", () => ({
+  default: ({
+    children,
+    href,
+    ...props
+  }: {
+    children: React.ReactNode;
+    href: string;
+    [key: string]: unknown;
+  }) => (
+    <a href={href} {...props}>
+      {children}
+    </a>
+  )
+}));
+
 vi.mock("./management-dashboard-lazy", () => ({
   ManagementDashboardLazy: (
     props: { onAppBarDescriptionChange?: (description: string | null) => void } & Record<
@@ -46,7 +62,7 @@ describe("UnifiedDashboardPage", () => {
 
   afterEach(cleanup);
 
-  it("mounts the combined grid in personal-only mode for a member", () => {
+  it("shows an Overview CTA instead of personal widgets for a member", () => {
     session = {
       ...BASE_SESSION,
       capabilities: [
@@ -60,15 +76,15 @@ describe("UnifiedDashboardPage", () => {
 
     render(<UnifiedDashboardPage />);
 
-    expect(screen.getByText("Combined widget grid")).toBeTruthy();
-    expect(screen.queryByRole("link", { name: "Track time" })).toBeNull();
-    expect(managementDataCall).toHaveBeenCalledOnce();
-    expect(managementProps).toHaveBeenCalledWith(
-      expect.objectContaining({ showPersonal: true, showManagement: false })
+    expect(screen.getByText("No workspace analytics here")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Go to Overview" }).getAttribute("href")).toBe(
+      "/overview"
     );
+    expect(screen.queryByText("Combined widget grid")).toBeNull();
+    expect(managementDataCall).not.toHaveBeenCalled();
   });
 
-  it("adds lazy management analytics for an admin capability snapshot", () => {
+  it("loads management analytics only for an admin capability snapshot", () => {
     session = {
       ...BASE_SESSION,
       workspaceRole: "ADMIN",
@@ -89,7 +105,7 @@ describe("UnifiedDashboardPage", () => {
     expect(managementDataCall).toHaveBeenCalledOnce();
     expect(managementProps).toHaveBeenCalledWith(
       expect.objectContaining({
-        showPersonal: true,
+        showPersonal: false,
         showManagement: true,
         workspaceWide: true,
         projectIds: []
@@ -117,7 +133,7 @@ describe("UnifiedDashboardPage", () => {
 
     expect(managementProps).toHaveBeenCalledWith(
       expect.objectContaining({
-        showPersonal: true,
+        showPersonal: false,
         showManagement: true,
         workspaceWide: false,
         projectIds

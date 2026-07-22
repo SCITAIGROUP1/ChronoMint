@@ -75,4 +75,16 @@ describe("UPS-05B route composition", () => {
       canCallWorkspaceWideApis: true
     });
   });
+
+  it("forces personal project detail when opened from My Projects", () => {
+    const session = {
+      ...BASE_SESSION,
+      workspaceRole: "ADMIN" as const,
+      capabilities: getManagedRolePermissions(["WORKSPACE_ADMIN"])
+    };
+
+    expect(resolveProjectDetailExperience(session, "project-1", { forcePersonal: true }).mode).toBe(
+      "personal"
+    );
+  });
 });

@@ -45,7 +45,9 @@ vi.mock("@kloqra/web-shared", async (importOriginal) => {
           await options.onLocalRefresh?.();
           return result;
         },
-        createBatch: vi.fn()
+        createBatch: vi.fn(),
+        update: vi.fn(),
+        remove: vi.fn()
       };
     }
   };
@@ -63,12 +65,20 @@ vi.mock("./time-tracker-export-modal", () => ({ TimeTrackerExportModal: () => nu
 vi.mock("./time-tracker-import-modal", () => ({ TimeTrackerImportModal: () => null }));
 vi.mock("./time-tracker-stat-cards", () => ({ TimeTrackerStatCards: () => null }));
 vi.mock("./time-tracker-filters-panel", () => ({ TimeTrackerFiltersPanel: () => null }));
+vi.mock("./time-tracker-week-list", () => ({
+  TimeTrackerWeekList: () => <div data-testid="week-list">Week list</div>,
+  formatVisibleWeeksSummary: () => ""
+}));
 vi.mock("@/hooks/use-is-impersonating", () => ({ useIsImpersonating: () => false }));
 vi.mock("@/stores/session.store", () => ({
   useSessionStore: (selector: (state: unknown) => unknown) =>
     selector({
       session: { workspaceId: "workspace-1", user: { id: "user-1" } }
     })
+}));
+vi.mock("@/stores/workspaces.store", () => ({
+  useWorkspacesStore: (selector: (state: { workspaces: unknown[] }) => unknown) =>
+    selector({ workspaces: [] })
 }));
 vi.mock("@/lib/api", () => ({ api }));
 vi.mock("@/features/timesheet/validate-time-entry-overlap", () => ({

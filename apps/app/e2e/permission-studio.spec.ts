@@ -61,6 +61,46 @@ async function mockStudio(page: Page, options?: { conflictOnce?: boolean; owner?
       return;
     }
 
+    if (path.endsWith("/permission-policies/principals") && request.method() === "GET") {
+      await route.fulfill({
+        json: {
+          items: [
+            {
+              target: {
+                type: "PRINCIPAL",
+                principalId: "user-wa",
+                scope: "tenant",
+                resourceId: "tenant-1"
+              },
+              displayName: "Casey Workspace Admin",
+              email: "casey@example.com",
+              active: true,
+              roles: ["WORKSPACE_ADMIN"],
+              overrideCount: 0
+            },
+            {
+              target: {
+                type: "PRINCIPAL",
+                principalId: "user-pm",
+                scope: "tenant",
+                resourceId: "tenant-1"
+              },
+              displayName: "Alex Project Manager",
+              email: "alex@example.com",
+              active: true,
+              roles: ["PROJECT_MANAGER"],
+              overrideCount: 0
+            }
+          ],
+          page: 1,
+          limit: 100,
+          total: 2,
+          totalPages: 1
+        }
+      });
+      return;
+    }
+
     if (path.includes(`/permission-policies/roles/${role}`) && request.method() === "GET") {
       await route.fulfill({
         json: {
@@ -177,12 +217,12 @@ test.describe("Production Permission Studio", () => {
     await expect(page.getByRole("radio", { name: "Deny" })).toBeDisabled();
   });
 
-  test("uses a compact directory-to-detail flow", async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
+  test("keeps member search visible beside the view toggle", async ({ page }) => {
     await mockStudio(page);
-    await page.goto("/account/permissions-matrix?view=roles");
-    await page.getByRole("button", { name: /Workspace admin/ }).click();
-    await expect(page.getByRole("button", { name: "Choose another role" })).toBeVisible();
-    await expect(page.getByLabel("Role template directory")).toBeHidden();
+    await page.goto("/account/permissions-matrix?view=members");
+    await expect(page.getByRole("searchbox", { name: /Search members/i })).toBeVisible();
+    await expect(page.getByText("People with access")).toBeVisible();
+    await expect(page.getByRole("button", { name: /Casey Workspace Admin/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Alex Project Manager/i })).toBeVisible();
   });
 });

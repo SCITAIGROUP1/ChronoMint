@@ -275,18 +275,20 @@ export function PermissionsStudioPage() {
           </Button>
         }
         secondary={
-          <div className="flex w-full flex-col gap-3 py-2 sm:flex-row sm:items-center">
-            <SegmentedControl
-              value={mode}
-              onChange={(next) => updateLocation(next)}
-              options={[
-                { value: "roles", label: "Role templates" },
-                { value: "members", label: "Member overrides" }
-              ]}
-              fullWidth
-            />
-            <div className="relative min-w-0 flex-1">
-              <Search className="pointer-events-none absolute left-3 top-3 size-4 text-muted-foreground" />
+          <div className="flex w-full min-w-0 flex-col gap-3 py-2 sm:flex-row sm:items-center">
+            <div className="w-full shrink-0 sm:w-auto sm:max-w-md">
+              <SegmentedControl
+                value={mode}
+                onChange={(next) => updateLocation(next)}
+                options={[
+                  { value: "roles", label: "Role templates" },
+                  { value: "members", label: "Member overrides" }
+                ]}
+                fullWidth
+              />
+            </div>
+            <div className="relative min-w-[12rem] flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={directorySearch}
                 onChange={(event) => setDirectorySearch(event.target.value)}
@@ -315,7 +317,7 @@ export function PermissionsStudioPage() {
           <Card className="overflow-hidden">
             <div className="border-b bg-muted/30 px-4 py-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {mode === "roles" ? "Managed roles" : "Organization members"}
+                {mode === "roles" ? "Managed roles" : "People with access"}
               </p>
             </div>
             <div className="max-h-[calc(100vh-18rem)] overflow-y-auto p-2">
@@ -360,7 +362,11 @@ export function PermissionsStudioPage() {
                         </span>
                         <span className="mt-1 flex items-center justify-between gap-2 text-xs text-muted-foreground">
                           <span className="truncate">
-                            {"email" in item ? item.email : titleCase(item.target.role)}
+                            {"roles" in item && item.roles.length
+                              ? item.roles.map((role) => titleCase(role)).join(" · ")
+                              : "email" in item
+                                ? item.email
+                                : titleCase(item.target.role)}
                           </span>
                           <Badge variant="secondary">{item.overrideCount}</Badge>
                         </span>

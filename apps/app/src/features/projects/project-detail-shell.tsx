@@ -3,18 +3,25 @@
 import { AppBar, Badge, Button, EmptyState, ProjectNameWithColor, Skeleton } from "@kloqra/ui";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { useParams, usePathname } from "next/navigation";
+import { useParams, usePathname, useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
 import { ProjectDetailProvider, useProjectDetail } from "./project-detail-context";
 import {
   ProjectDetailNav,
+  isMyProjectsListSource,
+  projectsListBackHref,
+  projectsListBackLabel,
   resolveProjectDetailSection,
+  resolveProjectListSource,
   type ProjectDetailSectionId
 } from "./project-detail-nav";
 import { resolveProjectDetailExperience } from "@/features/unified-routes/route-composition";
 import { useSessionStore } from "@/stores/session.store";
 
-const SECTION_COPY: Record<ProjectDetailSectionId, { title: string; description: string }> = {
+const WORKSPACE_SECTION_COPY: Record<
+  ProjectDetailSectionId,
+  { title: string; description: string }
+> = {
   overview: {
     title: "Overview",
     description: "Time logged on this project across the team for the selected period."
@@ -33,16 +40,42 @@ const SECTION_COPY: Record<ProjectDetailSectionId, { title: string; description:
   }
 };
 
+const PERSONAL_SECTION_COPY: Record<
+  Exclude<ProjectDetailSectionId, "settings">,
+  { title: string; description: string }
+> = {
+  overview: {
+    title: "Overview",
+    description: "Your time on this project for the selected period."
+  },
+  tasks: {
+    title: "Tasks",
+    description: "Tasks you can choose when logging time on this project."
+  },
+  team: {
+    title: "Team",
+    description: "People on this project with you."
+  }
+};
+
 function ProjectDetailShellInner({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { project, loading, error } = useProjectDetail();
   const session = useSessionStore((state) => state.session);
   const activeSection = resolveProjectDetailSection(pathname);
-  const copy = SECTION_COPY[activeSection];
+  const listSource = resolveProjectListSource(searchParams.get("from"), "projects");
+  const forcePersonal = isMyProjectsListSource(listSource);
   const experience = session
-    ? resolveProjectDetailExperience(session, project?.id ?? "")
+    ? resolveProjectDetailExperience(session, project?.id ?? "", { forcePersonal })
     : { mode: "personal" as const };
   const personal = experience.mode === "personal";
+  const copy = personal
+    ? (PERSONAL_SECTION_COPY[activeSection === "settings" ? "overview" : activeSection] ??
+      PERSONAL_SECTION_COPY.overview)
+    : WORKSPACE_SECTION_COPY[activeSection];
+  const listHref = projectsListBackHref(listSource);
+  const listLabel = projectsListBackLabel(listSource);
 
   if (loading) {
     return (
@@ -63,7 +96,7 @@ function ProjectDetailShellInner({ children }: { children: ReactNode }) {
         description={error ?? "This project may have been removed or you lack access."}
         action={
           <Button asChild variant="outline">
-            <Link href="/projects">Back to projects</Link>
+            <Link href={listHref}>Back to {listLabel}</Link>
           </Button>
         }
       />
@@ -99,9 +132,9 @@ function ProjectDetailShellInner({ children }: { children: ReactNode }) {
             size="sm"
             className="h-10 gap-1.5 border-border/80 bg-card shadow-none"
           >
-            <Link href="/projects">
+            <Link href={listHref}>
               <ArrowLeft className="h-4 w-4" aria-hidden />
-              Projects
+              {listLabel}
             </Link>
           </Button>
         }
@@ -109,7 +142,11 @@ function ProjectDetailShellInner({ children }: { children: ReactNode }) {
 
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 lg:flex-row lg:items-start">
         <aside className="w-full shrink-0 rounded-xl border border-border bg-card p-3 shadow-sm lg:w-56">
-          <ProjectDetailNav projectId={project.id} includeSettings={!personal} />
+          <ProjectDetailNav
+            projectId={project.id}
+            includeSettings={!personal}
+            listSource={listSource}
+          />
         </aside>
 
         <section className="min-w-0 flex-1 space-y-6">
@@ -132,10 +169,10 @@ export function ProjectDetailShell({ children }: { children: ReactNode }) {
     return (
       <EmptyState
         title="Invalid project"
-        description="Choose a project from the workspace list."
+        description="Choose a project from your projects list."
         action={
           <Button asChild variant="outline">
-            <Link href="/projects">View projects</Link>
+            <Link href="/my-projects">View My Projects</Link>
           </Button>
         }
       />

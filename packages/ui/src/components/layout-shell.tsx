@@ -2,7 +2,7 @@
 
 import { Menu, X, ChevronLeft } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import React, { useState, useEffect } from "react";
 import { cn } from "../lib/utils.js";
 import { COMPACT_LAPTOP_VIEWPORT_MAX, SIDEBAR_COLLAPSED_STORAGE_KEY } from "../responsive-tiers.js";
@@ -17,8 +17,10 @@ import {
   shellSidebarExpandedWidthClass,
   shellSidebarFooterClass,
   shellSidebarFooterCollapsedClass,
-  shellSidebarScrollClass,
-  shellSidebarScrollCollapsedClass
+  shellSidebarHeaderClass,
+  shellSidebarHeaderCollapsedClass,
+  shellSidebarNavScrollClass,
+  shellSidebarNavScrollCollapsedClass
 } from "./shell/shell-styles.js";
 import { ShellToolbarProvider, type ShellToolbarValue } from "./shell-toolbar-context.js";
 
@@ -229,7 +231,8 @@ export function ResponsiveLayoutShell({
   const sections = resolveNavSections(navSections, navItems, navSectionLabel);
   const allHrefs = sections.flatMap((section) => (section.items ?? []).map((item) => item.href));
   const pathname = usePathname();
-  const activeHref = resolveActiveNavHref(pathname, allHrefs);
+  const searchParams = useSearchParams();
+  const activeHref = resolveActiveNavHref(pathname, allHrefs, searchParams.toString());
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -274,13 +277,8 @@ export function ResponsiveLayoutShell({
           isCollapsed ? shellSidebarCollapsedWidthClass : shellSidebarExpandedWidthClass
         )}
       >
-        <div
-          className={cn(
-            isCollapsed ? shellSidebarScrollCollapsedClass : shellSidebarScrollClass,
-            "gap-5"
-          )}
-        >
-          {/* Brand + collapse */}
+        {/* Brand + context stay fixed; only nav scrolls */}
+        <div className={isCollapsed ? shellSidebarHeaderCollapsedClass : shellSidebarHeaderClass}>
           <div
             className={cn(
               "w-full transition-all duration-300",
@@ -323,12 +321,14 @@ export function ResponsiveLayoutShell({
             ) : null}
           </div>
 
-          {/* Workspace Switcher Slot */}
           <div className={cn("w-full", isCollapsed && "flex justify-center")}>
             {workspaceSwitcher(isCollapsed)}
           </div>
+        </div>
 
-          {/* Navigation Links */}
+        <div
+          className={isCollapsed ? shellSidebarNavScrollCollapsedClass : shellSidebarNavScrollClass}
+        >
           <SidebarNavSections
             sections={sections}
             activeHref={activeHref}
@@ -376,8 +376,8 @@ export function ResponsiveLayoutShell({
       <aside
         className={cn(shellMobileDrawerClass, isMobileOpen ? "translate-x-0" : "-translate-x-full")}
       >
-        {/* Drawer Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-border/50">
+        {/* Drawer Header — logo stays fixed */}
+        <div className="flex shrink-0 items-center justify-between pb-4 border-b border-border/50">
           <Link
             href={logoLinkHref}
             className="flex items-center gap-3 rounded-xl py-0.5"
@@ -399,10 +399,10 @@ export function ResponsiveLayoutShell({
           </button>
         </div>
 
-        {/* Drawer Scrollable Content */}
-        <div className="flex flex-1 flex-col gap-5 overflow-y-auto py-4">
-          {workspaceSwitcher(false)}
+        {/* Context stays fixed above scrolling nav */}
+        <div className="shrink-0 pt-4">{workspaceSwitcher(false)}</div>
 
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain py-4">
           <SidebarNavSections
             sections={sections}
             activeHref={activeHref}

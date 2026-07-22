@@ -1,6 +1,7 @@
 "use client";
 
-import { AppBar } from "@kloqra/ui";
+import { AppBar, EmptyState, Button } from "@kloqra/ui";
+import Link from "next/link";
 import { type ReactNode, useCallback, useState } from "react";
 import { getDashboardComposition } from "./dashboard-composition";
 import { ManagementDashboardLazy } from "./management-dashboard-lazy";
@@ -28,7 +29,7 @@ export function UnifiedDashboardPage() {
           dashboardDescription ??
           (composition.showManagement
             ? "Loading dashboard range…"
-            : "Your time, assigned work, and timesheet status.")
+            : "Workspace analytics and team management widgets.")
         }
         actions={
           dashboardActions ? (
@@ -36,17 +37,27 @@ export function UnifiedDashboardPage() {
           ) : null
         }
       />
-      {composition.showPersonal || composition.showManagement ? (
+      {composition.showManagement ? (
         <ManagementDashboardLazy
           capabilities={composition.capabilities}
-          showPersonal={composition.showPersonal}
-          showManagement={composition.showManagement}
+          showPersonal={false}
+          showManagement
           workspaceWide={composition.workspaceWide}
           projectIds={composition.projectIds}
           onAppBarActionsChange={handleDashboardActionsChange}
           onAppBarDescriptionChange={handleDashboardDescriptionChange}
         />
-      ) : null}
+      ) : (
+        <EmptyState
+          title="No workspace analytics here"
+          description="Your personal time widgets live under Overview in My time."
+          action={
+            <Button asChild size="sm">
+              <Link href="/overview">Go to Overview</Link>
+            </Button>
+          }
+        />
+      )}
     </div>
   );
 }

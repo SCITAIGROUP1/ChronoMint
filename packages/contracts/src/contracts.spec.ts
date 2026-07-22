@@ -24,6 +24,9 @@ import {
   createTaskSchema,
   createWidgetShareSchema,
   taskListItemSchema,
+  taskImportRowSchema,
+  taskImportResponseSchema,
+  exportTasksQuerySchema,
   projectSummarySchema,
   createTimeLogSchema,
   formatUserDate,
@@ -596,6 +599,46 @@ describe("contracts", () => {
       assigneeUserIds: [UUID]
     });
     expect(r.success).toBe(true);
+  });
+
+  it("exposes task bulk import and export routes", () => {
+    expect(ROUTES.TASKS.BULK_TEMPLATE).toBe("/tasks/bulk/template");
+    expect(ROUTES.TASKS.BULK_UPLOAD).toBe("/tasks/bulk/upload");
+    expect(ROUTES.TASKS.EXPORT).toBe("/tasks/export");
+  });
+
+  it("validates task import row schema", () => {
+    const valid = taskImportRowSchema.safeParse({
+      project: "Platform API",
+      category: "Development",
+      task: "K8s rollout",
+      billable: "true",
+      active: "yes"
+    });
+    expect(valid.success).toBe(true);
+
+    const missingProject = taskImportRowSchema.safeParse({
+      category: "Development",
+      task: "K8s rollout"
+    });
+    expect(missingProject.success).toBe(false);
+  });
+
+  it("validates task import response schema", () => {
+    const valid = taskImportResponseSchema.safeParse({
+      created: 2,
+      skipped: 1,
+      failed: [{ row: 4, reason: 'Unknown project "X"' }]
+    });
+    expect(valid.success).toBe(true);
+  });
+
+  it("validates export tasks query schema", () => {
+    const valid = exportTasksQuerySchema.safeParse({ format: "csv", search: "deploy" });
+    expect(valid.success).toBe(true);
+    if (valid.success) {
+      expect(valid.data.format).toBe("csv");
+    }
   });
 
   it("keeps billableDefault on task list items but omits assignees", () => {

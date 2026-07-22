@@ -32,6 +32,7 @@ import {
   useEntryCatalogQueries,
   useTasksListQuery,
   localMidnightUtcInZone,
+  useDisplayPreferences,
   useWorkspaceOperationalSettings
 } from "@kloqra/web-shared";
 import { Clock, DollarSign, Folder, Users } from "lucide-react";
@@ -39,8 +40,12 @@ import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } fro
 import { WidthProvider, Responsive } from "react-grid-layout";
 import { toast } from "sonner";
 import { DashboardAppBarActions } from "./dashboard-app-bar-actions";
-import { isDashboardWidgetAllowed } from "./dashboard-composition";
-import { PersonalDashboardWidget, usePersonalDashboardData } from "./personal-dashboard";
+import { filterWidgetsForDashboardMode } from "./dashboard-composition";
+import {
+  PersonalDashboardWidget,
+  usePersonalDashboardData,
+  filterPersonalDashboardData
+} from "./personal-dashboard";
 import { useWidgetLayout } from "./use-widget-layout";
 import type { WidgetLayoutItem } from "./use-widget-layout";
 import { WidgetControlPanel } from "./widget-control-panel";
@@ -165,7 +170,12 @@ export function ManagementDashboardPage({
 }: ManagementDashboardPageProps) {
   const session = useSessionStore((s) => s.session);
   const ws = getEffectiveWorkspaceId() ?? session?.workspaceId ?? "";
-  const { timezone } = useWorkspaceOperationalSettings(ws, Boolean(ws && showManagement));
+  const { timezone: displayTimezone } = useDisplayPreferences();
+  const { timezone: workspaceTimezone } = useWorkspaceOperationalSettings(
+    ws,
+    Boolean(ws && showManagement)
+  );
+  const timezone = showManagement ? workspaceTimezone : displayTimezone;
   const canReadPresence =
     capabilities.includes("workspace:ReadPresence") ||
     capabilities.includes("project:ReadPresence");
@@ -180,15 +190,18 @@ export function ManagementDashboardPage({
     () => applyDashboardPeriodPreset("week", timezone).to
   );
   const [projectId, setProjectId] = useState<string[]>(() =>
-    workspaceWide ? [] : [...scopedProjectIds]
+    showManagement && !workspaceWide ? [...scopedProjectIds] : []
   );
   const [userId, setUserId] = useState<string[]>([]);
   const [categoryId, setCategoryId] = useState("");
   const [taskId, setTaskId] = useState("");
   const catalog = useEntryCatalogQueries(ws, { enabled: Boolean(ws) });
-  const projects = workspaceWide
-    ? catalog.projects
-    : catalog.projects.filter((project) => scopedProjectIds.includes(project.id));
+  const projects =
+    showPersonal && !showManagement
+      ? catalog.projects
+      : workspaceWide
+        ? catalog.projects
+        : catalog.projects.filter((project) => scopedProjectIds.includes(project.id));
   const categories = catalog.categories;
 
   const taskFilters = useMemo(() => {
@@ -207,7 +220,16 @@ export function ManagementDashboardPage({
   const [report, setReport] = useState<DashboardReportDto | null>(null);
   const [loading, setLoading] = useState(showManagement);
   const [error, setError] = useState<string | null>(null);
-  const personalData = usePersonalDashboardData(showPersonal, { startDate, endDate });
+  const personalDataRaw = usePersonalDashboardData(showPersonal, { startDate, endDate });
+  const personalData = useMemo(
+    () =>
+      filterPersonalDashboardData(personalDataRaw, {
+        projectIds: projectId,
+        categoryId,
+        taskId
+      }),
+    [personalDataRaw, projectId, categoryId, taskId]
+  );
 
   // Keep date ranges in sync with the loaded/updated timezone preference
   const lastTimezoneRef = useRef(timezone);
@@ -402,7 +424,13 @@ export function ManagementDashboardPage({
   }, [isCatalogOpen, isArranging, handleCancelArranging]);
 
   function onProjectChange(nextId: string[]) {
-    const allowedIds = nextId.filter((projectId) => scopedProjectIds.includes(projectId));
+    if (showPersonal && !showManagement) {
+      setProjectId(nextId);
+      setUserId([]);
+      setTaskId("");
+      return;
+    }
+    const allowedIds = nextId.filter((id) => scopedProjectIds.includes(id));
     setProjectId(
       workspaceWide ? nextId : allowedIds.length > 0 ? allowedIds : [...scopedProjectIds]
     );
@@ -416,6 +444,13 @@ export function ManagementDashboardPage({
   }
 
   function clearScopeFilters() {
+    if (showPersonal && !showManagement) {
+      setProjectId([]);
+      setUserId([]);
+      setCategoryId("");
+      setTaskId("");
+      return;
+    }
     setProjectId(workspaceWide ? [] : [...scopedProjectIds]);
     setUserId([]);
     setCategoryId("");
@@ -528,8 +563,13 @@ export function ManagementDashboardPage({
   );
 
   const allowedWidgetRegistry = useMemo(
-    () => WIDGET_REGISTRY.filter((widget) => isDashboardWidgetAllowed(widget, capabilities)),
-    [capabilities]
+    () =>
+      filterWidgetsForDashboardMode(WIDGET_REGISTRY, {
+        capabilities,
+        showPersonal,
+        showManagement
+      }),
+    [capabilities, showManagement, showPersonal]
   );
   const allowedWidgetIds = useMemo(
     () => new Set(allowedWidgetRegistry.map((widget) => widget.id)),
@@ -1017,32 +1057,40 @@ export function ManagementDashboardPage({
               dateRangeAriaLabel="Dashboard date range"
             />
 
-            {showManagement ? (
-              <ReportScopeFilters
-                compact
-                taskRequiresProject
-                memberRequiresProject
-                memberAllLabel="Everyone on project"
-                memberPlaceholder="Everyone on project"
-                values={{ projectId, categoryId, taskId, userId }}
-                projects={projects}
-                categories={categories}
-                tasks={tasks}
-                members={teamMembers.map((m) => ({ userId: m.userId, userName: m.userName }))}
-                onProjectChange={onProjectChange}
-                onCategoryChange={onCategoryChange}
-                onTaskChange={setTaskId}
-                onUserChange={setUserId}
-                onClearAll={clearScopeFilters}
-              />
-            ) : null}
+            <ReportScopeFilters
+              compact
+              taskRequiresProject
+              memberRequiresProject={showManagement}
+              hideMemberFilter={!showManagement}
+              memberAllLabel="Everyone on project"
+              memberPlaceholder="Everyone on project"
+              hintText={
+                showManagement
+                  ? "Optional — narrow charts and exports"
+                  : "Optional — narrow your personal widgets"
+              }
+              values={{ projectId, categoryId, taskId, userId }}
+              projects={projects}
+              categories={categories}
+              tasks={tasks}
+              members={
+                showManagement
+                  ? teamMembers.map((m) => ({ userId: m.userId, userName: m.userName }))
+                  : []
+              }
+              onProjectChange={onProjectChange}
+              onCategoryChange={onCategoryChange}
+              onTaskChange={setTaskId}
+              onUserChange={setUserId}
+              onClearAll={clearScopeFilters}
+            />
           </CardContent>
         </Card>
       ) : null}
 
       {showManagement && !loading && !error && !hasData ? (
         <p className="text-sm text-muted-foreground">
-          No management time was recorded in this period. Personal widgets remain available below.
+          No management time was recorded in this period.
         </p>
       ) : null}
 

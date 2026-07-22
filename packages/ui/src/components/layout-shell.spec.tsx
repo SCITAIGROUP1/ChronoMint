@@ -22,14 +22,17 @@ vi.mock("next/link", () => ({
 }));
 
 let mockPathname = "/dashboard";
+let mockSearch = "";
 
 vi.mock("next/navigation", () => ({
-  usePathname: () => mockPathname
+  usePathname: () => mockPathname,
+  useSearchParams: () => new URLSearchParams(mockSearch)
 }));
 
 describe("ResponsiveLayoutShell", () => {
   beforeEach(() => {
     mockPathname = "/dashboard";
+    mockSearch = "";
   });
 
   it("renders navigation and main content", () => {
@@ -95,7 +98,7 @@ describe("ResponsiveLayoutShell", () => {
     expect(shellContainer).toBeTruthy();
   });
 
-  it("uses consistent vertical spacing in the collapsed sidebar scroll region", async () => {
+  it("keeps brand and context fixed while only the nav region scrolls", async () => {
     localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, "true");
 
     const { container } = render(
@@ -113,8 +116,14 @@ describe("ResponsiveLayoutShell", () => {
     );
 
     await waitFor(() => {
-      const scrollRegion = container.querySelector("aside.hidden.md\\:flex > div");
-      expect(scrollRegion?.className).toContain("gap-5");
+      const aside = container.querySelector("aside.hidden.md\\:flex");
+      const header = aside?.children[0];
+      const navScroll = aside?.children[1];
+      expect(header?.className).toContain("gap-5");
+      expect(header?.className).toContain("shrink-0");
+      expect(navScroll?.className).toContain("overflow-y-auto");
+      expect(navScroll?.className).toContain("flex-1");
+      expect(navScroll?.querySelector("nav")).toBeTruthy();
     });
 
     localStorage.removeItem(SIDEBAR_COLLAPSED_STORAGE_KEY);

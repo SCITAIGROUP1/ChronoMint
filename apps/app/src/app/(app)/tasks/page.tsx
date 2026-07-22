@@ -8,9 +8,11 @@ export default function Page() {
   const session = useSessionStore((state) => state.session);
   if (!session) return null;
   const experience = resolveProjectsExperience(session);
+  const canManage = experience.mode === "workspace" || experience.mode === "managed";
   return (
     <TasksPage
       managedProjectIds={experience.mode === "managed" ? experience.managedProjectIds : undefined}
+      canManage={canManage}
     />
   );
 }

@@ -34,4 +34,13 @@ describe("app navigation scopes", () => {
     expect(personalOverview?.label).toBe("Overview");
     expect(workspaceDashboard?.label).toBe("Dashboard");
   });
+
+  it("puts My Projects under My time and workspace Projects under Workspace", () => {
+    const myProjects = APP_NAV_ITEMS.find((item) => item.href === "/my-projects");
+    const workspaceProjects = APP_NAV_ITEMS.find((item) => item.href === "/projects");
+    expect(myProjects?.section).toBe("my-time");
+    expect(myProjects?.label).toBe("My Projects");
+    expect(workspaceProjects?.section).toBe("workspace");
+    expect(workspaceProjects?.label).toBe("Projects");
+  });
 });

@@ -1,6 +1,7 @@
 import type { AuthSessionDto } from "@kloqra/contracts";
 import { describe, expect, it } from "vitest";
 import {
+  filterWidgetsForDashboardMode,
   getDashboardComposition,
   isDashboardWidgetAllowed,
   isManagementWidgetAllowed
@@ -116,5 +117,34 @@ describe("unified dashboard composition", () => {
         composition.capabilities
       )
     ).toBe(false);
+  });
+
+  it("keeps Dashboard management-only even when personal capabilities exist", () => {
+    const capabilities = [
+      "personal:ManageTimelogs",
+      "personal:ManageTimer",
+      "workspace:ReadReports",
+      "project:ReviewTimesheets"
+    ] as const;
+    const widgets = [
+      { id: "personal_today", scope: "personal" as const },
+      { id: "team_utilization", scope: "management" as const }
+    ];
+
+    expect(
+      filterWidgetsForDashboardMode(widgets, {
+        capabilities,
+        showPersonal: false,
+        showManagement: true
+      }).map((widget) => widget.id)
+    ).toEqual(["team_utilization"]);
+
+    expect(
+      filterWidgetsForDashboardMode(widgets, {
+        capabilities,
+        showPersonal: true,
+        showManagement: false
+      }).map((widget) => widget.id)
+    ).toEqual(["personal_today"]);
   });
 });

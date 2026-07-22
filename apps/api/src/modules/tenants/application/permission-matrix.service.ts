@@ -122,91 +122,169 @@ export class PermissionMatrixService {
     query: PolicyDirectoryQueryDto
   ): Promise<PrincipalPolicyDirectoryDto> {
     const target = await this.resolveDirectoryTarget(tenantId, query);
-    const membershipWhere = this.principalMembershipWhere(tenantId, target);
-    const searchWhere = query.search
-      ? {
-          OR: [
-            { user: { name: { contains: query.search, mode: "insensitive" as const } } },
-            { user: { email: { contains: query.search, mode: "insensitive" as const } } }
-          ]
-        }
-      : {};
-    const [members, total] = await Promise.all([
-      this.prisma.tenantMember.findMany({
-        where: { ...membershipWhere, ...searchWhere },
-        include: { user: true },
-        orderBy: [{ user: { name: "asc" } }, { id: "asc" }],
-        skip: (query.page - 1) * query.limit,
-        take: query.limit
-      }),
-      this.prisma.tenantMember.count({ where: { ...membershipWhere, ...searchWhere } })
-    ]);
-    const principalIds = members.map((member) => member.userId);
-    const [counts, workspaceBindings, projectBindings] = await Promise.all([
-      principalIds.length
-        ? this.prisma.principalPermissionOverride.groupBy({
-            by: ["principalId"],
-            where: {
-              tenantId,
-              principalId: { in: principalIds },
-              scope: target.scope,
-              resourceId: target.resourceId
-            },
-            _count: { _all: true }
-          })
-        : Promise.resolve([]),
-      target.scope === "workspace" && principalIds.length
-        ? this.prisma.workspaceMember.findMany({
-            where: {
-              workspaceId: target.resourceId,
-              userId: { in: principalIds },
-              isActive: true
-            }
-          })
-        : Promise.resolve([]),
-      target.scope === "project" && principalIds.length
-        ? this.prisma.teamMember.findMany({
-            where: {
-              userId: { in: principalIds },
-              isActive: true,
-              team: { projectId: target.resourceId }
-            }
-          })
-        : Promise.resolve([])
-    ]);
+    const candidates = await this.collectPrincipalCandidates(tenantId, target, query.search);
+    const total = candidates.length;
+    const pageItems = candidates.slice((query.page - 1) * query.limit, query.page * query.limit);
+    const principalIds = pageItems.map((item) => item.userId);
+    const counts = principalIds.length
+      ? await this.prisma.principalPermissionOverride.groupBy({
+          by: ["principalId"],
+          where: {
+            tenantId,
+            principalId: { in: principalIds },
+            scope: target.scope,
+            resourceId: target.resourceId
+          },
+          _count: { _all: true }
+        })
+      : [];
     const countByPrincipal = new Map(counts.map((row) => [row.principalId, row._count._all]));
     return {
-      items: members.map((member) => {
-        const roles: ManagedRole[] = [member.role === "OWNER" ? "TENANT_OWNER" : "TENANT_ADMIN"];
-        const workspaceBinding = workspaceBindings.find(({ userId }) => userId === member.userId);
-        if (workspaceBinding) {
-          roles.push(workspaceBinding.role === "ADMIN" ? "WORKSPACE_ADMIN" : "WORKSPACE_MEMBER");
-        }
-        if (
-          projectBindings.some(
-            ({ userId, role }) => userId === member.userId && role === "PROJECT_MANAGER"
-          )
-        ) {
-          roles.push("PROJECT_MANAGER");
-        }
-        return {
-          target: {
-            type: "PRINCIPAL",
-            principalId: member.userId,
-            ...target
-          },
-          displayName: member.user.name,
-          email: member.user.email,
-          active: member.isActive,
-          roles: [...new Set(roles)],
-          overrideCount: countByPrincipal.get(member.userId) ?? 0
-        };
-      }),
+      items: pageItems.map((item) => ({
+        target: {
+          type: "PRINCIPAL" as const,
+          principalId: item.userId,
+          ...target
+        },
+        displayName: item.displayName,
+        email: item.email,
+        active: item.active,
+        roles: item.roles,
+        overrideCount: countByPrincipal.get(item.userId) ?? 0
+      })),
       page: query.page,
       limit: query.limit,
       total,
-      totalPages: Math.ceil(total / query.limit)
+      totalPages: Math.ceil(total / query.limit) || 0
     };
+  }
+
+  /**
+   * Union org owners/admins with workspace members/admins and project managers so
+   * Member overrides is not limited to tenant_members rows.
+   */
+  private async collectPrincipalCandidates(
+    tenantId: string,
+    target: { scope: ResourceScope; resourceId: string },
+    search?: string
+  ): Promise<
+    Array<{
+      userId: string;
+      displayName: string;
+      email: string;
+      active: boolean;
+      roles: ManagedRole[];
+    }>
+  > {
+    const searchFilter = search
+      ? {
+          OR: [
+            { name: { contains: search, mode: "insensitive" as const } },
+            { email: { contains: search, mode: "insensitive" as const } }
+          ]
+        }
+      : undefined;
+
+    const [tenantMembers, workspaceMembers, projectManagers] = await Promise.all([
+      this.prisma.tenantMember.findMany({
+        where: {
+          tenantId,
+          ...(target.scope === "self" ? { userId: target.resourceId } : {}),
+          ...(searchFilter ? { user: searchFilter } : {})
+        },
+        include: { user: true }
+      }),
+      target.scope === "self"
+        ? Promise.resolve([])
+        : this.prisma.workspaceMember.findMany({
+            where: {
+              isActive: true,
+              ...(target.scope === "workspace"
+                ? { workspaceId: target.resourceId }
+                : target.scope === "project"
+                  ? { workspace: { projects: { some: { id: target.resourceId } } } }
+                  : { workspace: { tenantId } }),
+              ...(searchFilter ? { user: searchFilter } : {})
+            },
+            include: { user: true }
+          }),
+      target.scope === "self"
+        ? Promise.resolve([])
+        : this.prisma.teamMember.findMany({
+            where: {
+              isActive: true,
+              role: "PROJECT_MANAGER",
+              ...(target.scope === "project"
+                ? { team: { projectId: target.resourceId } }
+                : target.scope === "workspace"
+                  ? { team: { project: { workspaceId: target.resourceId } } }
+                  : { team: { project: { workspace: { tenantId } } } }),
+              ...(searchFilter ? { user: searchFilter } : {})
+            },
+            include: { user: true }
+          })
+    ]);
+
+    type Acc = {
+      userId: string;
+      displayName: string;
+      email: string;
+      active: boolean;
+      roleSet: Set<ManagedRole>;
+    };
+    const byUserId = new Map<string, Acc>();
+
+    const ensure = (user: { id: string; name: string; email: string }, active: boolean) => {
+      const existing = byUserId.get(user.id);
+      if (existing) {
+        existing.active = existing.active || active;
+        return existing;
+      }
+      const created: Acc = {
+        userId: user.id,
+        displayName: user.name,
+        email: user.email,
+        active,
+        roleSet: new Set()
+      };
+      byUserId.set(user.id, created);
+      return created;
+    };
+
+    for (const member of tenantMembers) {
+      const entry = ensure(member.user, member.isActive);
+      entry.roleSet.add(member.role === "OWNER" ? "TENANT_OWNER" : "TENANT_ADMIN");
+    }
+    for (const member of workspaceMembers) {
+      const entry = ensure(member.user, member.isActive);
+      entry.roleSet.add(member.role === "ADMIN" ? "WORKSPACE_ADMIN" : "WORKSPACE_MEMBER");
+    }
+    for (const member of projectManagers) {
+      const entry = ensure(member.user, member.isActive);
+      entry.roleSet.add("PROJECT_MANAGER");
+    }
+
+    const roleRank: Record<ManagedRole, number> = {
+      TENANT_OWNER: 0,
+      TENANT_ADMIN: 1,
+      WORKSPACE_ADMIN: 2,
+      PROJECT_MANAGER: 3,
+      WORKSPACE_MEMBER: 4,
+      PLATFORM_SUPERADMIN: 5,
+      PLATFORM_SUPPORT: 6
+    };
+
+    return [...byUserId.values()]
+      .map((entry) => ({
+        userId: entry.userId,
+        displayName: entry.displayName,
+        email: entry.email,
+        active: entry.active,
+        roles: [...entry.roleSet].sort((a, b) => (roleRank[a] ?? 99) - (roleRank[b] ?? 99))
+      }))
+      .sort(
+        (a, b) => a.displayName.localeCompare(b.displayName) || a.userId.localeCompare(b.userId)
+      );
   }
 
   getRolePolicy(tenantId: string, role: ManagedRole, scope: ResourceScope, resourceId: string) {
@@ -443,25 +521,6 @@ export class PermissionMatrixService {
       resourceId
     });
     return { scope, resourceId };
-  }
-
-  private principalMembershipWhere(
-    tenantId: string,
-    target: { scope: ResourceScope; resourceId: string }
-  ) {
-    const where: Record<string, unknown> = { tenantId };
-    if (target.scope === "workspace") {
-      where.user = { memberships: { some: { workspaceId: target.resourceId } } };
-    }
-    if (target.scope === "project") {
-      where.user = {
-        teamMembers: { some: { team: { projectId: target.resourceId }, isActive: true } }
-      };
-    }
-    if (target.scope === "self") {
-      where.userId = target.resourceId;
-    }
-    return where;
   }
 
   private async assertActorCanManage(

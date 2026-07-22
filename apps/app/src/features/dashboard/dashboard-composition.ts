@@ -71,3 +71,21 @@ export function isDashboardWidgetAllowed(
   const required = PERSONAL_WIDGET_PERMISSIONS[widget.id];
   return Boolean(required?.some((permission) => capabilities.includes(permission)));
 }
+
+/** Keep Dashboard/Overview page scopes separate even when the user has both capability sets. */
+export function filterWidgetsForDashboardMode<
+  T extends { id: string; scope: "personal" | "management" }
+>(
+  widgets: readonly T[],
+  options: {
+    capabilities: readonly Permission[];
+    showPersonal: boolean;
+    showManagement: boolean;
+  }
+): T[] {
+  return widgets.filter((widget) => {
+    if (widget.scope === "personal" && !options.showPersonal) return false;
+    if (widget.scope === "management" && !options.showManagement) return false;
+    return isDashboardWidgetAllowed(widget, options.capabilities);
+  });
+}

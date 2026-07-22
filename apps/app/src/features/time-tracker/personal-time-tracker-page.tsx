@@ -1,11 +1,12 @@
 "use client";
 
+import type { TimeLogDto } from "@kloqra/contracts";
 import {
   AppBar,
   AppBarActionButton,
   Badge,
   Button,
-  Card,
+  ConfirmDialog,
   DateRangePicker,
   Input,
   SearchableSelect,
@@ -23,9 +24,14 @@ import {
   useTimelogMutations
 } from "@kloqra/web-shared";
 import { Download, Filter, Plus, Search, Upload } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { formatWeekSectionLabel, groupLogsByWeek } from "./group-logs-by-week";
+import {
+  isTimeEntryInactive,
+  isTimeEntryLocked,
+  LOCKED_ENTRY_MESSAGE
+} from "./entry-approval-status";
+import { buildWeekGroupsForRange } from "./group-logs-by-week";
 import { TimeTrackerExportModal } from "./time-tracker-export-modal";
 import { TimeTrackerFiltersPanel, type BillabilityFilter } from "./time-tracker-filters-panel";
 import { TimeTrackerImportModal } from "./time-tracker-import-modal";
@@ -40,10 +46,12 @@ import {
 } from "./time-tracker-period";
 import { TimeTrackerStatCards } from "./time-tracker-stat-cards";
 import { computeTimeTrackerStats } from "./time-tracker-stats";
+import { formatVisibleWeeksSummary, TimeTrackerWeekList } from "./time-tracker-week-list";
 import { useTimeTrackerLogs } from "./use-time-tracker-logs";
 import { todayInZone, toTimeValueInZone } from "@/features/timesheet/calendar-utils";
 import {
   canSaveTaskDraft,
+  draftFromLog,
   draftFromSlot,
   draftToIsoRange,
   type TimeEntryDraft
@@ -51,7 +59,9 @@ import {
 import { TimeEntryDialog } from "@/features/timesheet/timesheet-lazy";
 import { validateTimeEntryOverlap } from "@/features/timesheet/validate-time-entry-overlap";
 import { useIsImpersonating } from "@/hooks/use-is-impersonating";
+import { colorForTask } from "@/lib/project-color-styles";
 import { useSessionStore } from "@/stores/session.store";
+import { useWorkspacesStore } from "@/stores/workspaces.store";
 
 function browserTimezone() {
   return typeof Intl === "undefined" ? "UTC" : Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -64,6 +74,11 @@ export function PersonalTimeTrackerPage() {
   const { projects, tasks, categories } = useEntryCatalogQueries(workspaceId, {
     enabled: Boolean(workspaceId)
   });
+  const workspaces = useWorkspacesStore((state) => state.workspaces);
+  const workspaceNamesById = useMemo(
+    () => Object.fromEntries(workspaces.map((workspace) => [workspace.id, workspace.name])),
+    [workspaces]
+  );
   const initial = inclusiveDateKeysFromPeriod("this_week", browserTimezone());
   const [period, setPeriod] = useState<TimeTrackerPeriodSelection>("this_week");
   const [from, setFrom] = useState(initial.from);
@@ -78,9 +93,13 @@ export function PersonalTimeTrackerPage() {
   const [exportOpen, setExportOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [entryDialogOpen, setEntryDialogOpen] = useState(false);
+  const [editingLog, setEditingLog] = useState<TimeLogDto | null>(null);
   const [entryDraft, setEntryDraft] = useState<TimeEntryDraft | null>(null);
   const [entrySaving, setEntrySaving] = useState(false);
   const [entryError, setEntryError] = useState<string | null>(null);
+  const [confirmDeleteLog, setConfirmDeleteLog] = useState<TimeLogDto | null>(null);
+  const [weeksPerPage, setWeeksPerPage] = useState(1);
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedSearch(search.trim()), 300);
@@ -126,38 +145,119 @@ export function PersonalTimeTrackerPage() {
   );
   const periodLabel = periodLabelForSelection(period, from, to, timezone);
   const stats = computeTimeTrackerStats(logs, periodLabel, projects, tasks, submissionByKey);
-  const groups = useMemo(
-    () => groupLogsByWeek(logs, timezone, weekStart),
-    [logs, timezone, weekStart]
+  const categoryById = useMemo(
+    () => new Map(categories.map((category) => [category.id, category])),
+    [categories]
   );
   const taskById = useMemo(() => new Map(tasks.map((task) => [task.id, task])), [tasks]);
   const projectById = useMemo(
     () => new Map(projects.map((project) => [project.id, project])),
     [projects]
   );
+
+  const filterResetKey = useMemo(
+    () =>
+      JSON.stringify({
+        from: visibleRange.from.toISOString(),
+        to: visibleRange.to.toISOString(),
+        projectId: projectId === "all" ? "" : projectId,
+        categoryId,
+        taskId,
+        search: debouncedSearch,
+        billableOnly: billability === "billable"
+      }),
+    [visibleRange, projectId, categoryId, taskId, debouncedSearch, billability]
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [filterResetKey]);
+
+  const allWeekGroups = useMemo(
+    () => buildWeekGroupsForRange(from, to, logs, timezone, weekStart),
+    [from, to, logs, timezone, weekStart]
+  );
+  const totalWeekCount = allWeekGroups.length;
+  const totalWeekPages = Math.max(1, Math.ceil(totalWeekCount / weeksPerPage));
+
+  useEffect(() => {
+    if (page > totalWeekPages) setPage(totalWeekPages);
+  }, [page, totalWeekPages]);
+
+  const visibleWeekGroups = useMemo(() => {
+    const start = (page - 1) * weeksPerPage;
+    return allWeekGroups.slice(start, start + weeksPerPage);
+  }, [allWeekGroups, page, weeksPerPage]);
+
+  const weekTotals = useMemo(() => {
+    const map = new Map<string, { totalSec: number; billableSec: number }>();
+    for (const group of allWeekGroups) {
+      map.set(group.weekKey, { totalSec: group.totalSec, billableSec: group.billableSec });
+    }
+    return map;
+  }, [allWeekGroups]);
+
+  const weekRangeSummary = useMemo(
+    () => formatVisibleWeeksSummary(visibleWeekGroups, timezone),
+    [visibleWeekGroups, timezone]
+  );
+
+  const setWeeksPerPageAndResetPage = useCallback((next: number) => {
+    setWeeksPerPage(next);
+    setPage(1);
+  }, []);
+
+  const entryColor = useCallback(
+    (id: string) => colorForTask(id, tasks, projects),
+    [tasks, projects]
+  );
+
+  function isEntryReadOnly(log: TimeLogDto): boolean {
+    const task = taskById.get(log.taskId);
+    const project = task ? projectById.get(task.projectId) : undefined;
+    const category = task?.categoryId ? categoryById.get(task.categoryId) : undefined;
+    return (
+      isTimeEntryLocked(log, project, submissionByKey) ||
+      isTimeEntryInactive(project, task, category)
+    );
+  }
+
   const activeFilterCount =
     Number(Boolean(categoryId)) + Number(Boolean(taskId)) + Number(billability !== "all");
 
+  function openDraft(next: TimeEntryDraft, log: TimeLogDto | null = null) {
+    setEditingLog(log);
+    setEntryDraft(next);
+    setEntryError(null);
+    setEntryDialogOpen(true);
+  }
+
   function openEntryDialog() {
+    if (isImpersonating) return;
     const day = todayInZone(timezone);
     const [zonedHour = "09", zonedMinute = "00"] = toTimeValueInZone(new Date(), timezone).split(
       ":"
     );
     const startHour = Number(zonedHour);
     const startMinute = startHour === 23 ? 0 : Number(zonedMinute) < 30 ? 0 : 30;
-    setEntryDraft(draftFromSlot(day, startHour, startMinute, timezone));
-    setEntryError(null);
-    setEntryDialogOpen(true);
+    openDraft(draftFromSlot(day, startHour, startMinute, timezone));
+  }
+
+  function openEditEntry(log: TimeLogDto) {
+    openDraft(draftFromLog(log, tasks, timezone), log);
   }
 
   function closeEntryDialog() {
     setEntryDialogOpen(false);
+    setEditingLog(null);
     setEntryDraft(null);
     setEntryError(null);
   }
 
   async function saveEntry() {
-    if (isImpersonating || !entryDraft || !canSaveTaskDraft(entryDraft)) {
+    if (isImpersonating) return;
+    if (editingLog && isEntryReadOnly(editingLog)) return;
+    if (!entryDraft || !canSaveTaskDraft(entryDraft)) {
       setEntryError("Select a project and a task.");
       return;
     }
@@ -170,7 +270,8 @@ export function PersonalTimeTrackerPage() {
       workspaceId,
       new Date(startTime),
       new Date(endTime),
-      timezone
+      timezone,
+      editingLog?.id
     );
     if (overlap) {
       setEntryError(overlap);
@@ -180,7 +281,7 @@ export function PersonalTimeTrackerPage() {
     setEntrySaving(true);
     setEntryError(null);
     try {
-      if (entryDraft.recurrence && entryDraft.recurrence !== "none") {
+      if (!editingLog && entryDraft.recurrence && entryDraft.recurrence !== "none") {
         if (!entryDraft.repeatUntil) {
           setEntryError("Please select an end date for the recurrence.");
           return;
@@ -197,19 +298,55 @@ export function PersonalTimeTrackerPage() {
           isBillable: entryDraft.isBillable
         });
       } else {
-        await timelogMutations.create({
+        const body = {
           taskId: entryDraft.taskSelection,
           startTime,
           endTime,
           description: entryDraft.description || undefined,
           isBillable: entryDraft.isBillable
-        });
+        };
+        if (editingLog) {
+          await timelogMutations.update(editingLog.id, body);
+        } else {
+          await timelogMutations.create(body);
+        }
       }
       closeEntryDialog();
-      toast.success("Time entry created!");
+      toast.success(editingLog ? "Time entry updated!" : "Time entry created!");
     } catch (saveError) {
       const message = saveError instanceof Error ? saveError.message : "Could not save entry";
       setEntryError(message);
+      toast.error(message);
+    } finally {
+      setEntrySaving(false);
+    }
+  }
+
+  function deleteEntry(log: TimeLogDto) {
+    if (isImpersonating) return;
+    if (isEntryReadOnly(log)) {
+      toast.error(LOCKED_ENTRY_MESSAGE);
+      return;
+    }
+    setConfirmDeleteLog(log);
+  }
+
+  async function confirmDelete() {
+    if (isImpersonating) return;
+    const target = confirmDeleteLog;
+    setConfirmDeleteLog(null);
+    if (!target) return;
+    if (isEntryReadOnly(target)) {
+      toast.error(LOCKED_ENTRY_MESSAGE);
+      return;
+    }
+    setEntrySaving(true);
+    try {
+      await timelogMutations.remove(target.id);
+      if (editingLog?.id === target.id) closeEntryDialog();
+      toast.success("Time entry deleted!");
+    } catch (deleteError) {
+      const message = deleteError instanceof Error ? deleteError.message : "Could not delete entry";
       toast.error(message);
     } finally {
       setEntrySaving(false);
@@ -330,57 +467,75 @@ export function PersonalTimeTrackerPage() {
       />
       <TimeEntryDialog
         open={entryDialogOpen}
-        title="Log time"
+        title={editingLog ? "Edit time entry" : "Log time"}
         draft={entryDraft}
         projects={projects}
         tasks={tasks}
         categories={categories}
         taskLabel={(id) => tasks.find((task) => task.id === id)?.taskName ?? "Unknown task"}
+        editingLog={editingLog}
         saving={entrySaving}
         error={entryError}
-        readOnly={isImpersonating}
+        readOnly={isImpersonating || (editingLog ? isEntryReadOnly(editingLog) : false)}
         timezone={timezone}
+        workspaceId={workspaceId}
         onClose={closeEntryDialog}
         onDraftChange={setEntryDraft}
         onSave={() => void saveEntry()}
+        onDelete={
+          !isImpersonating && editingLog && !isEntryReadOnly(editingLog)
+            ? () => deleteEntry(editingLog)
+            : undefined
+        }
       />
+      <ConfirmDialog
+        open={Boolean(confirmDeleteLog)}
+        title="Delete time entry?"
+        description="This cannot be undone."
+        confirmLabel="Delete"
+        destructive
+        onConfirm={() => void confirmDelete()}
+        onCancel={() => setConfirmDeleteLog(null)}
+      />
+
       <TimeTrackerStatCards stats={stats} loading={loading || search.trim() !== debouncedSearch} />
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
-      <div className="space-y-4">
-        {groups.length === 0 && !loading ? (
-          <Card className="p-8 text-center text-sm text-muted-foreground">
-            No time entries in this range.
-          </Card>
-        ) : null}
-        {groups.map((group) => (
-          <Card key={group.weekKey} className="overflow-hidden p-0">
-            <div className="border-b bg-muted/20 px-4 py-3">
-              <p className="font-semibold">{formatWeekSectionLabel(group.weekStart, timezone)}</p>
-            </div>
-            {group.logs.map((log) => {
-              const task = taskById.get(log.taskId);
-              const project = task ? projectById.get(task.projectId) : undefined;
-              return (
-                <div
-                  key={log.id}
-                  className="flex items-center justify-between border-b px-4 py-3 last:border-0"
-                >
-                  <div>
-                    <p className="text-sm font-medium">{project?.name ?? "Unknown project"}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {[task?.taskName, log.description].filter(Boolean).join(" · ")}
-                    </p>
-                  </div>
-                  <span className="text-sm tabular-nums">
-                    {(log.durationSec / 3600).toFixed(2)}h
-                  </span>
-                </div>
-              );
-            })}
-          </Card>
-        ))}
-      </div>
+      <TimeTrackerWeekList
+        groups={visibleWeekGroups}
+        weekTotals={weekTotals}
+        tasks={tasks}
+        projects={projects}
+        workspaceNamesById={workspaceNamesById}
+        submissionByKey={submissionByKey}
+        entryColor={entryColor}
+        isEntryLocked={(log) => {
+          const task = taskById.get(log.taskId);
+          const project = task ? projectById.get(task.projectId) : undefined;
+          return isTimeEntryLocked(log, project, submissionByKey);
+        }}
+        isEntryInactive={(log) => {
+          const task = taskById.get(log.taskId);
+          const project = task ? projectById.get(task.projectId) : undefined;
+          const category = task?.categoryId ? categoryById.get(task.categoryId) : undefined;
+          return isTimeEntryInactive(project, task, category);
+        }}
+        onEdit={openEditEntry}
+        onDelete={deleteEntry}
+        timezone={timezone}
+        weekStartPref={weekStart}
+        rangeFrom={from}
+        rangeTo={to}
+        loading={loading || search.trim() !== debouncedSearch}
+        page={page}
+        weeksPerPage={weeksPerPage}
+        onWeeksPerPageChange={setWeeksPerPageAndResetPage}
+        onPageChange={setPage}
+        totalWeekPages={totalWeekPages}
+        totalWeekCount={totalWeekCount}
+        weekRangeSummary={weekRangeSummary}
+        readOnly={isImpersonating}
+      />
     </div>
   );
 }

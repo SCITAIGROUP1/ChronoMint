@@ -1,7 +1,7 @@
 "use client";
 import { Button } from "@kloqra/ui";
 import { RotateCcw, Check, Sparkles, Filter, X } from "lucide-react";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { formatWidgetGroupTabLabel } from "./widget-group-label";
 import {
   ACTIVE_WIDGET_REGISTRY as WIDGET_REGISTRY,
@@ -28,14 +28,29 @@ export function WidgetControlPanel({
   onResetLayout,
   onClose
 }: WidgetControlPanelProps) {
+  const availableScopes = useMemo(() => {
+    const scopes = new Set(widgets.map((widget) => widget.scope));
+    return scopes;
+  }, [widgets]);
+  const showScopeTabs = availableScopes.size > 1;
   const [selectedGroup, setSelectedGroup] = useState<WidgetGroup | "all">("all");
-  const [selectedScope, setSelectedScope] = useState<WidgetScope | "all">("all");
+  const [selectedScope, setSelectedScope] = useState<WidgetScope | "all">(
+    showScopeTabs ? "all" : availableScopes.has("personal") ? "personal" : "management"
+  );
 
   const filteredWidgets = widgets.filter(
     (widget) =>
       (selectedScope === "all" || widget.scope === selectedScope) &&
       (selectedGroup === "all" || widget.group === selectedGroup)
   );
+
+  const scopeOptions = [
+    ...(showScopeTabs ? [{ value: "all" as const, label: "All" }] : []),
+    ...(availableScopes.has("personal") ? [{ value: "personal" as const, label: "My Work" }] : []),
+    ...(availableScopes.has("management")
+      ? [{ value: "management" as const, label: "Management" }]
+      : [])
+  ];
 
   return (
     <>
@@ -73,33 +88,31 @@ export function WidgetControlPanel({
 
         {/* Scope and group selector chips */}
         <div className="space-y-4 border-b border-border/30 bg-muted/20 px-6 py-4 shrink-0">
-          <div>
-            <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Widget scope
+          {showScopeTabs ? (
+            <div>
+              <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Widget scope
+              </div>
+              <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Widget scope">
+                {scopeOptions.map((scope) => (
+                  <button
+                    key={scope.value}
+                    type="button"
+                    role="tab"
+                    aria-selected={selectedScope === scope.value}
+                    onClick={() => setSelectedScope(scope.value)}
+                    className={`rounded-full border px-2.5 py-1 text-[10px] transition-all ${
+                      selectedScope === scope.value
+                        ? "border-primary bg-primary font-medium text-primary-foreground"
+                        : "border-border/60 bg-background text-muted-foreground hover:bg-muted"
+                    }`}
+                  >
+                    {scope.label}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Widget scope">
-              {[
-                { value: "all" as const, label: "All" },
-                { value: "personal" as const, label: "My Work" },
-                { value: "management" as const, label: "Management" }
-              ].map((scope) => (
-                <button
-                  key={scope.value}
-                  type="button"
-                  role="tab"
-                  aria-selected={selectedScope === scope.value}
-                  onClick={() => setSelectedScope(scope.value)}
-                  className={`rounded-full border px-2.5 py-1 text-[10px] transition-all ${
-                    selectedScope === scope.value
-                      ? "border-primary bg-primary font-medium text-primary-foreground"
-                      : "border-border/60 bg-background text-muted-foreground hover:bg-muted"
-                  }`}
-                >
-                  {scope.label}
-                </button>
-              ))}
-            </div>
-          </div>
+          ) : null}
           <div>
             <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
               <Filter className="size-3" />

@@ -292,7 +292,7 @@ export function AdminTimeTrackerPage({
   return (
     <div className="space-y-6">
       <AppBar
-        title="Time Tracker"
+        title="Team Time Tracker"
         description={
           managedProjectIds
             ? "View time entries for members of your managed projects."

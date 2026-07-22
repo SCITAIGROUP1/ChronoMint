@@ -145,8 +145,11 @@ describe("resolveAppShellNav", () => {
     ).toEqual([
       "/dashboard",
       "/projects",
+      "/team-time-tracker",
       "/team",
       "/approvals",
+      "/overview",
+      "/my-projects",
       "/time-tracker",
       "/notifications"
     ]);
@@ -165,12 +168,12 @@ describe("resolveAppShellNav", () => {
 
     expect(flattenNavSections(navSections).map((item) => item.href)).toEqual([
       "/dashboard",
-      "/projects",
       "/tasks",
       "/overview",
       "/timer",
       "/timesheet",
       "/submissions",
+      "/my-projects",
       "/time-tracker",
       "/notifications",
       "/support"
@@ -178,6 +181,10 @@ describe("resolveAppShellNav", () => {
     expect(
       flattenNavSections(navSections).find((item) => item.href === "/notifications")?.badge
     ).toBe(3);
+    expect(flattenNavSections(navSections).some((item) => item.href === "/team-time-tracker")).toBe(
+      false
+    );
+    expect(flattenNavSections(navSections).some((item) => item.href === "/projects")).toBe(false);
   });
 
   it("returns full workspace nav for tenant admin even with member workspace role", () => {
@@ -195,5 +202,21 @@ describe("resolveAppShellNav", () => {
     expect(hrefs).toContain("/team-management");
     expect(hrefs).toContain("/project-managers");
     expect(hrefs).toContain("/workspace");
+  });
+
+  it("gives admins both team and personal time trackers", () => {
+    const { navSections } = resolveAppShellNav({
+      pathname: "/dashboard",
+      projectLeadOnly: false,
+      workspaceNavItems: APP_NAV_ITEMS,
+      pendingCount: 0,
+      notificationUnreadCount: 0,
+      session: undefined,
+      capabilities: getManagedRolePermissions(["WORKSPACE_ADMIN"])
+    });
+
+    const hrefs = flattenNavSections(navSections).map((item) => item.href);
+    expect(hrefs).toContain("/team-time-tracker");
+    expect(hrefs).toContain("/time-tracker");
   });
 });

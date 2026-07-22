@@ -4,11 +4,21 @@ import { PermissionMatrixService } from "./permission-matrix.service";
 
 describe("PermissionMatrixService", () => {
   const tenantMemberFindUnique = vi.fn();
+  const tenantMemberFindMany = vi.fn();
+  const workspaceMemberFindMany = vi.fn();
+  const teamMemberFindMany = vi.fn();
+  const principalOverrideGroupBy = vi.fn();
+  const loadOverrides = vi.fn();
   const document = vi.fn();
   let service: PermissionMatrixService;
 
   beforeEach(() => {
     tenantMemberFindUnique.mockReset();
+    tenantMemberFindMany.mockReset();
+    workspaceMemberFindMany.mockReset();
+    teamMemberFindMany.mockReset();
+    principalOverrideGroupBy.mockReset();
+    loadOverrides.mockReset();
     document.mockReset();
     document.mockImplementation(
       async (_tenantId: string, target: { type: string; role?: string }) => ({
@@ -30,14 +40,27 @@ describe("PermissionMatrixService", () => {
         }))
       })
     );
+    loadOverrides.mockResolvedValue(undefined);
+    principalOverrideGroupBy.mockResolvedValue([]);
     service = new PermissionMatrixService(
       {
         tenantMember: {
-          findUnique: tenantMemberFindUnique
+          findUnique: tenantMemberFindUnique,
+          findMany: tenantMemberFindMany
+        },
+        workspaceMember: {
+          findMany: workspaceMemberFindMany
+        },
+        teamMember: {
+          findMany: teamMemberFindMany
+        },
+        principalPermissionOverride: {
+          groupBy: principalOverrideGroupBy
         }
       } as never,
       {
-        document
+        document,
+        loadOverrides
       } as never
     );
   });
@@ -108,5 +131,85 @@ describe("PermissionMatrixService", () => {
     await expect(
       service.getMemberPermissions("tenant-permission-test", "other-member")
     ).rejects.toThrow("Organization member not found");
+  });
+
+  it("lists workspace admins, members, and project managers alongside tenant admins", async () => {
+    tenantMemberFindMany.mockResolvedValue([
+      {
+        userId: "owner-1",
+        role: "OWNER",
+        isActive: true,
+        user: { id: "owner-1", name: "Avery Owner", email: "avery@example.com" }
+      }
+    ]);
+    workspaceMemberFindMany.mockResolvedValue([
+      {
+        userId: "wa-1",
+        role: "ADMIN",
+        isActive: true,
+        user: { id: "wa-1", name: "Casey Admin", email: "casey@example.com" }
+      },
+      {
+        userId: "wm-1",
+        role: "MEMBER",
+        isActive: true,
+        user: { id: "wm-1", name: "Sam Member", email: "sam@example.com" }
+      }
+    ]);
+    teamMemberFindMany.mockResolvedValue([
+      {
+        userId: "pm-1",
+        role: "PROJECT_MANAGER",
+        isActive: true,
+        user: { id: "pm-1", name: "Alex PM", email: "alex@example.com" }
+      }
+    ]);
+
+    const result = await service.listPrincipalPolicies("tenant-1", { page: 1, limit: 25 });
+
+    expect(result.total).toBe(4);
+    expect(result.items.map((item) => item.displayName)).toEqual([
+      "Alex PM",
+      "Avery Owner",
+      "Casey Admin",
+      "Sam Member"
+    ]);
+    expect(result.items.find((item) => item.displayName === "Casey Admin")?.roles).toEqual([
+      "WORKSPACE_ADMIN"
+    ]);
+    expect(result.items.find((item) => item.displayName === "Alex PM")?.roles).toEqual([
+      "PROJECT_MANAGER"
+    ]);
+    expect(result.items.find((item) => item.displayName === "Sam Member")?.roles).toEqual([
+      "WORKSPACE_MEMBER"
+    ]);
+    expect(result.items.find((item) => item.displayName === "Avery Owner")?.roles).toEqual([
+      "TENANT_OWNER"
+    ]);
+  });
+
+  it("merges roles when the same person has tenant and workspace bindings", async () => {
+    tenantMemberFindMany.mockResolvedValue([
+      {
+        userId: "dual-1",
+        role: "ADMIN",
+        isActive: true,
+        user: { id: "dual-1", name: "Morgan Dual", email: "morgan@example.com" }
+      }
+    ]);
+    workspaceMemberFindMany.mockResolvedValue([
+      {
+        userId: "dual-1",
+        role: "ADMIN",
+        isActive: true,
+        user: { id: "dual-1", name: "Morgan Dual", email: "morgan@example.com" }
+      }
+    ]);
+    teamMemberFindMany.mockResolvedValue([]);
+
+    const result = await service.listPrincipalPolicies("tenant-1", { page: 1, limit: 25 });
+
+    expect(result.total).toBe(1);
+    expect(result.items[0]?.roles).toEqual(["TENANT_ADMIN", "WORKSPACE_ADMIN"]);
   });
 });

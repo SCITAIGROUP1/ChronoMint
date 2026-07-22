@@ -21,9 +21,20 @@ export const shellSidebarExpandedWidthClass = "w-[14rem] xl:w-[17rem]";
 
 export const shellSidebarCollapsedInsetClass = "px-2";
 
-export const shellSidebarScrollClass = `flex flex-1 flex-col overflow-y-auto ${shellInsetXClass} ${shellHeaderBandYClass} transition-all duration-300`;
+/** Sticky brand + context; only nav scrolls below. */
+export const shellSidebarHeaderClass = `flex shrink-0 flex-col gap-5 ${shellInsetXClass} pt-4 lg:pt-5 transition-all duration-300`;
 
-export const shellSidebarScrollCollapsedClass = `flex flex-1 flex-col items-center overflow-y-auto ${shellSidebarCollapsedInsetClass} py-4 transition-all duration-300`;
+export const shellSidebarHeaderCollapsedClass = `flex shrink-0 flex-col items-center gap-5 ${shellSidebarCollapsedInsetClass} pt-4 transition-all duration-300`;
+
+export const shellSidebarNavScrollClass = `flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain ${shellInsetXClass} pt-5 pb-4 transition-all duration-300`;
+
+export const shellSidebarNavScrollCollapsedClass = `flex min-h-0 flex-1 flex-col items-center overflow-y-auto overscroll-y-contain ${shellSidebarCollapsedInsetClass} pt-5 pb-3 transition-all duration-300`;
+
+/** @deprecated Prefer shellSidebarHeaderClass + shellSidebarNavScrollClass */
+export const shellSidebarScrollClass = shellSidebarNavScrollClass;
+
+/** @deprecated Prefer shellSidebarHeaderCollapsedClass + shellSidebarNavScrollCollapsedClass */
+export const shellSidebarScrollCollapsedClass = shellSidebarNavScrollCollapsedClass;
 
 export const shellSidebarFooterClass = `shrink-0 border-t border-border/70 bg-card ${shellInsetXClass} py-4 transition-all duration-300`;
 

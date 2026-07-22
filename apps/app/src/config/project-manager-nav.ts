@@ -5,6 +5,9 @@ const LEAD_ALLOWED_HREFS = new Set([
   "/dashboard",
   "/projects",
   "/approvals",
+  "/team-time-tracker",
+  "/overview",
+  "/my-projects",
   "/time-tracker",
   "/team",
   "/notifications"

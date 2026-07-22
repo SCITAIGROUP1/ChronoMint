@@ -2,6 +2,7 @@ import type { TimeLogDto } from "@kloqra/contracts";
 import { describe, expect, it } from "vitest";
 import {
   buildWeekDayTabs,
+  buildWeekGroupsForRange,
   formatDayTabLabel,
   formatHoursCompact,
   formatHoursDecimal,
@@ -125,6 +126,23 @@ describe("buildWeekDayTabs", () => {
 
     expect(days).toHaveLength(3);
     expect(days.map((day) => day.dayKey)).toEqual(["2026-06-16", "2026-06-17", "2026-06-18"]);
+  });
+});
+
+describe("buildWeekGroupsForRange", () => {
+  it("builds empty week shells across the selected range", () => {
+    const weeks = buildWeekGroupsForRange(
+      "2026-06-15",
+      "2026-06-28",
+      [log({ id: "a", startTime: "2026-06-16T10:00:00.000Z", durationSec: 3600 })],
+      "UTC",
+      "monday"
+    );
+
+    expect(weeks).toHaveLength(2);
+    expect(weeks.map((week) => week.weekKey)).toEqual(["2026-06-22", "2026-06-15"]);
+    expect(weeks[1]?.totalSec).toBe(3600);
+    expect(weeks[0]?.totalSec).toBe(0);
   });
 });
 

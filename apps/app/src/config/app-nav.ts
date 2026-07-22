@@ -36,7 +36,10 @@ export type AppNavItem = {
   section: AppNavSection;
   tourId?: string;
   keywords?: readonly string[];
+  /** Single required capability (AND with visibility). */
   requiredCapability?: Permission;
+  /** If set, user needs at least one of these capabilities. */
+  requiredAnyCapabilities?: readonly Permission[];
 };
 
 export const APP_NAV_ITEMS: readonly AppNavItem[] = [
@@ -78,13 +81,30 @@ export const APP_NAV_ITEMS: readonly AppNavItem[] = [
     requiredCapability: "personal:SubmitTimesheets"
   },
   {
+    href: "/my-projects",
+    label: "My Projects",
+    Icon: FolderKanban,
+    section: "my-time",
+    keywords: ["assigned projects", "my work"],
+    requiredCapability: "personal:ListProjects"
+  },
+  {
+    href: "/time-tracker",
+    label: "Time Tracker",
+    Icon: Clock,
+    section: "my-time",
+    tourId: "nav-time-tracker",
+    keywords: ["timelogs", "hours", "import", "export", "entry"],
+    requiredCapability: "personal:ManageTimelogs"
+  },
+  {
     href: "/projects",
     label: "Projects",
     Icon: FolderKanban,
     section: "workspace",
     tourId: "nav-projects",
     keywords: ["clients"],
-    requiredCapability: "workspace:ListProjects"
+    requiredAnyCapabilities: ["workspace:CreateProject", "project:Read"]
   },
   {
     href: "/tasks",
@@ -94,13 +114,12 @@ export const APP_NAV_ITEMS: readonly AppNavItem[] = [
     requiredCapability: "personal:ListProjects"
   },
   {
-    href: "/time-tracker",
-    label: "Time Tracker",
+    href: "/team-time-tracker",
+    label: "Team Time Tracker",
     Icon: Clock,
-    section: "my-time",
-    tourId: "nav-time-tracker",
-    keywords: ["timelogs", "hours"],
-    requiredCapability: "personal:ManageTimelogs"
+    section: "workspace",
+    keywords: ["team timelogs", "member hours", "admin time"],
+    requiredAnyCapabilities: ["workspace:ReadReports", "project:ReadReports"]
   },
   {
     href: "/notifications",
@@ -188,5 +207,10 @@ export function filterNavByCapabilities(
   capabilities: readonly Permission[]
 ): AppNavItem[] {
   const allowed = new Set(capabilities);
-  return items.filter((item) => !item.requiredCapability || allowed.has(item.requiredCapability));
+  return items.filter((item) => {
+    if (item.requiredAnyCapabilities?.length) {
+      return item.requiredAnyCapabilities.some((capability) => allowed.has(capability));
+    }
+    return !item.requiredCapability || allowed.has(item.requiredCapability);
+  });
 }

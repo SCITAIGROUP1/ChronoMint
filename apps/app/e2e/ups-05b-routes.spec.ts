@@ -15,5 +15,11 @@ test.describe("UPS-05B unified work routes", () => {
     await expect(
       page.getByRole("heading", { name: /time tracker|timesheet/i }).first()
     ).toBeVisible();
+
+    await page.goto("/team-time-tracker");
+    await expect(page).toHaveURL(/\/team-time-tracker$/);
+    await expect(
+      page.getByRole("heading", { name: "Team Time Tracker", exact: true })
+    ).toBeVisible();
   });
 });

@@ -48,6 +48,49 @@ export const listTasksQuerySchema = listPaginationQuerySchema.extend({
 
 export const listTasksResponseSchema = createPaginatedListResponseSchema(taskListItemSchema);
 
+export const TASK_IMPORT_MAX_ROWS = 500;
+
+export const TASK_IMPORT_COLUMNS = ["project", "category", "task", "billable", "active"] as const;
+
+export const TASK_IMPORT_COLUMN_LABELS: Record<(typeof TASK_IMPORT_COLUMNS)[number], string> = {
+  project: "Project",
+  category: "Category",
+  task: "Task",
+  billable: "Billable",
+  active: "Active"
+};
+
+/** Bulk import rows always create common tasks (no assignees). */
+export const taskImportRowSchema = z.object({
+  project: z.string().trim().min(1).max(200),
+  category: z.string().trim().min(1).max(120),
+  task: z.string().trim().min(1).max(200),
+  billable: z
+    .union([z.boolean(), z.enum(["true", "false", "yes", "no", "1", "0", "TRUE", "FALSE"])])
+    .optional(),
+  active: z
+    .union([z.boolean(), z.enum(["true", "false", "yes", "no", "1", "0", "TRUE", "FALSE"])])
+    .optional()
+});
+
+export const taskImportFailedRowSchema = z.object({
+  row: z.number().int().positive(),
+  reason: z.string().min(1)
+});
+
+export const taskImportResponseSchema = z.object({
+  created: z.number().int().nonnegative(),
+  skipped: z.number().int().nonnegative().default(0),
+  failed: z.array(taskImportFailedRowSchema)
+});
+
+export const exportTasksQuerySchema = z.object({
+  format: z.enum(["csv", "xlsx"]).default("xlsx"),
+  projectId: queryUuidArraySchema,
+  search: z.string().trim().max(200).optional(),
+  isActive: z.coerce.boolean().optional()
+});
+
 export type TaskAssigneeDto = z.infer<typeof taskAssigneeSchema>;
 export type TaskDto = z.infer<typeof taskSchema>;
 export type TaskListItemDto = z.infer<typeof taskListItemSchema>;
@@ -55,3 +98,6 @@ export type CreateTaskDto = z.infer<typeof createTaskSchema>;
 export type UpdateTaskDto = z.infer<typeof updateTaskSchema>;
 export type ListTasksQuery = z.infer<typeof listTasksQuerySchema>;
 export type ListTasksResponse = z.infer<typeof listTasksResponseSchema>;
+export type TaskImportRowDto = z.infer<typeof taskImportRowSchema>;
+export type TaskImportResponseDto = z.infer<typeof taskImportResponseSchema>;
+export type ExportTasksQuery = z.infer<typeof exportTasksQuerySchema>;

@@ -29,6 +29,7 @@ import {
 import { usePaginatedList } from "@kloqra/web-shared";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { myProjectDetailHref } from "@/features/projects/member-project-detail-nav";
 import { getWorkspaceId, useSessionStore } from "@/stores/session.store";
 
 export function PersonalProjectsPage() {
@@ -123,7 +124,7 @@ export function PersonalProjectsPage() {
                   <TableRow key={project.id} className={entityRowClassName(project.isActive)}>
                     <DataTableCell>
                       <Link
-                        href={`/projects/${project.id}/overview`}
+                        href={myProjectDetailHref(project.id)}
                         className="font-medium text-primary hover:underline"
                       >
                         <ProjectNameWithColor

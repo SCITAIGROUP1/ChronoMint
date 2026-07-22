@@ -34,8 +34,12 @@ export function resolveProjectsExperience(session: AuthSessionDto): UnifiedRoute
 
 export function resolveProjectDetailExperience(
   session: AuthSessionDto,
-  projectId: string
+  projectId: string,
+  options?: { forcePersonal?: boolean }
 ): UnifiedRouteExperience {
+  /** Opened from My Projects — always the personal (member) surface, even for admins. */
+  if (options?.forcePersonal) return experience("personal");
+
   if (sessionCan(session, "workspace:UpdateProject")) return experience("workspace");
   if (
     sessionCan(session, "project:Read") &&

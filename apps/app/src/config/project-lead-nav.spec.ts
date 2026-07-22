@@ -7,6 +7,10 @@ describe("projectLeadNavItems", () => {
     const hrefs = projectLeadNavItems().map((item) => item.href);
     expect(hrefs).toContain("/dashboard");
     expect(hrefs).toContain("/approvals");
+    expect(hrefs).toContain("/projects");
+    expect(hrefs).toContain("/my-projects");
+    expect(hrefs).toContain("/team-time-tracker");
+    expect(hrefs).toContain("/time-tracker");
     expect(hrefs).not.toContain("/exports");
     expect(hrefs).not.toContain("/team-management");
     expect(hrefs).not.toContain("/billing");

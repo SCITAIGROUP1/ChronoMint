@@ -31,7 +31,7 @@ Avoid **ADMINISTRATION** (heavy) and **MY TIMELOGS** (too narrow — timer/times
 | Workspace sidebar | **Workspace** | **My time** | **Support** (Support only, or leave ungrouped at bottom) |
 | Account sidebar | **Organization** | **Access** | **Billing & data** |
 | Settings aside | **Preferences** | **Security** | — |
-| Notification prefs | **Work** | **Time** | **Account** |
+| Notification prefs | **Workspace** (admin) | **My time** (member) | — |
 
 Why these:
 - **Workspace** = manage the space (people, projects, approvals, exports).
@@ -104,8 +104,8 @@ type SidebarNavSection = {
    - Shared component pattern: optional `section` on each `SettingsNavItem`, render group labels like the sidebar.
 
 3. **Notification preference rows** ([`notifications-section.tsx`](packages/web-shared/src/features/account/settings/sections/notifications-section.tsx))
-   - Group rows under **Work** (assignments, workspace access), **Time** (timesheet reminders/status, timer), **Account** (security/export/billing-related keys as applicable by variant).
-   - Visual headings only; no new preference keys.
+   - Group rows under **Workspace** (admin keys: approvals, team changes, missing timesheets, exports, budget) and **My time** (member keys: assignments, timesheet reminders/status, idle timer, role changes).
+   - Visual headings only; no new preference keys. Audience split matches the sidebar IA.
 
 4. **Additional surfaces that fit the same grouping** (decide include-now vs later)
 

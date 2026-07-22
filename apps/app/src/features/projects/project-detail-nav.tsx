@@ -33,9 +33,44 @@ export function buildProjectDetailNavItems(
   }));
 }
 
-/** Default landing route when opening a project from the workspace list. */
-export function projectListHref(projectId: string): string {
-  return `/projects/${projectId}/overview`;
+export type ProjectListSource = "my-projects" | "projects";
+
+const FROM_QUERY = "from";
+
+/** Default landing route when opening a project from a list. */
+export function projectListHref(
+  projectId: string,
+  options: { from?: ProjectListSource } = {}
+): string {
+  return projectDetailSectionHref(projectId, "overview", options.from);
+}
+
+export function projectDetailSectionHref(
+  projectId: string,
+  section: ProjectDetailSectionId,
+  from?: ProjectListSource | null
+): string {
+  const base = `/projects/${projectId}/${section}`;
+  return from === "my-projects" ? `${base}?${FROM_QUERY}=my-projects` : base;
+}
+
+export function resolveProjectListSource(
+  fromParam: string | null | undefined,
+  fallback: ProjectListSource = "projects"
+): ProjectListSource {
+  return fromParam === "my-projects" ? "my-projects" : fallback;
+}
+
+export function isMyProjectsListSource(source: ProjectListSource): boolean {
+  return source === "my-projects";
+}
+
+export function projectsListBackHref(source: ProjectListSource): string {
+  return source === "my-projects" ? "/my-projects" : "/projects";
+}
+
+export function projectsListBackLabel(source: ProjectListSource): string {
+  return source === "my-projects" ? "My Projects" : "Projects";
 }
 
 export function resolveProjectDetailSection(pathname: string): ProjectDetailSectionId {
@@ -47,21 +82,27 @@ export function resolveProjectDetailSection(pathname: string): ProjectDetailSect
 
 export function ProjectDetailNav({
   projectId,
-  items = buildProjectDetailNavItems(projectId),
-  includeSettings = true
+  items,
+  includeSettings = true,
+  listSource = "projects"
 }: {
   projectId: string;
   items?: ProjectDetailNavItem[];
   includeSettings?: boolean;
+  listSource?: ProjectListSource;
 }) {
   const pathname = usePathname();
   const active = resolveProjectDetailSection(pathname);
-  const visibleItems = includeSettings ? items : items.filter((item) => item.id !== "settings");
+  const navItems = items ?? buildProjectDetailNavItems(projectId, { includeSettings });
+  const visibleItems = includeSettings
+    ? navItems
+    : navItems.filter((item) => item.id !== "settings");
 
   return (
     <nav className="flex flex-col gap-1" aria-label="Project sections">
-      {visibleItems.map(({ id, label, icon: Icon, href }) => {
+      {visibleItems.map(({ id, label, icon: Icon }) => {
         const isActive = active === id;
+        const href = projectDetailSectionHref(projectId, id, listSource);
         return (
           <Link
             key={id}
