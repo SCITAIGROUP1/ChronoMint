@@ -22,6 +22,9 @@ describe("WorkspaceService", () => {
   };
   let mockQueue: any;
   let mockPlanLimit: any;
+  let mockRoleGrantPolicy: { assertWorkspaceRoleGrant: ReturnType<typeof vi.fn> };
+  let mockRoleGrantAudit: { record: ReturnType<typeof vi.fn> };
+  let mockAuthRevocation: { revokeUser: ReturnType<typeof vi.fn> };
 
   const workspaceId = "ws-1";
   const inviterId = "admin-1";
@@ -36,7 +39,7 @@ describe("WorkspaceService", () => {
       $transaction: vi.fn().mockImplementation((cb) => cb(mockPrisma)),
       $queryRaw: vi.fn().mockResolvedValue([1]),
       workspace: {
-        findUnique: vi.fn(),
+        findUnique: vi.fn().mockResolvedValue({ id: workspaceId, tenantId: "t-1", name: "Kloqra" }),
         findFirst: vi.fn(),
         create: vi.fn()
       },
@@ -77,14 +80,23 @@ describe("WorkspaceService", () => {
       isConfigured: true
     } as unknown as MemberProvisioningMailer;
     mockQueue = {
-      add: vi.fn().mockResolvedValue({ id: "job-1" })
+      add: vi.fn().mockResolvedValue({ id: "job-1" }),
+      getJob: vi.fn()
     };
     mockPlanLimit = {
       assertWorkspaceCreateAllowed: vi.fn().mockResolvedValue(undefined),
       assertSeatsForEmails: vi.fn().mockResolvedValue(undefined)
     };
+    mockRoleGrantPolicy = {
+      assertWorkspaceRoleGrant: vi.fn().mockResolvedValue(undefined)
+    };
+    mockRoleGrantAudit = { record: vi.fn().mockResolvedValue(undefined) };
+    mockAuthRevocation = { revokeUser: vi.fn().mockResolvedValue(undefined) };
     const mockProjectAccess = {
       managedProjectIds: vi.fn().mockResolvedValue([])
+    };
+    const mockAuthorization = {
+      evaluate: vi.fn().mockResolvedValue({ allowed: true })
     };
     service = new WorkspaceService(
       mockPrisma,
@@ -99,6 +111,10 @@ describe("WorkspaceService", () => {
       } as never,
       mockPlanLimit,
       mockProjectAccess as never,
+      mockRoleGrantPolicy as never,
+      mockRoleGrantAudit as never,
+      mockAuthRevocation as never,
+      mockAuthorization as never,
       mockQueue as any
     );
   });
@@ -429,12 +445,33 @@ describe("WorkspaceService", () => {
       isActive: true,
       user: { name: "Member User", email: "member@kloqra.dev" }
     });
-    mockPrisma.workspace.findUnique.mockResolvedValue({ name: "Kloqra" });
+    mockPrisma.workspace.findUnique.mockResolvedValue({ name: "Kloqra", tenantId: "t-1" });
     mockPrisma.user.findUnique.mockResolvedValue({ name: "Admin User" });
 
     const result = await service.updateMember(workspaceId, "m2", { role: "ADMIN" }, "u1");
 
     expect(result.role).toBe("ADMIN");
+    expect(mockRoleGrantPolicy.assertWorkspaceRoleGrant).toHaveBeenCalledWith(
+      {
+        actorId: "u1",
+        targetUserId: "u2",
+        tenantId: "t-1",
+        workspaceId,
+        currentRole: "MEMBER",
+        requestedRole: "ADMIN"
+      },
+      mockPrisma
+    );
+    expect(mockRoleGrantAudit.record).toHaveBeenCalledWith(
+      mockPrisma,
+      expect.objectContaining({
+        actorUserId: "u1",
+        targetUserId: "u2",
+        role: "WORKSPACE_ADMIN",
+        outcome: "GRANTED"
+      })
+    );
+    expect(mockAuthRevocation.revokeUser).toHaveBeenCalledWith("u2");
     expect(mockNotificationsDispatch.notify).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: "u2",
@@ -687,6 +724,48 @@ describe("WorkspaceService", () => {
     it("throws if workspace not found", async () => {
       mockPrisma.workspace.findUnique.mockResolvedValue(null);
       await expect(service.bulkInvite(workspaceId, [], inviterId)).rejects.toThrow(DomainException);
+    });
+
+    it("returns completed bulk job status with email counters", async () => {
+      mockQueue.getJob.mockResolvedValue({
+        data: { workspaceId },
+        getState: vi.fn().mockResolvedValue("completed"),
+        returnvalue: {
+          successCount: 2,
+          skippedCount: 1,
+          projectAddedCount: 0,
+          totalProcessed: 3,
+          emailQueuedCount: 2,
+          credentialsResentCount: 1,
+          emailFailedCount: 0
+        }
+      });
+
+      await expect(service.getBulkInviteJobStatus(workspaceId, "job-1")).resolves.toEqual({
+        jobId: "job-1",
+        status: "completed",
+        result: {
+          successCount: 2,
+          skippedCount: 1,
+          projectAddedCount: 0,
+          totalProcessed: 3,
+          emailQueuedCount: 2,
+          credentialsResentCount: 1,
+          emailFailedCount: 0
+        }
+      });
+    });
+
+    it("rejects project bulk jobs when polling workspace status", async () => {
+      mockQueue.getJob.mockResolvedValue({
+        data: { workspaceId, projectId: "p-1" },
+        getState: vi.fn().mockResolvedValue("completed"),
+        returnvalue: {}
+      });
+
+      await expect(service.getBulkInviteJobStatus(workspaceId, "job-1")).rejects.toMatchObject({
+        code: ErrorCodes.NOT_FOUND
+      });
     });
   });
 });

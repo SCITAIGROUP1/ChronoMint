@@ -6,17 +6,9 @@ import { DomainException } from "../errors/domain.exception";
 export function getAllowedFrontendOrigins(): string[] {
   const customOrigins: string[] = [];
 
-  if (process.env.PUBLIC_CLIENT_URL) {
+  if (process.env.PUBLIC_APP_URL) {
     customOrigins.push(
-      ...process.env.PUBLIC_CLIENT_URL.split(",")
-        .map((v) => v.trim())
-        .filter(Boolean)
-    );
-  }
-
-  if (process.env.PUBLIC_ADMIN_URL) {
-    customOrigins.push(
-      ...process.env.PUBLIC_ADMIN_URL.split(",")
+      ...process.env.PUBLIC_APP_URL.split(",")
         .map((v) => v.trim())
         .filter(Boolean)
     );
@@ -42,11 +34,17 @@ export function getAllowedFrontendOrigins(): string[] {
   ];
 }
 
-/** Matches CORS policy — explicit dedicated URLs list plus *.vercel.app previews. */
+/** Matches CORS policy. Production always requires an explicitly configured exact origin. */
 export function isAllowedBrowserOrigin(origin: string | undefined): boolean {
   if (!origin) return true;
   const allowed = getAllowedFrontendOrigins();
   if (allowed.includes(origin)) return true;
+  if (
+    process.env.NODE_ENV === "production" ||
+    process.env.ALLOW_VERCEL_PREVIEW_ORIGINS !== "true"
+  ) {
+    return false;
+  }
   try {
     return new URL(origin).hostname.endsWith(".vercel.app");
   } catch {

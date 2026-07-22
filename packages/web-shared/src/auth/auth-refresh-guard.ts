@@ -59,7 +59,7 @@ export function scheduleAuthRefreshRetry(run: () => void, onExhausted: () => voi
   }, REFRESH_RETRY_MS);
 }
 
-// Platform scope uses separate retry state so tenant/admin refresh is unaffected.
+// Platform scope uses separate retry state so product refresh is unaffected.
 let platformRefreshRetryTimer: number | null = null;
 let platformRefreshRetryCount = 0;
 

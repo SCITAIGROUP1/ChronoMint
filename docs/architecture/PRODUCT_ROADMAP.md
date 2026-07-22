@@ -4,12 +4,16 @@
 
 Product features beyond the core timer/timesheet loop. Shipped features link to specs under `docs/specs/`.
 
+> **Current-state note (July 2026):** The feature table preserves original capability provenance.
+> All customer capabilities now ship in `apps/app` with auth scope `app`; the Client/Admin columns
+> are historical labels, not separate applications. Platform operations remain isolated.
+
 ## Role model (reminder)
 
-| App                        | Audience           | Purpose                                                |
-| -------------------------- | ------------------ | ------------------------------------------------------ |
-| **Client** (`apps/client`) | Workspace `MEMBER` | Log time on assigned project teams                     |
-| **Admin** (`apps/admin`)   | Workspace `ADMIN`  | Operate the org: projects, billing, analytics, exports |
+| Product surface          | Audience                                     | Purpose                                               |
+| ------------------------ | -------------------------------------------- | ----------------------------------------------------- |
+| **Product** (`apps/app`) | Members, PMs, workspace and tenant operators | Personal work plus authorized management capabilities |
+| **Platform admin**       | Internal platform operators                  | Isolated tenant/fleet operations                      |
 
 See [DOMAIN_MODEL.md](./DOMAIN_MODEL.md) for workspace vs project team boundaries.
 
@@ -70,7 +74,7 @@ Larger surface area; defer until B/C are stable.
 
 ---
 
-## Client app (`apps/client`) — planned features
+## Personal member experience — planned features
 
 | Feature                | Priority | Notes                                                               |
 | ---------------------- | -------- | ------------------------------------------------------------------- |
@@ -84,7 +88,7 @@ Larger surface area; defer until B/C are stable.
 
 ---
 
-## Admin app (`apps/admin`) — planned features
+## Management experience — planned features
 
 | Feature                | Priority  | Notes                                                                          |
 | ---------------------- | --------- | ------------------------------------------------------------------------------ |

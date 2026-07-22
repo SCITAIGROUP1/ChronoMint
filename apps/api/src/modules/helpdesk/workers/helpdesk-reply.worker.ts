@@ -1,11 +1,13 @@
 import { Processor, WorkerHost } from "@nestjs/bullmq";
 import { Logger } from "@nestjs/common";
 import { Job } from "bullmq";
+import { AuthorizationEnforcementService } from "../../../common/access/authorization-enforcement.service";
 import { MailerService } from "../../../common/mailer/mailer.service";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { QUEUES } from "../../../common/queues";
 
 export interface ReplyEmailJob {
+  actorPlatformUserId: string;
   ticketId: string;
   messageId: string;
   toEmail: string;
@@ -22,7 +24,8 @@ export class HelpdeskReplyWorker extends WorkerHost {
 
   constructor(
     private readonly mailerService: MailerService,
-    private readonly prisma: PrismaService
+    private readonly prisma: PrismaService,
+    private readonly authorization: AuthorizationEnforcementService
   ) {
     super();
   }
@@ -31,6 +34,11 @@ export class HelpdeskReplyWorker extends WorkerHost {
     this.logger.log(`Processing reply job ${job.id} for ticket: ${job.data.ticketId}`);
 
     try {
+      await this.authorization.assertAllowed({
+        principalId: job.data.actorPlatformUserId,
+        permission: "platform:ManageSupportTickets",
+        resource: { scope: "platform" }
+      });
       const {
         ticketId,
         messageId,

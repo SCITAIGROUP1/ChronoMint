@@ -28,7 +28,9 @@ import {
   CurrentPlatformUser,
   type PlatformRequestUser
 } from "../../../../common/decorators/current-platform-user.decorator";
-import { PlatformGuard } from "../../../../common/guards/platform.guard";
+import { RequirePermission } from "../../../../common/decorators/require-permission.decorator";
+import { PermissionGuard } from "../../../../common/guards/permission.guard";
+import { PlatformJwtAuthGuard } from "../../../../common/guards/platform-jwt-auth.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
 import { platformAuditContextFromRequest } from "../../application/platform-audit-context.util";
 import { PlatformAuditService } from "../../application/platform-audit.service";
@@ -37,7 +39,7 @@ import { PlatformUsersSessionsService } from "../../application/platform-users-s
 import { PlatformUsersService } from "../../application/platform-users.service";
 
 @Controller()
-@UseGuards(PlatformGuard)
+@UseGuards(PlatformJwtAuthGuard, PermissionGuard)
 export class PlatformUsersController {
   constructor(
     private users: PlatformUsersService,
@@ -47,11 +49,13 @@ export class PlatformUsersController {
   ) {}
 
   @Get(ROUTES.PLATFORM.ME)
+  @RequirePermission("platform:ManageOwnProfile", { scope: "platform" })
   getMe(@CurrentPlatformUser() user: PlatformRequestUser) {
     return this.users.getProfile(user.platformUserId);
   }
 
   @Patch(ROUTES.PLATFORM.ME)
+  @RequirePermission("platform:ManageOwnProfile", { scope: "platform" })
   updateMe(
     @CurrentPlatformUser() user: PlatformRequestUser,
     @Body(new ZodValidationPipe(updatePlatformUserProfileSchema)) body: unknown
@@ -63,6 +67,7 @@ export class PlatformUsersController {
   }
 
   @Patch(ROUTES.PLATFORM.ME_PREFERENCES)
+  @RequirePermission("platform:ManageOwnProfile", { scope: "platform" })
   updatePreferences(
     @CurrentPlatformUser() user: PlatformRequestUser,
     @Body(new ZodValidationPipe(updatePlatformPreferencesSchema)) body: unknown
@@ -74,6 +79,7 @@ export class PlatformUsersController {
   }
 
   @Get(ROUTES.PLATFORM.ME_DASHBOARD_LAYOUT)
+  @RequirePermission("platform:ManageOwnProfile", { scope: "platform" })
   getDashboardLayout(
     @CurrentPlatformUser() user: PlatformRequestUser,
     @Query(new ZodValidationPipe(dashboardLayoutQuerySchema)) _query: { app: "platform" }
@@ -82,6 +88,7 @@ export class PlatformUsersController {
   }
 
   @Put(ROUTES.PLATFORM.ME_DASHBOARD_LAYOUT)
+  @RequirePermission("platform:ManageOwnProfile", { scope: "platform" })
   updateDashboardLayout(
     @CurrentPlatformUser() user: PlatformRequestUser,
     @Body(new ZodValidationPipe(updateDashboardLayoutSchema)) body: unknown
@@ -94,6 +101,7 @@ export class PlatformUsersController {
 
   @Throttle({ auth: { limit: 5, ttl: 60_000 } })
   @Post(ROUTES.PLATFORM.ME_PASSWORD)
+  @RequirePermission("platform:ManageOwnSecurity", { scope: "platform" })
   changePassword(
     @CurrentPlatformUser() user: PlatformRequestUser,
     @Body(new ZodValidationPipe(changePlatformPasswordSchema)) body: unknown
@@ -105,25 +113,29 @@ export class PlatformUsersController {
   }
 
   @Get(ROUTES.PLATFORM.ME_SESSIONS)
+  @RequirePermission("platform:ManageOwnSecurity", { scope: "platform" })
   listSessions(@CurrentPlatformUser() user: PlatformRequestUser, @Req() req: Request) {
     const scope = getAuthScope(req);
-    const refresh = req.cookies?.[refreshCookieName(scope)] ?? req.cookies?.refresh_token_platform;
+    const refresh = req.cookies?.[refreshCookieName(scope)];
     return this.sessions.listSessions(user.platformUserId, refresh);
   }
 
   @Delete(ROUTES.PLATFORM.ME_SESSION(":id"))
+  @RequirePermission("platform:ManageOwnSecurity", { scope: "platform" })
   revokeSession(@CurrentPlatformUser() user: PlatformRequestUser, @Param("id") sessionId: string) {
     return this.sessions.revokeSession(user.platformUserId, sessionId);
   }
 
   @Post(ROUTES.PLATFORM.ME_SESSIONS_REVOKE_OTHERS)
+  @RequirePermission("platform:ManageOwnSecurity", { scope: "platform" })
   revokeOtherSessions(@CurrentPlatformUser() user: PlatformRequestUser, @Req() req: Request) {
     const scope = getAuthScope(req);
-    const refresh = req.cookies?.[refreshCookieName(scope)] ?? req.cookies?.refresh_token_platform;
+    const refresh = req.cookies?.[refreshCookieName(scope)];
     return this.sessions.revokeOtherSessions(user.platformUserId, refresh);
   }
 
   @Post(ROUTES.PLATFORM.ME_2FA_ENABLE)
+  @RequirePermission("platform:ManageOwnSecurity", { scope: "platform" })
   enable2fa(@CurrentPlatformUser() user: PlatformRequestUser) {
     return this.users
       .getProfile(user.platformUserId)
@@ -131,6 +143,7 @@ export class PlatformUsersController {
   }
 
   @Post(ROUTES.PLATFORM.ME_2FA_VERIFY)
+  @RequirePermission("platform:ManageOwnSecurity", { scope: "platform" })
   async verify2fa(
     @CurrentPlatformUser() user: PlatformRequestUser,
     @Body(new ZodValidationPipe(twoFactorVerifySchema)) body: unknown,
@@ -149,6 +162,7 @@ export class PlatformUsersController {
   }
 
   @Post(ROUTES.PLATFORM.ME_2FA_DISABLE)
+  @RequirePermission("platform:ManageOwnSecurity", { scope: "platform" })
   async disable2fa(
     @CurrentPlatformUser() user: PlatformRequestUser,
     @Body(new ZodValidationPipe(twoFactorDisableSchema)) body: unknown,

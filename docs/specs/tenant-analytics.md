@@ -33,7 +33,7 @@ Invalidation: workspace timelog writes invalidate workspace report keys; tenant 
 
 ## UI
 
-- **Admin app** → Account → Overview (`/account`)
+- **Unified product** → Account → Overview (`/account`) for authorized tenant roles
 - Period presets: 7 / 30 / 90 days + custom date range (default 30 days)
 - Stat cards: total hours, billable amount, active members, active workspaces
 - Table: hours by workspace (read-only)
@@ -49,7 +49,7 @@ Requires `X-Workspace-Id` (any workspace the owner belongs to).
 - Unit: `apps/api/src/modules/tenants/application/tenant-analytics.service.spec.ts`
 - E2E: `apps/api/test/tenant-analytics.e2e.ts`
 - Hook: `packages/web-shared/src/features/tenant/use-tenant-analytics-summary.spec.ts`
-- Playwright: `apps/admin/e2e/account-rollup.spec.ts`
+- Playwright: `apps/app/e2e/account-rollup.spec.ts`
 
 ## Out of scope (v1)
 

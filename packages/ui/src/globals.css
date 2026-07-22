@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./dashboard-grid.css";
 
 /* Unlayered — applies before paint to avoid Windows scrollbar flash */
 html {
@@ -64,10 +65,10 @@ html::-webkit-scrollbar {
   --motion-slow: 240ms;
   --motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --motion-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
-  /* Responsive tiers — see packages/web-shared/src/responsive-tiers.ts */
+  /* Responsive tiers — keep aligned with ./responsive-tiers.ts */
   --shell-compact-min: 960px;
   --shell-compact-max: 1100px;
-  --shell-comfortable-min: 1100px;
+  --shell-comfortable-min: 1101px;
 }
 
 .dark {

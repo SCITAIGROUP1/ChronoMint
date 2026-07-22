@@ -10,6 +10,7 @@ import {
   resetAuthRefreshRetryCount,
   scheduleAuthRefreshRetry
 } from "./auth-refresh-guard";
+import { configuredAuthScope } from "./configured-auth-scope";
 import { forceTenantAuthSignOut } from "./force-auth-sign-out";
 import { isAccessTokenExpired, readUserIdFromToken } from "./jwt-payload";
 import { isLogoutInFlight } from "./logout-session";
@@ -17,7 +18,7 @@ import { configureProactiveRefresh, scheduleProactiveRefresh } from "./token-sch
 
 export { invalidateAuthRefresh, cancelAuthRefreshRetries } from "./auth-refresh-guard";
 
-const AUTH_SCOPE = process.env.NEXT_PUBLIC_AUTH_SCOPE?.trim() || "app";
+const AUTH_SCOPE = configuredAuthScope(process.env.NEXT_PUBLIC_AUTH_SCOPE, "app");
 
 let refreshPromise: Promise<string | null> | null = null;
 

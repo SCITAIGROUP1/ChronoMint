@@ -10,6 +10,7 @@ import { InjectQueue } from "@nestjs/bullmq";
 import { Injectable, HttpStatus, Logger } from "@nestjs/common";
 import { Prisma, TimesheetStatus } from "@prisma/client";
 import { Queue } from "bullmq";
+import { AuthorizationEnforcementService } from "../../../common/access/authorization-enforcement.service";
 import { ProjectAccessService } from "../../../common/access/project-access.service";
 import { ReportCacheService } from "../../../common/cache/report-cache.service";
 import { DomainException } from "../../../common/errors/domain.exception";
@@ -45,9 +46,52 @@ export class TimesheetsService {
     private prisma: PrismaService,
     private notificationsDispatch: NotificationsDispatchService,
     private access: ProjectAccessService,
+    private authorization: AuthorizationEnforcementService,
     private reportCache: ReportCacheService,
     @InjectQueue(QUEUES.TIMESHEET_BULK_REVIEW) private readonly bulkReviewQueue: Queue
   ) {}
+
+  private async reviewableProjectIds(
+    workspaceId: string,
+    userId: string,
+    role: "ADMIN" | "MEMBER"
+  ): Promise<string[]> {
+    const workspaceDecision = await this.authorization.evaluate({
+      principalId: userId,
+      permission: "workspace:ReviewTimesheets",
+      resource: { scope: "workspace", workspaceId }
+    });
+    if (workspaceDecision.allowed) {
+      const projects = await this.prisma.project.findMany({
+        where: { workspaceId },
+        select: { id: true }
+      });
+      return projects.map(({ id }) => id);
+    }
+
+    const candidates = await this.access.manageableProjectIds(workspaceId, userId, role);
+    const decisions = await Promise.all(
+      candidates.map(async (projectId) => ({
+        projectId,
+        decision: await this.authorization.evaluate({
+          principalId: userId,
+          permission: "project:ReviewTimesheets",
+          resource: { scope: "project", projectId, expectedWorkspaceId: workspaceId }
+        })
+      }))
+    );
+    const allowed = decisions
+      .filter(({ decision }) => decision.allowed)
+      .map(({ projectId }) => projectId);
+    if (allowed.length === 0) {
+      await this.authorization.assertAllowed({
+        principalId: userId,
+        permission: "workspace:ReviewTimesheets",
+        resource: { scope: "workspace", workspaceId }
+      });
+    }
+    return allowed;
+  }
 
   private async amendmentPendingForPeriod(periodId: string | undefined): Promise<boolean> {
     if (!periodId) return false;
@@ -459,6 +503,14 @@ export class TimesheetsService {
     const submittedAt = new Date();
 
     const saved = await this.prisma.$transaction(async (tx) => {
+      await this.authorization.assertAllowed(
+        {
+          principalId: userId,
+          permission: "personal:SubmitTimesheets",
+          resource: { scope: "self", workspaceId }
+        },
+        tx
+      );
       if (existingTarget?.id) await assertNoPendingAmendment(this.prisma, [existingTarget.id]);
 
       const targetRow = existingTarget
@@ -576,9 +628,7 @@ export class TimesheetsService {
     role?: "ADMIN" | "MEMBER"
   ) {
     const managedProjectIds =
-      userId && role && role !== "ADMIN"
-        ? await this.access.manageableProjectIds(workspaceId, userId, role)
-        : undefined;
+      userId && role ? await this.reviewableProjectIds(workspaceId, userId, role) : undefined;
     const periodStartRange = buildPeriodStartRange(filter);
 
     const whereClause: Prisma.TimesheetPeriodWhereInput = {
@@ -954,7 +1004,7 @@ export class TimesheetsService {
     workspaceId: string,
     id: string,
     reviewerUserId: string,
-    reviewerRole: "ADMIN" | "MEMBER",
+    _reviewerRole: "ADMIN" | "MEMBER",
     reviewNote?: string
   ) {
     const existing = await this.prisma.timesheetPeriod.findFirst({
@@ -968,12 +1018,15 @@ export class TimesheetsService {
         HttpStatus.NOT_FOUND
       );
     }
-    await this.access.assertCanManageProject(
-      workspaceId,
-      reviewerUserId,
-      reviewerRole,
-      existing.projectId
-    );
+    await this.authorization.assertAllowed({
+      principalId: reviewerUserId,
+      permission: "project:ReviewTimesheets",
+      resource: {
+        scope: "project",
+        projectId: existing.projectId,
+        expectedWorkspaceId: workspaceId
+      }
+    });
 
     const period = await this.prisma.$transaction(async (tx) => {
       const p = await tx.timesheetPeriod.findFirst({
@@ -1004,6 +1057,18 @@ export class TimesheetsService {
         );
       }
 
+      await this.authorization.assertAllowed(
+        {
+          principalId: reviewerUserId,
+          permission: "project:ReviewTimesheets",
+          resource: {
+            scope: "project",
+            projectId: p.projectId,
+            expectedWorkspaceId: workspaceId
+          }
+        },
+        tx
+      );
       await tx.timesheetPeriod.update({
         where: { id },
         data: {
@@ -1069,7 +1134,7 @@ export class TimesheetsService {
     workspaceId: string,
     id: string,
     reviewerUserId: string,
-    reviewerRole: "ADMIN" | "MEMBER",
+    _reviewerRole: "ADMIN" | "MEMBER",
     reviewNote?: string
   ) {
     if (!reviewNote?.trim()) {
@@ -1091,12 +1156,15 @@ export class TimesheetsService {
         HttpStatus.NOT_FOUND
       );
     }
-    await this.access.assertCanManageProject(
-      workspaceId,
-      reviewerUserId,
-      reviewerRole,
-      existing.projectId
-    );
+    await this.authorization.assertAllowed({
+      principalId: reviewerUserId,
+      permission: "project:ReviewTimesheets",
+      resource: {
+        scope: "project",
+        projectId: existing.projectId,
+        expectedWorkspaceId: workspaceId
+      }
+    });
 
     const period = await this.prisma.$transaction(async (tx) => {
       const p = await tx.timesheetPeriod.findFirst({
@@ -1127,6 +1195,18 @@ export class TimesheetsService {
         );
       }
 
+      await this.authorization.assertAllowed(
+        {
+          principalId: reviewerUserId,
+          permission: "project:ReviewTimesheets",
+          resource: {
+            scope: "project",
+            projectId: p.projectId,
+            expectedWorkspaceId: workspaceId
+          }
+        },
+        tx
+      );
       await tx.timesheetPeriod.update({
         where: { id },
         data: {
@@ -1197,6 +1277,26 @@ export class TimesheetsService {
     action: "approve" | "reject",
     reviewNote?: string
   ) {
+    const periods = await this.prisma.timesheetPeriod.findMany({
+      where: { id: { in: ids }, workspaceId },
+      select: { id: true, projectId: true }
+    });
+    if (periods.length !== new Set(ids).size) {
+      throw new DomainException(
+        ErrorCodes.NOT_FOUND,
+        "Timesheet period not found",
+        HttpStatus.NOT_FOUND
+      );
+    }
+    await Promise.all(
+      [...new Set(periods.map(({ projectId }) => projectId))].map((projectId) =>
+        this.authorization.assertAllowed({
+          principalId: reviewerUserId,
+          permission: "project:ReviewTimesheets",
+          resource: { scope: "project", projectId, expectedWorkspaceId: workspaceId }
+        })
+      )
+    );
     const job = await this.bulkReviewQueue.add(
       "timesheetBulkReviewJob",
       {

@@ -4,8 +4,8 @@ node_modules
 **/dist
 .git
 .cursor
-apps/client
-apps/admin
+apps/app
+apps/platform-admin
 packages/ui
 **/*.tsbuildinfo
 **/.env

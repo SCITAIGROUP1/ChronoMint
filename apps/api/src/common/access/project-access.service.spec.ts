@@ -10,6 +10,7 @@ describe("ProjectAccessService", () => {
     task: { findFirst: ReturnType<typeof vi.fn> };
     taskAssignee: { findFirst: ReturnType<typeof vi.fn> };
   };
+  let authorization: { evaluate: ReturnType<typeof vi.fn> };
   let service: ProjectAccessService;
 
   beforeEach(() => {
@@ -19,7 +20,8 @@ describe("ProjectAccessService", () => {
       task: { findFirst: vi.fn() },
       taskAssignee: { findFirst: vi.fn() }
     };
-    service = new ProjectAccessService(prisma as never);
+    authorization = { evaluate: vi.fn() };
+    service = new ProjectAccessService(prisma as never, authorization as never);
   });
 
   it("returns led project ids for MEMBER", async () => {
@@ -32,17 +34,33 @@ describe("ProjectAccessService", () => {
   });
 
   it("assertCanManageProject allows ADMIN", async () => {
-    prisma.project.findFirst.mockResolvedValue({ id: "proj-1" });
+    authorization.evaluate.mockResolvedValue({ allowed: true });
     await expect(
-      service.assertCanManageProject("ws-1", "admin-1", "ADMIN", "proj-1")
+      service.assertCanManageProject("ws-1", "admin-1", "ADMIN", "proj-1", "project:ManageTasks")
     ).resolves.toBeUndefined();
   });
 
   it("assertCanManageProject rejects MEMBER without PROJECT_MANAGER", async () => {
-    prisma.teamMember.findFirst.mockResolvedValue(null);
+    authorization.evaluate.mockResolvedValue({ allowed: false });
     await expect(
-      service.assertCanManageProject("ws-1", "user-1", "MEMBER", "proj-1")
+      service.assertCanManageProject("ws-1", "user-1", "MEMBER", "proj-1", "project:ManageTasks")
     ).rejects.toBeInstanceOf(DomainException);
+  });
+
+  it("assertCanManageProject limits PROJECT_MANAGER to the bound project", async () => {
+    authorization.evaluate.mockResolvedValue({ allowed: false });
+
+    await expect(
+      service.assertCanManageProject("ws-1", "manager-1", "MEMBER", "proj-1", "project:ManageTasks")
+    ).rejects.toMatchObject({ code: ErrorCodes.FORBIDDEN });
+  });
+
+  it("assertCanManageProject denies an isolation failure before role allows", async () => {
+    authorization.evaluate.mockResolvedValue({ allowed: false });
+
+    await expect(
+      service.assertCanManageProject("ws-1", "admin-1", "ADMIN", "proj-1", "project:ManageTasks")
+    ).rejects.toMatchObject({ code: ErrorCodes.FORBIDDEN });
   });
 
   describe("assertTaskLoggable", () => {
@@ -87,8 +105,6 @@ describe("ProjectAccessService", () => {
         category: { isActive: true },
         project: { isActive: true }
       });
-      prisma.project.findFirst.mockResolvedValue({ id: "p1" });
-
       await expect(service.assertCanLogTask("w1", "u1", "ADMIN", "t1")).rejects.toBeInstanceOf(
         DomainException
       );

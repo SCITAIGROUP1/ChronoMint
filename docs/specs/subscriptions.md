@@ -85,7 +85,7 @@ Idempotency: `stripe_webhook_events` table keyed by Stripe event id.
 | `STRIPE_WEBHOOK_SECRET`               | Prod / webhooks | From Stripe CLI or Dashboard                                      |
 | `STRIPE_PRICE_STARTER`                | Optional        | Overrides seed price id                                           |
 | `STRIPE_PRICE_PRO`                    | Optional        | Overrides seed price id                                           |
-| `PUBLIC_ADMIN_URL`                    | Recommended     | Checkout success/cancel URLs and billing email links              |
+| `PUBLIC_APP_URL`                      | Recommended     | Checkout success/cancel URLs and billing email links              |
 | `BILLING_MANUAL_PAYMENT_INSTRUCTIONS` | Optional        | Wire/bank copy emailed when platform sends payment instructions   |
 | `BILLING_RECEIPTS_DIR`                | Optional        | Local storage for uploaded receipts (default `.billing-receipts`) |
 
@@ -140,4 +140,4 @@ Coordinates all subscription mutations to ensure consistency:
 
 - Unit: `subscription-sync.service.spec.ts`, `stripe-webhook.service.spec.ts`, `subscriptions.service.spec.ts`, `subscription-lifecycle.service.spec.ts`
 - E2E: `stripe-webhook.e2e.ts`, `subscription-lifecycle.e2e.ts`, `subscription-plan-change.e2e.ts`, `sales-inquiry.e2e.ts`, `platform-subscriptions.e2e.ts`
-- Playwright: `apps/admin/e2e/account-billing.spec.ts`, `apps/platform-admin/e2e/subscriptions.spec.ts`
+- Playwright: `apps/app/e2e/account-billing.spec.ts`, `apps/platform-admin/e2e/subscriptions.spec.ts`

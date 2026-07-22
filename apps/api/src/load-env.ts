@@ -7,8 +7,7 @@ const ENV_KEYS_TO_NORMALIZE = [
   "REDIS_URL",
   "JWT_ACCESS_SECRET",
   "JWT_REFRESH_SECRET",
-  "PUBLIC_CLIENT_URL",
-  "PUBLIC_ADMIN_URL",
+  "PUBLIC_APP_URL",
   "PUBLIC_PLATFORM_URL"
 ] as const;
 
@@ -95,8 +94,7 @@ const optionalEnvSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).optional(),
   REDIS_URL: z.string().optional(),
   REDIS_USE_MEMORY: z.enum(["true", "false"]).optional(),
-  PUBLIC_CLIENT_URL: z.string().optional(),
-  PUBLIC_ADMIN_URL: z.string().optional(),
+  PUBLIC_APP_URL: z.string().optional(),
   PUBLIC_PLATFORM_URL: z.string().optional(),
   JWT_ACCESS_EXPIRES: z.string().optional(),
   JWT_REFRESH_EXPIRES: z.string().optional(),

@@ -1,7 +1,8 @@
-import { ErrorCodes } from "@kloqra/contracts";
+import { ErrorCodes, type Permission } from "@kloqra/contracts";
 import { HttpStatus, Injectable } from "@nestjs/common";
 import { DomainException } from "../errors/domain.exception";
 import { PrismaService } from "../prisma/prisma.service";
+import { AuthorizationEnforcementService } from "./authorization-enforcement.service";
 
 export type WorkspaceRole = "ADMIN" | "MEMBER";
 
@@ -16,7 +17,10 @@ type TaskLoggabilityRow = {
 
 @Injectable()
 export class ProjectAccessService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private authorization: AuthorizationEnforcementService
+  ) {}
 
   async managedProjectIds(workspaceId: string, userId: string): Promise<string[]> {
     const rows = await this.prisma.teamMember.findMany({
@@ -50,34 +54,24 @@ export class ProjectAccessService {
     workspaceId: string,
     userId: string,
     role: WorkspaceRole,
-    projectId: string
+    projectId: string,
+    permission: Extract<Permission, `project:${string}`>
   ): Promise<void> {
-    if (role === "ADMIN") {
-      const project = await this.prisma.project.findFirst({
-        where: { id: projectId, workspaceId }
-      });
-      if (!project) {
-        throw new DomainException(
-          ErrorCodes.FORBIDDEN,
-          "You cannot manage this project",
-          HttpStatus.FORBIDDEN
-        );
-      }
-      return;
-    }
-
-    const lead = await this.prisma.teamMember.findFirst({
-      where: {
-        userId,
-        role: "PROJECT_MANAGER",
-        isActive: true,
-        team: { projectId, project: { workspaceId, isActive: true } }
+    const decision = await this.authorization.evaluate({
+      principalId: userId,
+      permission,
+      resource: {
+        scope: "project",
+        projectId,
+        expectedWorkspaceId: workspaceId
       }
     });
-    if (!lead) {
+    if (!decision.allowed) {
       throw new DomainException(
         ErrorCodes.FORBIDDEN,
-        "You are not a project manager for this project",
+        role === "ADMIN"
+          ? "You cannot manage this project"
+          : "You are not a project manager for this project",
         HttpStatus.FORBIDDEN
       );
     }

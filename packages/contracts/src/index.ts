@@ -36,6 +36,7 @@ export * from "./dashboard-layout";
 export * from "./errors";
 export * from "./routes";
 export * from "./tenant-rbac";
+export * from "./permissions";
 export * from "./plan-catalog";
 export * from "./plan-display-features";
 export * from "./dto/plan.dto";
@@ -52,6 +53,8 @@ export * from "./dto/platform-notification.dto";
 export * from "./platform-preferences";
 export * from "./platform-notification-realtime";
 export * from "./dto/compliance.dto";
+export * from "./dto/role-grant-audit.dto";
+export * from "./dto/permission-matrix.dto";
 export * from "./legal-urls";
 
 export const TimerSource = {

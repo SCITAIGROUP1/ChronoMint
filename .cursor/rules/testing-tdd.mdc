@@ -4,8 +4,7 @@ globs:
   - "apps/api/src/modules/**"
   - "packages/contracts/src/**"
   - "packages/ui/src/**"
-  - "apps/admin/src/features/**"
-  - "apps/client/src/features/**"
+  - "apps/app/src/features/**"
 alwaysApply: false
 ---
 
@@ -16,7 +15,7 @@ alwaysApply: false
 - Unit spec beside implementation: `foo.service.ts` + `foo.service.spec.ts`
 - Contract tests: `packages/contracts/src/*.spec.ts`
 - API integration: `apps/api/test/**/*.e2e.ts`
-- Browser e2e: `apps/admin/e2e/`, `apps/client/e2e/`
+- Browser e2e: `apps/app/e2e/`
 - UI RTL: `packages/ui/src/**/*.spec.tsx`
 
 ## New feature rule
@@ -26,7 +25,7 @@ Do not commit production code without matching tests in the same change:
 - API `application/` or `interface/` → module `*.spec.ts` or `apps/api/test/*.e2e.ts`
 - `packages/contracts` source → `*.spec.ts`
 - `packages/ui` component → sibling `*.spec.tsx`
-- Admin/client `features/` → Playwright e2e or unit spec
+- Product app `features/` → Playwright e2e or unit spec
 
 Pre-commit runs `scripts/check-staged-has-tests.mjs`. Bypass only for emergencies: `SKIP_TEST_CHECK=1`.
 

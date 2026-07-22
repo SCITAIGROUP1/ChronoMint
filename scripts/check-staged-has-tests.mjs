@@ -82,7 +82,7 @@ for (const file of staged) {
 }
 
 for (const file of staged) {
-  const featureMatch = file.match(/^apps\/(admin|client)\/src\/features\/.+\.tsx$/);
+  const featureMatch = file.match(/^apps\/(app|platform-admin)\/src\/features\/.+\.tsx$/);
   if (featureMatch) {
     const app = featureMatch[1];
     const hasE2e = staged.some((f) => f.startsWith(`apps/${app}/e2e/`));

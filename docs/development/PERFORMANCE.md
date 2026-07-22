@@ -5,8 +5,7 @@
 After `pnpm install`, analyze production chunks:
 
 ```bash
-pnpm --filter @kloqra/admin analyze
-pnpm --filter @kloqra/client analyze
+pnpm --filter @kloqra/app analyze
 ```
 
 Open the generated HTML reports under `apps/*/`.next/analyze/`. Re-run after changing heavy dependencies (e.g. `recharts`) or route-level `next/dynamic` splits.
@@ -15,7 +14,11 @@ Open the generated HTML reports under `apps/*/`.next/analyze/`. Re-run after cha
 
 Re-run after major dependency or route changes and update this table.
 
-**Client — First Load JS (Next build table, gzip estimate)**
+> The June baseline below was captured before the unified-product cutover and keeps the original
+> client/admin labels for historical comparison. Current budget enforcement targets
+> `apps/app` unless `BUNDLE_BUDGET_APP` explicitly overrides it.
+
+**Legacy client — First Load JS (historical Next build table, gzip estimate)**
 
 | Route                    | Page size | First Load JS | Notes                                                             |
 | ------------------------ | --------- | ------------- | ----------------------------------------------------------------- |
@@ -28,11 +31,13 @@ Re-run after major dependency or route changes and update this table.
 | `/login`                 | 1.47 kB   | 233 kB        | Baseline authenticated shell                                      |
 | Shared by all routes     | —         | 103 kB        |                                                                   |
 
-**Admin — `/dashboard`:** 142 kB page shell, **384 kB** First Load JS (was 404 kB; widgets lazy via `widgets-lazy.tsx`).
+**Management-capable `/dashboard`:** 142 kB page shell, **384 kB** First Load JS (was 404 kB;
+widgets lazy via `widgets-lazy.tsx`).
 
-**Client — dashboard raw JS budget:** 931 KB / 1450 KB gate (`pnpm check:bundle-budget`).
+**Unified product — dashboard raw JS budget:** 1450 KB raw gate
+(`pnpm check:bundle-budget` after building `apps/app`).
 
-**Client — largest on-disk chunks** (under `apps/client/.next/static/chunks/`):
+**Unified product — largest on-disk chunks** (under `apps/app/.next/static/chunks/`):
 
 | Chunk            | ~Size  | Likely contents                            |
 | ---------------- | ------ | ------------------------------------------ |
@@ -41,7 +46,9 @@ Re-run after major dependency or route changes and update this table.
 | `1461-*.js`      | 169 KB | Shared app chunk                           |
 | `9db29056-*.js`  | 169 KB | Shared app chunk                           |
 
-**Lazy splits confirmed** (`react-loadable-manifest.json`): client dashboard widgets, timesheet calendar/month/dialog, submissions status cards, time-tracker week list/dialog, timer widgets, admin dashboard widgets, and project overview charts load in separate chunks on demand.
+**Lazy splits confirmed** (`react-loadable-manifest.json`): personal and management dashboard widgets,
+timesheet calendar/month/dialog, submissions status cards, time-tracker week list/dialog, timer
+widgets, and project overview charts load in separate chunks on demand.
 
 ## Turbo / CI cache
 
@@ -59,14 +66,15 @@ npx turbo link
 **Dev startup (measure locally):**
 
 ```bash
-# Cold (bootstrap + package builds + apps)
-/usr/bin/time -p pnpm dev:once
+# Bootstrap + API + unified product
+/usr/bin/time -p pnpm dev
 
-# Warm (apps only, deps already running)
-/usr/bin/time -p pnpm dev:apps
+# Split workflow after infrastructure prep
+pnpm dev:split
+/usr/bin/time -p pnpm --filter @kloqra/app dev
 ```
 
-Target: warm `dev:apps` under ~30s after first bootstrap.
+Use `pnpm dev:shared` and `pnpm dev:api` in separate terminals when measuring the split workflow.
 
 **Pre-PR timing (measure locally):**
 
@@ -78,16 +86,16 @@ Target: warm `dev:apps` under ~30s after first bootstrap.
 
 Before optimizing, capture:
 
-1. Top client chunks from `analyze` (expect `recharts`, `react-grid-layout`, dashboard feature, `@kloqra/ui`, `@kloqra/web-shared`).
-2. Cold vs warm dev startup: `pnpm dev:once` (full bootstrap) vs `pnpm dev:apps` (apps only, after deps are up).
+1. Top unified-product chunks from `apps/app` analysis.
+2. Full `pnpm dev` startup vs split `pnpm --filter @kloqra/app dev` after infrastructure prep.
 3. Pre-PR segment timing: `pnpm test:prepr` (lint/typecheck, unit tests, builds, e2e).
 
 ### Bundle budget gate
 
-After a client production build:
+After a unified-product production build:
 
 ```bash
-pnpm --filter @kloqra/client exec next build
+pnpm --filter @kloqra/app exec next build
 pnpm check:bundle-budget
 ```
 
@@ -95,13 +103,14 @@ Default budget: **1450 KB** raw on-disk JS for the dashboard route (page + layou
 
 ## Local dev workflow
 
-| Command                      | When to use                                                                                     |
-| ---------------------------- | ----------------------------------------------------------------------------------------------- |
-| `pnpm dev:once` / `pnpm dev` | First run of the day — bootstrap DB, build packages, start api + client + admin                 |
-| `pnpm dev:apps`              | Daily iteration — skip bootstrap when Postgres/Redis and package builds are already ready       |
-| `pnpm dev:shared`            | Watch `@kloqra/contracts`, `@kloqra/ui`, and `@kloqra/web-shared` while editing shared packages |
+| Command                         | When to use                                                                                     |
+| ------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `pnpm dev`                      | Bootstrap DB/packages and start API + unified product                                           |
+| `pnpm dev:split`                | Prepare infrastructure before launching split terminals                                         |
+| `pnpm --filter @kloqra/app dev` | Run the unified product on port 3000                                                            |
+| `pnpm dev:shared`               | Watch `@kloqra/contracts`, `@kloqra/ui`, and `@kloqra/web-shared` while editing shared packages |
 
-Client and admin use **Turbopack** in dev (`next dev --turbo`).
+The unified product uses **Turbopack** in development (`next dev --turbo`).
 
 ## API guardrails
 
@@ -120,14 +129,14 @@ Client and admin use **Turbopack** in dev (`next dev --turbo`).
 ## Frontend patterns
 
 - Admin dashboard route and **all** dashboard widgets load via `widgets-lazy.tsx` (charts already via `charts-lazy.tsx`).
-- Project overview charts lazy via `project-overview-charts-lazy.tsx` in `@kloqra/web-shared` (client + admin overview tabs).
-- Client project overview route uses `next/dynamic` in [`overview/page.tsx`](<../../apps/client/src/app/(workspace)/projects/[projectId]/overview/page.tsx>).
+- Project overview charts and migrated personal routes are lazy-loaded from `apps/app`.
 - Client dashboard route and **all** dashboard widgets load via `widgets-lazy.tsx`; `react-grid-layout` CSS is scoped to dashboard layouts only.
 - Timesheet route splits via `timesheet-lazy.tsx` (`TimesheetCalendar`, `TimesheetMonth`, `TimeEntryDialog`); draft helpers live in `time-entry-draft.ts` so other routes do not pull the dialog UI.
 - Submissions route splits via `submissions-lazy.tsx` (`SubmissionStatusCard` with submit/amendment dialogs).
 - Time tracker route splits via `time-tracker-lazy.tsx` (`TimeTrackerWeekList`, reuses `TimeEntryDialog` from `timesheet-lazy.tsx`).
 - Timer route splits via `timer-lazy.tsx` (`DailyGoalWidget`, `QuickActions`, `StaleTimerDialog`).
 - Motion components lazy-load `motion/react` after mount (CSS fallback on first paint).
-- `experimental.optimizePackageImports` in both Next apps: `lucide-react`, `recharts`, `@radix-ui/react-*`, `motion/react`, `react-grid-layout`.
+- `experimental.optimizePackageImports` in the unified product covers `lucide-react`, `recharts`,
+  `@radix-ui/react-*`, `motion/react`, and `react-grid-layout`.
 - Charts import from `@kloqra/ui/chart` (separate export) rather than the main UI barrel when possible.
 - `@kloqra/web-shared` is prebuilt to `dist/` via `tsc` (preserves `"use client"` boundaries, like `@kloqra/ui`) to reduce Next compile work.

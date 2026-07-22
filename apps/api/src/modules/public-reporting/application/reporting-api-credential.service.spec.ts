@@ -24,6 +24,7 @@ vi.mock("../../../common/tenant/assert-tenant-operations.util", () => ({
 describe("ReportingApiCredentialService", () => {
   let service: ReportingApiCredentialService;
   let mockPlanLimit: PlanLimitService;
+  let authorization: { assertAllowed: ReturnType<typeof vi.fn> };
   let mockPrisma: {
     workspace: { findUnique: ReturnType<typeof vi.fn> };
     reportingApiCredential: {
@@ -64,7 +65,12 @@ describe("ReportingApiCredentialService", () => {
         findUnique: vi.fn().mockResolvedValue({ status: "active" })
       }
     };
-    service = new ReportingApiCredentialService(mockPrisma as never, mockPlanLimit);
+    authorization = { assertAllowed: vi.fn().mockResolvedValue({ allowed: true }) };
+    service = new ReportingApiCredentialService(
+      mockPrisma as never,
+      mockPlanLimit,
+      authorization as never
+    );
   });
 
   it("creates a credential with api key and one-time secret", async () => {
@@ -80,13 +86,22 @@ describe("ReportingApiCredentialService", () => {
       createdAt
     });
 
-    const result = await service.create(workspaceId, tenantId, {
+    const result = await service.create(workspaceId, tenantId, "user-1", {
       name: "Acme integration",
       projectIds: [projectId]
     });
 
     expect(mockPrisma.project.count).toHaveBeenCalledWith({
       where: { workspaceId, id: { in: [projectId] }, isActive: true }
+    });
+    expect(authorization.assertAllowed).toHaveBeenCalledWith({
+      principalId: "user-1",
+      permission: "workspace:ManageApiKeys",
+      resource: {
+        scope: "workspace",
+        workspaceId,
+        expectedTenantId: tenantId
+      }
     });
     expect(mockPlanLimit.assertReportingApiKeysAllowed).toHaveBeenCalledWith(tenantId);
     expect(result.apiKey).toMatch(/^klr_/);
@@ -98,7 +113,7 @@ describe("ReportingApiCredentialService", () => {
     mockPrisma.workspace.findUnique.mockResolvedValue({ tenantId: "other-tenant" });
 
     await expect(
-      service.create(workspaceId, tenantId, {
+      service.create(workspaceId, tenantId, "user-1", {
         name: "Bad",
         projectIds: [projectId]
       })
@@ -108,6 +123,18 @@ describe("ReportingApiCredentialService", () => {
         err.code === ErrorCodes.FORBIDDEN &&
         err.getStatus() === HttpStatus.FORBIDDEN
     );
+  });
+
+  it("does not create a key when permission was revoked", async () => {
+    authorization.assertAllowed.mockRejectedValueOnce(new Error("revoked"));
+
+    await expect(
+      service.create(workspaceId, tenantId, "user-1", {
+        name: "Blocked",
+        projectIds: [projectId]
+      })
+    ).rejects.toThrow("revoked");
+    expect(mockPrisma.reportingApiCredential.create).not.toHaveBeenCalled();
   });
 
   it("rejects invalid credentials", async () => {

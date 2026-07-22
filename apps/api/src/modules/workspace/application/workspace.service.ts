@@ -1,5 +1,6 @@
-import { ErrorCodes } from "@kloqra/contracts";
+import { ErrorCodes, inviteMemberSchema } from "@kloqra/contracts";
 import type {
+  BulkInviteJobStatusDto,
   InviteMemberDto,
   InviteMemberResponseDto,
   MemberEmailDeliveryDto,
@@ -15,7 +16,11 @@ import { Injectable, HttpStatus } from "@nestjs/common";
 import { Queue } from "bullmq";
 import * as ExcelJS from "exceljs";
 import type { Response } from "express";
+import { AuthorizationEnforcementService } from "../../../common/access/authorization-enforcement.service";
 import { ProjectAccessService } from "../../../common/access/project-access.service";
+import { RoleGrantAuditService } from "../../../common/access/role-grant-audit.service";
+import { RoleGrantPolicyService } from "../../../common/access/role-grant-policy.service";
+import { AuthRevocationService } from "../../../common/auth/auth-revocation.service";
 import { generateTempPassword, hashPassword } from "../../../common/auth/password.util";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { deliverMemberEmail } from "../../../common/mailer/member-email-delivery.util";
@@ -48,6 +53,10 @@ export class WorkspaceService {
     private auth: AuthService,
     private planLimit: PlanLimitService,
     private projectAccess: ProjectAccessService,
+    private roleGrantPolicy: RoleGrantPolicyService,
+    private roleGrantAudit: RoleGrantAuditService,
+    private authRevocation: AuthRevocationService,
+    private authorization: AuthorizationEnforcementService,
     @InjectQueue(QUEUES.BULK_INVITE) private readonly bulkInviteQueue: Queue
   ) {}
 
@@ -59,8 +68,18 @@ export class WorkspaceService {
       where: { userId, workspace: { tenantId } as any },
       include: { workspace: true }
     });
-    return Promise.all(
+    const visible = await Promise.all(
       memberships.map(async (m) => {
+        const decision = await this.authorization.evaluate({
+          principalId: userId,
+          permission: "workspace:Access",
+          resource: {
+            scope: "workspace",
+            workspaceId: m.workspaceId,
+            expectedTenantId: tenantId
+          }
+        });
+        if (!decision.allowed) return null;
         const role = m.role as "ADMIN" | "MEMBER";
         const managedProjectIds =
           role === "MEMBER"
@@ -69,6 +88,7 @@ export class WorkspaceService {
         return this.toListItem(m.workspace, role, managedProjectIds);
       })
     );
+    return visible.filter((workspace): workspace is WorkspaceListItemDto => workspace !== null);
   }
 
   async listForTenant(tenantId: string) {
@@ -115,6 +135,17 @@ export class WorkspaceService {
 
       const nextRole = dto.role ?? (member.role as "ADMIN" | "MEMBER");
       const nextIsActive = dto.isActive ?? member.isActive;
+      const workspace = await tx.workspace.findUnique({
+        where: { id: workspaceId },
+        select: { tenantId: true }
+      });
+      if (!workspace) {
+        throw new DomainException(
+          ErrorCodes.NOT_FOUND,
+          "Workspace not found",
+          HttpStatus.NOT_FOUND
+        );
+      }
 
       if (dto.isActive === false && member.userId === actingUserId) {
         throw new DomainException(
@@ -126,6 +157,21 @@ export class WorkspaceService {
 
       if (nextRole === member.role && nextIsActive === member.isActive) {
         return { kind: "unchanged" as const, member: this.toMemberDto(member) };
+      }
+
+      const roleChanged = dto.role !== undefined && dto.role !== member.role;
+      if (roleChanged) {
+        await this.roleGrantPolicy.assertWorkspaceRoleGrant(
+          {
+            actorId: actingUserId,
+            targetUserId: member.userId,
+            tenantId: workspace.tenantId,
+            workspaceId,
+            currentRole: member.role as "ADMIN" | "MEMBER",
+            requestedRole: dto.role!
+          },
+          tx
+        );
       }
 
       if (member.role === "ADMIN" && nextRole === "MEMBER") {
@@ -181,8 +227,24 @@ export class WorkspaceService {
         });
       }
 
-      const roleChanged = dto.role !== undefined && dto.role !== member.role;
       const statusChanged = dto.isActive !== undefined && dto.isActive !== member.isActive;
+      if (roleChanged) {
+        await this.roleGrantAudit.record(tx, {
+          actorUserId: actingUserId,
+          targetUserId: member.userId,
+          role: "WORKSPACE_ADMIN",
+          scope: "workspace",
+          resourceId: workspaceId,
+          reason: "workspace_member_role_update",
+          outcome: dto.role === "ADMIN" ? "GRANTED" : "REVOKED",
+          tenantId: workspace.tenantId,
+          policyVersion: "v1",
+          priorRole: member.role as string,
+          decisionReason: "managed_role",
+          actorType: "user",
+          requestSource: "api"
+        });
+      }
 
       return {
         kind: roleChanged ? ("roleChanged" as const) : ("statusChanged" as const),
@@ -191,6 +253,10 @@ export class WorkspaceService {
         statusChanged
       };
     });
+
+    if (outcome.kind === "roleChanged") {
+      await this.authRevocation.revokeUser(outcome.member.userId);
+    }
 
     if (outcome.kind === "roleChanged" && outcome.newRole) {
       const [workspace, actor] = await Promise.all([
@@ -556,6 +622,7 @@ export class WorkspaceService {
     }
 
     const members: InviteMemberDto[] = [];
+    const invalidRows: string[] = [];
 
     sheet.eachRow((row, rowNumber) => {
       if (rowNumber === 1) return; // Skip header
@@ -564,14 +631,27 @@ export class WorkspaceService {
       const name = row.getCell(2).text?.trim();
       const roleText = row.getCell(3).text?.trim().toUpperCase() || "MEMBER";
 
-      if (!email) return; // Skip empty rows
+      if (!email && !name) return; // Skip empty rows
 
-      members.push({
+      const parsed = inviteMemberSchema.safeParse({
         email,
-        name: name || email.split("@")[0], // Fallback name
+        name: name || (email ? email.split("@")[0] : ""),
         role: roleText === "ADMIN" ? "ADMIN" : "MEMBER"
       });
+      if (!parsed.success) {
+        invalidRows.push(`row ${rowNumber}`);
+        return;
+      }
+      members.push(parsed.data);
     });
+
+    if (invalidRows.length > 0) {
+      throw new DomainException(
+        ErrorCodes.VALIDATION_ERROR,
+        `Invalid member rows in Excel (${invalidRows.slice(0, 5).join(", ")}${invalidRows.length > 5 ? "…" : ""}). Email and name are required.`,
+        HttpStatus.BAD_REQUEST
+      );
+    }
 
     if (members.length === 0) {
       throw new DomainException(
@@ -618,6 +698,54 @@ export class WorkspaceService {
       status: "queued",
       enqueuedCount: members.length
     };
+  }
+
+  async getBulkInviteJobStatus(
+    workspaceId: string,
+    jobId: string
+  ): Promise<BulkInviteJobStatusDto> {
+    const job = await this.bulkInviteQueue.getJob(jobId);
+    if (!job) {
+      throw new DomainException(ErrorCodes.NOT_FOUND, "Invite job not found", HttpStatus.NOT_FOUND);
+    }
+
+    const data = job.data as { workspaceId?: string; projectId?: string };
+    if (data.workspaceId !== workspaceId || data.projectId) {
+      throw new DomainException(ErrorCodes.NOT_FOUND, "Invite job not found", HttpStatus.NOT_FOUND);
+    }
+
+    const state = await job.getState();
+    if (state === "completed") {
+      const result = job.returnvalue as BulkInviteJobStatusDto["result"];
+      return {
+        jobId,
+        status: "completed",
+        ...(result
+          ? {
+              result: {
+                successCount: Number(result.successCount ?? 0),
+                skippedCount: Number(result.skippedCount ?? 0),
+                projectAddedCount: Number(result.projectAddedCount ?? 0),
+                totalProcessed: Number(result.totalProcessed ?? 0),
+                emailQueuedCount: Number(result.emailQueuedCount ?? 0),
+                credentialsResentCount: Number(result.credentialsResentCount ?? 0),
+                emailFailedCount: Number(result.emailFailedCount ?? 0)
+              }
+            }
+          : {})
+      };
+    }
+    if (state === "failed") {
+      return {
+        jobId,
+        status: "failed",
+        failedReason: String(job.failedReason ?? "Invite job failed").slice(0, 500)
+      };
+    }
+    if (state === "active") {
+      return { jobId, status: "active" };
+    }
+    return { jobId, status: "queued" };
   }
 
   async getById(id: string) {
@@ -898,7 +1026,14 @@ export class WorkspaceService {
     memberId: string,
     dto: UpdateWorkspaceMemberDto
   ) {
-    await requireTenantOwnerOrAdmin(this.prisma, actingUserId, tenantId);
+    // Route through the authoritative evaluator so tenant-admin authorization
+    // is logged and enforced consistently with workspace-level paths.
+    await this.roleGrantPolicy.assertTenantRoleGrant({
+      actorId: actingUserId,
+      targetUserId: memberId, // placeholder — actual target resolved inside updateMember
+      tenantId,
+      workspaceId
+    });
     await this.assertTenantWorkspace(tenantId, workspaceId);
     return this.updateMember(workspaceId, memberId, dto, actingUserId);
   }
@@ -909,7 +1044,12 @@ export class WorkspaceService {
     workspaceId: string,
     memberId: string
   ) {
-    await requireTenantOwnerOrAdmin(this.prisma, actingUserId, tenantId);
+    await this.roleGrantPolicy.assertTenantRoleGrant({
+      actorId: actingUserId,
+      targetUserId: memberId, // placeholder — actual target resolved inside removeMember
+      tenantId,
+      workspaceId
+    });
     await this.assertTenantWorkspace(tenantId, workspaceId);
     return this.removeMember(workspaceId, memberId, actingUserId);
   }
@@ -920,6 +1060,8 @@ export class WorkspaceService {
     workspaceId: string,
     memberId: string
   ): Promise<MemberEmailDeliveryDto> {
+    // This is a read-adjacent operation (resend credentials) — use requireTenantOwnerOrAdmin
+    // as it does not modify role bindings and therefore does not need audit through the evaluator.
     await requireTenantOwnerOrAdmin(this.prisma, actingUserId, tenantId);
     await this.assertTenantWorkspace(tenantId, workspaceId);
     return this.resendMemberCredentials(workspaceId, memberId);

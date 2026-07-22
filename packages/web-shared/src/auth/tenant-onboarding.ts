@@ -30,7 +30,13 @@ export function resolveWorkspaceSetupRedirect(
   pathname: string,
   session: AuthSessionDto | null | undefined
 ): string | null {
-  if (!session || !isPendingWorkspaceSetup(session)) return null;
+  if (!session) return null;
+  if (session.organizationOnly) {
+    return pathname === "/account" || pathname.startsWith("/account/")
+      ? null
+      : "/account/workspaces";
+  }
+  if (!isPendingWorkspaceSetup(session)) return null;
   if (!canManageOrganization(session)) return "/login";
   if (isAllowedDuringWorkspaceSetup(pathname)) return null;
   return "/account/workspaces?setup=required";

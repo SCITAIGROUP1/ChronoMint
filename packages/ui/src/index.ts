@@ -1,6 +1,16 @@
 export { cn } from "./lib/utils.js";
 
 export {
+  COMPACT_LAPTOP_SHELL_MAX,
+  COMPACT_LAPTOP_SHELL_MIN,
+  COMPACT_LAPTOP_VIEWPORT,
+  COMPACT_LAPTOP_VIEWPORT_MAX,
+  COMFORTABLE_DESKTOP_SHELL_MIN,
+  EXPORT_TWO_COLUMN_SHELL_MIN,
+  SIDEBAR_COLLAPSED_STORAGE_KEY
+} from "./responsive-tiers.js";
+
+export {
   DashboardSkeleton,
   EmptyState,
   PageHeader,
@@ -14,6 +24,10 @@ export {
 
 export { Button, buttonVariants } from "./components/ui/button.js";
 export type { ButtonProps } from "./components/ui/button.js";
+export {
+  PermissionTriStateControl,
+  type PermissionTriStateControlProps
+} from "./components/ui/permission-tri-state-control.js";
 
 export { Input } from "./components/ui/input.js";
 export { PasswordInput } from "./components/ui/password-input.js";
@@ -248,6 +262,7 @@ export {
 export {
   ResponsiveLayoutShell,
   type SidebarNavItem,
+  type SidebarNavSection,
   type ResponsiveLayoutShellProps
 } from "./components/layout-shell.js";
 
@@ -311,6 +326,10 @@ export {
   shellMobileHeaderClass,
   shellSidebarClass,
   shellSidebarFooterClass,
+  shellSidebarHeaderClass,
+  shellSidebarHeaderCollapsedClass,
+  shellSidebarNavScrollClass,
+  shellSidebarNavScrollCollapsedClass,
   shellSidebarScrollClass,
   sidebarCollapsedLogoutButtonClass,
   sidebarLogoutButtonClass,

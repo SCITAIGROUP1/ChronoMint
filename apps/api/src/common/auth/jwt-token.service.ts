@@ -1,8 +1,9 @@
 import { ErrorCodes } from "@kloqra/contracts";
-import { Injectable, Logger, UnauthorizedException } from "@nestjs/common";
+import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import type { PlatformRequestUser } from "../decorators/current-platform-user.decorator";
 import type { RequestUser } from "../decorators/current-user.decorator";
+import type { ProductAuthScope } from "./auth-scope";
 
 export type AuthTokenFailureReason =
   | "token_expired"
@@ -28,8 +29,9 @@ export interface VerifiedAccessPayload {
   role?: "ADMIN" | "MEMBER";
   tenantRole?: "OWNER" | "ADMIN";
   impersonatorId?: string;
-  scope?: "client" | "admin";
+  scope?: ProductAuthScope;
   family?: string;
+  issuedAtMs?: number;
 }
 
 function decodeExp(token: string): number | null {
@@ -45,8 +47,6 @@ function decodeExp(token: string): number | null {
 
 @Injectable()
 export class JwtTokenService {
-  private readonly logger = new Logger(JwtTokenService.name);
-
   constructor(private jwt: JwtService) {}
 
   isTokenExpired(token: string): boolean {
@@ -55,7 +55,7 @@ export class JwtTokenService {
     return exp * 1000 <= Date.now();
   }
 
-  verifyAccessToken(token: string, expectedScope?: "client" | "admin"): VerifiedAccessPayload {
+  verifyAccessToken(token: string, expectedScope?: ProductAuthScope): VerifiedAccessPayload {
     const secret = process.env.JWT_ACCESS_SECRET?.trim();
     if (!secret) {
       throw new UnauthorizedException({
@@ -95,15 +95,12 @@ export class JwtTokenService {
         details: { reason: "token_wrong_type" as AuthTokenFailureReason }
       });
     }
-    if (typ !== undefined && typ !== "access") {
+    if (typ !== "access") {
       throw new UnauthorizedException({
         code: ErrorCodes.UNAUTHORIZED,
         message: "Wrong token type",
         details: { reason: "token_wrong_type" as AuthTokenFailureReason }
       });
-    }
-    if (typ === undefined) {
-      this.logger.warn("Access token missing typ claim — legacy token accepted");
     }
 
     const sub = typeof payload.sub === "string" ? payload.sub : undefined;
@@ -140,7 +137,9 @@ export class JwtTokenService {
     }
 
     const scope = payload.scope;
-    if (expectedScope && (scope === "client" || scope === "admin") && scope !== expectedScope) {
+    const tokenScope = scope === "app" ? scope : undefined;
+    const scopeMatches = tokenScope === "app" && (!expectedScope || tokenScope === expectedScope);
+    if (!scopeMatches) {
       throw new UnauthorizedException({
         code: ErrorCodes.UNAUTHORIZED,
         message: "Token scope mismatch",
@@ -151,6 +150,7 @@ export class JwtTokenService {
     const impersonatorId =
       typeof payload.impersonatorId === "string" ? payload.impersonatorId : undefined;
     const family = typeof payload.family === "string" ? payload.family : undefined;
+    const issuedAtMs = typeof payload.issuedAtMs === "number" ? payload.issuedAtMs : undefined;
 
     return {
       sub,
@@ -160,8 +160,9 @@ export class JwtTokenService {
       role: hasWorkspaceRole ? role : undefined,
       tenantRole: hasTenantRole ? (tenantRole as "OWNER" | "ADMIN") : undefined,
       impersonatorId,
-      scope: scope === "client" || scope === "admin" ? scope : undefined,
-      family
+      scope: tokenScope,
+      family,
+      issuedAtMs
     };
   }
 

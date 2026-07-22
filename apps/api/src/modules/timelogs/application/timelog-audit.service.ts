@@ -6,12 +6,16 @@ import type {
 import { ErrorCodes } from "@kloqra/contracts";
 import { Injectable, HttpStatus } from "@nestjs/common";
 import type { Prisma } from "@prisma/client";
+import { AuthorizationEnforcementService } from "../../../common/access/authorization-enforcement.service";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 
 @Injectable()
 export class TimelogAuditService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private authorization: AuthorizationEnforcementService
+  ) {}
 
   snapshotFromLog(log: {
     taskId: string;
@@ -61,7 +65,7 @@ export class TimelogAuditService {
   async listForTimeLog(
     workspaceId: string,
     requesterId: string,
-    role: string,
+    _role: string,
     timeLogId: string
   ): Promise<ListTimelogAuditEventsResponseDto> {
     const log = await this.prisma.timeLog.findFirst({
@@ -71,9 +75,19 @@ export class TimelogAuditService {
     if (!log) {
       throw new DomainException(ErrorCodes.NOT_FOUND, "TimeLog not found", HttpStatus.NOT_FOUND);
     }
-    if (role !== "ADMIN" && log.userId !== requesterId) {
-      throw new DomainException(ErrorCodes.FORBIDDEN, "Not your entry", HttpStatus.FORBIDDEN);
-    }
+    await this.authorization.assertAllowed(
+      log.userId === requesterId
+        ? {
+            principalId: requesterId,
+            permission: "personal:ManageTimelogs",
+            resource: { scope: "self", workspaceId }
+          }
+        : {
+            principalId: requesterId,
+            permission: "workspace:ReadTimelogAudit",
+            resource: { scope: "workspace", workspaceId }
+          }
+    );
 
     const events = await this.prisma.timeLogAuditEvent.findMany({
       where: { timeLogId },

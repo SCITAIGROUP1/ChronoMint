@@ -8,9 +8,10 @@ import {
   resetPlatformAuthRefreshRetryCount,
   schedulePlatformAuthRefreshRetry
 } from "./auth-refresh-guard";
+import { configuredAuthScope } from "./configured-auth-scope";
 import { forcePlatformAuthSignOut } from "./force-auth-sign-out";
 
-const AUTH_SCOPE = process.env.NEXT_PUBLIC_AUTH_SCOPE?.trim() || "platform";
+const AUTH_SCOPE = configuredAuthScope(process.env.NEXT_PUBLIC_AUTH_SCOPE, "platform");
 
 let refreshPromise: Promise<string | null> | null = null;
 

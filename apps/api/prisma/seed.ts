@@ -9,8 +9,8 @@ import {
 } from "./generated/client";
 import {
   buildPreferencesWithDashboardLayouts,
-  SEED_ADMIN_DASHBOARD_LAYOUT,
-  SEED_CLIENT_DASHBOARD_LAYOUT
+  SEED_MANAGEMENT_DASHBOARD_LAYOUT,
+  SEED_PERSONAL_DASHBOARD_LAYOUT
 } from "./seed-dashboard-layouts";
 import {
   CATEGORY_LOG_DESCRIPTIONS,
@@ -489,9 +489,9 @@ async function seedDashboardLayouts(
         const merged = buildPreferencesWithDashboardLayouts(
           user.preferences,
           workspace.id,
-          "admin",
-          SEED_ADMIN_DASHBOARD_LAYOUT,
-          SEED_ADMIN_DASHBOARD_LAYOUT
+          "app",
+          SEED_MANAGEMENT_DASHBOARD_LAYOUT,
+          SEED_MANAGEMENT_DASHBOARD_LAYOUT
         );
 
         const saved = await prisma.user.update({
@@ -508,9 +508,9 @@ async function seedDashboardLayouts(
         const merged = buildPreferencesWithDashboardLayouts(
           user.preferences,
           workspace.id,
-          "client",
-          SEED_CLIENT_DASHBOARD_LAYOUT,
-          SEED_CLIENT_DASHBOARD_LAYOUT
+          "app",
+          SEED_PERSONAL_DASHBOARD_LAYOUT,
+          SEED_PERSONAL_DASHBOARD_LAYOUT
         );
 
         const saved = await prisma.user.update({
@@ -541,7 +541,11 @@ async function seedUsers(passwordHash: string): Promise<Map<string, User>> {
         defaultHourlyRate: spec.defaultHourlyRate,
         mustChangePassword: spec.mustChangePassword ?? false,
         emailVerifiedAt: spec.emailVerified === false ? null : new Date(),
-        preferences: (spec.preferences ?? {}) as Prisma.InputJsonValue
+        preferences: {
+          onboardingWizardDone: true,
+          onboardingTourDone: true,
+          ...(spec.preferences ?? {})
+        } as Prisma.InputJsonValue
       } as Prisma.UserUncheckedCreateInput
     });
     users.set(spec.email, user);

@@ -10,7 +10,9 @@ import {
   twoFactorVerifySchema,
   updateDashboardLayoutSchema,
   updateUserPreferencesSchema,
-  updateUserProfileSchema
+  updateUserProfileSchema,
+  type DashboardLayoutQueryDto,
+  type Permission
 } from "@kloqra/contracts";
 import {
   Body,
@@ -28,6 +30,7 @@ import {
 } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import type { Request } from "express";
+import { AuthorizationEnforcementService } from "../../../../common/access/authorization-enforcement.service";
 import { refreshCookieName, getAuthScope } from "../../../../common/auth/auth-scope";
 import {
   CurrentUser,
@@ -51,12 +54,14 @@ export class UsersController {
   constructor(
     private users: UsersService,
     private sessions: UsersSessionsService,
-    private twoFa: Users2faService
+    private twoFa: Users2faService,
+    private authorization: AuthorizationEnforcementService
   ) {}
 
   @Get(ROUTES.USERS.ME)
   @TenantScoped()
-  getMe(@CurrentUser() user: RequestUser) {
+  async getMe(@CurrentUser() user: RequestUser) {
+    await this.authorizeSelf(user, "personal:ManageProfile");
     if (user.workspaceId && user.role) {
       return this.users.getProfile(user.userId, user.workspaceId, user.role);
     }
@@ -65,11 +70,12 @@ export class UsersController {
 
   @Patch(ROUTES.USERS.ME)
   @TenantScoped()
-  updateMe(
+  async updateMe(
     @CurrentUser() user: RequestUser,
     @Body(new ZodValidationPipe(updateUserProfileSchema)) body: unknown
   ) {
     this.assertNotImpersonating(user);
+    await this.authorizeSelf(user, "personal:ManageProfile");
     if (user.workspaceId && user.role) {
       return this.users.updateProfile(
         user.userId,
@@ -86,19 +92,21 @@ export class UsersController {
   }
 
   @Get(ROUTES.USERS.DASHBOARD_LAYOUT)
-  getDashboardLayout(
+  async getDashboardLayout(
     @WorkspaceUser() user: WorkspaceRequestUser,
-    @Query(new ZodValidationPipe(dashboardLayoutQuerySchema)) query: { app: "client" | "admin" }
+    @Query(new ZodValidationPipe(dashboardLayoutQuerySchema)) query: DashboardLayoutQueryDto
   ) {
+    await this.authorizeSelf(user, "personal:ManageProfile");
     return this.users.getDashboardLayout(user.userId, user.workspaceId, query.app);
   }
 
   @Put(ROUTES.USERS.DASHBOARD_LAYOUT)
-  updateDashboardLayout(
+  async updateDashboardLayout(
     @WorkspaceUser() user: WorkspaceRequestUser,
     @Body(new ZodValidationPipe(updateDashboardLayoutSchema)) body: unknown
   ) {
     this.assertNotImpersonating(user);
+    await this.authorizeSelf(user, "personal:ManageProfile");
     return this.users.updateDashboardLayout(
       user.userId,
       user.workspaceId,
@@ -108,11 +116,12 @@ export class UsersController {
 
   @Patch(ROUTES.USERS.PREFERENCES)
   @TenantScoped()
-  updatePreferences(
+  async updatePreferences(
     @CurrentUser() user: RequestUser,
     @Body(new ZodValidationPipe(updateUserPreferencesSchema)) body: unknown
   ) {
     this.assertNotImpersonating(user);
+    await this.authorizeSelf(user, "personal:ManageProfile");
     if (user.workspaceId && user.role) {
       return this.users.updatePreferences(
         user.userId,
@@ -131,11 +140,12 @@ export class UsersController {
   @Throttle({ auth: { limit: 5, ttl: 60_000 } })
   @Post(ROUTES.USERS.PASSWORD)
   @TenantScoped()
-  changePassword(
+  async changePassword(
     @CurrentUser() user: RequestUser,
     @Body(new ZodValidationPipe(changePasswordSchema)) body: unknown
   ) {
     this.assertNotImpersonating(user);
+    await this.authorizeSelf(user, "personal:ManageAccountSecurity");
     return this.users.changePassword(
       user.userId,
       body as Parameters<UsersService["changePassword"]>[1]
@@ -144,32 +154,36 @@ export class UsersController {
 
   @Get(ROUTES.USERS.SESSIONS)
   @TenantScoped()
-  listSessions(@CurrentUser() user: RequestUser, @Req() req: Request) {
+  async listSessions(@CurrentUser() user: RequestUser, @Req() req: Request) {
+    await this.authorizeSelf(user, "personal:ManageAccountSecurity");
     const scope = getAuthScope(req);
-    const refresh = req.cookies?.[refreshCookieName(scope)] ?? req.cookies?.refresh_token;
+    const refresh = req.cookies?.[refreshCookieName(scope)];
     return this.sessions.listSessions(user.userId, refresh);
   }
 
   @Delete(ROUTES.USERS.SESSION(":id"))
   @TenantScoped()
-  revokeSession(@CurrentUser() user: RequestUser, @Param("id") sessionId: string) {
+  async revokeSession(@CurrentUser() user: RequestUser, @Param("id") sessionId: string) {
     this.assertNotImpersonating(user);
+    await this.authorizeSelf(user, "personal:ManageAccountSecurity");
     return this.sessions.revokeSession(user.userId, sessionId);
   }
 
   @Post(ROUTES.USERS.REVOKE_OTHER_SESSIONS)
   @TenantScoped()
-  revokeOtherSessions(@CurrentUser() user: RequestUser, @Req() req: Request) {
+  async revokeOtherSessions(@CurrentUser() user: RequestUser, @Req() req: Request) {
     this.assertNotImpersonating(user);
+    await this.authorizeSelf(user, "personal:ManageAccountSecurity");
     const scope = getAuthScope(req);
-    const refresh = req.cookies?.[refreshCookieName(scope)] ?? req.cookies?.refresh_token;
+    const refresh = req.cookies?.[refreshCookieName(scope)];
     return this.sessions.revokeOtherSessions(user.userId, refresh);
   }
 
   @Post(ROUTES.USERS.TWO_FA_ENABLE)
   @TenantScoped()
-  enable2fa(@CurrentUser() user: RequestUser) {
+  async enable2fa(@CurrentUser() user: RequestUser) {
     this.assertNotImpersonating(user);
+    await this.authorizeSelf(user, "personal:ManageAccountSecurity");
     const profilePromise =
       user.workspaceId && user.role
         ? this.users.getProfile(user.userId, user.workspaceId, user.role)
@@ -179,21 +193,23 @@ export class UsersController {
 
   @Post(ROUTES.USERS.TWO_FA_VERIFY)
   @TenantScoped()
-  verify2fa(
+  async verify2fa(
     @CurrentUser() user: RequestUser,
     @Body(new ZodValidationPipe(twoFactorVerifySchema)) body: unknown
   ) {
     this.assertNotImpersonating(user);
+    await this.authorizeSelf(user, "personal:ManageAccountSecurity");
     return this.twoFa.verify(user.userId, body as Parameters<Users2faService["verify"]>[1]);
   }
 
   @Put(ROUTES.USERS.PROJECT_COLOR(":projectId"))
-  setProjectColor(
+  async setProjectColor(
     @WorkspaceUser() user: WorkspaceRequestUser,
     @Param("projectId") projectId: string,
     @Body(new ZodValidationPipe(setUserProjectColorSchema)) body: unknown
   ) {
     this.assertNotImpersonating(user);
+    await this.authorizeSelf(user, "personal:ListProjects");
     return this.users.setProjectColor(
       user.userId,
       user.workspaceId,
@@ -203,39 +219,43 @@ export class UsersController {
   }
 
   @Delete(ROUTES.USERS.PROJECT_COLOR(":projectId"))
-  clearProjectColor(
+  async clearProjectColor(
     @WorkspaceUser() user: WorkspaceRequestUser,
     @Param("projectId") projectId: string
   ) {
     this.assertNotImpersonating(user);
+    await this.authorizeSelf(user, "personal:ListProjects");
     return this.users.clearProjectColor(user.userId, user.workspaceId, projectId);
   }
 
   @Post(ROUTES.USERS.TWO_FA_DISABLE)
   @TenantScoped()
-  disable2fa(
+  async disable2fa(
     @CurrentUser() user: RequestUser,
     @Body(new ZodValidationPipe(twoFactorDisableSchema)) body: unknown
   ) {
     this.assertNotImpersonating(user);
+    await this.authorizeSelf(user, "personal:ManageAccountSecurity");
     return this.twoFa.disable(user.userId, body as Parameters<Users2faService["disable"]>[1]);
   }
 
   @Post(ROUTES.USERS.PHONE_SEND_OTP)
-  sendPhoneOtp(
+  async sendPhoneOtp(
     @WorkspaceUser() user: WorkspaceRequestUser,
     @Body(new ZodValidationPipe(sendPhoneOtpSchema)) body: any
   ) {
     this.assertNotImpersonating(user);
+    await this.authorizeSelf(user, "personal:ManageAccountSecurity");
     return this.users.sendPhoneOtp(user.userId, user.workspaceId, body.phone, user.role);
   }
 
   @Post(ROUTES.USERS.PHONE_VERIFY_OTP)
-  verifyPhoneOtp(
+  async verifyPhoneOtp(
     @WorkspaceUser() user: WorkspaceRequestUser,
     @Body(new ZodValidationPipe(verifyPhoneOtpSchema)) body: any
   ) {
     this.assertNotImpersonating(user);
+    await this.authorizeSelf(user, "personal:ManageAccountSecurity");
     return this.users.verifyPhoneOtp(user.userId, user.workspaceId, body.code, user.role);
   }
 
@@ -247,5 +267,16 @@ export class UsersController {
         HttpStatus.FORBIDDEN
       );
     }
+  }
+
+  private authorizeSelf(user: RequestUser, permission: Permission) {
+    return this.authorization.assertAllowed({
+      principalId: user.userId,
+      permission,
+      resource: {
+        scope: "self",
+        ...(user.workspaceId ? { workspaceId: user.workspaceId } : { tenantId: user.tenantId })
+      }
+    });
   }
 }

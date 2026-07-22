@@ -7,11 +7,12 @@ import { useWorkspacesStore } from "../stores/workspaces.store";
 import { canLoginToAdminApp } from "./admin-app-access";
 import { applyDefaultWorkspaceIfNeeded } from "./apply-default-workspace";
 import { classifyBootstrapError, type BootstrapFailureReason } from "./bootstrap-failure";
+import { configuredAuthScope } from "./configured-auth-scope";
 import { isAccessTokenExpired, readUserIdFromToken } from "./jwt-payload";
 import { isLogoutInFlight } from "./logout-session";
 import { tryRefreshSession } from "./refresh-session";
 
-const AUTH_SCOPE = process.env.NEXT_PUBLIC_AUTH_SCOPE?.trim() || "app";
+const AUTH_SCOPE = configuredAuthScope(process.env.NEXT_PUBLIC_AUTH_SCOPE, "app");
 
 let handoffCompletePromise: Promise<string | null> | null = null;
 let handoffCompleteToken: string | null = null;
@@ -57,13 +58,13 @@ export type BootstrapResult =
 export type { BootstrapFailureReason };
 
 export type BootstrapOptions = {
-  /** Clear local session before refresh (legacy impersonation handoff). */
+  /** Clear the local session before completing an impersonation handoff. */
   clearBeforeRefresh?: boolean;
-  /** One-time impersonation token from admin redirect (production cross-site handoff). */
+  /** One-time token for completing an impersonation handoff. */
   handoffToken?: string;
   /** Require workspace role after bootstrap. */
   requiredRole?: "ADMIN" | "MEMBER";
-  /** Allow workspace MEMBER with led projects (admin app project-lead access). */
+  /** Allow workspace members who manage projects to enter management mode. */
   allowProjectLead?: boolean;
   /** Allow tenant OWNER/ADMIN without workspace ADMIN (organization account mode). */
   allowTenantOperator?: boolean;

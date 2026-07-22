@@ -30,7 +30,8 @@ We're updating Kloqra to support **Organizations** — a single account that can
 **Action required**
 
 - **[No action]** — if you only use one workspace and your login still works.
-- **[Organization owners]** — on next admin login you may see **Finish setup** to confirm your organization name and URL slug. This takes under a minute.
+- **[Organization owners]** — on your next product login you may see **Finish setup** to confirm
+  your organization name and URL slug. This takes under a minute.
 
 **Maintenance window**
 

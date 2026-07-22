@@ -109,7 +109,7 @@
     },
     {
       "id": "SaaS-F08",
-      "title": "Account UI in admin app (tenant owner home)",
+      "title": "Account UI in product app (tenant owner home)",
       "status": "done",
       "owner": "FE",
       "saasPhase": "P2"
@@ -165,7 +165,7 @@
     },
     {
       "id": "SaaS-F14",
-      "title": "platform-admin app scaffold",
+      "title": "platform-product app scaffold",
       "status": "done",
       "owner": "FE",
       "saasPhase": "P4"
@@ -218,6 +218,48 @@
       "status": "done",
       "owner": "QA",
       "saasPhase": "P6"
+    },
+    {
+      "id": "UPS-00",
+      "title": "Unified product site architecture and acceptance contract",
+      "status": "done",
+      "owner": "LSA"
+    },
+    {
+      "id": "UPS-01",
+      "title": "Central permission catalog and managed-role policies",
+      "status": "done",
+      "owner": "LSA"
+    },
+    {
+      "id": "UPS-02",
+      "title": "Scoped API policy evaluator and role-grant audit",
+      "status": "done",
+      "owner": "BE"
+    },
+    {
+      "id": "UPS-03",
+      "title": "Unified product authentication and session cutover",
+      "status": "done",
+      "owner": "BE"
+    },
+    {
+      "id": "UPS-04",
+      "title": "Centralized UI foundation and capability-driven shell",
+      "status": "done",
+      "owner": "FE"
+    },
+    {
+      "id": "UPS-05",
+      "title": "Personal feature migration and portal retirement",
+      "status": "done",
+      "owner": "FE"
+    },
+    {
+      "id": "UPS-06",
+      "title": "Production hardening, UAT, and unified deployment",
+      "status": "done",
+      "owner": "QA"
     }
   ]
 }

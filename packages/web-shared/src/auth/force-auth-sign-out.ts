@@ -1,10 +1,11 @@
 import { forceDisconnectNotificationSocket } from "../realtime/notification-socket-manager";
 import { useSessionStore } from "../stores/session.store";
 import { cancelAuthRefreshRetries, cancelPlatformAuthRefreshRetries } from "./auth-refresh-guard";
+import { configuredAuthScope } from "./configured-auth-scope";
 import type { SessionBoundaryReason } from "./session-boundary";
 import { cancelProactiveRefresh } from "./token-scheduler";
 
-const AUTH_SCOPE = process.env.NEXT_PUBLIC_AUTH_SCOPE?.trim() || "app";
+const AUTH_SCOPE = configuredAuthScope(process.env.NEXT_PUBLIC_AUTH_SCOPE, "app");
 
 export type ForceAuthSignOutOptions = {
   reason?: SessionBoundaryReason;

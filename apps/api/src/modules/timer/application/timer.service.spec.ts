@@ -27,6 +27,7 @@ describe("TimerService", () => {
   let redisMock: ReturnType<typeof createRedisMock>;
   let mockPrisma: any;
   let mockAccess: any;
+  let mockAuthorization: any;
   let mockAudit: any;
   let mockTimesheetLock: any;
   let mockTimelogs: any;
@@ -77,6 +78,9 @@ describe("TimerService", () => {
     mockAccess = {
       assertCanLogTask: vi.fn().mockResolvedValue(undefined)
     };
+    mockAuthorization = {
+      assertAllowed: vi.fn().mockResolvedValue({ allowed: true })
+    };
     mockAudit = {
       snapshotFromLog: vi.fn().mockReturnValue({ taskId }),
       recordEvent: vi.fn().mockResolvedValue(undefined)
@@ -96,6 +100,7 @@ describe("TimerService", () => {
       mockPrisma,
       redisMock.redis as never,
       mockAccess,
+      mockAuthorization,
       mockAudit,
       mockTimesheetLock,
       mockTimelogs,

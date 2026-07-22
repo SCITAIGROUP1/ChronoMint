@@ -5,8 +5,8 @@ import {
   type WidgetLayoutItemDto
 } from "@kloqra/contracts";
 
-/** Member client dashboard — default for all seeded member accounts. */
-export const SEED_CLIENT_DASHBOARD_LAYOUT: WidgetLayoutItemDto[] = [
+/** Personal-work dashboard — default for seeded member accounts. */
+export const SEED_PERSONAL_DASHBOARD_LAYOUT: WidgetLayoutItemDto[] = [
   { i: "stat_total_hours_today", x: 0, y: 0, w: 3, h: 2, visible: true },
   { i: "stat_total_hours", x: 3, y: 0, w: 3, h: 2, visible: true },
   { i: "stat_billable", x: 9, y: 0, w: 3, h: 2, visible: false },
@@ -22,8 +22,8 @@ export const SEED_CLIENT_DASHBOARD_LAYOUT: WidgetLayoutItemDto[] = [
   { i: "timesheet_submissions", x: 6, y: 13, w: 6, h: 3, visible: false }
 ];
 
-/** Admin dashboard — default for all seeded admin accounts (Avery Admin Acme layout). */
-export const SEED_ADMIN_DASHBOARD_LAYOUT: WidgetLayoutItemDto[] = [
+/** Management dashboard — default for seeded workspace administrators. */
+export const SEED_MANAGEMENT_DASHBOARD_LAYOUT: WidgetLayoutItemDto[] = [
   { i: "stat_total_hours", x: 4, y: 0, w: 4, h: 2, visible: true },
   { i: "stat_billable", x: 0, y: 0, w: 2, h: 2, visible: true },
   { i: "stat_nonbillable", x: 2, y: 0, w: 2, h: 2, visible: true },

@@ -8,36 +8,60 @@ import {
   ROUTES
 } from "@kloqra/contracts";
 import { Controller, Get, Post, Query, Param, Body, UseGuards, HttpCode } from "@nestjs/common";
-import { ProjectAccessService } from "../../../../common/access/project-access.service";
-import { Roles } from "../../../../common/decorators/roles.decorator";
+import { AuthorizationEnforcementService } from "../../../../common/access/authorization-enforcement.service";
+import { RequirePermission } from "../../../../common/decorators/require-permission.decorator";
 import {
   WorkspaceUser,
   type WorkspaceRequestUser
 } from "../../../../common/decorators/workspace-user.decorator";
-import { AdminOrProjectManagerGuard } from "../../../../common/guards/admin-or-project-manager.guard";
 import { CommercialFeaturesGuard } from "../../../../common/guards/commercial-features.guard";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
-import { RolesGuard } from "../../../../common/guards/roles.guard";
+import { PermissionGuard } from "../../../../common/guards/permission.guard";
+import { appOrigin } from "../../../../common/mailer/app-origin.util";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
 import { ReportingService } from "../../application/reporting.service";
 import { WidgetShareService } from "../../application/widget-share.service";
 
 @Controller()
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionGuard)
 export class ReportingController {
   constructor(
     private reporting: ReportingService,
     private widgetShares: WidgetShareService,
-    private access: ProjectAccessService
+    private authorization: AuthorizationEnforcementService
   ) {}
 
   private async allowedProjectIds(user: WorkspaceRequestUser): Promise<string[] | undefined> {
-    if (user.role === "ADMIN") return undefined;
-    return this.access.manageableProjectIds(user.workspaceId, user.userId, user.role);
+    const workspaceDecision = await this.authorization.evaluate({
+      principalId: user.userId,
+      permission: "workspace:ReadReports",
+      resource: { scope: "workspace", workspaceId: user.workspaceId }
+    });
+    if (workspaceDecision.allowed) return undefined;
+
+    const decisions = await Promise.all(
+      (user.managedProjectIds ?? []).map(async (projectId) => ({
+        projectId,
+        decision: await this.authorization.evaluate({
+          principalId: user.userId,
+          permission: "project:ReadReports",
+          resource: { scope: "project", projectId, expectedWorkspaceId: user.workspaceId }
+        })
+      }))
+    );
+    const allowed = decisions
+      .filter(({ decision }) => decision.allowed)
+      .map(({ projectId }) => projectId);
+    if (allowed.length === 0) {
+      await this.authorization.assertAllowed({
+        principalId: user.userId,
+        permission: "workspace:ReadReports",
+        resource: { scope: "workspace", workspaceId: user.workspaceId }
+      });
+    }
+    return allowed;
   }
 
-  @UseGuards(AdminOrProjectManagerGuard)
-  @Roles("ADMIN", "MEMBER")
   @Get(ROUTES.REPORTING.DASHBOARD)
   async dashboard(
     @WorkspaceUser() user: WorkspaceRequestUser,
@@ -51,8 +75,6 @@ export class ReportingController {
     );
   }
 
-  @UseGuards(AdminOrProjectManagerGuard)
-  @Roles("ADMIN", "MEMBER")
   @Get(ROUTES.REPORTING.UTILIZATION)
   async utilization(
     @WorkspaceUser() user: WorkspaceRequestUser,
@@ -62,16 +84,17 @@ export class ReportingController {
     return this.reporting.utilization(user.workspaceId, query, projectIds);
   }
 
-  @UseGuards(AdminOrProjectManagerGuard, CommercialFeaturesGuard)
-  @Roles("ADMIN", "MEMBER")
+  @UseGuards(CommercialFeaturesGuard)
   @Get(ROUTES.REPORTING.BUDGET(":id"))
   async budgetBurnDown(@WorkspaceUser() user: WorkspaceRequestUser, @Param("id") id: string) {
-    await this.access.assertCanManageProject(user.workspaceId, user.userId, user.role, id);
+    await this.authorization.assertAllowed({
+      principalId: user.userId,
+      permission: "project:ReadReports",
+      resource: { scope: "project", projectId: id, expectedWorkspaceId: user.workspaceId }
+    });
     return this.reporting.budgetBurnDown(user.workspaceId, id);
   }
 
-  @UseGuards(AdminOrProjectManagerGuard)
-  @Roles("ADMIN", "MEMBER")
   @Get(ROUTES.REPORTING.HEATMAP)
   async heatmap(
     @WorkspaceUser() user: WorkspaceRequestUser,
@@ -85,8 +108,6 @@ export class ReportingController {
     );
   }
 
-  @UseGuards(AdminOrProjectManagerGuard)
-  @Roles("ADMIN", "MEMBER")
   @Get(ROUTES.REPORTING.CATEGORIES_HEATMAP)
   async categoriesHeatmap(
     @WorkspaceUser() user: WorkspaceRequestUser,
@@ -100,8 +121,6 @@ export class ReportingController {
     );
   }
 
-  @UseGuards(AdminOrProjectManagerGuard)
-  @Roles("ADMIN", "MEMBER")
   @Get(ROUTES.REPORTING.TASKS)
   async tasks(
     @WorkspaceUser() user: WorkspaceRequestUser,
@@ -115,13 +134,21 @@ export class ReportingController {
     );
   }
 
-  @Roles("ADMIN", "MEMBER")
   @Get(ROUTES.REPORTING.PROJECT_SUMMARY(":projectId"))
-  projectSummary(
+  async projectSummary(
     @WorkspaceUser() user: WorkspaceRequestUser,
     @Param("projectId") projectId: string,
     @Query(new ZodValidationPipe(projectSummaryQuerySchema)) query: unknown
   ) {
+    await this.authorization.assertAllowed({
+      principalId: user.userId,
+      permission: "project:ReadReports",
+      resource: {
+        scope: "project",
+        projectId,
+        expectedWorkspaceId: user.workspaceId
+      }
+    });
     return this.reporting.projectSummary(
       user.workspaceId,
       projectId,
@@ -131,7 +158,10 @@ export class ReportingController {
     );
   }
 
-  @Roles("ADMIN", "MEMBER")
+  @RequirePermission("personal:ManageTimelogs", {
+    scope: "self",
+    workspaceId: { source: "session", field: "workspaceId" }
+  })
   @Get(ROUTES.REPORTING.ME)
   myWeek(
     @WorkspaceUser() user: WorkspaceRequestUser,
@@ -144,29 +174,22 @@ export class ReportingController {
     );
   }
 
-  @Roles("ADMIN")
+  @RequirePermission("workspace:ManageReportShares", {
+    scope: "workspace",
+    workspaceId: { source: "session", field: "workspaceId" },
+    expectedTenantId: { source: "session", field: "tenantId" }
+  })
   @HttpCode(200)
   @Post(ROUTES.REPORTING.WIDGET_SHARES)
   createWidgetShare(
     @WorkspaceUser() user: WorkspaceRequestUser,
     @Body(new ZodValidationPipe(createWidgetShareSchema)) body: unknown
   ) {
-    const rawAdmin = process.env.PUBLIC_ADMIN_URL ?? process.env.ADMIN_PUBLIC_URL;
-    let adminBase: string;
-    if (rawAdmin) {
-      const parts = rawAdmin
-        .split(",")
-        .map((o) => o.trim())
-        .filter(Boolean);
-      const adminLike = parts.find((o) => o.includes(":3002") || /admin/i.test(o));
-      adminBase = (adminLike ?? parts[0] ?? "http://localhost:3002").replace(/\/$/, "");
-    } else {
-      adminBase = "http://localhost:3002";
-    }
     return this.widgetShares.create(
       user.workspaceId,
-      body as Parameters<WidgetShareService["create"]>[1],
-      adminBase
+      user.userId,
+      body as Parameters<WidgetShareService["create"]>[2],
+      appOrigin()
     );
   }
 }

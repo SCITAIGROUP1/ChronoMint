@@ -1,8 +1,14 @@
-import type { SidebarNavItem } from "@kloqra/ui";
+import type { SidebarNavItem, SidebarNavSection } from "@kloqra/ui";
 import {
   PLATFORM_ACCOUNT_NAV_ITEMS,
   type PlatformAccountNavItem
 } from "@/config/platform-account-nav";
+import {
+  PLATFORM_CONSOLE_NAV_ITEMS,
+  PLATFORM_CONSOLE_SECTION_LABELS,
+  PLATFORM_CONSOLE_SECTION_ORDER,
+  type PlatformConsoleNavItem
+} from "@/config/platform-console-nav";
 
 export type PlatformShellMode = "account" | "console";
 
@@ -32,31 +38,55 @@ function mapAccountNav(items: readonly PlatformAccountNavItem[]): SidebarNavItem
   }));
 }
 
+function buildConsoleNavSections(
+  items: readonly PlatformConsoleNavItem[],
+  notificationUnreadCount: number
+): SidebarNavSection[] {
+  return PLATFORM_CONSOLE_SECTION_ORDER.flatMap((sectionId) => {
+    const sectionItems = items.filter((item) => item.section === sectionId);
+    if (sectionItems.length === 0) return [];
+    return [
+      {
+        id: sectionId,
+        label: PLATFORM_CONSOLE_SECTION_LABELS[sectionId],
+        items: sectionItems.map((item) =>
+          item.href === "/notifications" ? { ...item, badge: notificationUnreadCount } : item
+        )
+      }
+    ];
+  });
+}
+
+export function flattenNavSections(sections: readonly SidebarNavSection[]): SidebarNavItem[] {
+  return sections.flatMap((section) => section.items);
+}
+
 export function resolvePlatformShellNav(options: {
   pathname: string;
-  consoleNavItems: readonly SidebarNavItem[];
   notificationUnreadCount: number;
   platformRole?: string;
-}): { mode: PlatformShellMode; navItems: SidebarNavItem[] } {
+}): { mode: PlatformShellMode; navSections: SidebarNavSection[] } {
   const mode = resolvePlatformShellMode(options.pathname);
 
   if (mode === "account") {
-    return { mode, navItems: mapAccountNav(PLATFORM_ACCOUNT_NAV_ITEMS) };
+    return {
+      mode,
+      navSections: [
+        { id: "account", label: "Account", items: mapAccountNav(PLATFORM_ACCOUNT_NAV_ITEMS) }
+      ]
+    };
   }
 
-  let visibleItems = [...options.consoleNavItems];
+  let visibleItems: PlatformConsoleNavItem[] = [...PLATFORM_CONSOLE_NAV_ITEMS];
 
   if (options.platformRole === "SUPPORT") {
-    // Support agents only see specific modules
     const allowedHrefs = ["/helpdesk", "/notifications", "/profile", "/settings"];
     visibleItems = visibleItems.filter((item) => allowedHrefs.includes(item.href));
   }
 
   return {
     mode,
-    navItems: visibleItems.map((item) =>
-      item.href === "/notifications" ? { ...item, badge: options.notificationUnreadCount } : item
-    )
+    navSections: buildConsoleNavSections(visibleItems, options.notificationUnreadCount)
   };
 }
 

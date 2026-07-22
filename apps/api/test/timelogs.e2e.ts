@@ -60,7 +60,7 @@ describe("Timelogs occupancy E2E", () => {
     }
   });
 
-  it("GET /timelogs/occupancy rejects admin role", async () => {
+  it("GET /timelogs/occupancy returns an admin's own intervals", async () => {
     const from = new Date();
     from.setDate(from.getDate() - 7);
     const to = new Date();
@@ -72,6 +72,7 @@ describe("Timelogs occupancy E2E", () => {
       .set("Authorization", `Bearer ${adminToken}`)
       .set("X-Workspace-Id", adminWorkspaceId);
 
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.items)).toBe(true);
   });
 });

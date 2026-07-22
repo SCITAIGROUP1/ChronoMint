@@ -12,6 +12,7 @@ import {
 } from "@kloqra/contracts";
 import { HttpStatus, Injectable } from "@nestjs/common";
 import type { Prisma } from "@prisma/client";
+import { AuthorizationEnforcementService } from "../../../common/access/authorization-enforcement.service";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { ReportingService } from "./reporting.service";
@@ -20,14 +21,21 @@ import { ReportingService } from "./reporting.service";
 export class WidgetShareService {
   constructor(
     private prisma: PrismaService,
-    private reporting: ReportingService
+    private reporting: ReportingService,
+    private authorization: AuthorizationEnforcementService
   ) {}
 
   async create(
     workspaceId: string,
+    actorUserId: string,
     dto: CreateWidgetShareDto,
     adminPublicBaseUrl: string
   ): Promise<WidgetShareDto> {
+    await this.authorization.assertAllowed({
+      principalId: actorUserId,
+      permission: "workspace:ManageReportShares",
+      resource: { scope: "workspace", workspaceId }
+    });
     const parsed = createWidgetShareSchema.parse(dto);
     widgetShareBodySchema.parse(parsed.body);
 

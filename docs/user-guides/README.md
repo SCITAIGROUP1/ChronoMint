@@ -1,24 +1,29 @@
 # User guides
 
-Step-by-step help for Kloqra apps. No technical setup required.
+Step-by-step help for Kloqra. No technical setup required.
 
-## Which app do I use?
+## One product, capability-driven experiences
 
-| Role                                          | App    | URL (local)           |
-| --------------------------------------------- | ------ | --------------------- |
-| **Member** — log your own time                | Client | http://localhost:3000 |
-| **Admin** — manage projects, billing, exports | Admin  | http://localhost:3002 |
+Everyone signs in to the same product URL (local: http://localhost:3000). Kloqra shows personal and
+management features from your effective tenant, workspace, and project capabilities.
+
+| Persona            | What is added to the shared product                                      |
+| ------------------ | ------------------------------------------------------------------------ |
+| Member             | Timer, timesheet, submissions, assigned projects/tasks, profile/settings |
+| Project manager    | Management actions for assigned projects only                            |
+| Workspace admin    | Workspace-wide projects, team, approvals, reports, rates, and exports    |
+| Tenant owner/admin | Authorized organization controls under `/account/*`                      |
 
 Demo passwords (after seed): `password123`
 
-| Account             | Use for    |
-| ------------------- | ---------- |
-| `member@kloqra.dev` | Client app |
-| `admin@kloqra.dev`  | Admin app  |
+| Account             | Use for                         |
+| ------------------- | ------------------------------- |
+| `member@kloqra.dev` | Personal member experience      |
+| `admin@kloqra.dev`  | Workspace management experience |
 
 Default workspace after seed: **Acme Corporation** (switch workspaces from the sidebar if needed).
 
-## Member guides (client)
+## Personal member workflows
 
 1. [Getting started](member/getting-started.md)
 2. [Timer and timesheet](member/timer-and-timesheet.md)
@@ -26,17 +31,18 @@ Default workspace after seed: **Acme Corporation** (switch workspaces from the s
 4. [Export my data](member/export-my-data.md)
 5. [Profile and settings](member/profile-and-settings.md)
 
-## Admin guides
+## Management workflows
 
-1. [Getting started](admin/getting-started.md)
-2. [Projects and teams](admin/projects-and-teams.md)
+1. [Getting started](management/getting-started.md)
+2. [Projects and teams](management/projects-and-teams.md)
 3. [Timesheet submissions and approval](timesheet-submissions-and-approval.md) — enable approval, review, reminders, edit requests
-4. [Dashboard and team live](admin/dashboard-and-team-live.md)
-5. [Billing](admin/billing.md)
-6. [Exports](admin/exports.md)
-7. [Public reporting API](admin/public-reporting-api.md) — API keys for third-party clients
+4. [Dashboard and team live](management/dashboard-and-team-live.md)
+5. [Billing](management/billing.md)
+6. [Exports](management/exports.md)
+7. [Public reporting API](management/public-reporting-api.md) — API keys for third-party clients
 
-Profile and settings use the same `/profile` and `/settings` pages as the member app — see [member/profile-and-settings.md](member/profile-and-settings.md).
+Profile and settings are shared personal routes for every persona — see
+[member/profile-and-settings.md](member/profile-and-settings.md).
 
 ## QA (testing)
 

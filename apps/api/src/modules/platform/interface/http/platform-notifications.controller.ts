@@ -9,16 +9,19 @@ import {
   CurrentPlatformUser,
   type PlatformRequestUser
 } from "../../../../common/decorators/current-platform-user.decorator";
-import { PlatformGuard } from "../../../../common/guards/platform.guard";
+import { RequirePermission } from "../../../../common/decorators/require-permission.decorator";
+import { PermissionGuard } from "../../../../common/guards/permission.guard";
+import { PlatformJwtAuthGuard } from "../../../../common/guards/platform-jwt-auth.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
 import { PlatformNotificationsService } from "../../application/platform-notifications.service";
 
 @Controller()
-@UseGuards(PlatformGuard)
+@UseGuards(PlatformJwtAuthGuard, PermissionGuard)
 export class PlatformNotificationsController {
   constructor(private notifications: PlatformNotificationsService) {}
 
   @Get(ROUTES.PLATFORM.NOTIFICATIONS)
+  @RequirePermission("platform:ReadOwnNotifications", { scope: "platform" })
   list(
     @CurrentPlatformUser() user: PlatformRequestUser,
     @Query(new ZodValidationPipe(listPlatformNotificationsQuerySchema)) query: unknown
@@ -30,11 +33,13 @@ export class PlatformNotificationsController {
   }
 
   @Get(ROUTES.PLATFORM.NOTIFICATIONS_UNREAD_COUNT)
+  @RequirePermission("platform:ReadOwnNotifications", { scope: "platform" })
   unreadCount(@CurrentPlatformUser() user: PlatformRequestUser) {
     return this.notifications.unreadCount(user.platformUserId);
   }
 
   @Patch(ROUTES.PLATFORM.NOTIFICATION(":id"))
+  @RequirePermission("platform:ReadOwnNotifications", { scope: "platform" })
   updateRead(
     @CurrentPlatformUser() user: PlatformRequestUser,
     @Param("id") id: string,
@@ -48,6 +53,7 @@ export class PlatformNotificationsController {
   }
 
   @Post(ROUTES.PLATFORM.NOTIFICATIONS_MARK_ALL_READ)
+  @RequirePermission("platform:ReadOwnNotifications", { scope: "platform" })
   markAllRead(
     @CurrentPlatformUser() user: PlatformRequestUser,
     @Body(new ZodValidationPipe(markAllPlatformNotificationsReadSchema)) body: unknown

@@ -15,6 +15,7 @@ describe("AuthService unit tests", () => {
   let authService: AuthService;
   let mockPrisma: any;
   let mockJwt: any;
+  let mockAuthorization: any;
   const originalEnv = process.env;
 
   beforeEach(() => {
@@ -29,6 +30,9 @@ describe("AuthService unit tests", () => {
       workspaceMember: {
         findFirst: vi.fn().mockResolvedValue({ workspace: { tenantId: "tenant-1" } }),
         findUnique: vi.fn()
+      },
+      workspace: {
+        findFirst: vi.fn().mockResolvedValue(null)
       }
     } as any;
     mockJwt = {
@@ -42,6 +46,56 @@ describe("AuthService unit tests", () => {
     const mockProvisioning = {
       provisionTenant: vi.fn().mockResolvedValue({ tenantId: "t1", ownerUserId: "u1" })
     };
+    mockAuthorization = {
+      assertAllowed: vi.fn().mockResolvedValue({ allowed: true })
+    };
+    const mockAccessPolicy = {
+      capabilitySnapshot: vi
+        .fn()
+        .mockImplementation(
+          async ({
+            principalId,
+            tenantId,
+            bindings
+          }: {
+            principalId: string;
+            tenantId: string;
+            bindings: Array<{ role: string; scope: string; resourceId: string }>;
+          }) => {
+            const permissions = new Set<string>();
+            for (const binding of bindings) {
+              if (binding.role === "TENANT_OWNER") {
+                permissions.add("tenant:ManageBilling");
+                permissions.add("tenant:CreateWorkspace");
+              }
+              if (binding.role === "TENANT_ADMIN") {
+                permissions.add("tenant:CreateWorkspace");
+              }
+              if (binding.role === "WORKSPACE_ADMIN") {
+                permissions.add("workspace:ManageMembers");
+              }
+            }
+            return {
+              policyVersion: "v2",
+              policyChecksum: "sha256:test",
+              policyRevision: 0,
+              membershipRevision: bindings.length,
+              principalId,
+              tenantId,
+              computedAt: new Date().toISOString(),
+              expiresAt: new Date(Date.now() + 60_000).toISOString(),
+              etag: "etag-1",
+              capabilities: [...permissions].map((permission) => ({
+                permission,
+                scope: "tenant",
+                resourceId: tenantId,
+                allowed: true,
+                source: "canonical-role"
+              }))
+            };
+          }
+        )
+    };
     authService = new AuthService(
       mockPrisma,
       mockJwt,
@@ -50,7 +104,9 @@ describe("AuthService unit tests", () => {
         sendEmailVerification: vi.fn().mockResolvedValue({ sent: true })
       } as never,
       mockProjectAccess as never,
-      mockProvisioning as never
+      mockProvisioning as never,
+      mockAuthorization as never,
+      mockAccessPolicy as never
     );
   });
 
@@ -101,7 +157,9 @@ describe("AuthService unit tests", () => {
           workspaceId: "workspace-1",
           tenantId: "tenant-1",
           role: "MEMBER",
-          typ: "access"
+          typ: "access",
+          issuedAtMs: expect.any(Number),
+          scope: "app"
         },
         { secret: "my-secret-key-32-chars-long-or-more", expiresIn: "10m" }
       );
@@ -116,7 +174,9 @@ describe("AuthService unit tests", () => {
           userId: "user-1",
           tenantId: "tenant-1",
           tenantRole: "OWNER",
-          typ: "access"
+          typ: "access",
+          issuedAtMs: expect.any(Number),
+          scope: "app"
         },
         expect.any(Object)
       );
@@ -126,12 +186,35 @@ describe("AuthService unit tests", () => {
   describe("verifyRefresh", () => {
     it("calls jwt.verify with the refresh secret", () => {
       process.env.JWT_REFRESH_SECRET = "refresh-secret";
-      mockJwt.verify.mockReturnValue({ sub: "user-1", workspaceId: "ws-1", family: "fam-1" });
+      mockJwt.verify.mockReturnValue({
+        sub: "user-1",
+        workspaceId: "ws-1",
+        family: "fam-1",
+        typ: "refresh",
+        scope: "app"
+      });
 
       const payload = authService.verifyRefresh("some-token");
 
-      expect(payload).toEqual({ userId: "user-1", workspaceId: "ws-1", family: "fam-1" });
+      expect(payload).toEqual({
+        userId: "user-1",
+        workspaceId: "ws-1",
+        family: "fam-1",
+        scope: "app"
+      });
       expect(mockJwt.verify).toHaveBeenCalledWith("some-token", { secret: "refresh-secret" });
+    });
+
+    it.each(["client", "admin", undefined])("rejects retired scope %s", (scope) => {
+      process.env.JWT_REFRESH_SECRET = "refresh-secret";
+      mockJwt.verify.mockReturnValue({
+        sub: "user-1",
+        workspaceId: "ws-1",
+        typ: "refresh",
+        scope
+      });
+
+      expect(() => authService.verifyRefresh("some-token")).toThrow();
     });
   });
 
@@ -208,6 +291,9 @@ describe("AuthService unit tests", () => {
       expect(result.user.defaultHourlyRate).toBeNull();
       expect(result.user.firstName).toBe("Avery");
       expect(result.user.lastName).toBe("Admin");
+      expect(result.capabilities).toContain("workspace:ManageMembers");
+      expect(result.capabilities).toContain("tenant:CreateWorkspace");
+      expect(result.capabilities).not.toContain("tenant:ManageBilling");
       expect(mockPrisma.user.findUnique).toHaveBeenCalledWith(
         expect.objectContaining({
           include: expect.objectContaining({
@@ -259,6 +345,44 @@ describe("AuthService unit tests", () => {
       expect(result.tenantId).toBe("tenant-1");
       expect(result.tenantRole).toBe("OWNER");
       expect(result.requiresWorkspaceSetup).toBe(true);
+      expect(result.workspaceId).toBeUndefined();
+      expect(result.capabilities).toContain("tenant:ManageBilling");
+      expect(result.capabilities).not.toContain("workspace:ReadReports");
+    });
+
+    it("returns organization-only session when a second admin has no workspace assignment", async () => {
+      vi.mocked(bcrypt.compare).mockResolvedValue(true as never);
+      mockPrisma.user = {
+        findUnique: vi.fn().mockResolvedValue({
+          id: "admin-2",
+          email: "admin2@scit.com",
+          name: "Second Admin",
+          passwordHash: "hash",
+          mustChangePassword: false,
+          emailVerifiedAt: new Date("2025-01-01"),
+          totpEnabledAt: null,
+          totpSecret: null,
+          defaultHourlyRate: null,
+          memberships: []
+        })
+      };
+      mockPrisma.tenantMember.findUnique.mockResolvedValue({
+        tenantId: "tenant-1",
+        role: "ADMIN",
+        isActive: true
+      });
+      mockPrisma.workspace.findFirst.mockResolvedValue({ id: "workspace-1" });
+
+      const result = await authService.login({
+        email: "admin2@scit.com",
+        password: "password123"
+      });
+
+      if ("requires2fa" in result || "requiresPasswordChange" in result) {
+        expect.fail("expected session");
+      }
+      expect(result.organizationOnly).toBe(true);
+      expect(result.requiresWorkspaceSetup).toBeUndefined();
       expect(result.workspaceId).toBeUndefined();
     });
 
@@ -398,6 +522,36 @@ describe("AuthService unit tests", () => {
       await expect(authService.switchWorkspace("user-1", "ws-2")).rejects.toMatchObject({
         code: "FORBIDDEN"
       });
+      expect(mockAuthorization.assertAllowed).not.toHaveBeenCalled();
+    });
+
+    it("rejects when canonical workspace access is denied", async () => {
+      mockPrisma.workspaceMember.findUnique = vi.fn().mockResolvedValue({
+        workspaceId: "ws-1",
+        role: "MEMBER",
+        isActive: true,
+        user: { id: "user-1", name: "User", email: "u@kloqra.dev", defaultHourlyRate: null },
+        workspace: { id: "ws-1", name: "Workspace", tenantId: "tenant-1" }
+      });
+      mockPrisma.tenantMember.findUnique = vi
+        .fn()
+        .mockResolvedValue({ tenantId: "tenant-1", isActive: true });
+      mockAuthorization.assertAllowed.mockRejectedValueOnce(
+        Object.assign(new Error("Insufficient permissions"), { code: "FORBIDDEN" })
+      );
+
+      await expect(authService.switchWorkspace("user-1", "ws-1")).rejects.toMatchObject({
+        code: "FORBIDDEN"
+      });
+      expect(mockAuthorization.assertAllowed).toHaveBeenCalledWith({
+        principalId: "user-1",
+        permission: "workspace:Access",
+        resource: {
+          scope: "workspace",
+          workspaceId: "ws-1",
+          expectedTenantId: "tenant-1"
+        }
+      });
     });
   });
 
@@ -444,6 +598,21 @@ describe("AuthService unit tests", () => {
         { managedProjectIds: vi.fn(), manageableProjectIds: vi.fn() } as never,
         {
           provisionTenant: vi.fn()
+        } as never,
+        { assertAllowed: vi.fn().mockResolvedValue({ allowed: true }) } as never,
+        {
+          capabilitySnapshot: vi.fn().mockResolvedValue({
+            policyVersion: "v2",
+            policyChecksum: "sha256:test",
+            policyRevision: 0,
+            membershipRevision: 0,
+            principalId: "user-1",
+            tenantId: "tenant-1",
+            computedAt: new Date().toISOString(),
+            expiresAt: new Date(Date.now() + 60_000).toISOString(),
+            etag: "etag-1",
+            capabilities: []
+          })
         } as never
       );
 

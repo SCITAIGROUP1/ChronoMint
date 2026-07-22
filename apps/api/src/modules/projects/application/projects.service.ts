@@ -22,13 +22,16 @@ import { Queue } from "bullmq";
 import * as ExcelJS from "exceljs";
 import type { Response } from "express";
 import { ProjectAccessService } from "../../../common/access/project-access.service";
+import { RoleGrantAuditService } from "../../../common/access/role-grant-audit.service";
+import { RoleGrantPolicyService } from "../../../common/access/role-grant-policy.service";
+import { AuthRevocationService } from "../../../common/auth/auth-revocation.service";
 import { DomainException } from "../../../common/errors/domain.exception";
 import {
   emptyPaginatedResponse,
   paginationSkipTake,
   toPaginatedResponse
 } from "../../../common/http/pagination.util";
-import { clientOrigin } from "../../../common/mailer/client-origin.util";
+import { appOrigin } from "../../../common/mailer/app-origin.util";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { QUEUES } from "../../../common/queues";
 import { waiveOpenTimesheetPeriods } from "../../../common/time/timesheet-approval-policy.util";
@@ -42,11 +45,14 @@ export class ProjectsService {
     private access: ProjectAccessService,
     private notificationsDispatch: NotificationsDispatchService,
     @InjectQueue(QUEUES.BULK_INVITE) private bulkInviteQueue: Queue,
-    private planLimit: PlanLimitService
+    private planLimit: PlanLimitService,
+    private roleGrantPolicy: RoleGrantPolicyService,
+    private roleGrantAudit: RoleGrantAuditService,
+    private authRevocation: AuthRevocationService
   ) {}
 
-  private clientOrigin() {
-    return clientOrigin();
+  private appOrigin() {
+    return appOrigin();
   }
 
   private async ensureTeam(projectId: string) {
@@ -444,9 +450,10 @@ export class ProjectsService {
     workspaceId: string,
     userId: string,
     role: "ADMIN" | "MEMBER",
-    projectId: string
+    projectId: string,
+    permission: "project:ListTeam" | "project:ManageTeam"
   ) {
-    await this.access.assertCanManageProject(workspaceId, userId, role, projectId);
+    await this.access.assertCanManageProject(workspaceId, userId, role, projectId, permission);
     const project = await this.prisma.project.findFirst({
       where: { id: projectId, workspaceId }
     });
@@ -560,7 +567,13 @@ export class ProjectsService {
     projectId: string,
     query: ListProjectTeamQuery
   ) {
-    const project = await this.requireManageProject(workspaceId, userId, role, projectId);
+    const project = await this.requireManageProject(
+      workspaceId,
+      userId,
+      role,
+      projectId,
+      "project:ListTeam"
+    );
     const team = await this.ensureTeam(projectId);
 
     const memberWhere = {
@@ -650,7 +663,13 @@ export class ProjectsService {
     dto: AddTeamMemberDto,
     options?: { suppressAssignmentEmail?: boolean }
   ) {
-    const project = await this.requireManageProject(workspaceId, userId, role, projectId);
+    const project = await this.requireManageProject(
+      workspaceId,
+      userId,
+      role,
+      projectId,
+      "project:ManageTeam"
+    );
     const workspaceMember = await this.prisma.workspaceMember.findUnique({
       where: { workspaceId_userId: { workspaceId, userId: dto.userId } }
     });
@@ -723,14 +742,13 @@ export class ProjectsService {
     projectId: string,
     res: Response
   ) {
-    if (actorRole !== "ADMIN") {
-      throw new DomainException(
-        ErrorCodes.FORBIDDEN,
-        "Only workspace admins can download the project invite template",
-        HttpStatus.FORBIDDEN
-      );
-    }
-    await this.requireManageProject(workspaceId, actorUserId, actorRole, projectId);
+    await this.requireManageProject(
+      workspaceId,
+      actorUserId,
+      actorRole,
+      projectId,
+      "project:ManageTeam"
+    );
 
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("Project invites");
@@ -792,14 +810,13 @@ export class ProjectsService {
     projectId: string,
     members: InviteMemberDto[]
   ): Promise<ProvisionProjectTeamMembersResponseDto> {
-    if (actorRole !== "ADMIN") {
-      throw new DomainException(
-        ErrorCodes.FORBIDDEN,
-        "Only workspace admins can bulk-invite onto a project",
-        HttpStatus.FORBIDDEN
-      );
-    }
-    await this.requireManageProject(workspaceId, actorUserId, actorRole, projectId);
+    await this.requireManageProject(
+      workspaceId,
+      actorUserId,
+      actorRole,
+      projectId,
+      "project:ManageTeam"
+    );
 
     const workspace = await this.prisma.workspace.findUnique({ where: { id: workspaceId } });
     if (!workspace) {
@@ -844,14 +861,13 @@ export class ProjectsService {
     projectId: string,
     jobId: string
   ): Promise<BulkInviteJobStatusDto> {
-    if (actorRole !== "ADMIN") {
-      throw new DomainException(
-        ErrorCodes.FORBIDDEN,
-        "Only workspace admins can check project invite job status",
-        HttpStatus.FORBIDDEN
-      );
-    }
-    await this.requireManageProject(workspaceId, actorUserId, actorRole, projectId);
+    await this.requireManageProject(
+      workspaceId,
+      actorUserId,
+      actorRole,
+      projectId,
+      "project:ManageTeam"
+    );
 
     const job = await this.bulkInviteQueue.getJob(jobId);
     if (!job) {
@@ -878,7 +894,10 @@ export class ProjectsService {
                 successCount: Number(result.successCount ?? 0),
                 skippedCount: Number(result.skippedCount ?? 0),
                 projectAddedCount: Number(result.projectAddedCount ?? 0),
-                totalProcessed: Number(result.totalProcessed ?? 0)
+                totalProcessed: Number(result.totalProcessed ?? 0),
+                emailQueuedCount: Number(result.emailQueuedCount ?? 0),
+                credentialsResentCount: Number(result.credentialsResentCount ?? 0),
+                emailFailedCount: Number(result.emailFailedCount ?? 0)
               }
             }
           : {})
@@ -905,7 +924,13 @@ export class ProjectsService {
     actorRole: "ADMIN" | "MEMBER",
     actorUserId: string
   ) {
-    await this.access.assertCanManageProject(workspaceId, actorUserId, actorRole, projectId);
+    await this.access.assertCanManageProject(
+      workspaceId,
+      actorUserId,
+      actorRole,
+      projectId,
+      "project:ManageTeam"
+    );
     if (dto.role !== undefined && actorRole !== "ADMIN") {
       throw new DomainException(
         ErrorCodes.FORBIDDEN,
@@ -918,6 +943,13 @@ export class ProjectsService {
     });
     if (!project) {
       throw new DomainException(ErrorCodes.NOT_FOUND, "Project not found", HttpStatus.NOT_FOUND);
+    }
+    const workspace = await this.prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: { tenantId: true }
+    });
+    if (!workspace) {
+      throw new DomainException(ErrorCodes.NOT_FOUND, "Workspace not found", HttpStatus.NOT_FOUND);
     }
     const team = await this.ensureTeam(projectId);
     const member = await this.prisma.teamMember.findFirst({
@@ -956,14 +988,61 @@ export class ProjectsService {
       }
     }
 
-    const updated = await this.prisma.teamMember.update({
-      where: { id: memberId },
-      data: {
-        ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
-        ...(dto.role !== undefined && actorRole === "ADMIN" ? { role: dto.role } : {})
-      },
-      include: { user: true }
+    const outcome = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT 1 FROM projects WHERE id = ${projectId} AND workspace_id = ${workspaceId} FOR UPDATE`;
+      const lockedMember = await tx.teamMember.findFirst({
+        where: { id: memberId, teamId: team.id }
+      });
+      if (!lockedMember) {
+        throw new DomainException(
+          ErrorCodes.NOT_FOUND,
+          "Team member not found",
+          HttpStatus.NOT_FOUND
+        );
+      }
+
+      const roleChanged = dto.role !== undefined && dto.role !== lockedMember.role;
+      if (roleChanged) {
+        await this.roleGrantPolicy.assertProjectManagerGrant(
+          {
+            actorId: actorUserId,
+            targetUserId: lockedMember.userId,
+            tenantId: workspace.tenantId,
+            workspaceId,
+            projectId,
+            currentRole: lockedMember.role as "MEMBER" | "PROJECT_MANAGER",
+            requestedRole: dto.role!
+          },
+          tx
+        );
+      }
+
+      const saved = await tx.teamMember.update({
+        where: { id: memberId },
+        data: {
+          ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
+          ...(dto.role !== undefined && actorRole === "ADMIN" ? { role: dto.role } : {})
+        },
+        include: { user: true }
+      });
+      if (roleChanged) {
+        await this.roleGrantAudit.record(tx, {
+          actorUserId,
+          targetUserId: lockedMember.userId,
+          role: "PROJECT_MANAGER",
+          scope: "project",
+          resourceId: projectId,
+          reason: "project_team_role_update",
+          outcome: dto.role === "PROJECT_MANAGER" ? "GRANTED" : "REVOKED"
+        });
+      }
+      return { saved, roleChanged };
     });
+    const updated = outcome.saved;
+
+    if (outcome.roleChanged) {
+      await this.authRevocation.revokeUser(updated.userId);
+    }
 
     if (dto.isActive === false && member.isActive !== false) {
       this.notifyProjectUnassigned(workspaceId, updated.userId, projectId, project.name);
@@ -979,7 +1058,13 @@ export class ProjectsService {
     projectId: string,
     memberId: string
   ) {
-    const project = await this.requireManageProject(workspaceId, userId, role, projectId);
+    const project = await this.requireManageProject(
+      workspaceId,
+      userId,
+      role,
+      projectId,
+      "project:ManageTeam"
+    );
     const team = await this.ensureTeam(projectId);
     const member = await this.prisma.teamMember.findFirst({
       where: { id: memberId, teamId: team.id }
@@ -1004,7 +1089,13 @@ export class ProjectsService {
     dto: CreateTeamInviteDto,
     actorRole: "ADMIN" | "MEMBER"
   ) {
-    const project = await this.requireManageProject(workspaceId, createdById, actorRole, projectId);
+    const project = await this.requireManageProject(
+      workspaceId,
+      createdById,
+      actorRole,
+      projectId,
+      "project:ManageTeam"
+    );
     await this.ensureTeam(projectId);
     const token = randomBytes(24).toString("hex");
     const expiresAt = new Date();
@@ -1020,7 +1111,7 @@ export class ProjectsService {
       }
     });
 
-    const inviteUrl = `${this.clientOrigin()}/invite/${token}`;
+    const inviteUrl = `${this.appOrigin()}/invite/${token}`;
     return {
       id: invite.id,
       projectId,

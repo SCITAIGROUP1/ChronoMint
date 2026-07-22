@@ -233,6 +233,6 @@ If credentials fail or data looks wrong:
 3. Ask the admin to verify the key is **active**, not **expired**, and includes the right **projects**.
 4. Confirm time was logged on those projects in your requested date range.
 
-Admin setup guide: [public-reporting-api.md](../user-guides/admin/public-reporting-api.md)
+Management setup guide: [public-reporting-api.md](../user-guides/management/public-reporting-api.md)
 
 Technical route catalog: [ROUTES.md](./ROUTES.md)

@@ -9,6 +9,7 @@ import { useEffect, useRef } from "react";
 import { io, type Socket } from "socket.io-client";
 import { getApiBase } from "../api/base";
 import { tryRefreshPlatformSession } from "../auth/bootstrap-platform-session";
+import { configuredAuthScope } from "../auth/configured-auth-scope";
 import { usePlatformNotificationsStore } from "../stores/platform-notifications-store";
 import { getPlatformAccessToken } from "../stores/platform-session.store";
 
@@ -21,7 +22,7 @@ export type PlatformNotificationSocketConnectionState =
 type PushHandler = ReturnType<typeof platformNotificationCreatedEventSchema.parse>;
 type ConnectionHandler = (state: PlatformNotificationSocketConnectionState) => void;
 
-const AUTH_SCOPE = process.env.NEXT_PUBLIC_AUTH_SCOPE?.trim() || "platform";
+const AUTH_SCOPE = configuredAuthScope(process.env.NEXT_PUBLIC_AUTH_SCOPE, "platform");
 
 let socket: Socket | null = null;
 let connectionState: PlatformNotificationSocketConnectionState = "idle";

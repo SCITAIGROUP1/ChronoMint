@@ -109,15 +109,9 @@ function failStartup(message: string): never {
 export function validateProductionCookieConfig(): void {
   if (process.env.NODE_ENV !== "production") return;
 
-  const hasCustomOrigins = !!(
-    process.env.PUBLIC_CLIENT_URL ||
-    process.env.PUBLIC_ADMIN_URL ||
-    process.env.PUBLIC_PLATFORM_URL
-  );
+  const hasCustomOrigins = !!(process.env.PUBLIC_APP_URL || process.env.PUBLIC_PLATFORM_URL);
   if (!hasCustomOrigins) {
-    failStartup(
-      "At least one of PUBLIC_CLIENT_URL, PUBLIC_ADMIN_URL, or PUBLIC_PLATFORM_URL is required in production."
-    );
+    failStartup("At least one of PUBLIC_APP_URL or PUBLIC_PLATFORM_URL is required in production.");
   }
 
   const sameSite = resolveAuthCookieSameSite();

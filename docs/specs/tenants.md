@@ -43,7 +43,8 @@
 ## Given / When / Then
 
 **When** superadmin creates a tenant with owner email  
-**Then** owner can log in (admin app), set password, `PATCH /tenants/current` to complete organization profile, and tenant becomes `active`.
+**Then** the owner can log in to the unified product, set a password,
+`PATCH /tenants/current` to complete the organization profile, and the tenant becomes `active`.
 
 **When** tenant is `suspended` or `churned`  
 **Then** login and write operations (timer, timelogs) are blocked.
@@ -70,7 +71,7 @@
 
 ## UI
 
-- Account: `apps/admin/src/features/account/` (F08, F15 owner setup on `/account/organization`)
+- Account: `apps/app/src/features/account/` (F08, F15 owner setup on `/account/organization`)
 - Platform: `apps/platform-admin/` (F14–F15 create/list/detail/suspend)
 
 ## Edge cases

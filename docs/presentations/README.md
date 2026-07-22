@@ -19,7 +19,7 @@ Slide decks for demos, investor updates, and technical walkthroughs.
 
 ## Regenerate PDF
 
-From repo root (requires `apps/client` devDependencies / Playwright):
+From repo root (requires `apps/app` devDependencies / Playwright):
 
 ```bash
 node docs/presentations/generate-pdf.mjs
@@ -60,7 +60,7 @@ npx @marp-team/marp-cli kloqra-demo-and-roadmap.marp.md --pptx \
 6. API modules
 7. Shipped today
 8. Member app demo
-9. Admin app demo
+9. Product app demo
 10. Realtime hero moment
 11. Dual transports
 12. Database partitioning

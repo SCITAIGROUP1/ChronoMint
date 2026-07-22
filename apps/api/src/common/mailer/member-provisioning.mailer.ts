@@ -1,11 +1,10 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { adminClientOrigin } from "./admin-origin.util";
+import { appOrigin } from "./app-origin.util";
 import {
   renderBrandedEmailHtml,
   renderBrandedEmailText,
   subjectPrefix
 } from "./branded-email.layout";
-import { memberClientOrigin } from "./client-origin.util";
 import { buildInviteLoginUrl } from "./invite-login-url.util";
 import { MailerService, type SendMailResult } from "./mailer.service";
 
@@ -50,9 +49,9 @@ function memberInvitePortal(role?: WorkspaceInviteRole): {
   ctaLabel: string;
 } {
   if (role === "ADMIN") {
-    return { origin: adminClientOrigin(), ctaLabel: "Sign in to Kloqra Admin" };
+    return { origin: appOrigin(), ctaLabel: "Sign in to Kloqra" };
   }
-  return { origin: memberClientOrigin(), ctaLabel: "Sign in to Kloqra" };
+  return { origin: appOrigin(), ctaLabel: "Sign in to Kloqra" };
 }
 
 @Injectable()
@@ -139,7 +138,7 @@ export class MemberProvisioningMailer {
 
   /** Combined workspace welcome + project assignment for brand-new users. */
   async sendProjectInviteWelcome(input: ProjectInviteWelcomeMailInput): Promise<SendMailResult> {
-    const loginUrl = buildInviteLoginUrl(memberClientOrigin(), input.inviteHandoffToken);
+    const loginUrl = buildInviteLoginUrl(appOrigin(), input.inviteHandoffToken);
     const who = input.inviterName ? `${input.inviterName} invited you` : "You've been invited";
     const layout = {
       title: `You're on ${input.projectName}`,
@@ -176,7 +175,7 @@ export class MemberProvisioningMailer {
 
   /** Combined notice for existing Kloqra users added to a project (and maybe workspace). */
   async sendProjectInviteExisting(input: ProjectInviteExistingMailInput): Promise<SendMailResult> {
-    const loginUrl = `${memberClientOrigin()}/login`;
+    const loginUrl = `${appOrigin()}/login`;
     const who = input.inviterName ? `${input.inviterName} added you` : "You've been added";
     const bodyLead = input.workspaceJoined
       ? `${who} to ${input.workspaceName} and assigned you to ${input.projectName}.`

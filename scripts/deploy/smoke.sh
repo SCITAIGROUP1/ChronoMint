@@ -36,7 +36,7 @@ fi
 
 echo ""
 echo "API smoke passed. Manual checks:"
-echo "  1. Admin login → Dashboard"
-echo "  2. Client login → Start timer"
-echo "  3. Admin Team live shows activity"
-echo "  4. Admin Export download works"
+echo "  1. Admin role login → Dashboard"
+echo "  2. Member role login → Start timer"
+echo "  3. Admin role Team view shows live activity"
+echo "  4. Admin role Export download works"

@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { AccessModule } from "../../common/access/access.module";
 import { AuthModule } from "../auth/auth.module";
 import { NotificationsModule } from "../notifications/notifications.module";
 import { ProjectsModule } from "../projects/projects.module";
@@ -9,7 +10,14 @@ import { TimerService } from "./application/timer.service";
 import { TimerController } from "./interface/http/timer.controller";
 
 @Module({
-  imports: [AuthModule, ProjectsModule, TimelogsModule, NotificationsModule, SubscriptionsModule],
+  imports: [
+    AuthModule,
+    AccessModule,
+    ProjectsModule,
+    TimelogsModule,
+    NotificationsModule,
+    SubscriptionsModule
+  ],
   controllers: [TimerController],
   providers: [TimerService, StaleTimerService]
 })
