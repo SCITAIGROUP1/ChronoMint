@@ -7,7 +7,7 @@ const STEPS: SpotlightTourStep[] = [
   {
     target: '[data-tour="nav-timer"]',
     title: "Your navigation hub",
-    body: "The unified sidebar contains personal work and only the management areas you can use.",
+    body: "The sidebar is grouped into Workspace and My time so you can jump between management and personal work.",
     placement: "right"
   },
   {

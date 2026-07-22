@@ -262,6 +262,7 @@ export {
 export {
   ResponsiveLayoutShell,
   type SidebarNavItem,
+  type SidebarNavSection,
   type ResponsiveLayoutShellProps
 } from "./components/layout-shell.js";
 

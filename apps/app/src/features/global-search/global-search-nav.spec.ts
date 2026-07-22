@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { filterAppNavItems, toPageSearchResult } from "./global-search-nav";
+import {
+  buildGlobalSearchPageGroups,
+  buildWorkspacePageGroups,
+  filterAppNavItems,
+  toPageSearchResult
+} from "./global-search-nav";
 import { APP_NAV_ITEMS } from "@/config/app-nav";
 
 describe("global-search-nav", () => {
@@ -27,5 +32,19 @@ describe("global-search-nav", () => {
       label: "Dashboard",
       href: "/dashboard"
     });
+  });
+
+  it("groups workspace pages by sidebar section", () => {
+    const groups = buildWorkspacePageGroups("");
+    expect(groups.map((group) => group.label)).toEqual(["Workspace", "My time", "Support"]);
+    expect(groups[1]?.results.some((result) => result.href === "/overview")).toBe(true);
+  });
+
+  it("includes organization page groups for owners", () => {
+    const groups = buildGlobalSearchPageGroups("", { includeAccount: true });
+    expect(groups.some((group) => group.label === "Access")).toBe(true);
+    expect(groups.some((group) => group.results.some((result) => result.label === "Summary"))).toBe(
+      true
+    );
   });
 });

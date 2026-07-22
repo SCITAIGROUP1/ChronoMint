@@ -30,6 +30,12 @@ export type SidebarNavItem = {
   tourId?: string;
 };
 
+export type SidebarNavSection = {
+  id: string;
+  label: string;
+  items: readonly SidebarNavItem[];
+};
+
 function NavBadge({ badge, collapsed }: { badge: number | string; collapsed?: boolean }) {
   const count = typeof badge === "number" ? badge : parseInt(String(badge), 10);
   const showCount = !Number.isNaN(count) && count > 0;
@@ -62,7 +68,10 @@ function NavBadge({ badge, collapsed }: { badge: number | string; collapsed?: bo
 
 export type ResponsiveLayoutShellProps = {
   children: React.ReactNode;
-  navItems: readonly SidebarNavItem[];
+  /** Flat nav list — use with optional `navSectionLabel`, or prefer `navSections`. */
+  navItems?: readonly SidebarNavItem[];
+  /** Grouped nav sections; empty sections are omitted at render time. */
+  navSections?: readonly SidebarNavSection[];
   logoIcon: React.ReactNode;
   logoTitle: string;
   logoSubtitle: string;
@@ -71,15 +80,141 @@ export type ResponsiveLayoutShellProps = {
   footerContent: (collapsed: boolean) => React.ReactNode;
   impersonationBanner?: React.ReactNode;
   shellToolbar?: ShellToolbarValue;
-  /** Uppercase label above nav links (e.g. Workspace / Organization). */
+  /** Uppercase label above flat `navItems` (ignored when `navSections` is set). */
   navSectionLabel?: string;
   /** Accessible name for the sidebar navigation region. */
   navAriaLabel?: string;
 };
 
+function resolveNavSections(
+  navSections: readonly SidebarNavSection[] | undefined,
+  navItems: readonly SidebarNavItem[] | undefined,
+  navSectionLabel: string | undefined
+): SidebarNavSection[] {
+  if (navSections?.length) {
+    return navSections.filter((section) => section.items.length > 0);
+  }
+  if (navItems?.length) {
+    return [{ id: "default", label: navSectionLabel ?? "", items: navItems }];
+  }
+  return [];
+}
+
+function SidebarNavLink({
+  href,
+  label,
+  Icon,
+  badge,
+  tourId,
+  active,
+  collapsed,
+  onNavigate
+}: SidebarNavItem & {
+  active: boolean;
+  collapsed: boolean;
+  onNavigate?: () => void;
+}) {
+  const showBadge = badge !== undefined && badge !== "" && (typeof badge !== "number" || badge > 0);
+
+  return (
+    <Link
+      href={href}
+      aria-current={active ? "page" : undefined}
+      title={collapsed ? label : undefined}
+      data-tour={tourId}
+      onClick={onNavigate}
+      className={cn(
+        "group relative flex items-center rounded-lg text-sm font-medium transition-all duration-[var(--motion-base)] ease-[var(--motion-ease-out)]",
+        collapsed ? "h-9 w-9 shrink-0 justify-center p-0" : "gap-3 px-3 py-2.5",
+        active
+          ? "bg-primary/12 text-primary shadow-sm"
+          : "text-muted-foreground hover:bg-accent/80 hover:text-foreground"
+      )}
+    >
+      {active && (
+        <span
+          className={cn(
+            "absolute left-0 top-1/2 -translate-y-1/2 rounded-r-full bg-primary transition-all duration-[var(--motion-base)] ease-[var(--motion-ease-out)]",
+            collapsed ? "h-8 w-1" : "h-6 w-1"
+          )}
+          aria-hidden
+        />
+      )}
+      <span className={cn("relative shrink-0", collapsed && showBadge && "inline-flex")}>
+        <Icon
+          className={cn(
+            "h-4 w-4 shrink-0 transition-colors",
+            active ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
+          )}
+          aria-hidden
+        />
+        {showBadge && collapsed && <NavBadge badge={badge} collapsed />}
+      </span>
+      <span
+        className={cn(
+          "transition-all duration-300 truncate origin-left flex-1 min-w-0",
+          collapsed
+            ? "opacity-0 w-0 scale-95 overflow-hidden absolute pointer-events-none"
+            : "opacity-100"
+        )}
+      >
+        {label}
+      </span>
+      {showBadge && !collapsed && <NavBadge badge={badge} />}
+    </Link>
+  );
+}
+
+function SidebarNavSections({
+  sections,
+  activeHref,
+  collapsed,
+  ariaLabel,
+  onNavigate
+}: {
+  sections: readonly SidebarNavSection[];
+  activeHref: string | null;
+  collapsed: boolean;
+  ariaLabel: string;
+  onNavigate?: () => void;
+}) {
+  return (
+    <nav
+      className={cn("flex w-full flex-col", collapsed ? "items-center gap-1" : "gap-4")}
+      aria-label={ariaLabel}
+    >
+      {sections.map((section) => (
+        <div
+          key={section.id}
+          className={cn("flex w-full flex-col", collapsed ? "items-center gap-1" : "gap-0.5")}
+        >
+          {!collapsed && section.label ? (
+            <p
+              className="px-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground"
+              aria-hidden
+            >
+              {section.label}
+            </p>
+          ) : null}
+          {section.items.map((item) => (
+            <SidebarNavLink
+              key={item.href}
+              {...item}
+              active={item.href === activeHref}
+              collapsed={collapsed}
+              onNavigate={onNavigate}
+            />
+          ))}
+        </div>
+      ))}
+    </nav>
+  );
+}
+
 export function ResponsiveLayoutShell({
   children,
   navItems,
+  navSections,
   logoIcon,
   logoTitle,
   logoSubtitle,
@@ -91,11 +226,10 @@ export function ResponsiveLayoutShell({
   navSectionLabel,
   navAriaLabel = "Desktop Navigation"
 }: ResponsiveLayoutShellProps) {
+  const sections = resolveNavSections(navSections, navItems, navSectionLabel);
+  const allHrefs = sections.flatMap((section) => section.items.map((item) => item.href));
   const pathname = usePathname();
-  const activeHref = resolveActiveNavHref(
-    pathname,
-    navItems.map((item) => item.href)
-  );
+  const activeHref = resolveActiveNavHref(pathname, allHrefs);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -195,75 +329,12 @@ export function ResponsiveLayoutShell({
           </div>
 
           {/* Navigation Links */}
-          {!isCollapsed && navSectionLabel ? (
-            <p
-              className="px-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground"
-              aria-hidden
-            >
-              {navSectionLabel}
-            </p>
-          ) : null}
-          <nav
-            className={cn("flex w-full flex-col", isCollapsed ? "items-center gap-1" : "gap-0.5")}
-            aria-label={navAriaLabel}
-          >
-            {navItems.map(({ href, label, Icon, badge, tourId }) => {
-              const active = href === activeHref;
-              const showBadge =
-                badge !== undefined && badge !== "" && (typeof badge !== "number" || badge > 0);
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  aria-current={active ? "page" : undefined}
-                  title={isCollapsed ? label : undefined}
-                  data-tour={tourId}
-                  className={cn(
-                    "group relative flex items-center rounded-lg text-sm font-medium transition-all duration-[var(--motion-base)] ease-[var(--motion-ease-out)]",
-                    isCollapsed ? "h-9 w-9 shrink-0 justify-center p-0" : "gap-3 px-3 py-2.5",
-                    active
-                      ? "bg-primary/12 text-primary shadow-sm"
-                      : "text-muted-foreground hover:bg-accent/80 hover:text-foreground"
-                  )}
-                >
-                  {active && (
-                    <span
-                      className={cn(
-                        "absolute left-0 top-1/2 -translate-y-1/2 rounded-r-full bg-primary transition-all duration-[var(--motion-base)] ease-[var(--motion-ease-out)]",
-                        isCollapsed ? "h-8 w-1" : "h-6 w-1"
-                      )}
-                      aria-hidden
-                    />
-                  )}
-                  <span
-                    className={cn("relative shrink-0", isCollapsed && showBadge && "inline-flex")}
-                  >
-                    <Icon
-                      className={cn(
-                        "h-4 w-4 shrink-0 transition-colors",
-                        active
-                          ? "text-primary"
-                          : "text-muted-foreground group-hover:text-foreground"
-                      )}
-                      aria-hidden
-                    />
-                    {showBadge && isCollapsed && <NavBadge badge={badge} collapsed />}
-                  </span>
-                  <span
-                    className={cn(
-                      "transition-all duration-300 truncate origin-left flex-1 min-w-0",
-                      isCollapsed
-                        ? "opacity-0 w-0 scale-95 overflow-hidden absolute pointer-events-none"
-                        : "opacity-100"
-                    )}
-                  >
-                    {label}
-                  </span>
-                  {showBadge && !isCollapsed && <NavBadge badge={badge} />}
-                </Link>
-              );
-            })}
-          </nav>
+          <SidebarNavSections
+            sections={sections}
+            activeHref={activeHref}
+            collapsed={isCollapsed}
+            ariaLabel={navAriaLabel}
+          />
         </div>
 
         <div className={isCollapsed ? shellSidebarFooterCollapsedClass : shellSidebarFooterClass}>
@@ -332,52 +403,13 @@ export function ResponsiveLayoutShell({
         <div className="flex flex-1 flex-col gap-5 overflow-y-auto py-4">
           {workspaceSwitcher(false)}
 
-          {navSectionLabel ? (
-            <p
-              className="px-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground"
-              aria-hidden
-            >
-              {navSectionLabel}
-            </p>
-          ) : null}
-          <nav className="flex flex-col gap-0.5" aria-label={navAriaLabel}>
-            {navItems.map(({ href, label, Icon, badge, tourId }) => {
-              const active = href === activeHref;
-              const showBadge =
-                badge !== undefined && badge !== "" && (typeof badge !== "number" || badge > 0);
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  aria-current={active ? "page" : undefined}
-                  data-tour={tourId}
-                  onClick={() => setIsMobileOpen(false)}
-                  className={cn(
-                    "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-[var(--motion-base)] ease-[var(--motion-ease-out)]",
-                    active
-                      ? "bg-primary/12 text-primary shadow-sm"
-                      : "text-muted-foreground hover:bg-accent/80 hover:text-foreground"
-                  )}
-                >
-                  {active && (
-                    <span
-                      className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-primary transition-all duration-[var(--motion-base)] ease-[var(--motion-ease-out)]"
-                      aria-hidden
-                    />
-                  )}
-                  <Icon
-                    className={cn(
-                      "h-4 w-4 shrink-0 transition-colors",
-                      active ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
-                    )}
-                    aria-hidden
-                  />
-                  <span className="flex-1">{label}</span>
-                  {showBadge && <NavBadge badge={badge} />}
-                </Link>
-              );
-            })}
-          </nav>
+          <SidebarNavSections
+            sections={sections}
+            activeHref={activeHref}
+            collapsed={false}
+            ariaLabel={navAriaLabel}
+            onNavigate={() => setIsMobileOpen(false)}
+          />
         </div>
 
         {/* Drawer Footer */}

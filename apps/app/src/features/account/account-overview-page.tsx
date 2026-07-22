@@ -128,7 +128,7 @@ function isWorkspaceSetupError(message: string | null | undefined): boolean {
 function AccountWorkspaceSetupPrompt({ onCreate }: { onCreate: () => void }) {
   return (
     <div className="space-y-6">
-      <AppBar title="Account overview" description="Organization summary and plan status." />
+      <AppBar title="Organization summary" description="Organization summary and plan status." />
       <EmptyState
         title="Create your first workspace"
         description="Your organization is ready. Create a workspace to view metrics, assign admins, and start tracking time."
@@ -293,7 +293,7 @@ export function AccountOverviewPage() {
   if (overviewError || !overview) {
     return (
       <div className="space-y-6">
-        <AppBar title="Account overview" description="Organization summary and plan status." />
+        <AppBar title="Organization summary" description="Organization summary and plan status." />
         <EmptyState
           title="Unable to load account overview"
           description={
@@ -543,7 +543,7 @@ export function AccountOverviewPage() {
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-12">
       <AppBar
-        title="Account overview"
+        title="Organization summary"
         description="Organization summary and plan status."
         actions={
           <>

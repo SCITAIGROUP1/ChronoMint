@@ -1,25 +1,56 @@
 import { getManagedRolePermissions } from "@kloqra/contracts";
 import { describe, expect, it } from "vitest";
 import {
+  flattenNavSections,
   isAccountModePath,
   resolveAppShellMode,
   resolveAppShellNav
 } from "./resolve-app-shell-nav";
 import { APP_NAV_ITEMS } from "@/config/app-nav";
 
+function hrefsFromNav(
+  pathname: string,
+  overrides: Partial<Parameters<typeof resolveAppShellNav>[0]> = {}
+) {
+  const { navSections } = resolveAppShellNav({
+    pathname,
+    projectLeadOnly: false,
+    workspaceNavItems: APP_NAV_ITEMS,
+    pendingCount: 0,
+    notificationUnreadCount: 0,
+    session: { tenantRole: "OWNER" },
+    ...overrides
+  });
+  return flattenNavSections(navSections).map((item) => item.href);
+}
+
+function sectionLabels(
+  pathname: string,
+  overrides: Partial<Parameters<typeof resolveAppShellNav>[0]> = {}
+) {
+  const { navSections } = resolveAppShellNav({
+    pathname,
+    projectLeadOnly: false,
+    workspaceNavItems: APP_NAV_ITEMS,
+    pendingCount: 0,
+    notificationUnreadCount: 0,
+    session: { tenantRole: "OWNER" },
+    ...overrides
+  });
+  return navSections.map((section) => section.label);
+}
+
 describe("resolveAppShellNav", () => {
   it("detects account mode paths", () => {
     expect(isAccountModePath("/account")).toBe(true);
     expect(isAccountModePath("/account/billing")).toBe(true);
-    // Personal paths must NEVER trigger account mode — they are personal regardless of tenantRole.
     expect(isAccountModePath("/profile")).toBe(false);
     expect(isAccountModePath("/settings")).toBe(false);
-    expect(isAccountModePath("/profile")).toBe(false);
     expect(isAccountModePath("/dashboard")).toBe(false);
   });
 
   it("keeps workspace chrome on personal routes (/settings, /profile) for tenant operators", () => {
-    const { mode, navItems } = resolveAppShellNav({
+    const { mode } = resolveAppShellNav({
       pathname: "/settings",
       projectLeadOnly: false,
       workspaceNavItems: APP_NAV_ITEMS,
@@ -28,14 +59,13 @@ describe("resolveAppShellNav", () => {
       session: { tenantRole: "OWNER" }
     });
 
-    // /settings is a personal path — shell must stay in workspace mode.
     expect(mode).toBe("workspace");
-    expect(navItems.some((item) => item.href === "/dashboard")).toBe(true);
-    expect(navItems.some((item) => item.href === "/account")).toBe(false);
+    expect(hrefsFromNav("/settings")).toContain("/dashboard");
+    expect(hrefsFromNav("/settings")).not.toContain("/account");
   });
 
-  it("returns account nav only on account routes", () => {
-    const { mode, navItems } = resolveAppShellNav({
+  it("returns grouped account nav on account routes", () => {
+    const { mode, navSections } = resolveAppShellNav({
       pathname: "/account/organization",
       projectLeadOnly: false,
       workspaceNavItems: APP_NAV_ITEMS,
@@ -45,44 +75,44 @@ describe("resolveAppShellNav", () => {
     });
 
     expect(mode).toBe("account");
-    expect(navItems.map((item) => item.href)).toEqual([
+    expect(navSections.map((section) => section.label)).toEqual([
+      "Organization",
+      "Access",
+      "Billing & data"
+    ]);
+    expect(flattenNavSections(navSections).map((item) => item.href)).toEqual([
       "/account",
       "/account/workspaces",
       "/account/workspaces-tree",
+      "/account/organization",
       "/account/workspace-admins",
       "/account/permissions-matrix",
       "/account/access-audit",
-      "/account/organization",
       "/account/members",
       "/account/billing",
       "/account/data-privacy",
       "/account/settings"
     ]);
-    expect(navItems.some((item) => item.href === "/dashboard")).toBe(false);
+    expect(flattenNavSections(navSections).some((item) => item.href === "/dashboard")).toBe(false);
   });
 
   it("returns operational account nav for organization admin", () => {
-    const { navItems } = resolveAppShellNav({
-      pathname: "/account/workspaces",
-      projectLeadOnly: false,
-      workspaceNavItems: APP_NAV_ITEMS,
-      pendingCount: 0,
-      notificationUnreadCount: 0,
-      session: { tenantRole: "ADMIN" }
-    });
-
-    expect(navItems.map((item) => item.href)).toEqual([
+    expect(
+      hrefsFromNav("/account/workspaces", {
+        session: { tenantRole: "ADMIN" }
+      })
+    ).toEqual([
       "/account/workspaces",
+      "/account/organization",
       "/account/workspace-admins",
       "/account/permissions-matrix",
       "/account/access-audit",
-      "/account/organization",
       "/account/settings"
     ]);
   });
 
-  it("returns workspace nav only on workspace routes", () => {
-    const { mode, navItems } = resolveAppShellNav({
+  it("returns grouped workspace nav on workspace routes", () => {
+    const { mode, navSections } = resolveAppShellNav({
       pathname: "/dashboard",
       projectLeadOnly: false,
       workspaceNavItems: APP_NAV_ITEMS,
@@ -93,35 +123,37 @@ describe("resolveAppShellNav", () => {
 
     expect(mode).toBe("workspace");
     expect(resolveAppShellMode("/dashboard")).toBe("workspace");
-    // /settings is a personal path — must stay workspace mode even for owners.
     expect(resolveAppShellMode("/settings", { tenantRole: "OWNER" })).toBe("workspace");
-    expect(navItems.some((item) => item.href.startsWith("/account"))).toBe(false);
-    expect(navItems.find((item) => item.href === "/approvals")?.badge).toBe(2);
-    expect(navItems.find((item) => item.href === "/notifications")?.badge).toBe(1);
+    expect(sectionLabels("/dashboard")).toEqual(["Workspace", "My time", "Support"]);
+    expect(flattenNavSections(navSections).some((item) => item.href.startsWith("/account"))).toBe(
+      false
+    );
+    expect(flattenNavSections(navSections).find((item) => item.href === "/approvals")?.badge).toBe(
+      2
+    );
+    expect(
+      flattenNavSections(navSections).find((item) => item.href === "/notifications")?.badge
+    ).toBe(1);
   });
 
   it("returns filtered nav for project managers", () => {
-    const { navItems } = resolveAppShellNav({
-      pathname: "/projects",
-      projectLeadOnly: true,
-      workspaceNavItems: APP_NAV_ITEMS,
-      pendingCount: 0,
-      notificationUnreadCount: 0,
-      session: undefined
-    });
-
-    expect(navItems.map((item) => item.href)).toEqual([
+    expect(
+      hrefsFromNav("/projects", {
+        projectLeadOnly: true,
+        session: undefined
+      })
+    ).toEqual([
       "/dashboard",
       "/projects",
-      "/time-tracker",
-      "/notifications",
       "/team",
-      "/approvals"
+      "/approvals",
+      "/time-tracker",
+      "/notifications"
     ]);
   });
 
   it("uses capability navigation for a plain workspace member", () => {
-    const { navItems } = resolveAppShellNav({
+    const { navSections } = resolveAppShellNav({
       pathname: "/timer",
       projectLeadOnly: false,
       workspaceNavItems: APP_NAV_ITEMS,
@@ -131,22 +163,25 @@ describe("resolveAppShellNav", () => {
       capabilities: getManagedRolePermissions(["WORKSPACE_MEMBER"])
     });
 
-    expect(navItems.map((item) => item.href)).toEqual([
+    expect(flattenNavSections(navSections).map((item) => item.href)).toEqual([
       "/dashboard",
+      "/projects",
+      "/tasks",
+      "/overview",
       "/timer",
       "/timesheet",
       "/submissions",
-      "/projects",
-      "/tasks",
       "/time-tracker",
       "/notifications",
       "/support"
     ]);
-    expect(navItems.find((item) => item.href === "/notifications")?.badge).toBe(3);
+    expect(
+      flattenNavSections(navSections).find((item) => item.href === "/notifications")?.badge
+    ).toBe(3);
   });
 
   it("returns full workspace nav for tenant admin even with member workspace role", () => {
-    const { mode, navItems } = resolveAppShellNav({
+    const { mode, navSections } = resolveAppShellNav({
       pathname: "/dashboard",
       projectLeadOnly: false,
       workspaceNavItems: APP_NAV_ITEMS,
@@ -156,7 +191,7 @@ describe("resolveAppShellNav", () => {
     });
 
     expect(mode).toBe("workspace");
-    const hrefs = navItems.map((item) => item.href);
+    const hrefs = flattenNavSections(navSections).map((item) => item.href);
     expect(hrefs).toContain("/team-management");
     expect(hrefs).toContain("/project-managers");
     expect(hrefs).toContain("/workspace");

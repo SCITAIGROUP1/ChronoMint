@@ -27,9 +27,11 @@ describe("app navigation scopes", () => {
   });
 
   it("does not duplicate overview labels between account and workspace nav", () => {
-    const accountOverview = ACCOUNT_NAV_ITEMS.find((item) => item.href === "/account");
+    const accountSummary = ACCOUNT_NAV_ITEMS.find((item) => item.href === "/account");
+    const personalOverview = APP_NAV_ITEMS.find((item) => item.href === "/overview");
     const workspaceDashboard = APP_NAV_ITEMS.find((item) => item.href === "/dashboard");
-    expect(accountOverview?.label).toBe("Overview");
+    expect(accountSummary?.label).toBe("Summary");
+    expect(personalOverview?.label).toBe("Overview");
     expect(workspaceDashboard?.label).toBe("Dashboard");
   });
 });

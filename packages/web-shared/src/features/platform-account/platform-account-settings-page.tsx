@@ -17,9 +17,9 @@ type PlatformSettingsSectionId = Extract<
 >;
 
 const NAV_ITEMS: SettingsNavItem[] = [
-  { id: "appearance", label: "Appearance", icon: Monitor },
-  { id: "notifications", label: "Notifications", icon: Bell },
-  { id: "security", label: "Security", icon: Shield }
+  { id: "appearance", label: "Appearance", icon: Monitor, section: "preferences" },
+  { id: "notifications", label: "Notifications", icon: Bell, section: "preferences" },
+  { id: "security", label: "Security", icon: Shield, section: "security" }
 ];
 
 function parseSection(value: string | null): PlatformSettingsSectionId {

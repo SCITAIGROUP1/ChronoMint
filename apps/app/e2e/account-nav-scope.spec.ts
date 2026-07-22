@@ -32,6 +32,8 @@ test.describe("App navigation by role", () => {
       timeout: 30_000
     });
     await expect(page.getByRole("link", { name: "Dashboard" }).first()).toBeVisible();
+    await expect(page.getByText("Workspace").first()).toBeVisible();
+    await expect(page.getByText("My time").first()).toBeVisible();
     await expect(page.getByRole("link", { name: "Subscription" })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Organization", exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Owner · Workspace admin/i })).toBeVisible();
@@ -47,7 +49,7 @@ test.describe("App navigation by role", () => {
     await expect(page.getByRole("link", { name: "Kloqra Organization" }).first()).toBeVisible({
       timeout: 30_000
     });
-    await expect(page.getByRole("link", { name: "Overview" }).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: "Summary" }).first()).toBeVisible();
     await expect(page.getByRole("link", { name: "Subscription" }).first()).toBeVisible();
     await expect(page.getByRole("link", { name: "Dashboard" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Organization owner/i })).toBeVisible();
@@ -108,7 +110,7 @@ test.describe("App navigation by role", () => {
     });
     await expect(page.getByRole("link", { name: "Workspaces" }).first()).toBeVisible();
     await expect(page.getByRole("link", { name: "Workspace admins" }).first()).toBeVisible();
-    await expect(page.getByRole("link", { name: "Overview" })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Summary" })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Subscription" })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Dashboard" })).toHaveCount(0);
 

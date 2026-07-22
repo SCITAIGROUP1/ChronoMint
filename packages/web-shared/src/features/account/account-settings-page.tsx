@@ -15,11 +15,11 @@ import { SettingsShell } from "./settings/settings-shell";
 import { useUserProfile } from "./use-user-profile";
 
 const NAV_ITEMS: SettingsNavItem[] = [
-  { id: "appearance", label: "Appearance", icon: Monitor },
-  { id: "time", label: "Time Settings", icon: Clock },
-  { id: "notifications", label: "Notifications", icon: Bell },
-  { id: "security", label: "Security", icon: Shield },
-  { id: "account", label: "Account Preferences", icon: UserCog }
+  { id: "appearance", label: "Appearance", icon: Monitor, section: "preferences" },
+  { id: "time", label: "Time Settings", icon: Clock, section: "preferences" },
+  { id: "notifications", label: "Notifications", icon: Bell, section: "preferences" },
+  { id: "account", label: "Account Preferences", icon: UserCog, section: "preferences" },
+  { id: "security", label: "Security", icon: Shield, section: "security" }
 ];
 
 function parseSection(value: string | null): SettingsSectionId {

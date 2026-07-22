@@ -1,7 +1,7 @@
 "use client";
 
 import { BRAND_NAME } from "@kloqra/contracts";
-import { Button, ResponsiveLayoutShell, SidebarUserFooter, type SidebarNavItem } from "@kloqra/ui";
+import { Button, ResponsiveLayoutShell, SidebarUserFooter } from "@kloqra/ui";
 import {
   bootstrapSession,
   BrandMark,
@@ -73,7 +73,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   const { subscription } = useTenantSubscription(isOwner);
   const billingAlert = isOwner ? subscription?.billingAlert : null;
 
-  const { mode: _mode, navItems } = useMemo(() => {
+  const { mode: _mode, navSections } = useMemo(() => {
     const workspaceNavItems = isCommercialFeaturesEnabled()
       ? APP_NAV_ITEMS
       : APP_NAV_ITEMS.filter((item) => item.href !== "/billing");
@@ -165,7 +165,6 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
 
   const logoSubtitle = isAccountMode ? "Organization" : (session.workspaceName ?? "Workspace");
   const logoLinkHref = isAccountMode ? defaultAccountLandingPath(session) : "/dashboard";
-  const navSectionLabel = isAccountMode ? "Organization" : undefined;
   const navAriaLabel = isAccountMode ? "Organization navigation" : "Workspace navigation";
 
   const settingsHref = isAccountMode ? "/account/settings" : "/settings";
@@ -174,12 +173,11 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
     <>
       {canUseManagementFeatures ? <GlobalSearchShell workspaceId={wsId} isOwner={isOwner} /> : null}
       <ResponsiveLayoutShell
-        navItems={navItems as SidebarNavItem[]}
+        navSections={navSections}
         logoIcon={<BrandMark size="lg" iconOnly />}
         logoTitle={BRAND_NAME}
         logoSubtitle={logoSubtitle}
         logoLinkHref={logoLinkHref}
-        navSectionLabel={navSectionLabel}
         navAriaLabel={navAriaLabel}
         shellToolbar={
           <ShellHeaderActions

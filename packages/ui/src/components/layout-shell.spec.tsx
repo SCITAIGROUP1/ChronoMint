@@ -218,13 +218,71 @@ describe("ResponsiveLayoutShell", () => {
     ).toBeGreaterThan(0);
   });
 
+  it("renders multiple nav sections with headings when expanded", () => {
+    render(
+      <ResponsiveLayoutShell
+        navSections={[
+          {
+            id: "workspace",
+            label: "Workspace",
+            items: [{ href: "/dashboard", label: "Dashboard", Icon: Home }]
+          },
+          {
+            id: "my-time",
+            label: "My time",
+            items: [{ href: "/overview", label: "Overview", Icon: Home }]
+          }
+        ]}
+        logoIcon={<span>K</span>}
+        logoTitle="Kloqra"
+        logoSubtitle="Admin"
+        logoLinkHref="/dashboard"
+        workspaceSwitcher={() => <div>Switcher</div>}
+        footerContent={() => <div>Footer</div>}
+        navAriaLabel="Workspace navigation"
+      >
+        <div>Page content</div>
+      </ResponsiveLayoutShell>
+    );
+
+    expect(screen.getAllByText("Workspace").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("My time").length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: "Overview" }).length).toBeGreaterThan(0);
+  });
+
+  it("omits empty nav sections", () => {
+    render(
+      <ResponsiveLayoutShell
+        navSections={[
+          {
+            id: "workspace",
+            label: "Workspace",
+            items: [{ href: "/dashboard", label: "Dashboard", Icon: Home }]
+          },
+          { id: "my-time", label: "My time", items: [] }
+        ]}
+        logoIcon={<span>K</span>}
+        logoTitle="Kloqra"
+        logoSubtitle="Admin"
+        logoLinkHref="/dashboard"
+        workspaceSwitcher={() => <div>Switcher</div>}
+        footerContent={() => <div>Footer</div>}
+      >
+        <div>Page content</div>
+      </ResponsiveLayoutShell>
+    );
+
+    expect(screen.getAllByText("Dashboard").length).toBeGreaterThan(0);
+    expect(screen.queryByText("My time")).not.toBeInTheDocument();
+  });
+
   it("marks only the most specific account nav item active", () => {
     mockPathname = "/account/organization";
 
     render(
       <ResponsiveLayoutShell
         navItems={[
-          { href: "/account", label: "Overview", Icon: Home },
+          { href: "/account", label: "Summary", Icon: Home },
           { href: "/account/organization", label: "Organization", Icon: Home }
         ]}
         logoIcon={<span>K</span>}
@@ -238,7 +296,7 @@ describe("ResponsiveLayoutShell", () => {
       </ResponsiveLayoutShell>
     );
 
-    expect(screen.getAllByRole("link", { name: "Overview" })[0]).not.toHaveAttribute(
+    expect(screen.getAllByRole("link", { name: "Summary" })[0]).not.toHaveAttribute(
       "aria-current",
       "page"
     );

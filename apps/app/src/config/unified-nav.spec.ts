@@ -9,6 +9,7 @@ describe("unified capability navigation", () => {
 
     expect(hrefs).toEqual([
       "/dashboard",
+      "/overview",
       "/timer",
       "/timesheet",
       "/submissions",

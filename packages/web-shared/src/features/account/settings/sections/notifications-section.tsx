@@ -41,59 +41,76 @@ type SettingsVariant =
   | "project-manager"
   | "tenant-admin-org";
 
+type NotificationPreferenceSection = "work" | "time" | "account";
+
+const NOTIFICATION_PREFERENCE_SECTION_LABELS: Record<NotificationPreferenceSection, string> = {
+  work: "Work",
+  time: "Time",
+  account: "Account"
+};
+
 const MEMBER_ROWS: {
   key: MemberNotificationKey;
   title: string;
   description: string;
   icon: LucideIcon;
+  section: NotificationPreferenceSection;
 }[] = [
   {
     key: "workspaceAdded",
     title: "Workspace Access",
     description: "When you are added to or removed from a workspace",
-    icon: Users
+    icon: Users,
+    section: "work"
   },
   {
     key: "projectAssignment",
     title: "Project Assignment",
     description: "When you are assigned to or removed from a project",
-    icon: Briefcase
+    icon: Briefcase,
+    section: "work"
   },
   {
     key: "taskAssignment",
     title: "Task Assignment",
     description: "When you are assigned to or unassigned from a task",
-    icon: CheckSquare
+    icon: CheckSquare,
+    section: "work"
   },
   {
     key: "timesheetReminders",
     title: "Timesheet Reminders",
     description: "Reminders to submit timesheets",
-    icon: Clock
+    icon: Clock,
+    section: "time"
   },
   {
     key: "timesheetStatus",
     title: "Timesheet Status",
     description: "When your timesheet is approved or rejected",
-    icon: ClipboardCheck
+    icon: ClipboardCheck,
+    section: "time"
   },
   {
     key: "roleChanges",
     title: "Role Changes",
     description: "When your workspace role is updated",
-    icon: Shield
+    icon: Shield,
+    section: "account"
   },
   {
     key: "idleTimerAlert",
     title: "Idle Timer Alert",
     description: "When the idle timer is triggered",
-    icon: Timer
+    icon: Timer,
+    section: "time"
   },
   {
     key: "jiraSyncUpdates",
     title: "Jira Sync Updates",
     description: "When Jira sync completes",
-    icon: Link2
+    icon: Link2,
+    section: "account"
   }
 ];
 
@@ -102,42 +119,49 @@ const ADMIN_ROWS: {
   title: string;
   description: string;
   icon: LucideIcon;
+  section: NotificationPreferenceSection;
 }[] = [
   {
     key: "approvalRequest",
     title: "Approval Requests",
     description: "When a member submits a timesheet for review",
-    icon: ClipboardCheck
+    icon: ClipboardCheck,
+    section: "work"
   },
   {
     key: "memberChanges",
     title: "Team Changes",
     description: "When members join, leave, or change roles",
-    icon: Users
+    icon: Users,
+    section: "work"
   },
   {
     key: "workspaceCreated",
     title: "Workspace Creation",
     description: "When a new workspace is created in your organization",
-    icon: Building2
+    icon: Building2,
+    section: "work"
   },
   {
     key: "missingTimesheets",
     title: "Missing Timesheets",
     description: "Weekly summary of unsubmitted timesheets",
-    icon: ClipboardCheck
+    icon: ClipboardCheck,
+    section: "time"
   },
   {
     key: "exportSchedule",
     title: "Exports & Backups",
     description: "When a scheduled export or organization data backup/import completes",
-    icon: Download
+    icon: Download,
+    section: "account"
   },
   {
     key: "budgetAlert",
     title: "Budget Alerts",
     description: "When a project approaches or exceeds budget",
-    icon: AlertTriangle
+    icon: AlertTriangle,
+    section: "work"
   }
 ];
 
@@ -181,11 +205,12 @@ export function NotificationsSection({
   }, [profile]);
 
   const isDirty = JSON.stringify(state) !== snapshot;
-  const rows = useMemo(() => {
+  const rowGroups = useMemo(() => {
     const hideBudget = !isClientCommercialFeaturesEnabled();
     const withoutBudget = <T extends { key: string }>(list: T[]) =>
       hideBudget ? list.filter((row) => row.key !== "budgetAlert") : list;
 
+    let rows: Array<(typeof MEMBER_ROWS)[number] | (typeof ADMIN_ROWS)[number]>;
     if (variant === "tenant-admin-org") {
       const orgAdminRows = ADMIN_ROWS.filter(
         (row) =>
@@ -196,24 +221,34 @@ export function NotificationsSection({
       const personalOrgRows = MEMBER_ROWS.filter(
         (row) => row.key === "workspaceAdded" || row.key === "roleChanges"
       );
-      return withoutBudget([...personalOrgRows, ...orgAdminRows]);
-    }
-    if (variant === "project-manager") {
+      rows = withoutBudget([...personalOrgRows, ...orgAdminRows]);
+    } else if (variant === "project-manager") {
       const pmAdminRows = ADMIN_ROWS.filter(
         (row) =>
           row.key === "approvalRequest" ||
           row.key === "budgetAlert" ||
           row.key === "missingTimesheets"
       );
-      return withoutBudget([...MEMBER_ROWS, ...pmAdminRows]);
+      rows = withoutBudget([...MEMBER_ROWS, ...pmAdminRows]);
+    } else if (variant === "workspace-admin") {
+      rows = withoutBudget([...MEMBER_ROWS, ...ADMIN_ROWS]);
+    } else if (variant === "admin") {
+      rows = withoutBudget(ADMIN_ROWS);
+    } else {
+      rows = withoutBudget(MEMBER_ROWS);
     }
-    if (variant === "workspace-admin") {
-      return withoutBudget([...MEMBER_ROWS, ...ADMIN_ROWS]);
-    }
-    if (variant === "admin") {
-      return withoutBudget(ADMIN_ROWS);
-    }
-    return withoutBudget(MEMBER_ROWS);
+
+    return (["work", "time", "account"] as const)
+      .map((section) => {
+        const sectionRows = rows.filter((row) => row.section === section);
+        if (sectionRows.length === 0) return null;
+        return {
+          section,
+          label: NOTIFICATION_PREFERENCE_SECTION_LABELS[section],
+          rows: sectionRows
+        };
+      })
+      .filter((group): group is NonNullable<typeof group> => group !== null);
   }, [variant]);
 
   function updateKey(key: NotificationPreferenceKey, channels: NotificationChannels) {
@@ -247,20 +282,27 @@ export function NotificationsSection({
         }
       />
 
-      {rows.map(({ key, title, description, icon: Icon }) => (
-        <SettingsCard
-          key={key}
-          icon={Icon}
-          title={title}
-          description={description}
-          action={
-            <NotificationChannelRow
-              channels={state[key]}
-              disabled={!state.enabled}
-              onChange={(channels) => updateKey(key, channels)}
+      {rowGroups.map((group) => (
+        <div key={group.section} className="space-y-3">
+          <p className="px-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+            {group.label}
+          </p>
+          {group.rows.map(({ key, title, description, icon: Icon }) => (
+            <SettingsCard
+              key={key}
+              icon={Icon}
+              title={title}
+              description={description}
+              action={
+                <NotificationChannelRow
+                  channels={state[key]}
+                  disabled={!state.enabled}
+                  onChange={(channels) => updateKey(key, channels)}
+                />
+              }
             />
-          }
-        />
+          ))}
+        </div>
       ))}
 
       <SettingsSaveBar onSave={() => void handleSave()} saving={saving} disabled={!isDirty} />

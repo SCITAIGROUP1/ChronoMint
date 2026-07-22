@@ -16,8 +16,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import type { GlobalSearchEntityGroup, GlobalSearchEntityResults } from "./global-search-api";
 import {
-  filterAppNavItems,
-  toPageSearchResult,
+  buildGlobalSearchPageGroups,
   type GlobalSearchResult,
   type GlobalSearchViewAll
 } from "./global-search-nav";
@@ -52,10 +51,11 @@ export function GlobalSearchDialog({
     if (!open) setQuery("");
   }, [open]);
 
-  const pageResults = useMemo(
-    () => filterAppNavItems(query, { includeAccount: isOwner }).map(toPageSearchResult),
+  const pageGroups = useMemo(
+    () => buildGlobalSearchPageGroups(query, { includeAccount: isOwner }),
     [query, isOwner]
   );
+  const pageResults = useMemo(() => pageGroups.flatMap((group) => group.results), [pageGroups]);
 
   const handleSelect = (href: string) => {
     onOpenChange(false);
@@ -93,14 +93,15 @@ export function GlobalSearchDialog({
               ) : null}
             </div>
             <Command.List className="max-h-[min(60vh,28rem)] overflow-y-auto p-2">
-              {pageResults.length > 0 ? (
+              {pageGroups.map((group) => (
                 <ResultGroup
-                  heading={GROUP_META.pages.heading}
+                  key={group.id}
+                  heading={`Pages · ${group.label}`}
                   icon={GROUP_META.pages.icon}
-                  results={pageResults}
+                  results={group.results}
                   onSelect={handleSelect}
                 />
-              ) : null}
+              ))}
 
               {shouldSearchEntities ? (
                 <>
