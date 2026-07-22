@@ -366,7 +366,7 @@ export function PermissionsStudioPage() {
                               ? item.roles.map((role) => titleCase(role)).join(" · ")
                               : "email" in item
                                 ? item.email
-                                : titleCase(item.target.role)}
+                                : `${titleCase(item.target.scope)} scope`}
                           </span>
                           <Badge variant="secondary">{item.overrideCount}</Badge>
                         </span>

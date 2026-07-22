@@ -58,7 +58,7 @@ export function formatBulkInviteJobToast(status: BulkInviteJobStatusDto): {
     return { tone: "success", message: "Invite finished." };
   }
 
-  const { projectAddedCount, successCount, skippedCount } = status.result;
+  const { projectAddedCount, successCount, skippedCount, emailFailedCount = 0 } = status.result;
   const added = Math.max(projectAddedCount, successCount);
   if (skippedCount > 0 && added === 0) {
     return {
@@ -66,13 +66,16 @@ export function formatBulkInviteJobToast(status: BulkInviteJobStatusDto): {
       message: `No one was added (${skippedCount} skipped).`
     };
   }
-  if (skippedCount > 0) {
+  if (skippedCount > 0 || emailFailedCount > 0) {
+    const extras = [
+      skippedCount > 0 ? `${skippedCount} skipped` : null,
+      emailFailedCount > 0 ? `${emailFailedCount} email enqueue failed` : null
+    ]
+      .filter(Boolean)
+      .join(", ");
     return {
       tone: "warning",
-      message:
-        added === 1
-          ? `Added 1 person (${skippedCount} skipped).`
-          : `Added ${added} people (${skippedCount} skipped).`
+      message: added === 1 ? `Added 1 person (${extras}).` : `Added ${added} people (${extras}).`
     };
   }
   return {

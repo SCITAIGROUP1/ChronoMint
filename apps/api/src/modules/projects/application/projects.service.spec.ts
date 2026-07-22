@@ -560,7 +560,10 @@ describe("ProjectsService", () => {
           successCount: 1,
           skippedCount: 0,
           projectAddedCount: 1,
-          totalProcessed: 1
+          totalProcessed: 1,
+          emailQueuedCount: 0,
+          credentialsResentCount: 0,
+          emailFailedCount: 0
         }
       });
     });

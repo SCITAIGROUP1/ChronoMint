@@ -894,7 +894,10 @@ export class ProjectsService {
                 successCount: Number(result.successCount ?? 0),
                 skippedCount: Number(result.skippedCount ?? 0),
                 projectAddedCount: Number(result.projectAddedCount ?? 0),
-                totalProcessed: Number(result.totalProcessed ?? 0)
+                totalProcessed: Number(result.totalProcessed ?? 0),
+                emailQueuedCount: Number(result.emailQueuedCount ?? 0),
+                credentialsResentCount: Number(result.credentialsResentCount ?? 0),
+                emailFailedCount: Number(result.emailFailedCount ?? 0)
               }
             }
           : {})

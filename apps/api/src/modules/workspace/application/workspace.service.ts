@@ -1,5 +1,6 @@
-import { ErrorCodes } from "@kloqra/contracts";
+import { ErrorCodes, inviteMemberSchema } from "@kloqra/contracts";
 import type {
+  BulkInviteJobStatusDto,
   InviteMemberDto,
   InviteMemberResponseDto,
   MemberEmailDeliveryDto,
@@ -621,6 +622,7 @@ export class WorkspaceService {
     }
 
     const members: InviteMemberDto[] = [];
+    const invalidRows: string[] = [];
 
     sheet.eachRow((row, rowNumber) => {
       if (rowNumber === 1) return; // Skip header
@@ -629,14 +631,27 @@ export class WorkspaceService {
       const name = row.getCell(2).text?.trim();
       const roleText = row.getCell(3).text?.trim().toUpperCase() || "MEMBER";
 
-      if (!email) return; // Skip empty rows
+      if (!email && !name) return; // Skip empty rows
 
-      members.push({
+      const parsed = inviteMemberSchema.safeParse({
         email,
-        name: name || email.split("@")[0], // Fallback name
+        name: name || (email ? email.split("@")[0] : ""),
         role: roleText === "ADMIN" ? "ADMIN" : "MEMBER"
       });
+      if (!parsed.success) {
+        invalidRows.push(`row ${rowNumber}`);
+        return;
+      }
+      members.push(parsed.data);
     });
+
+    if (invalidRows.length > 0) {
+      throw new DomainException(
+        ErrorCodes.VALIDATION_ERROR,
+        `Invalid member rows in Excel (${invalidRows.slice(0, 5).join(", ")}${invalidRows.length > 5 ? "…" : ""}). Email and name are required.`,
+        HttpStatus.BAD_REQUEST
+      );
+    }
 
     if (members.length === 0) {
       throw new DomainException(
@@ -683,6 +698,54 @@ export class WorkspaceService {
       status: "queued",
       enqueuedCount: members.length
     };
+  }
+
+  async getBulkInviteJobStatus(
+    workspaceId: string,
+    jobId: string
+  ): Promise<BulkInviteJobStatusDto> {
+    const job = await this.bulkInviteQueue.getJob(jobId);
+    if (!job) {
+      throw new DomainException(ErrorCodes.NOT_FOUND, "Invite job not found", HttpStatus.NOT_FOUND);
+    }
+
+    const data = job.data as { workspaceId?: string; projectId?: string };
+    if (data.workspaceId !== workspaceId || data.projectId) {
+      throw new DomainException(ErrorCodes.NOT_FOUND, "Invite job not found", HttpStatus.NOT_FOUND);
+    }
+
+    const state = await job.getState();
+    if (state === "completed") {
+      const result = job.returnvalue as BulkInviteJobStatusDto["result"];
+      return {
+        jobId,
+        status: "completed",
+        ...(result
+          ? {
+              result: {
+                successCount: Number(result.successCount ?? 0),
+                skippedCount: Number(result.skippedCount ?? 0),
+                projectAddedCount: Number(result.projectAddedCount ?? 0),
+                totalProcessed: Number(result.totalProcessed ?? 0),
+                emailQueuedCount: Number(result.emailQueuedCount ?? 0),
+                credentialsResentCount: Number(result.credentialsResentCount ?? 0),
+                emailFailedCount: Number(result.emailFailedCount ?? 0)
+              }
+            }
+          : {})
+      };
+    }
+    if (state === "failed") {
+      return {
+        jobId,
+        status: "failed",
+        failedReason: String(job.failedReason ?? "Invite job failed").slice(0, 500)
+      };
+    }
+    if (state === "active") {
+      return { jobId, status: "active" };
+    }
+    return { jobId, status: "queued" };
   }
 
   async getById(id: string) {

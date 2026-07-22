@@ -80,71 +80,147 @@ export class PermissionMatrixService {
     tenantId: string,
     query: PolicyDirectoryQueryDto
   ): Promise<RolePolicyDirectoryDto> {
-    const target = await this.resolveDirectoryTarget(tenantId, query);
+    const directoryTarget = await this.resolveDirectoryTarget(tenantId, query);
     const search = query.search?.toLowerCase();
+    const scopedOnly =
+      query.scope === "workspace" || query.scope === "project" || query.scope === "self";
     const roles = TENANT_STUDIO_ROLES.filter(
       (role) =>
-        MANAGED_ROLE_BINDING_SCOPES[role] === target.scope &&
+        (!scopedOnly || MANAGED_ROLE_BINDING_SCOPES[role] === directoryTarget.scope) &&
         (!search || this.roleDisplayName(role).toLowerCase().includes(search))
     );
-    const total = roles.length;
-    const pageRoles = roles.slice((query.page - 1) * query.limit, query.page * query.limit);
-    const counts = pageRoles.length
+
+    const bindings = await this.resolveRoleDirectoryBindings(tenantId, directoryTarget, roles);
+    const visibleRoles = roles.filter((role) => bindings.has(role));
+    const total = visibleRoles.length;
+    const pageRoles = visibleRoles.slice((query.page - 1) * query.limit, query.page * query.limit);
+
+    const countRows = pageRoles.length
       ? await this.prisma.tenantRolePermissionOverride.groupBy({
-          by: ["role"],
+          by: ["role", "scope", "resourceId"],
           where: {
             tenantId,
-            scope: target.scope,
-            resourceId: target.resourceId,
-            role: { in: pageRoles }
+            OR: pageRoles.map((role) => {
+              const binding = bindings.get(role)!;
+              return {
+                role,
+                scope: binding.scope,
+                resourceId: binding.resourceId
+              };
+            })
           },
           _count: { _all: true }
         })
       : [];
-    const countByRole = new Map(counts.map((row) => [row.role, row._count._all]));
+    const countByRole = new Map(
+      countRows.map((row) => [`${row.role}:${row.scope}:${row.resourceId}`, row._count._all])
+    );
+
     return {
-      items: pageRoles.map((role) => ({
-        target: { type: "ROLE", role, ...target },
-        displayName: this.roleDisplayName(role),
-        immutable: MANAGED_ROLE_POLICY_METADATA[role].immutable,
-        customizationEnabled: MANAGED_ROLE_POLICY_METADATA[role].customizationEnabled,
-        overrideCount: countByRole.get(role) ?? 0
-      })),
+      items: pageRoles.map((role) => {
+        const binding = bindings.get(role)!;
+        return {
+          target: { type: "ROLE" as const, role, ...binding },
+          displayName: this.roleDisplayName(role),
+          immutable: MANAGED_ROLE_POLICY_METADATA[role].immutable,
+          customizationEnabled: MANAGED_ROLE_POLICY_METADATA[role].customizationEnabled,
+          overrideCount: countByRole.get(`${role}:${binding.scope}:${binding.resourceId}`) ?? 0
+        };
+      }),
       page: query.page,
       limit: query.limit,
       total,
-      totalPages: Math.ceil(total / query.limit)
+      totalPages: Math.ceil(total / query.limit) || 0
     };
+  }
+
+  private async resolveRoleDirectoryBindings(
+    tenantId: string,
+    directoryTarget: { scope: ResourceScope; resourceId: string },
+    roles: readonly ManagedRole[]
+  ): Promise<Map<ManagedRole, { scope: ResourceScope; resourceId: string }>> {
+    const needsWorkspace = roles.some((role) => MANAGED_ROLE_BINDING_SCOPES[role] === "workspace");
+    const needsProject = roles.some((role) => MANAGED_ROLE_BINDING_SCOPES[role] === "project");
+
+    const [defaultWorkspace, defaultProject] = await Promise.all([
+      needsWorkspace
+        ? directoryTarget.scope === "workspace"
+          ? Promise.resolve({ id: directoryTarget.resourceId })
+          : this.prisma.workspace.findFirst({
+              where: { tenantId },
+              orderBy: { name: "asc" },
+              select: { id: true }
+            })
+        : Promise.resolve(null),
+      needsProject
+        ? directoryTarget.scope === "project"
+          ? Promise.resolve({ id: directoryTarget.resourceId })
+          : this.prisma.project.findFirst({
+              where:
+                directoryTarget.scope === "workspace"
+                  ? { workspaceId: directoryTarget.resourceId }
+                  : { workspace: { tenantId } },
+              orderBy: { name: "asc" },
+              select: { id: true }
+            })
+        : Promise.resolve(null)
+    ]);
+
+    const bindings = new Map<ManagedRole, { scope: ResourceScope; resourceId: string }>();
+    for (const role of roles) {
+      const scope = MANAGED_ROLE_BINDING_SCOPES[role];
+      if (scope === "tenant") {
+        bindings.set(role, { scope: "tenant", resourceId: tenantId });
+        continue;
+      }
+      if (scope === "workspace" && defaultWorkspace) {
+        bindings.set(role, { scope: "workspace", resourceId: defaultWorkspace.id });
+        continue;
+      }
+      if (scope === "project" && defaultProject) {
+        bindings.set(role, { scope: "project", resourceId: defaultProject.id });
+      }
+    }
+    return bindings;
   }
 
   async listPrincipalPolicies(
     tenantId: string,
     query: PolicyDirectoryQueryDto
   ): Promise<PrincipalPolicyDirectoryDto> {
-    const target = await this.resolveDirectoryTarget(tenantId, query);
-    const candidates = await this.collectPrincipalCandidates(tenantId, target, query.search);
+    const directoryTarget = await this.resolveDirectoryTarget(tenantId, query);
+    const candidates = await this.collectPrincipalCandidates(
+      tenantId,
+      directoryTarget,
+      query.search
+    );
     const total = candidates.length;
     const pageItems = candidates.slice((query.page - 1) * query.limit, query.page * query.limit);
     const principalIds = pageItems.map((item) => item.userId);
     const counts = principalIds.length
       ? await this.prisma.principalPermissionOverride.groupBy({
-          by: ["principalId"],
+          by: ["principalId", "scope", "resourceId"],
           where: {
             tenantId,
-            principalId: { in: principalIds },
-            scope: target.scope,
-            resourceId: target.resourceId
+            principalId: { in: principalIds }
           },
           _count: { _all: true }
         })
       : [];
-    const countByPrincipal = new Map(counts.map((row) => [row.principalId, row._count._all]));
+    const countByPrincipal = new Map<string, number>();
+    for (const row of counts) {
+      countByPrincipal.set(
+        row.principalId,
+        (countByPrincipal.get(row.principalId) ?? 0) + row._count._all
+      );
+    }
     return {
       items: pageItems.map((item) => ({
         target: {
           type: "PRINCIPAL" as const,
           principalId: item.userId,
-          ...target
+          scope: item.bindingScope,
+          resourceId: item.bindingResourceId
         },
         displayName: item.displayName,
         email: item.email,
@@ -174,6 +250,8 @@ export class PermissionMatrixService {
       email: string;
       active: boolean;
       roles: ManagedRole[];
+      bindingScope: ResourceScope;
+      bindingResourceId: string;
     }>
   > {
     const searchFilter = search
@@ -221,7 +299,10 @@ export class PermissionMatrixService {
                   : { team: { project: { workspace: { tenantId } } } }),
               ...(searchFilter ? { user: searchFilter } : {})
             },
-            include: { user: true }
+            include: {
+              user: true,
+              team: { select: { projectId: true } }
+            }
           })
     ]);
 
@@ -231,6 +312,9 @@ export class PermissionMatrixService {
       email: string;
       active: boolean;
       roleSet: Set<ManagedRole>;
+      workspaceAdminId?: string;
+      workspaceMemberId?: string;
+      projectManagerId?: string;
     };
     const byUserId = new Map<string, Acc>();
 
@@ -257,11 +341,18 @@ export class PermissionMatrixService {
     }
     for (const member of workspaceMembers) {
       const entry = ensure(member.user, member.isActive);
-      entry.roleSet.add(member.role === "ADMIN" ? "WORKSPACE_ADMIN" : "WORKSPACE_MEMBER");
+      if (member.role === "ADMIN") {
+        entry.roleSet.add("WORKSPACE_ADMIN");
+        entry.workspaceAdminId ??= member.workspaceId;
+      } else {
+        entry.roleSet.add("WORKSPACE_MEMBER");
+        entry.workspaceMemberId ??= member.workspaceId;
+      }
     }
     for (const member of projectManagers) {
       const entry = ensure(member.user, member.isActive);
       entry.roleSet.add("PROJECT_MANAGER");
+      entry.projectManagerId ??= member.team.projectId;
     }
 
     const roleRank: Record<ManagedRole, number> = {
@@ -275,16 +366,50 @@ export class PermissionMatrixService {
     };
 
     return [...byUserId.values()]
-      .map((entry) => ({
-        userId: entry.userId,
-        displayName: entry.displayName,
-        email: entry.email,
-        active: entry.active,
-        roles: [...entry.roleSet].sort((a, b) => (roleRank[a] ?? 99) - (roleRank[b] ?? 99))
-      }))
+      .map((entry) => {
+        const roles = [...entry.roleSet].sort((a, b) => (roleRank[a] ?? 99) - (roleRank[b] ?? 99));
+        const binding = this.primaryPrincipalBinding(tenantId, entry, target);
+        return {
+          userId: entry.userId,
+          displayName: entry.displayName,
+          email: entry.email,
+          active: entry.active,
+          roles,
+          bindingScope: binding.scope,
+          bindingResourceId: binding.resourceId
+        };
+      })
       .sort(
         (a, b) => a.displayName.localeCompare(b.displayName) || a.userId.localeCompare(b.userId)
       );
+  }
+
+  private primaryPrincipalBinding(
+    tenantId: string,
+    entry: {
+      roleSet: Set<ManagedRole>;
+      workspaceAdminId?: string;
+      workspaceMemberId?: string;
+      projectManagerId?: string;
+    },
+    directoryTarget: { scope: ResourceScope; resourceId: string }
+  ): { scope: ResourceScope; resourceId: string } {
+    if (directoryTarget.scope === "workspace" || directoryTarget.scope === "project") {
+      return directoryTarget;
+    }
+    if (entry.roleSet.has("TENANT_OWNER") || entry.roleSet.has("TENANT_ADMIN")) {
+      return { scope: "tenant", resourceId: tenantId };
+    }
+    if (entry.roleSet.has("WORKSPACE_ADMIN") && entry.workspaceAdminId) {
+      return { scope: "workspace", resourceId: entry.workspaceAdminId };
+    }
+    if (entry.roleSet.has("PROJECT_MANAGER") && entry.projectManagerId) {
+      return { scope: "project", resourceId: entry.projectManagerId };
+    }
+    if (entry.roleSet.has("WORKSPACE_MEMBER") && entry.workspaceMemberId) {
+      return { scope: "workspace", resourceId: entry.workspaceMemberId };
+    }
+    return { scope: "tenant", resourceId: tenantId };
   }
 
   getRolePolicy(tenantId: string, role: ManagedRole, scope: ResourceScope, resourceId: string) {

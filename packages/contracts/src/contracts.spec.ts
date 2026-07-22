@@ -783,6 +783,9 @@ describe("contracts", () => {
     expect(ROUTES.WORKSPACES.BULK_MEMBERS_UPLOAD("ws-1")).toBe(
       "/workspaces/ws-1/members/bulk/upload"
     );
+    expect(ROUTES.WORKSPACES.BULK_MEMBERS_JOB("ws-1", "job-1")).toBe(
+      "/workspaces/ws-1/members/bulk/jobs/job-1"
+    );
   });
 
   it("validates bulk invite schema", () => {

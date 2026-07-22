@@ -207,6 +207,16 @@ export class WorkspaceController {
     return this.workspace.bulkInvite(id, body.members, _user.userId);
   }
 
+  @Get(ROUTES.WORKSPACES.BULK_MEMBERS_JOB(":id", ":jobId"))
+  @RequirePermission("workspace:ManageMembers", {
+    scope: "workspace",
+    workspaceId: { source: "route", parameter: "id" },
+    expectedTenantId: { source: "session", field: "tenantId" }
+  })
+  getBulkInviteJobStatus(@Param("id") id: string, @Param("jobId") jobId: string) {
+    return this.workspace.getBulkInviteJobStatus(id, jobId);
+  }
+
   @Post(ROUTES.WORKSPACES.RESEND_CREDENTIALS(":id", ":memberId"))
   @RequirePermission("workspace:ManageMembers", {
     scope: "workspace",

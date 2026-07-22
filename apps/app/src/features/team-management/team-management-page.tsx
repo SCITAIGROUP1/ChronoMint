@@ -60,6 +60,10 @@ import { TeamMemberActions } from "./team-member-actions";
 import { TeamMemberEditDialog } from "./team-member-edit-dialog";
 import { TeamMemberProfileDialog } from "./team-member-profile-dialog";
 import { useTeamMembersOverview } from "./use-team-members-overview";
+import {
+  formatWorkspaceBulkInviteJobToast,
+  waitForWorkspaceBulkInviteJob
+} from "./workspace-bulk-invite-job";
 import { DashboardStatCard } from "@/components/dashboard-stat-card";
 import { api } from "@/lib/api";
 import { getWorkspaceId, useSessionStore } from "@/stores/session.store";
@@ -206,9 +210,16 @@ export function TeamManagementPage() {
           body: formData
         }
       );
-      toast.success(
-        `Successfully enqueued invitation for ${res.enqueuedCount} members. They will be registered and notified shortly.`
-      );
+      toast.message(`Processing ${res.enqueuedCount} invitations…`);
+      const status = await waitForWorkspaceBulkInviteJob({
+        api: (path, init) => api(path, init),
+        workspaceId: ws,
+        jobId: res.jobId
+      });
+      const toastInfo = formatWorkspaceBulkInviteJobToast(status);
+      if (toastInfo.tone === "error") toast.error(toastInfo.message);
+      else if (toastInfo.tone === "warning") toast.warning(toastInfo.message);
+      else toast.success(toastInfo.message);
       setBulkOpen(false);
       setSelectedFile(null);
       await reload();

@@ -7,7 +7,10 @@ describe("PermissionMatrixService", () => {
   const tenantMemberFindMany = vi.fn();
   const workspaceMemberFindMany = vi.fn();
   const teamMemberFindMany = vi.fn();
+  const workspaceFindFirst = vi.fn();
+  const projectFindFirst = vi.fn();
   const principalOverrideGroupBy = vi.fn();
+  const roleOverrideGroupBy = vi.fn();
   const loadOverrides = vi.fn();
   const document = vi.fn();
   let service: PermissionMatrixService;
@@ -17,7 +20,10 @@ describe("PermissionMatrixService", () => {
     tenantMemberFindMany.mockReset();
     workspaceMemberFindMany.mockReset();
     teamMemberFindMany.mockReset();
+    workspaceFindFirst.mockReset();
+    projectFindFirst.mockReset();
     principalOverrideGroupBy.mockReset();
+    roleOverrideGroupBy.mockReset();
     loadOverrides.mockReset();
     document.mockReset();
     document.mockImplementation(
@@ -42,6 +48,9 @@ describe("PermissionMatrixService", () => {
     );
     loadOverrides.mockResolvedValue(undefined);
     principalOverrideGroupBy.mockResolvedValue([]);
+    roleOverrideGroupBy.mockResolvedValue([]);
+    workspaceFindFirst.mockResolvedValue({ id: "ws-default" });
+    projectFindFirst.mockResolvedValue({ id: "project-default" });
     service = new PermissionMatrixService(
       {
         tenantMember: {
@@ -54,8 +63,17 @@ describe("PermissionMatrixService", () => {
         teamMember: {
           findMany: teamMemberFindMany
         },
+        workspace: {
+          findFirst: workspaceFindFirst
+        },
+        project: {
+          findFirst: projectFindFirst
+        },
         principalPermissionOverride: {
           groupBy: principalOverrideGroupBy
+        },
+        tenantRolePermissionOverride: {
+          groupBy: roleOverrideGroupBy
         }
       } as never,
       {
@@ -145,12 +163,14 @@ describe("PermissionMatrixService", () => {
     workspaceMemberFindMany.mockResolvedValue([
       {
         userId: "wa-1",
+        workspaceId: "ws-1",
         role: "ADMIN",
         isActive: true,
         user: { id: "wa-1", name: "Casey Admin", email: "casey@example.com" }
       },
       {
         userId: "wm-1",
+        workspaceId: "ws-1",
         role: "MEMBER",
         isActive: true,
         user: { id: "wm-1", name: "Sam Member", email: "sam@example.com" }
@@ -161,7 +181,8 @@ describe("PermissionMatrixService", () => {
         userId: "pm-1",
         role: "PROJECT_MANAGER",
         isActive: true,
-        user: { id: "pm-1", name: "Alex PM", email: "alex@example.com" }
+        user: { id: "pm-1", name: "Alex PM", email: "alex@example.com" },
+        team: { projectId: "project-1" }
       }
     ]);
 
@@ -200,6 +221,7 @@ describe("PermissionMatrixService", () => {
     workspaceMemberFindMany.mockResolvedValue([
       {
         userId: "dual-1",
+        workspaceId: "ws-1",
         role: "ADMIN",
         isActive: true,
         user: { id: "dual-1", name: "Morgan Dual", email: "morgan@example.com" }
@@ -211,5 +233,77 @@ describe("PermissionMatrixService", () => {
 
     expect(result.total).toBe(1);
     expect(result.items[0]?.roles).toEqual(["TENANT_ADMIN", "WORKSPACE_ADMIN"]);
+    expect(result.items[0]?.target).toMatchObject({
+      scope: "tenant",
+      resourceId: "tenant-1"
+    });
+  });
+
+  it("lists workspace and project role templates alongside tenant roles", async () => {
+    const result = await service.listRolePolicies("tenant-1", { page: 1, limit: 25 });
+
+    expect(result.items.map((item) => item.target.role)).toEqual([
+      "TENANT_OWNER",
+      "TENANT_ADMIN",
+      "WORKSPACE_ADMIN",
+      "WORKSPACE_MEMBER",
+      "PROJECT_MANAGER"
+    ]);
+    expect(
+      result.items.find((item) => item.target.role === "WORKSPACE_ADMIN")?.target
+    ).toMatchObject({
+      scope: "workspace",
+      resourceId: "ws-default"
+    });
+    expect(
+      result.items.find((item) => item.target.role === "PROJECT_MANAGER")?.target
+    ).toMatchObject({
+      scope: "project",
+      resourceId: "project-default"
+    });
+  });
+
+  it("binds workspace-only principals to workspace scope and PMs to project scope", async () => {
+    tenantMemberFindMany.mockResolvedValue([]);
+    workspaceMemberFindMany.mockResolvedValue([
+      {
+        userId: "wa-1",
+        workspaceId: "ws-admin",
+        role: "ADMIN",
+        isActive: true,
+        user: { id: "wa-1", name: "Riley Admin", email: "riley@example.com" }
+      },
+      {
+        userId: "wm-1",
+        workspaceId: "ws-member",
+        role: "MEMBER",
+        isActive: true,
+        user: { id: "wm-1", name: "Sage Member", email: "sage@example.com" }
+      }
+    ]);
+    teamMemberFindMany.mockResolvedValue([
+      {
+        userId: "pm-1",
+        role: "PROJECT_MANAGER",
+        isActive: true,
+        user: { id: "pm-1", name: "Casey PM", email: "casey@example.com" },
+        team: { projectId: "project-1" }
+      }
+    ]);
+
+    const result = await service.listPrincipalPolicies("tenant-1", { page: 1, limit: 25 });
+
+    expect(result.items.find((item) => item.displayName === "Riley Admin")?.target).toMatchObject({
+      scope: "workspace",
+      resourceId: "ws-admin"
+    });
+    expect(result.items.find((item) => item.displayName === "Sage Member")?.target).toMatchObject({
+      scope: "workspace",
+      resourceId: "ws-member"
+    });
+    expect(result.items.find((item) => item.displayName === "Casey PM")?.target).toMatchObject({
+      scope: "project",
+      resourceId: "project-1"
+    });
   });
 });

@@ -49,6 +49,8 @@ export const ROUTES = {
     BULK_MEMBERS: (id: string) => `/workspaces/${id}/members/bulk`,
     BULK_MEMBERS_TEMPLATE: (id: string) => `/workspaces/${id}/members/bulk/template`,
     BULK_MEMBERS_UPLOAD: (id: string) => `/workspaces/${id}/members/bulk/upload`,
+    BULK_MEMBERS_JOB: (workspaceId: string, jobId: string) =>
+      `/workspaces/${workspaceId}/members/bulk/jobs/${jobId}`,
     RESEND_CREDENTIALS: (workspaceId: string, memberId: string) =>
       `/workspaces/${workspaceId}/members/${memberId}/resend-credentials`,
     ASSIGN_ADMIN: (workspaceId: string) => `/workspaces/${workspaceId}/admins/assign`

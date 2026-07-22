@@ -554,13 +554,34 @@ export class AccessPolicyService {
         where: { userId: target.principalId },
         select: { tenantId: true }
       });
-      if (!member || member.tenantId !== tenantId) {
-        throw new DomainException(
-          ErrorCodes.NOT_FOUND,
-          "Policy principal was not found in this organization",
-          HttpStatus.NOT_FOUND
-        );
-      }
+      if (member?.tenantId === tenantId) return;
+
+      const workspaceMember = await tx.workspaceMember.findFirst({
+        where: {
+          userId: target.principalId,
+          isActive: true,
+          workspace: { tenantId }
+        },
+        select: { id: true }
+      });
+      if (workspaceMember) return;
+
+      const projectManager = await tx.teamMember.findFirst({
+        where: {
+          userId: target.principalId,
+          isActive: true,
+          role: "PROJECT_MANAGER",
+          team: { project: { workspace: { tenantId } } }
+        },
+        select: { id: true }
+      });
+      if (projectManager) return;
+
+      throw new DomainException(
+        ErrorCodes.NOT_FOUND,
+        "Policy principal was not found in this organization",
+        HttpStatus.NOT_FOUND
+      );
     }
   }
 
@@ -577,28 +598,39 @@ export class AccessPolicyService {
     if (tenantMember?.tenantId === tenantId) {
       roles.push(tenantMember.role === "OWNER" ? "TENANT_OWNER" : "TENANT_ADMIN");
     }
-    if (target.scope === "workspace") {
-      const member = await tx.workspaceMember.findUnique({
-        where: {
-          workspaceId_userId: {
-            workspaceId: target.resourceId,
-            userId: target.principalId
-          }
-        }
+    if (target.scope === "tenant" || target.scope === "workspace") {
+      const members = await tx.workspaceMember.findMany({
+        where:
+          target.scope === "workspace"
+            ? {
+                workspaceId: target.resourceId,
+                userId: target.principalId,
+                isActive: true
+              }
+            : {
+                userId: target.principalId,
+                isActive: true,
+                workspace: { tenantId }
+              }
       });
-      if (member?.isActive) {
+      for (const member of members) {
         roles.push(member.role === "ADMIN" ? "WORKSPACE_ADMIN" : "WORKSPACE_MEMBER");
       }
     }
-    if (target.scope === "project") {
-      const teamMember = await tx.teamMember.findFirst({
+    if (target.scope === "tenant" || target.scope === "workspace" || target.scope === "project") {
+      const teamMembers = await tx.teamMember.findMany({
         where: {
           userId: target.principalId,
           isActive: true,
-          team: { projectId: target.resourceId }
+          role: "PROJECT_MANAGER",
+          ...(target.scope === "project"
+            ? { team: { projectId: target.resourceId } }
+            : target.scope === "workspace"
+              ? { team: { project: { workspaceId: target.resourceId } } }
+              : { team: { project: { workspace: { tenantId } } } })
         }
       });
-      if (teamMember?.role === "PROJECT_MANAGER") roles.push("PROJECT_MANAGER");
+      if (teamMembers.length) roles.push("PROJECT_MANAGER");
     }
     return [...new Set(roles)];
   }

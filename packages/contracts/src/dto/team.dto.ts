@@ -58,7 +58,13 @@ export const bulkInviteJobResultSchema = z.object({
   successCount: z.number().int().nonnegative(),
   skippedCount: z.number().int().nonnegative(),
   projectAddedCount: z.number().int().nonnegative(),
-  totalProcessed: z.number().int().nonnegative()
+  totalProcessed: z.number().int().nonnegative(),
+  /** Mail jobs successfully enqueued (credentials or workspace-added). */
+  emailQueuedCount: z.number().int().nonnegative().default(0),
+  /** Existing pending-password members who received a fresh credentials email. */
+  credentialsResentCount: z.number().int().nonnegative().default(0),
+  /** Membership created/updated but mail enqueue failed. */
+  emailFailedCount: z.number().int().nonnegative().default(0)
 });
 
 export const bulkInviteJobStatusSchema = z.object({

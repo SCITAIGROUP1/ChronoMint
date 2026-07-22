@@ -97,7 +97,7 @@ export class AuthController {
     return this.auth.signup(body as Parameters<AuthService["signup"]>[0]);
   }
 
-  @Throttle({ auth: { limit: 10, ttl: 60_000 } })
+  @Throttle({ auth: { limit: 60, ttl: 60_000 } })
   @Post(ROUTES.AUTH.INVITE_HANDOFF)
   async inviteHandoff(
     @Body(new ZodValidationPipe(inviteHandoffSchema)) body: { inviteToken: string }

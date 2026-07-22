@@ -115,8 +115,15 @@ function harness(options?: {
     },
     workspace: { findUnique: vi.fn() },
     project: { findUnique: vi.fn() },
-    workspaceMember: { findUnique: vi.fn() },
-    teamMember: { findFirst: vi.fn() }
+    workspaceMember: {
+      findUnique: vi.fn(),
+      findFirst: vi.fn().mockResolvedValue(null),
+      findMany: vi.fn().mockResolvedValue([])
+    },
+    teamMember: {
+      findFirst: vi.fn().mockResolvedValue(null),
+      findMany: vi.fn().mockResolvedValue([])
+    }
   };
   const repository = {
     transaction: vi.fn(async (work) => work(tx)),
@@ -354,6 +361,33 @@ describe("AccessPolicyService", () => {
       valid: false,
       checked: 0,
       expectedHash: event.eventHash
+    });
+  });
+
+  it("loads policy documents for workspace members who are not tenant members", async () => {
+    const { service, tx } = harness();
+    tx.tenantMember.findUnique.mockResolvedValue(null);
+    tx.workspace.findUnique.mockResolvedValue({ tenantId: "tenant-1" });
+    tx.workspaceMember.findFirst.mockResolvedValue({ id: "wm-1" });
+    tx.workspaceMember.findMany.mockResolvedValue([
+      { role: "ADMIN", isActive: true, userId: "ws-user-1" }
+    ]);
+    tx.teamMember.findMany.mockResolvedValue([]);
+
+    await expect(
+      service.document("tenant-1", {
+        type: "PRINCIPAL",
+        principalId: "ws-user-1",
+        scope: "workspace",
+        resourceId: "workspace-1"
+      })
+    ).resolves.toMatchObject({
+      target: {
+        type: "PRINCIPAL",
+        principalId: "ws-user-1",
+        scope: "workspace",
+        resourceId: "workspace-1"
+      }
     });
   });
 });

@@ -80,7 +80,8 @@ describe("WorkspaceService", () => {
       isConfigured: true
     } as unknown as MemberProvisioningMailer;
     mockQueue = {
-      add: vi.fn().mockResolvedValue({ id: "job-1" })
+      add: vi.fn().mockResolvedValue({ id: "job-1" }),
+      getJob: vi.fn()
     };
     mockPlanLimit = {
       assertWorkspaceCreateAllowed: vi.fn().mockResolvedValue(undefined),
@@ -723,6 +724,48 @@ describe("WorkspaceService", () => {
     it("throws if workspace not found", async () => {
       mockPrisma.workspace.findUnique.mockResolvedValue(null);
       await expect(service.bulkInvite(workspaceId, [], inviterId)).rejects.toThrow(DomainException);
+    });
+
+    it("returns completed bulk job status with email counters", async () => {
+      mockQueue.getJob.mockResolvedValue({
+        data: { workspaceId },
+        getState: vi.fn().mockResolvedValue("completed"),
+        returnvalue: {
+          successCount: 2,
+          skippedCount: 1,
+          projectAddedCount: 0,
+          totalProcessed: 3,
+          emailQueuedCount: 2,
+          credentialsResentCount: 1,
+          emailFailedCount: 0
+        }
+      });
+
+      await expect(service.getBulkInviteJobStatus(workspaceId, "job-1")).resolves.toEqual({
+        jobId: "job-1",
+        status: "completed",
+        result: {
+          successCount: 2,
+          skippedCount: 1,
+          projectAddedCount: 0,
+          totalProcessed: 3,
+          emailQueuedCount: 2,
+          credentialsResentCount: 1,
+          emailFailedCount: 0
+        }
+      });
+    });
+
+    it("rejects project bulk jobs when polling workspace status", async () => {
+      mockQueue.getJob.mockResolvedValue({
+        data: { workspaceId, projectId: "p-1" },
+        getState: vi.fn().mockResolvedValue("completed"),
+        returnvalue: {}
+      });
+
+      await expect(service.getBulkInviteJobStatus(workspaceId, "job-1")).rejects.toMatchObject({
+        code: ErrorCodes.NOT_FOUND
+      });
     });
   });
 });

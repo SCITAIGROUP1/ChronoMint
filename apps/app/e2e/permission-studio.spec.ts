@@ -69,8 +69,8 @@ async function mockStudio(page: Page, options?: { conflictOnce?: boolean; owner?
               target: {
                 type: "PRINCIPAL",
                 principalId: "user-wa",
-                scope: "tenant",
-                resourceId: "tenant-1"
+                scope: "workspace",
+                resourceId: "workspace-1"
               },
               displayName: "Casey Workspace Admin",
               email: "casey@example.com",
@@ -82,8 +82,8 @@ async function mockStudio(page: Page, options?: { conflictOnce?: boolean; owner?
               target: {
                 type: "PRINCIPAL",
                 principalId: "user-pm",
-                scope: "tenant",
-                resourceId: "tenant-1"
+                scope: "project",
+                resourceId: "project-1"
               },
               displayName: "Alex Project Manager",
               email: "alex@example.com",
