@@ -7,8 +7,6 @@ import {
   verifyEmailSchema,
   resendVerificationSchema,
   switchWorkspaceSchema,
-  completeImpersonationSchema,
-  impersonateSchema,
   refreshSessionSchema,
   inviteHandoffSchema,
   platform2faSetupEnableRequestSchema,
@@ -31,6 +29,7 @@ import {
 } from "@nestjs/common";
 import { Throttle, SkipThrottle } from "@nestjs/throttler";
 import { type Response, type Request } from "express";
+import { AuthorizationEnforcementService } from "../../../../common/access/authorization-enforcement.service";
 import { assertAllowedAuthOrigin } from "../../../../common/auth/allowed-origins";
 import {
   accessCookieName,
@@ -49,10 +48,6 @@ import {
   type RequestUser
 } from "../../../../common/decorators/current-user.decorator";
 import { TenantScoped } from "../../../../common/decorators/tenant-scoped.decorator";
-import {
-  WorkspaceUser,
-  type WorkspaceRequestUser
-} from "../../../../common/decorators/workspace-user.decorator";
 import { DomainException } from "../../../../common/errors/domain.exception";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { SessionAuthGuard } from "../../../../common/guards/session-auth.guard";
@@ -82,7 +77,8 @@ function guardCookieAuthRequest(req: Request): void {
 export class AuthController {
   constructor(
     private auth: AuthService,
-    private platformAudit: PlatformAuditService
+    private platformAudit: PlatformAuditService,
+    private authorization: AuthorizationEnforcementService
   ) {}
 
   @Throttle({ auth: { limit: 5, ttl: 60_000 } })
@@ -384,7 +380,7 @@ export class AuthController {
   @SkipThrottle()
   @UseGuards(SessionAuthGuard)
   @Get(ROUTES.AUTH.ME)
-  me(
+  async me(
     @Req() req: Request,
     @CurrentUser() user?: RequestUser,
     @CurrentPlatformUser() platformUser?: PlatformRequestUser
@@ -398,6 +394,11 @@ export class AuthController {
           HttpStatus.UNAUTHORIZED
         );
       }
+      await this.authorization.assertAllowed({
+        principalId: platformUser.platformUserId,
+        permission: "platform:AccessConsole",
+        resource: { scope: "platform" }
+      });
       return this.auth.getPlatformMe(platformUser.platformUserId);
     }
     if (!user) {
@@ -407,94 +408,18 @@ export class AuthController {
         HttpStatus.UNAUTHORIZED
       );
     }
+    await this.authorization.assertAllowed({
+      principalId: user.userId,
+      permission: user.workspaceId ? "workspace:Access" : "tenant:Access",
+      resource: user.workspaceId
+        ? {
+            scope: "workspace",
+            workspaceId: user.workspaceId,
+            expectedTenantId: user.tenantId
+          }
+        : { scope: "tenant", tenantId: user.tenantId }
+    });
     return this.auth.getMe(user.userId, user.workspaceId, user.impersonatorId);
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Post(ROUTES.AUTH.IMPERSONATE)
-  async impersonate(
-    @WorkspaceUser() user: WorkspaceRequestUser,
-    @Body(new ZodValidationPipe(impersonateSchema)) body: { userId: string },
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response
-  ) {
-    const workspaceUser = user;
-    if (workspaceUser.role !== "ADMIN") {
-      throw new DomainException(
-        ErrorCodes.FORBIDDEN,
-        "Only workspace administrators can view as another member",
-        HttpStatus.FORBIDDEN
-      );
-    }
-
-    const { session, handoffToken, accessToken, refreshToken } =
-      await this.auth.createImpersonationHandoff(
-        workspaceUser.userId,
-        workspaceUser.workspaceId,
-        body.userId
-      );
-
-    const appScope = "app" as const;
-    const cookieOpts = getCookieOpts();
-    res.cookie(accessCookieName(appScope), accessToken, {
-      ...cookieOpts,
-      maxAge: 15 * 60 * 1000
-    });
-    res.cookie(refreshCookieName(appScope), refreshToken, {
-      ...cookieOpts,
-      maxAge: 7 * 24 * 60 * 60 * 1000
-    });
-
-    return { ...session, handoffToken };
-  }
-
-  @Throttle({ auth: { limit: 10, ttl: 60_000 } })
-  @Post(ROUTES.AUTH.IMPERSONATE_COMPLETE)
-  async completeImpersonation(
-    @Body(new ZodValidationPipe(completeImpersonationSchema)) body: { handoffToken: string },
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response
-  ) {
-    guardCookieAuthRequest(req);
-    const handoff = await this.auth.consumeImpersonationHandoff(body.handoffToken);
-    if (!handoff) {
-      throw new DomainException(
-        ErrorCodes.UNAUTHORIZED,
-        "Impersonation handoff expired or invalid",
-        HttpStatus.UNAUTHORIZED
-      );
-    }
-
-    const appScope = "app" as const;
-    const cookieOpts = getCookieOpts();
-    res.cookie(accessCookieName(appScope), handoff.accessToken, {
-      ...cookieOpts,
-      maxAge: 15 * 60 * 1000
-    });
-    res.cookie(refreshCookieName(appScope), handoff.refreshToken, {
-      ...cookieOpts,
-      maxAge: 7 * 24 * 60 * 60 * 1000
-    });
-
-    return {
-      ...handoff.session,
-      accessToken: handoff.accessToken,
-      refreshToken: handoff.refreshToken
-    };
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Post(ROUTES.AUTH.STOP_IMPERSONATION)
-  async stopImpersonation(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    guardCookieAuthRequest(req);
-    const refresh = req.cookies?.[refreshCookieName("app")];
-    if (refresh) {
-      await this.auth.revokeRefreshToken(refresh);
-    }
-    const clearOpts = getClearCookieOpts();
-    res.clearCookie(accessCookieName("app"), clearOpts);
-    res.clearCookie(refreshCookieName("app"), clearOpts);
-    return { ok: true };
   }
 
   @Delete(ROUTES.AUTH.LOGOUT)

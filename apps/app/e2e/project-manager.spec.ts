@@ -37,14 +37,14 @@ test.describe("Project lead app access", () => {
     await loginAsProjectLead(page);
     await expect(page).toHaveURL(/dashboard/);
 
-    await expect(page.getByRole("link", { name: "Dashboard" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Projects" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Approvals" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Dashboard" }).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: "Projects" }).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: "Approvals" }).first()).toBeVisible();
     await expect(page.getByRole("link", { name: "Team Management" })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Exports" })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Billing" })).toHaveCount(0);
 
-    await page.getByRole("link", { name: "Approvals" }).click();
+    await page.getByRole("link", { name: "Approvals" }).first().click();
     await expect(page).toHaveURL(/approvals/);
     await expect(page.getByRole("heading", { name: /approvals/i })).toBeVisible();
   });

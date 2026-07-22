@@ -25,21 +25,21 @@ import {
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import type { Response } from "express";
-import { Roles } from "../../../../common/decorators/roles.decorator";
+import { RequirePermission } from "../../../../common/decorators/require-permission.decorator";
 import {
   WorkspaceUser,
   type WorkspaceRequestUser
 } from "../../../../common/decorators/workspace-user.decorator";
 import { DomainException } from "../../../../common/errors/domain.exception";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
-import { RolesGuard } from "../../../../common/guards/roles.guard";
+import { PermissionGuard } from "../../../../common/guards/permission.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
 import { TimelogAuditService } from "../../application/timelog-audit.service";
 import { TimelogImportService } from "../../application/timelog-import.service";
 import { TimelogsService } from "../../application/timelogs.service";
 
 @Controller()
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionGuard)
 export class TimelogsController {
   constructor(
     private timelogs: TimelogsService,
@@ -47,6 +47,10 @@ export class TimelogsController {
     private timelogImport: TimelogImportService
   ) {}
 
+  @RequirePermission("personal:ManageTimelogs", {
+    scope: "self",
+    workspaceId: { source: "session", field: "workspaceId" }
+  })
   @Get(ROUTES.TIMELOGS.LIST)
   list(
     @WorkspaceUser() user: WorkspaceRequestUser,
@@ -61,6 +65,10 @@ export class TimelogsController {
     );
   }
 
+  @RequirePermission("personal:ManageTimelogs", {
+    scope: "self",
+    workspaceId: { source: "session", field: "workspaceId" }
+  })
   @Get(ROUTES.TIMELOGS.OCCUPANCY)
   occupancy(
     @WorkspaceUser() user: WorkspaceRequestUser,
@@ -74,7 +82,10 @@ export class TimelogsController {
     return this.audit.listForTimeLog(user.workspaceId, user.userId, user.role, id);
   }
 
-  @Roles("ADMIN")
+  @RequirePermission("workspace:ReadTimelogAudit", {
+    scope: "workspace",
+    workspaceId: { source: "session", field: "workspaceId" }
+  })
   @Get(ROUTES.TIMELOGS.AUDIT_EVENTS_WORKSPACE)
   workspaceAuditEvents(
     @WorkspaceUser() user: WorkspaceRequestUser,
@@ -83,6 +94,10 @@ export class TimelogsController {
     return this.audit.listForWorkspace(user.workspaceId, query);
   }
 
+  @RequirePermission("personal:ManageTimelogs", {
+    scope: "self",
+    workspaceId: { source: "session", field: "workspaceId" }
+  })
   @Get(ROUTES.TIMELOGS.YESTERDAY_SUMMARY)
   async yesterdaySummary(@WorkspaceUser() user: WorkspaceRequestUser) {
     const now = new Date();
@@ -100,11 +115,19 @@ export class TimelogsController {
     );
   }
 
+  @RequirePermission("workspace:ImportTimelogs", {
+    scope: "workspace",
+    workspaceId: { source: "session", field: "workspaceId" }
+  })
   @Get(ROUTES.TIMELOGS.IMPORT_TEMPLATE)
   async importTemplate(@WorkspaceUser() _user: WorkspaceRequestUser, @Res() res: Response) {
     await this.timelogImport.generateTemplate(res);
   }
 
+  @RequirePermission("workspace:ImportTimelogs", {
+    scope: "workspace",
+    workspaceId: { source: "session", field: "workspaceId" }
+  })
   @Post(ROUTES.TIMELOGS.IMPORT)
   @UseInterceptors(FileInterceptor("file", { limits: { fileSize: 2 * 1024 * 1024 } }))
   async importTimeLogs(
@@ -129,6 +152,10 @@ export class TimelogsController {
     });
   }
 
+  @RequirePermission("personal:ManageTimelogs", {
+    scope: "self",
+    workspaceId: { source: "session", field: "workspaceId" }
+  })
   @Post(ROUTES.TIMELOGS.CREATE)
   create(
     @WorkspaceUser() user: WorkspaceRequestUser,
@@ -142,6 +169,10 @@ export class TimelogsController {
     );
   }
 
+  @RequirePermission("personal:ManageTimelogs", {
+    scope: "self",
+    workspaceId: { source: "session", field: "workspaceId" }
+  })
   @Post(ROUTES.TIMELOGS.CREATE_BATCH)
   createBatch(
     @WorkspaceUser() user: WorkspaceRequestUser,
@@ -155,6 +186,10 @@ export class TimelogsController {
     );
   }
 
+  @RequirePermission("personal:ManageTimelogs", {
+    scope: "self",
+    workspaceId: { source: "session", field: "workspaceId" }
+  })
   @Patch(ROUTES.TIMELOGS.BY_ID(":id"))
   update(
     @WorkspaceUser() user: WorkspaceRequestUser,
@@ -170,6 +205,10 @@ export class TimelogsController {
     );
   }
 
+  @RequirePermission("personal:ManageTimelogs", {
+    scope: "self",
+    workspaceId: { source: "session", field: "workspaceId" }
+  })
   @Delete(ROUTES.TIMELOGS.BY_ID(":id"))
   remove(@WorkspaceUser() user: WorkspaceRequestUser, @Param("id") id: string) {
     return this.timelogs.remove(user.workspaceId, user.userId, user.role, id);

@@ -482,12 +482,19 @@ describe("ProjectsService", () => {
       });
     });
 
-    it("rejects non-admin actors", async () => {
+    it("allows a project manager through the canonical ManageTeam decision", async () => {
       await expect(
         service.provisionTeamMembers(workspaceId, userId, "MEMBER", projectId, {
           members: [{ email: "a@example.com", name: "Ada" }]
         })
-      ).rejects.toMatchObject({ code: ErrorCodes.FORBIDDEN });
+      ).resolves.toMatchObject({ status: "queued" });
+      expect(mockAccess.assertCanManageProject).toHaveBeenCalledWith(
+        workspaceId,
+        userId,
+        "MEMBER",
+        projectId,
+        "project:ManageTeam"
+      );
     });
 
     it("enqueues chip invites onto the bulk-invite queue", async () => {

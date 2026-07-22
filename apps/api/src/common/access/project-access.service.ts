@@ -1,9 +1,8 @@
-import { ErrorCodes } from "@kloqra/contracts";
+import { ErrorCodes, type Permission } from "@kloqra/contracts";
 import { HttpStatus, Injectable } from "@nestjs/common";
 import { DomainException } from "../errors/domain.exception";
 import { PrismaService } from "../prisma/prisma.service";
-import { AuthorizationPolicyService } from "./authorization-policy.service";
-import { ManagedRoleBindingsService } from "./managed-role-bindings.service";
+import { AuthorizationEnforcementService } from "./authorization-enforcement.service";
 
 export type WorkspaceRole = "ADMIN" | "MEMBER";
 
@@ -20,8 +19,7 @@ type TaskLoggabilityRow = {
 export class ProjectAccessService {
   constructor(
     private prisma: PrismaService,
-    private bindings: ManagedRoleBindingsService,
-    private authorization: AuthorizationPolicyService
+    private authorization: AuthorizationEnforcementService
   ) {}
 
   async managedProjectIds(workspaceId: string, userId: string): Promise<string[]> {
@@ -56,24 +54,17 @@ export class ProjectAccessService {
     workspaceId: string,
     userId: string,
     role: WorkspaceRole,
-    projectId: string
+    projectId: string,
+    permission: Extract<Permission, `project:${string}`>
   ): Promise<void> {
-    const bindingSet = await this.bindings.forProject({
+    const decision = await this.authorization.evaluate({
       principalId: userId,
-      workspaceId,
-      projectId
-    });
-    const decision = this.authorization.evaluate({
-      principalId: userId,
-      permission: "project:ManageTeam",
+      permission,
       resource: {
         scope: "project",
-        id: projectId,
         projectId,
-        workspaceId
-      },
-      bindings: bindingSet.bindings,
-      context: { tenantIsolationPassed: bindingSet.isolationPassed }
+        expectedWorkspaceId: workspaceId
+      }
     });
     if (!decision.allowed) {
       throw new DomainException(

@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test";
 import { SEED } from "../constants/seed";
-import { dismissNextDevToolsIfOpen } from "./shell";
+import { dismissNextDevToolsIfOpen, dismissOnboardingIfOpen } from "./shell";
 
 const ADMIN_EMAIL = SEED.personas.tenantOwner.email;
 const ADMIN_PASSWORD = SEED.personas.tenantOwner.password;
@@ -29,6 +29,8 @@ export async function completePostLoginSelection(
     await page.locator("button").filter({ hasText: workspaceName }).first().click({ force: true });
     await page.waitForURL(/\/(dashboard|account)(\/|\?|$)/, { timeout: 30_000 });
   }
+
+  await dismissOnboardingIfOpen(page);
 }
 
 /** Clear app tokens so a different persona can sign in. */

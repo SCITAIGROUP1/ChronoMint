@@ -9,6 +9,10 @@ describe("TimesheetsService", () => {
   let mockPrisma: any;
   let mockNotificationsDispatch: { notifyWorkspaceAdmins: ReturnType<typeof vi.fn> };
   let mockReportCache: { invalidateWorkspace: ReturnType<typeof vi.fn> };
+  let mockAuthorization: {
+    evaluate: ReturnType<typeof vi.fn>;
+    assertAllowed: ReturnType<typeof vi.fn>;
+  };
 
   const workspaceId = "ws-1";
   const userId = "user-1";
@@ -71,6 +75,10 @@ describe("TimesheetsService", () => {
       assertCanManageProject: vi.fn().mockResolvedValue(undefined),
       manageableProjectIds: vi.fn().mockResolvedValue(["proj-1"])
     };
+    mockAuthorization = {
+      evaluate: vi.fn().mockResolvedValue({ allowed: true }),
+      assertAllowed: vi.fn().mockResolvedValue({ allowed: true })
+    };
     mockReportCache = {
       invalidateWorkspace: vi.fn().mockResolvedValue(undefined)
     };
@@ -81,6 +89,7 @@ describe("TimesheetsService", () => {
         notifyWorkspaceAdmins: mockNotificationsDispatch.notifyWorkspaceAdmins
       } as never,
       mockAccess as never,
+      mockAuthorization as never,
       mockReportCache as never,
       { add: vi.fn() } as never
     );
@@ -178,7 +187,7 @@ describe("TimesheetsService", () => {
     );
   });
 
-  it("approve transitions period to APPROVED", async () => {
+  it("allows a project manager to approve an assigned project", async () => {
     mockPrisma.timesheetPeriod.findFirst.mockResolvedValue({
       id: "period-1",
       workspaceId,
@@ -202,10 +211,22 @@ describe("TimesheetsService", () => {
       workspaceId,
       "period-1",
       adminUserId,
-      "ADMIN",
+      "MEMBER",
       "Looks good"
     );
 
+    expect(mockAuthorization.assertAllowed).toHaveBeenCalledWith(
+      {
+        principalId: adminUserId,
+        permission: "project:ReviewTimesheets",
+        resource: {
+          scope: "project",
+          projectId,
+          expectedWorkspaceId: workspaceId
+        }
+      },
+      mockPrisma
+    );
     expect(mockPrisma.timesheetPeriod.update).toHaveBeenCalledWith({
       where: { id: "period-1" },
       data: expect.objectContaining({
@@ -226,7 +247,7 @@ describe("TimesheetsService", () => {
     expect(result).toEqual({ ok: true });
   });
 
-  it("approve denied when project manager lacks manage access", async () => {
+  it("honors a deny override for project timesheet review", async () => {
     const mockAccess = {
       assertCanManageProject: vi
         .fn()
@@ -242,6 +263,14 @@ describe("TimesheetsService", () => {
         notifyWorkspaceAdmins: mockNotificationsDispatch.notifyWorkspaceAdmins
       } as never,
       mockAccess as never,
+      {
+        evaluate: vi.fn().mockResolvedValue({ allowed: false }),
+        assertAllowed: vi
+          .fn()
+          .mockRejectedValue(
+            new DomainException(ErrorCodes.FORBIDDEN, "Forbidden", HttpStatus.FORBIDDEN)
+          )
+      } as never,
       mockReportCache as never,
       { add: vi.fn() } as never
     );

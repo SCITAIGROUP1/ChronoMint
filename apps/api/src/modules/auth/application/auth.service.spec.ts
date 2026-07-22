@@ -15,6 +15,7 @@ describe("AuthService unit tests", () => {
   let authService: AuthService;
   let mockPrisma: any;
   let mockJwt: any;
+  let mockAuthorization: any;
   const originalEnv = process.env;
 
   beforeEach(() => {
@@ -45,6 +46,56 @@ describe("AuthService unit tests", () => {
     const mockProvisioning = {
       provisionTenant: vi.fn().mockResolvedValue({ tenantId: "t1", ownerUserId: "u1" })
     };
+    mockAuthorization = {
+      assertAllowed: vi.fn().mockResolvedValue({ allowed: true })
+    };
+    const mockAccessPolicy = {
+      capabilitySnapshot: vi
+        .fn()
+        .mockImplementation(
+          async ({
+            principalId,
+            tenantId,
+            bindings
+          }: {
+            principalId: string;
+            tenantId: string;
+            bindings: Array<{ role: string; scope: string; resourceId: string }>;
+          }) => {
+            const permissions = new Set<string>();
+            for (const binding of bindings) {
+              if (binding.role === "TENANT_OWNER") {
+                permissions.add("tenant:ManageBilling");
+                permissions.add("tenant:CreateWorkspace");
+              }
+              if (binding.role === "TENANT_ADMIN") {
+                permissions.add("tenant:CreateWorkspace");
+              }
+              if (binding.role === "WORKSPACE_ADMIN") {
+                permissions.add("workspace:ManageMembers");
+              }
+            }
+            return {
+              policyVersion: "v2",
+              policyChecksum: "sha256:test",
+              policyRevision: 0,
+              membershipRevision: bindings.length,
+              principalId,
+              tenantId,
+              computedAt: new Date().toISOString(),
+              expiresAt: new Date(Date.now() + 60_000).toISOString(),
+              etag: "etag-1",
+              capabilities: [...permissions].map((permission) => ({
+                permission,
+                scope: "tenant",
+                resourceId: tenantId,
+                allowed: true,
+                source: "canonical-role"
+              }))
+            };
+          }
+        )
+    };
     authService = new AuthService(
       mockPrisma,
       mockJwt,
@@ -53,7 +104,9 @@ describe("AuthService unit tests", () => {
         sendEmailVerification: vi.fn().mockResolvedValue({ sent: true })
       } as never,
       mockProjectAccess as never,
-      mockProvisioning as never
+      mockProvisioning as never,
+      mockAuthorization as never,
+      mockAccessPolicy as never
     );
   });
 
@@ -469,6 +522,36 @@ describe("AuthService unit tests", () => {
       await expect(authService.switchWorkspace("user-1", "ws-2")).rejects.toMatchObject({
         code: "FORBIDDEN"
       });
+      expect(mockAuthorization.assertAllowed).not.toHaveBeenCalled();
+    });
+
+    it("rejects when canonical workspace access is denied", async () => {
+      mockPrisma.workspaceMember.findUnique = vi.fn().mockResolvedValue({
+        workspaceId: "ws-1",
+        role: "MEMBER",
+        isActive: true,
+        user: { id: "user-1", name: "User", email: "u@kloqra.dev", defaultHourlyRate: null },
+        workspace: { id: "ws-1", name: "Workspace", tenantId: "tenant-1" }
+      });
+      mockPrisma.tenantMember.findUnique = vi
+        .fn()
+        .mockResolvedValue({ tenantId: "tenant-1", isActive: true });
+      mockAuthorization.assertAllowed.mockRejectedValueOnce(
+        Object.assign(new Error("Insufficient permissions"), { code: "FORBIDDEN" })
+      );
+
+      await expect(authService.switchWorkspace("user-1", "ws-1")).rejects.toMatchObject({
+        code: "FORBIDDEN"
+      });
+      expect(mockAuthorization.assertAllowed).toHaveBeenCalledWith({
+        principalId: "user-1",
+        permission: "workspace:Access",
+        resource: {
+          scope: "workspace",
+          workspaceId: "ws-1",
+          expectedTenantId: "tenant-1"
+        }
+      });
     });
   });
 
@@ -515,6 +598,21 @@ describe("AuthService unit tests", () => {
         { managedProjectIds: vi.fn(), manageableProjectIds: vi.fn() } as never,
         {
           provisionTenant: vi.fn()
+        } as never,
+        { assertAllowed: vi.fn().mockResolvedValue({ allowed: true }) } as never,
+        {
+          capabilitySnapshot: vi.fn().mockResolvedValue({
+            policyVersion: "v2",
+            policyChecksum: "sha256:test",
+            policyRevision: 0,
+            membershipRevision: 0,
+            principalId: "user-1",
+            tenantId: "tenant-1",
+            computedAt: new Date().toISOString(),
+            expiresAt: new Date(Date.now() + 60_000).toISOString(),
+            etag: "etag-1",
+            capabilities: []
+          })
         } as never
       );
 

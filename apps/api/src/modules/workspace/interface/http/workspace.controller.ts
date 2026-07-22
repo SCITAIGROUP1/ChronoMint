@@ -27,13 +27,17 @@ import {
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import type { Response } from "express";
-import { Roles } from "../../../../common/decorators/roles.decorator";
+import {
+  CurrentUser,
+  type RequestUser
+} from "../../../../common/decorators/current-user.decorator";
+import { RequirePermission } from "../../../../common/decorators/require-permission.decorator";
 import {
   WorkspaceUser,
   type WorkspaceRequestUser
 } from "../../../../common/decorators/workspace-user.decorator";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
-import { RolesGuard } from "../../../../common/guards/roles.guard";
+import { PermissionGuard } from "../../../../common/guards/permission.guard";
 import { WorkspaceMatchGuard } from "../../../../common/guards/workspace-match.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
 import { WorkspaceMembersOverviewService } from "../../application/workspace-members-overview.service";
@@ -41,7 +45,7 @@ import { WorkspaceProjectManagersOverviewService } from "../../application/works
 import { WorkspaceService } from "../../application/workspace.service";
 
 @Controller()
-@UseGuards(JwtAuthGuard, RolesGuard, WorkspaceMatchGuard)
+@UseGuards(JwtAuthGuard, PermissionGuard, WorkspaceMatchGuard)
 export class WorkspaceController {
   constructor(
     private workspace: WorkspaceService,
@@ -50,11 +54,15 @@ export class WorkspaceController {
   ) {}
 
   @Post(ROUTES.WORKSPACES.CREATE)
+  @RequirePermission("tenant:CreateWorkspace", {
+    scope: "tenant",
+    tenantId: { source: "session", field: "tenantId" }
+  })
   create(
     @Body(new ZodValidationPipe(createWorkspaceSchema)) body: unknown,
-    @WorkspaceUser() _user: WorkspaceRequestUser
+    @CurrentUser() user: RequestUser
   ) {
-    return this.workspace.create(_user.userId, body as Parameters<WorkspaceService["create"]>[1]);
+    return this.workspace.create(user.userId, body as Parameters<WorkspaceService["create"]>[1]);
   }
 
   @Get(ROUTES.WORKSPACES.LIST)
@@ -62,8 +70,12 @@ export class WorkspaceController {
     return this.workspace.listForUser(_user.userId);
   }
 
-  @Roles("ADMIN")
   @Get(ROUTES.WORKSPACES.MEMBERS_OVERVIEW(":id"))
+  @RequirePermission("workspace:ListMembers", {
+    scope: "workspace",
+    workspaceId: { source: "route", parameter: "id" },
+    expectedTenantId: { source: "session", field: "tenantId" }
+  })
   membersOverview(
     @Param("id") id: string,
     @Query(new ZodValidationPipe(teamMembersOverviewQuerySchema)) query: TeamMembersOverviewQuery,
@@ -72,8 +84,12 @@ export class WorkspaceController {
     return this.overviewService.getOverview(id, query);
   }
 
-  @Roles("ADMIN")
   @Get(ROUTES.WORKSPACES.PROJECT_MANAGERS_OVERVIEW(":id"))
+  @RequirePermission("workspace:ListMembers", {
+    scope: "workspace",
+    workspaceId: { source: "route", parameter: "id" },
+    expectedTenantId: { source: "session", field: "tenantId" }
+  })
   projectManagersOverview(
     @Param("id") id: string,
     @Query(new ZodValidationPipe(projectManagersOverviewQuerySchema))
@@ -84,12 +100,21 @@ export class WorkspaceController {
   }
 
   @Get(ROUTES.WORKSPACES.MEMBERS(":id"))
+  @RequirePermission("workspace:ListMembers", {
+    scope: "workspace",
+    workspaceId: { source: "route", parameter: "id" },
+    expectedTenantId: { source: "session", field: "tenantId" }
+  })
   members(@Param("id") id: string, @WorkspaceUser() _user: WorkspaceRequestUser) {
     return this.workspace.listMembers(id);
   }
 
-  @Roles("ADMIN")
   @Patch(ROUTES.WORKSPACES.MEMBER(":id", ":memberId"))
+  @RequirePermission("workspace:ManageMembers", {
+    scope: "workspace",
+    workspaceId: { source: "route", parameter: "id" },
+    expectedTenantId: { source: "session", field: "tenantId" }
+  })
   updateMember(
     @Param("id") id: string,
     @Param("memberId") memberId: string,
@@ -104,8 +129,12 @@ export class WorkspaceController {
     );
   }
 
-  @Roles("ADMIN")
   @Delete(ROUTES.WORKSPACES.MEMBER(":id", ":memberId"))
+  @RequirePermission("workspace:ManageMembers", {
+    scope: "workspace",
+    workspaceId: { source: "route", parameter: "id" },
+    expectedTenantId: { source: "session", field: "tenantId" }
+  })
   removeMember(
     @Param("id") id: string,
     @Param("memberId") memberId: string,
@@ -114,8 +143,12 @@ export class WorkspaceController {
     return this.workspace.removeMember(id, memberId, _user.userId);
   }
 
-  @Roles("ADMIN")
   @Post(ROUTES.WORKSPACES.INVITE(":id"))
+  @RequirePermission("workspace:ManageMembers", {
+    scope: "workspace",
+    workspaceId: { source: "route", parameter: "id" },
+    expectedTenantId: { source: "session", field: "tenantId" }
+  })
   invite(
     @Param("id") id: string,
     @Body(new ZodValidationPipe(inviteMemberSchema)) body: unknown,
@@ -128,8 +161,12 @@ export class WorkspaceController {
     );
   }
 
-  @Roles("ADMIN")
   @Get(ROUTES.WORKSPACES.BULK_MEMBERS_TEMPLATE(":id"))
+  @RequirePermission("workspace:ManageMembers", {
+    scope: "workspace",
+    workspaceId: { source: "route", parameter: "id" },
+    expectedTenantId: { source: "session", field: "tenantId" }
+  })
   async getBulkInviteTemplate(
     @Param("id") id: string,
     @WorkspaceUser() _user: WorkspaceRequestUser,
@@ -138,8 +175,12 @@ export class WorkspaceController {
     await this.workspace.generateBulkInviteTemplate(res);
   }
 
-  @Roles("ADMIN")
   @Post(ROUTES.WORKSPACES.BULK_MEMBERS_UPLOAD(":id"))
+  @RequirePermission("workspace:ManageMembers", {
+    scope: "workspace",
+    workspaceId: { source: "route", parameter: "id" },
+    expectedTenantId: { source: "session", field: "tenantId" }
+  })
   @UseInterceptors(FileInterceptor("file", { limits: { fileSize: 2 * 1024 * 1024 } }))
   async bulkInviteUpload(
     @Param("id") id: string,
@@ -152,8 +193,12 @@ export class WorkspaceController {
     return this.workspace.bulkInvite(id, members, _user.userId);
   }
 
-  @Roles("ADMIN")
   @Post(ROUTES.WORKSPACES.BULK_MEMBERS(":id"))
+  @RequirePermission("workspace:ManageMembers", {
+    scope: "workspace",
+    workspaceId: { source: "route", parameter: "id" },
+    expectedTenantId: { source: "session", field: "tenantId" }
+  })
   async bulkInvite(
     @Param("id") id: string,
     @Body(new ZodValidationPipe(bulkInviteMemberSchema)) body: { members: InviteMemberDto[] },
@@ -162,8 +207,12 @@ export class WorkspaceController {
     return this.workspace.bulkInvite(id, body.members, _user.userId);
   }
 
-  @Roles("ADMIN")
   @Post(ROUTES.WORKSPACES.RESEND_CREDENTIALS(":id", ":memberId"))
+  @RequirePermission("workspace:ManageMembers", {
+    scope: "workspace",
+    workspaceId: { source: "route", parameter: "id" },
+    expectedTenantId: { source: "session", field: "tenantId" }
+  })
   resendCredentials(
     @Param("id") id: string,
     @Param("memberId") memberId: string,
@@ -172,14 +221,22 @@ export class WorkspaceController {
     return this.workspace.resendMemberCredentials(id, memberId);
   }
 
-  @Roles("ADMIN")
   @Get(ROUTES.WORKSPACES.BY_ID(":id"))
+  @RequirePermission("workspace:ReadSettings", {
+    scope: "workspace",
+    workspaceId: { source: "route", parameter: "id" },
+    expectedTenantId: { source: "session", field: "tenantId" }
+  })
   getById(@Param("id") id: string, @WorkspaceUser() _user: WorkspaceRequestUser) {
     return this.workspace.getById(id);
   }
 
-  @Roles("ADMIN")
   @Patch(ROUTES.WORKSPACES.BY_ID(":id"))
+  @RequirePermission("workspace:UpdateSettings", {
+    scope: "workspace",
+    workspaceId: { source: "route", parameter: "id" },
+    expectedTenantId: { source: "session", field: "tenantId" }
+  })
   update(
     @Param("id") id: string,
     @Body(new ZodValidationPipe(updateWorkspaceSchema)) body: any,

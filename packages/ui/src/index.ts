@@ -24,6 +24,10 @@ export {
 
 export { Button, buttonVariants } from "./components/ui/button.js";
 export type { ButtonProps } from "./components/ui/button.js";
+export {
+  PermissionTriStateControl,
+  type PermissionTriStateControlProps
+} from "./components/ui/permission-tri-state-control.js";
 
 export { Input } from "./components/ui/input.js";
 export { PasswordInput } from "./components/ui/password-input.js";

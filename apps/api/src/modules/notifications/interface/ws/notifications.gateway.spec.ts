@@ -16,12 +16,18 @@ describe("NotificationsGateway", () => {
     quit: ReturnType<typeof vi.fn>;
   };
   let redis: { getClient: ReturnType<typeof vi.fn> };
+  let authorization: { assertAllowed: ReturnType<typeof vi.fn> };
   let server: { to: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
     jwtTokens = {
       isTokenExpired: vi.fn().mockReturnValue(false),
-      verifyAccessToken: vi.fn().mockReturnValue({ sub: "user-1", family: "fam-1" })
+      verifyAccessToken: vi.fn().mockReturnValue({
+        sub: "user-1",
+        family: "fam-1",
+        tenantId: "tenant-1",
+        workspaceId: "workspace-1"
+      })
     };
     authRevocation = { assertNotRevoked: vi.fn().mockResolvedValue(undefined) };
     redisSub = {
@@ -33,7 +39,13 @@ describe("NotificationsGateway", () => {
     redis = {
       getClient: vi.fn().mockReturnValue({ duplicate: vi.fn().mockReturnValue(redisSub) })
     };
-    gateway = new NotificationsGateway(jwtTokens as never, authRevocation as never, redis as never);
+    authorization = { assertAllowed: vi.fn().mockResolvedValue({ allowed: true }) };
+    gateway = new NotificationsGateway(
+      jwtTokens as never,
+      authRevocation as never,
+      redis as never,
+      authorization as never
+    );
     server = {
       to: vi.fn().mockReturnValue({ emit: vi.fn() })
     };
@@ -65,6 +77,15 @@ describe("NotificationsGateway", () => {
     await gateway.handleConnection(client as never);
 
     expect(jwtTokens.verifyAccessToken).toHaveBeenCalledWith("valid-token", "app");
+    expect(authorization.assertAllowed).toHaveBeenCalledWith({
+      principalId: "user-1",
+      permission: "personal:ReadNotifications",
+      resource: {
+        scope: "self",
+        workspaceId: "workspace-1",
+        tenantId: "tenant-1"
+      }
+    });
     expect(client.join).toHaveBeenCalledWith("product:user:user-1");
     expect(redisSub.subscribe).toHaveBeenCalled();
     expect(redisSub.subscribe).toHaveBeenCalledTimes(2);
@@ -158,5 +179,21 @@ describe("NotificationsGateway", () => {
 
     expect(client.disconnect).toHaveBeenCalledWith(true);
     expect(jwtTokens.verifyAccessToken).not.toHaveBeenCalled();
+  });
+
+  it("disconnects when notification permission has been revoked", async () => {
+    authorization.assertAllowed.mockRejectedValueOnce(new Error("revoked"));
+    const client = {
+      handshake: { auth: { token: "valid-token", scope: "app" } },
+      join: vi.fn(),
+      disconnect: vi.fn(),
+      data: {}
+    };
+
+    await gateway.handleConnection(client as never);
+
+    expect(client.disconnect).toHaveBeenCalledWith(true);
+    expect(client.join).not.toHaveBeenCalled();
+    expect(redisSub.subscribe).not.toHaveBeenCalled();
   });
 });

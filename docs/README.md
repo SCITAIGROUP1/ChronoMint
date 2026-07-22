@@ -98,6 +98,7 @@ Canonical behavior for shipped features (read before implementing changes):
 | [global-search.md](specs/global-search.md)                   | Admin command palette                   |
 | [notifications-realtime.md](specs/notifications-realtime.md) | WebSocket bell + live data sync         |
 | [assistant.md](specs/assistant.md)                           | Member help assistant                   |
+| [permission-studio.md](specs/permission-studio.md)           | Authorization policy and research audit |
 
 ## Product direction
 

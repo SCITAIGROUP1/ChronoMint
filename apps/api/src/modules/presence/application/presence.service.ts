@@ -63,8 +63,8 @@ export class PresenceService {
     managedProjectIds?: string[]
   ) {
     const scopedUserIds =
-      role === "MEMBER" && managedProjectIds && managedProjectIds.length > 0
-        ? await this.teamUserIdsForProjects(workspaceId, managedProjectIds)
+      role === "MEMBER"
+        ? await this.teamUserIdsForProjects(workspaceId, managedProjectIds ?? [])
         : undefined;
 
     const members = await this.prisma.workspaceMember.findMany({
@@ -121,9 +121,7 @@ export class PresenceService {
         ? await this.prisma.task.findMany({
             where: {
               id: { in: [...taskIds] },
-              ...(managedProjectIds && managedProjectIds.length > 0 && role === "MEMBER"
-                ? { projectId: { in: managedProjectIds } }
-                : {})
+              ...(role === "MEMBER" ? { projectId: { in: managedProjectIds ?? [] } } : {})
             },
             include: { project: true }
           })

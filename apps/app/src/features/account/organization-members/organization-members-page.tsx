@@ -30,9 +30,9 @@ import {
 } from "@kloqra/ui";
 import { isOrganizationOwner, useTenantMembers } from "@kloqra/web-shared";
 import { UserPlus } from "lucide-react";
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { PermissionToggleDialog } from "@/components/permission-toggle-dialog";
 import { api } from "@/lib/api";
 import { getWorkspaceId, useSessionStore } from "@/stores/session.store";
 
@@ -55,7 +55,6 @@ export function OrganizationMembersPage() {
   const [inviting, setInviting] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [deactivateTarget, setDeactivateTarget] = useState<TenantMemberDto | null>(null);
-  const [permissionTarget, setPermissionTarget] = useState<TenantMemberDto | null>(null);
 
   const filteredMembers = useMemo(() => {
     const normalized = search.trim().toLowerCase();
@@ -232,18 +231,15 @@ export function OrganizationMembersPage() {
                     </Badge>
                   </DataTableCell>
                   <DataTableCell className="text-right">
-                    {member.role === "OWNER" ? (
-                      <span className="text-xs italic text-muted-foreground">Owner</span>
-                    ) : (
-                      <div className="flex items-center justify-end gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setPermissionTarget(member)}
+                    <div className="flex items-center justify-end gap-2">
+                      <Button type="button" variant="outline" size="sm" asChild>
+                        <Link
+                          href={`/account/permissions-matrix?view=members&target=${encodeURIComponent(member.userId)}`}
                         >
                           Permissions
-                        </Button>
+                        </Link>
+                      </Button>
+                      {member.role !== "OWNER" ? (
                         <Button
                           type="button"
                           variant="outline"
@@ -257,8 +253,8 @@ export function OrganizationMembersPage() {
                         >
                           {member.isActive ? "Deactivate" : "Activate"}
                         </Button>
-                      </div>
-                    )}
+                      ) : null}
+                    </div>
                   </DataTableCell>
                 </TableRow>
               ))}
@@ -319,18 +315,6 @@ export function OrganizationMembersPage() {
         onConfirm={() => deactivateTarget && void toggleActive(deactivateTarget, false)}
         onCancel={() => setDeactivateTarget(null)}
       />
-
-      {permissionTarget ? (
-        <PermissionToggleDialog
-          open={permissionTarget !== null}
-          onOpenChange={(open) => !open && setPermissionTarget(null)}
-          memberName={permissionTarget.userName}
-          memberEmail={permissionTarget.userEmail}
-          memberRole={permissionTarget.role}
-          memberId={permissionTarget.id}
-          scope="organization"
-        />
-      ) : null}
     </div>
   );
 }

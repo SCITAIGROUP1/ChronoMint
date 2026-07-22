@@ -4,10 +4,32 @@ import { PermissionMatrixService } from "./permission-matrix.service";
 
 describe("PermissionMatrixService", () => {
   const tenantMemberFindUnique = vi.fn();
+  const document = vi.fn();
   let service: PermissionMatrixService;
 
   beforeEach(() => {
     tenantMemberFindUnique.mockReset();
+    document.mockReset();
+    document.mockImplementation(
+      async (_tenantId: string, target: { type: string; role?: string }) => ({
+        policyVersion: POLICY_VERSION,
+        policyChecksum: "sha256:test",
+        revision: 0,
+        target,
+        items: PERMISSIONS.map((permission) => ({
+          permission,
+          target,
+          configured: "INHERIT",
+          effective:
+            target.type === "ROLE" &&
+            (target.role === "TENANT_OWNER" || target.role === "TENANT_ADMIN") &&
+            permission.startsWith("tenant:")
+              ? "ALLOW"
+              : "DENY",
+          source: "CANONICAL_ROLE"
+        }))
+      })
+    );
     service = new PermissionMatrixService(
       {
         tenantMember: {
@@ -15,7 +37,7 @@ describe("PermissionMatrixService", () => {
         }
       } as never,
       {
-        record: vi.fn()
+        document
       } as never
     );
   });
@@ -47,6 +69,7 @@ describe("PermissionMatrixService", () => {
     tenantMemberFindUnique.mockResolvedValue({
       id: "member-permission-test",
       tenantId: "tenant-permission-test",
+      userId: "user-permission-test",
       role: "ADMIN",
       user: {
         name: "Ada Admin",
@@ -74,6 +97,7 @@ describe("PermissionMatrixService", () => {
     tenantMemberFindUnique.mockResolvedValue({
       id: "other-member",
       tenantId: "other-tenant",
+      userId: "other-user",
       role: "ADMIN",
       user: {
         name: "Other Admin",

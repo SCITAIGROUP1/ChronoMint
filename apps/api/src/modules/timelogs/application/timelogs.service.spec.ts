@@ -13,6 +13,13 @@ function mockWorkspaceDataRealtime() {
   return { publishStaleToUsers: vi.fn().mockResolvedValue(undefined) };
 }
 
+function mockAuthorization() {
+  return {
+    evaluate: vi.fn().mockResolvedValue({ allowed: false }),
+    assertAllowed: vi.fn().mockResolvedValue({ allowed: true })
+  };
+}
+
 describe("TimelogsService listOccupancy", () => {
   let service: TimelogsService;
   let mockPrisma: {
@@ -37,6 +44,7 @@ describe("TimelogsService listOccupancy", () => {
       {} as never,
       mockTimesheetLock as never,
       {} as never,
+      mockAuthorization() as never,
       mockSubscriptions() as never,
       mockWorkspaceDataRealtime() as never
     );
@@ -137,6 +145,7 @@ describe("TimelogsService list", () => {
       {} as never,
       {} as never,
       {} as never,
+      mockAuthorization() as never,
       mockSubscriptions() as never,
       mockWorkspaceDataRealtime() as never
     );
@@ -251,6 +260,7 @@ describe("TimelogsService assertNoOverlap", () => {
       {} as never,
       {} as never,
       {} as never,
+      mockAuthorization() as never,
       mockSubscriptions() as never,
       mockWorkspaceDataRealtime() as never
     );
@@ -291,7 +301,7 @@ describe("TimelogsService assertNoOverlap", () => {
 });
 
 describe("TimelogAuditService", () => {
-  const audit = new TimelogAuditService({} as never);
+  const audit = new TimelogAuditService({} as never, mockAuthorization() as never);
 
   it("snapshotFromLog serializes log fields for audit diffs", () => {
     const log = {
@@ -343,6 +353,7 @@ describe("TimelogsService resolveBillable", () => {
       {} as never,
       {} as never,
       {} as never,
+      mockAuthorization() as never,
       mockSubscriptions() as never,
       mockWorkspaceDataRealtime() as never
     );
@@ -405,6 +416,7 @@ describe("TimelogsService createBatch", () => {
       mockAudit as any,
       mockTimesheetLock as any,
       mockAccess as any,
+      mockAuthorization() as any,
       mockSubscriptions() as any,
       mockWorkspaceDataRealtime() as any
     );
@@ -565,5 +577,75 @@ describe("TimelogsService createBatch", () => {
     expect(res.skippedCount).toBe(1);
     expect(res.skipped[0]?.date).toBe("2026-06-15");
     expect(res.skipped[0]?.reason).toContain("Locked");
+  });
+});
+
+describe("TimelogsService ownership isolation", () => {
+  function createService(findFirst: ReturnType<typeof vi.fn>) {
+    return new TimelogsService(
+      { timeLog: { findFirst } } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      mockAuthorization() as never,
+      mockSubscriptions() as never,
+      mockWorkspaceDataRealtime() as never
+    );
+  }
+
+  it("denies a member editing another member's timelog", async () => {
+    const authorization = mockAuthorization();
+    const service = new TimelogsService(
+      {
+        timeLog: {
+          findFirst: vi.fn().mockResolvedValue({
+            id: "log-1",
+            userId: "other-user",
+            task: {
+              projectId: "project-1",
+              category: { isActive: true },
+              project: { isActive: true }
+            }
+          })
+        }
+      } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      authorization as never,
+      mockSubscriptions() as never,
+      mockWorkspaceDataRealtime() as never
+    );
+
+    await expect(
+      service.update("workspace-1", "member-1", "MEMBER", "log-1", {})
+    ).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof DomainException &&
+        error.code === ErrorCodes.FORBIDDEN &&
+        error.getStatus() === HttpStatus.FORBIDDEN
+    );
+    expect(authorization.assertAllowed).not.toHaveBeenCalled();
+  });
+
+  it("does not resolve a timelog from another workspace", async () => {
+    const findFirst = vi.fn().mockResolvedValue(null);
+    const service = createService(findFirst);
+
+    await expect(
+      service.update("workspace-1", "member-1", "MEMBER", "foreign-log", {})
+    ).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof DomainException &&
+        error.code === ErrorCodes.NOT_FOUND &&
+        error.getStatus() === HttpStatus.NOT_FOUND
+    );
+    expect(findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "foreign-log", task: { project: { workspaceId: "workspace-1" } } }
+      })
+    );
   });
 });

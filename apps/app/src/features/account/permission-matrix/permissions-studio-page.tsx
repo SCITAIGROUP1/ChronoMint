@@ -1,500 +1,711 @@
 "use client";
 
-import type { MemberPermissionsDto, Permission } from "@kloqra/contracts";
-import { ROUTES } from "@kloqra/contracts";
+import {
+  type EffectivePermissionItemDto,
+  type ManagedRole,
+  type Permission,
+  type PermissionCatalogItemDto,
+  type PermissionRiskLevel,
+  type PolicyConfigurationDto,
+  type PolicyTargetDto,
+  type ResourceScope
+} from "@kloqra/contracts";
 import {
   AppBar,
-  AppBarListToolbar,
   Badge,
   Button,
   Card,
   CardContent,
-  DataTableCard,
+  ConfirmDialog,
   EmptyState,
   Input,
-  TableLoadingState
+  Label,
+  PermissionTriStateControl,
+  SegmentedControl,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Skeleton
 } from "@kloqra/ui";
-import { canManageOrganization, useTenantMembers } from "@kloqra/web-shared";
 import {
-  ChevronDown,
-  ChevronRight,
-  ClipboardList,
-  RotateCcw,
-  Search,
-  ShieldAlert,
-  ShieldX
-} from "lucide-react";
-import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+  ApiRequestError,
+  canManageOrganization,
+  usePermissionPolicy,
+  usePermissionPolicyCatalog,
+  usePrincipalPolicyDirectory,
+  useRolePolicyDirectory,
+  useSavePermissionPolicy
+} from "@kloqra/web-shared";
+import { ArrowLeft, ChevronDown, History, RotateCcw, Search, Undo2 } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { api } from "@/lib/api";
-import { getWorkspaceId, useSessionStore } from "@/stores/session.store";
+import { usePermissionDraftStore } from "./permission-draft.store";
+import { useSessionStore } from "@/stores/session.store";
 
-type ActionDimension = "VIEW" | "CREATE" | "EDIT" | "DELETE" | "EXPORT";
-const ACTION_DIMENSIONS: ActionDimension[] = ["VIEW", "CREATE", "EDIT", "DELETE", "EXPORT"];
+type StudioMode = "roles" | "members";
+type FilterValue<T extends string> = "ALL" | T;
+
+const SOURCE_LABELS: Record<EffectivePermissionItemDto["source"], string> = {
+  SYSTEM_DENY: "System denial",
+  PRINCIPAL_DENY: "Member denial",
+  PRINCIPAL_ALLOW: "Member allowance",
+  ROLE_POLICY: "Role override",
+  CANONICAL_ROLE: "Role template",
+  DEFAULT_DENY: "Default denial"
+};
+
+function policyTargetKey(target: PolicyTargetDto): string {
+  return target.type === "ROLE" ? `role:${target.role}` : `principal:${target.principalId}`;
+}
+
+function titleCase(value: string): string {
+  return value
+    .toLowerCase()
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
 
 export function PermissionsStudioPage() {
-  const session = useSessionStore((s) => s.session);
-  const ws = session?.workspaceId ?? getWorkspaceId() ?? "";
+  const session = useSessionStore((state) => state.session);
   const canManage = canManageOrganization(session);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const mode: StudioMode = searchParams.get("view") === "members" ? "members" : "roles";
+  const selectedId = searchParams.get("target");
+  const [directorySearch, setDirectorySearch] = useState("");
+  const [permissionSearch, setPermissionSearch] = useState("");
+  const [scopeFilter, setScopeFilter] = useState<FilterValue<ResourceScope>>("ALL");
+  const [riskFilter, setRiskFilter] = useState<FilterValue<PermissionRiskLevel>>("ALL");
+  const [reviewing, setReviewing] = useState(false);
+  const [reason, setReason] = useState("");
+  const [confirmingHighRisk, setConfirmingHighRisk] = useState(false);
+  const [conflictMessage, setConflictMessage] = useState<string | null>(null);
+  const [announcement, setAnnouncement] = useState("");
+  const directoryRef = useRef<HTMLElement | null>(null);
+  const lastSelectedIdRef = useRef<string | null>(selectedId);
+  const restoreDirectoryFocusRef = useRef(false);
 
-  const { members, loading: loadingMembers } = useTenantMembers();
-  const [memberSearch, setMemberSearch] = useState("");
-  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
+  const directoryQuery = useMemo(
+    () => ({
+      page: 1,
+      limit: 100,
+      ...(directorySearch.trim() ? { search: directorySearch.trim() } : {})
+    }),
+    [directorySearch]
+  );
+  const roles = useRolePolicyDirectory(directoryQuery, canManage && mode === "roles");
+  const members = usePrincipalPolicyDirectory(directoryQuery, canManage && mode === "members");
+  const catalog = usePermissionPolicyCatalog(canManage);
+  const directory = mode === "roles" ? roles.data?.items : members.data?.items;
+  const selectedDirectoryItem = directory?.find((item) =>
+    item.target.type === "ROLE"
+      ? item.target.role === selectedId
+      : item.target.principalId === selectedId
+  );
+  const target = selectedDirectoryItem?.target ?? null;
+  const policy = usePermissionPolicy(target, canManage && Boolean(target));
+  const savePolicy = useSavePermissionPolicy();
+  const draft = usePermissionDraftStore((state) => state.values);
+  const history = usePermissionDraftStore((state) => state.history);
+  const beginDraft = usePermissionDraftStore((state) => state.begin);
+  const setDraft = usePermissionDraftStore((state) => state.set);
+  const undoDraft = usePermissionDraftStore((state) => state.undo);
+  const discardDraft = usePermissionDraftStore((state) => state.discard);
 
-  const [memberPermissions, setMemberPermissions] = useState<MemberPermissionsDto | null>(null);
-  const [loadingPermissions, setLoadingPermissions] = useState(false);
-  const [busyPermission, setBusyPermission] = useState<string | null>(null);
-  const [restoring, setRestoring] = useState(false);
+  function updateLocation(nextMode: StudioMode, nextTarget?: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("view", nextMode);
+    if (nextTarget) params.set("target", nextTarget);
+    else params.delete("target");
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }
 
-  // Accordion expanded state per parent group
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
-    "Organization Settings": true,
-    "Billing & Data Export": true,
-    "Workspaces & API": true,
-    "Projects & Tasks": true,
-    "Time Tracking & Approvals": true
+  useEffect(() => {
+    if (target && policy.data) {
+      beginDraft(policyTargetKey(target), policy.data.revision);
+      setReviewing(false);
+      setConflictMessage(null);
+    }
+  }, [beginDraft, policy.data, target]);
+
+  useEffect(() => {
+    if (selectedId || !restoreDirectoryFocusRef.current) return;
+    restoreDirectoryFocusRef.current = false;
+    const lastId = lastSelectedIdRef.current;
+    requestAnimationFrame(() => {
+      const buttons =
+        directoryRef.current?.querySelectorAll<HTMLButtonElement>("[data-policy-target]");
+      [...(buttons ?? [])].find((button) => button.dataset.policyTarget === lastId)?.focus();
+    });
+  }, [directory, selectedId]);
+
+  const configuredByPermission = useMemo(
+    () => new Map(policy.data?.items.map((item) => [item.permission, item.configured]) ?? []),
+    [policy.data]
+  );
+  const changedEntries = useMemo(
+    () =>
+      Object.entries(draft).filter(
+        ([permission, configured]) =>
+          configured !== undefined &&
+          configuredByPermission.get(permission as Permission) !== configured
+      ) as Array<[Permission, PolicyConfigurationDto]>,
+    [configuredByPermission, draft]
+  );
+  const catalogByPermission = useMemo(
+    () => new Map(catalog.data?.map((item) => [item.id, item]) ?? []),
+    [catalog.data]
+  );
+  const highRiskChanges = changedEntries.filter(([permission]) => {
+    const risk = catalogByPermission.get(permission)?.riskLevel;
+    return risk === "high" || risk === "critical";
   });
 
-  // Auto-select first member when members load
-  useEffect(() => {
-    if (members.length > 0 && !selectedMemberId) {
-      setSelectedMemberId(members[0].id);
-    }
-  }, [members, selectedMemberId]);
-
-  const loadMemberPermissions = useCallback(
-    async (memberId: string) => {
-      if (!ws || !memberId) return;
-      setLoadingPermissions(true);
-      try {
-        const res = await api<MemberPermissionsDto>(ROUTES.TENANTS.MEMBER_PERMISSIONS(memberId), {
-          workspaceId: ws
-        });
-        setMemberPermissions(res);
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Could not load member permissions.");
-      } finally {
-        setLoadingPermissions(false);
-      }
-    },
-    [ws]
-  );
-
-  useEffect(() => {
-    if (selectedMemberId) {
-      void loadMemberPermissions(selectedMemberId);
-    }
-  }, [selectedMemberId, loadMemberPermissions]);
-
-  const filteredMembers = useMemo(() => {
-    const query = memberSearch.trim().toLowerCase();
-    if (!query) return members;
-    return members.filter(
-      (m) => m.userName.toLowerCase().includes(query) || m.userEmail.toLowerCase().includes(query)
-    );
-  }, [members, memberSearch]);
-
-  const selectedMember = useMemo(() => {
-    return members.find((m) => m.id === selectedMemberId);
-  }, [members, selectedMemberId]);
-
-  const toggleMemberPermission = async (permissionId: Permission, currentAllowed: boolean) => {
-    if (!ws || !selectedMemberId) return;
-    const nextAllowed = !currentAllowed;
-    setBusyPermission(permissionId);
-
-    // Optimistic UI update
-    setMemberPermissions((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        items: prev.items.map((item) =>
-          item.id === permissionId
-            ? { ...item, allowed: nextAllowed, isCustomOverride: true }
-            : item
-        )
-      };
+  const visibleItems = useMemo(() => {
+    const normalized = permissionSearch.trim().toLowerCase();
+    return (policy.data?.items ?? []).filter((item) => {
+      const meta = catalogByPermission.get(item.permission);
+      if (!meta) return false;
+      if (scopeFilter !== "ALL" && meta.resourceScope !== scopeFilter) return false;
+      if (riskFilter !== "ALL" && meta.riskLevel !== riskFilter) return false;
+      return (
+        !normalized ||
+        meta.label.toLowerCase().includes(normalized) ||
+        meta.description.toLowerCase().includes(normalized) ||
+        meta.id.toLowerCase().includes(normalized) ||
+        meta.parentGroup.toLowerCase().includes(normalized)
+      );
     });
+  }, [catalogByPermission, permissionSearch, policy.data, riskFilter, scopeFilter]);
 
+  const groups = useMemo(() => {
+    const grouped = new Map<string, EffectivePermissionItemDto[]>();
+    for (const item of visibleItems) {
+      const group = catalogByPermission.get(item.permission)?.parentGroup ?? "Other";
+      grouped.set(group, [...(grouped.get(group) ?? []), item]);
+    }
+    return [...grouped.entries()];
+  }, [catalogByPermission, visibleItems]);
+
+  const immutable =
+    selectedDirectoryItem && "immutable" in selectedDirectoryItem
+      ? selectedDirectoryItem.immutable
+      : selectedDirectoryItem && "active" in selectedDirectoryItem
+        ? !selectedDirectoryItem.active
+        : false;
+  const principalRoles =
+    selectedDirectoryItem && "roles" in selectedDirectoryItem ? selectedDirectoryItem.roles : [];
+
+  async function submitChanges() {
+    if (!target || !policy.data || changedEntries.length === 0) return;
+    if (reason.trim().length < 3) {
+      toast.error("Add a reason of at least 3 characters.");
+      return;
+    }
     try {
-      const updated = await api<MemberPermissionsDto>(
-        ROUTES.TENANTS.MEMBER_PERMISSIONS(selectedMemberId),
-        {
-          method: "PATCH",
-          workspaceId: ws,
-          body: JSON.stringify({ permission: permissionId, allowed: nextAllowed })
-        }
-      );
-      setMemberPermissions(updated);
-      toast.success(
-        `${permissionId} ${nextAllowed ? "granted to" : "revoked from"} ${selectedMember?.userName}.`
-      );
-    } catch (err) {
-      void loadMemberPermissions(selectedMemberId);
-      toast.error(err instanceof Error ? err.message : "Could not update permission.");
-    } finally {
-      setBusyPermission(null);
+      const idempotencyKey =
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : `studio-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      await savePolicy.mutateAsync({
+        expectedRevision: policy.data.revision,
+        idempotencyKey,
+        reason: reason.trim(),
+        atomic: true,
+        mutations: changedEntries.map(([permission, configured]) => ({
+          permission,
+          target,
+          configured
+        }))
+      });
+      discardDraft();
+      setReviewing(false);
+      setConfirmingHighRisk(false);
+      setReason("");
+      setAnnouncement(`${changedEntries.length} permission changes saved.`);
+      toast.success(`${changedEntries.length} permission changes saved.`);
+    } catch (error) {
+      if (
+        error instanceof ApiRequestError &&
+        (error.status === 409 || error.code === "POLICY_CONFLICT")
+      ) {
+        setConflictMessage(
+          "This policy changed in another session. The latest revision was loaded; review your draft and save again."
+        );
+        await policy.refetch();
+        setAnnouncement("Revision conflict detected. Latest policy loaded.");
+      } else {
+        toast.error(error instanceof Error ? error.message : "Could not save policy changes.");
+      }
     }
-  };
-
-  const restoreRoleDefaults = async () => {
-    if (!ws || !selectedMemberId) return;
-    setRestoring(true);
-    try {
-      const updated = await api<MemberPermissionsDto>(
-        ROUTES.TENANTS.MEMBER_RESTORE_ROLE_DEFAULTS(selectedMemberId),
-        {
-          method: "POST",
-          workspaceId: ws
-        }
-      );
-      setMemberPermissions(updated);
-      toast.success(`Restored canonical role defaults for ${selectedMember?.userName}.`);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not restore role defaults.");
-    } finally {
-      setRestoring(false);
-    }
-  };
-
-  // Group items by parentGroup
-  const groupedItems = useMemo(() => {
-    if (!memberPermissions) return {};
-    const groups: Record<string, typeof memberPermissions.items> = {};
-    for (const item of memberPermissions.items) {
-      const groupName = item.parentGroup || "General Settings";
-      if (!groups[groupName]) groups[groupName] = [];
-      groups[groupName].push(item);
-    }
-    return groups;
-  }, [memberPermissions]);
+  }
 
   if (!canManage) {
     return (
-      <div className="flex flex-col items-center justify-center gap-4 p-12 text-center">
-        <ShieldX className="size-10 text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">
-          Organization owner or admin access is required to view and configure member permissions
-          studio.
-        </p>
-      </div>
+      <EmptyState
+        title="Permission Studio unavailable"
+        description="Your current organization context does not expose permission policy management."
+      />
     );
   }
 
-  return (
-    <div className="space-y-6">
-      <AppBar
-        title="Permissions studio"
-        description="Inspect, customize, and manage granular endpoint capabilities per member with action-dimension controls."
-        secondary={
-          <AppBarListToolbar
-            searchValue=""
-            onSearchChange={() => {}}
-            searchPlaceholder=""
-            searchAriaLabel="Search permissions studio"
-            action={
-              <Button type="button" variant="outline" size="sm" asChild>
-                <Link href="/account/access-audit" className="gap-1.5">
-                  <ClipboardList className="size-4" /> Access Audit Log
-                </Link>
-              </Button>
-            }
-          />
-        }
-      />
+  const directoryLoading = mode === "roles" ? roles.isLoading : members.isLoading;
+  const directoryError = mode === "roles" ? roles.error : members.error;
+  const directoryStale =
+    mode === "roles" ? roles.isFetching && !!roles.data : members.isFetching && !!members.data;
 
-      {/* Main Studio 2-Column Interface */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-        {/* Left Column: Searchable Member Directory */}
-        <div className="md:col-span-4 lg:col-span-3 border rounded-xl bg-card overflow-hidden shadow-sm">
-          <div className="p-3.5 border-b bg-muted/20 space-y-2">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Organization Members ({members.length})
-            </span>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
+  return (
+    <div className="space-y-5">
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        {announcement}
+      </div>
+      <AppBar
+        title="Permission Studio"
+        description="Configure authoritative role templates and member overrides with revision-safe batch changes."
+        actions={
+          <Button variant="outline" size="sm" asChild>
+            <a href="/account/access-audit">
+              <History className="mr-2 size-4" />
+              Policy audit
+            </a>
+          </Button>
+        }
+        secondary={
+          <div className="flex w-full flex-col gap-3 py-2 sm:flex-row sm:items-center">
+            <SegmentedControl
+              value={mode}
+              onChange={(next) => updateLocation(next)}
+              options={[
+                { value: "roles", label: "Role templates" },
+                { value: "members", label: "Member overrides" }
+              ]}
+              fullWidth
+            />
+            <div className="relative min-w-0 flex-1">
+              <Search className="pointer-events-none absolute left-3 top-3 size-4 text-muted-foreground" />
               <Input
+                value={directorySearch}
+                onChange={(event) => setDirectorySearch(event.target.value)}
+                className="pl-9"
                 type="search"
-                placeholder="Search agents or teams…"
-                value={memberSearch}
-                onChange={(e) => setMemberSearch(e.target.value)}
-                className="pl-8 text-xs h-8"
+                aria-label={`Search ${mode === "roles" ? "role templates" : "members"}`}
+                placeholder={mode === "roles" ? "Search role templates…" : "Search members…"}
               />
             </div>
           </div>
+        }
+      />
 
-          <div className="max-h-[650px] overflow-y-auto divide-y">
-            {loadingMembers ? (
-              <div className="p-4 space-y-2">
-                <TableLoadingState rows={5} columns={1} />
-              </div>
-            ) : filteredMembers.length === 0 ? (
-              <div className="p-6 text-center text-xs text-muted-foreground">
-                No members match query.
-              </div>
-            ) : (
-              filteredMembers.map((m) => {
-                const active = m.id === selectedMemberId;
-                return (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() => setSelectedMemberId(m.id)}
-                    className={`w-full text-left p-3 flex items-center justify-between transition-colors ${
-                      active
-                        ? "bg-primary/10 border-l-4 border-primary pl-2.5 font-medium"
-                        : "hover:bg-muted/40"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="size-7 rounded-full bg-primary/15 text-primary flex items-center justify-center text-xs font-semibold shrink-0">
-                        {m.userName.slice(0, 2).toUpperCase()}
-                      </div>
-                      <div className="truncate space-y-0.5">
-                        <p className="text-xs font-medium truncate">{m.userName}</p>
-                        <p className="text-[10px] text-muted-foreground truncate">{m.userEmail}</p>
-                      </div>
-                    </div>
-                    <Badge
-                      variant={m.role === "OWNER" ? "default" : "secondary"}
-                      className="text-[9px] px-1.5 py-0 shrink-0"
-                    >
-                      {m.role === "OWNER" ? "Owner" : "Admin"}
-                    </Badge>
-                  </button>
-                );
-              })
-            )}
-          </div>
-        </div>
+      {directoryStale ? (
+        <p className="rounded-lg border border-status-warning-border bg-status-warning-bg px-3 py-2 text-xs text-status-warning-fg">
+          Refreshing policy directory. Displayed results may be stale.
+        </p>
+      ) : null}
 
-        {/* Right Column: Member Profile Header & Action-Dimension Matrix Table */}
-        <div className="md:col-span-8 lg:col-span-9 space-y-4">
-          {selectedMember && (
-            <Card className="border shadow-sm">
-              <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-3.5">
-                  <div className="size-12 rounded-full bg-primary/15 text-primary flex items-center justify-center text-base font-bold shrink-0">
-                    {selectedMember.userName.slice(0, 2).toUpperCase()}
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-base font-bold">{selectedMember.userName}</h2>
-                      <Badge variant="outline" className="text-xs font-mono">
-                        {selectedMember.role === "OWNER"
-                          ? "Organization Owner"
-                          : "Organization Admin"}
-                      </Badge>
-                      {memberPermissions && memberPermissions.customOverridesCount > 0 && (
-                        <Badge
-                          variant="secondary"
-                          className="text-[10px] bg-amber-500/10 text-amber-600 border-amber-200"
-                        >
-                          {memberPermissions.customOverridesCount} Custom Overrides
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground">{selectedMember.userEmail}</p>
-                  </div>
+      <div className="grid items-start gap-5 lg:grid-cols-[19rem_minmax(0,1fr)]">
+        <aside
+          ref={directoryRef}
+          aria-label={mode === "roles" ? "Role template directory" : "Member directory"}
+          className={selectedId ? "hidden lg:block" : "block"}
+        >
+          <Card className="overflow-hidden">
+            <div className="border-b bg-muted/30 px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {mode === "roles" ? "Managed roles" : "Organization members"}
+              </p>
+            </div>
+            <div className="max-h-[calc(100vh-18rem)] overflow-y-auto p-2">
+              {directoryLoading ? (
+                <div className="space-y-2 p-2" aria-label="Loading policy directory">
+                  {Array.from({ length: 5 }).map((_, index) => (
+                    <Skeleton key={index} className="h-16" />
+                  ))}
                 </div>
-
-                <div className="flex items-center gap-2 shrink-0">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={restoring || loadingPermissions}
-                    onClick={() => void restoreRoleDefaults()}
-                    className="gap-1.5 text-xs"
-                  >
-                    <RotateCcw className="size-3.5" />
-                    Restore role defaults
-                  </Button>
+              ) : directoryError ? (
+                <div role="alert" className="p-4 text-sm text-destructive">
+                  {directoryError.message}
                 </div>
+              ) : !directory?.length ? (
+                <p className="p-5 text-center text-sm text-muted-foreground">
+                  No {mode === "roles" ? "roles" : "members"} match this search.
+                </p>
+              ) : (
+                <div className="space-y-1">
+                  {directory.map((item) => {
+                    const itemId =
+                      item.target.type === "ROLE" ? item.target.role : item.target.principalId;
+                    const selected = itemId === selectedId;
+                    return (
+                      <button
+                        key={itemId}
+                        type="button"
+                        data-policy-target={itemId}
+                        aria-current={selected ? "true" : undefined}
+                        onClick={() => {
+                          lastSelectedIdRef.current = itemId;
+                          updateLocation(mode, itemId);
+                        }}
+                        className={`min-h-14 w-full rounded-lg border px-3 py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                          selected
+                            ? "border-primary bg-primary/10"
+                            : "border-transparent hover:bg-muted/60"
+                        }`}
+                      >
+                        <span className="block truncate text-sm font-medium">
+                          {item.displayName}
+                        </span>
+                        <span className="mt-1 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                          <span className="truncate">
+                            {"email" in item ? item.email : titleCase(item.target.role)}
+                          </span>
+                          <Badge variant="secondary">{item.overrideCount}</Badge>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </Card>
+        </aside>
+
+        <main className={selectedId ? "block" : "hidden lg:block"}>
+          {!target ? (
+            <EmptyState
+              title={`Select ${mode === "roles" ? "a role template" : "a member"}`}
+              description="Choose an entry from the directory to inspect configured and effective access."
+            />
+          ) : policy.isLoading || catalog.isLoading ? (
+            <div className="space-y-3" aria-label="Loading permission policy">
+              <Skeleton className="h-32" />
+              <Skeleton className="h-72" />
+            </div>
+          ) : policy.error || catalog.error ? (
+            <Card>
+              <CardContent className="space-y-4 p-6" role="alert">
+                <p className="text-sm text-destructive">
+                  {(policy.error ?? catalog.error)?.message ?? "Could not load permission policy."}
+                </p>
+                <Button variant="outline" onClick={() => void policy.refetch()}>
+                  Try again
+                </Button>
               </CardContent>
             </Card>
-          )}
+          ) : (
+            <div className="space-y-4">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="lg:hidden"
+                onClick={() => {
+                  restoreDirectoryFocusRef.current = true;
+                  updateLocation(mode);
+                }}
+              >
+                <ArrowLeft className="mr-2 size-4" />
+                Choose another {mode === "roles" ? "role" : "member"}
+              </Button>
 
-          {/* Action-Dimension Matrix Grid */}
-          <DataTableCard>
-            {loadingPermissions ? (
-              <div className="p-6">
-                <TableLoadingState rows={8} columns={6} />
-              </div>
-            ) : !memberPermissions ? (
-              <div className="p-10">
-                <EmptyState
-                  title="Select a member"
-                  description="Select an organization member from the directory to configure their granular permission matrix."
-                />
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="border-b bg-muted/40 text-muted-foreground font-semibold">
-                      <th className="p-3 w-1/3">Permission Domain</th>
-                      {ACTION_DIMENSIONS.map((dim) => (
-                        <th key={dim} className="p-3 text-center w-24 tracking-wider">
-                          {dim}
-                        </th>
+              <Card className="sticky top-3 z-20 border-primary/20 shadow-md">
+                <CardContent className="space-y-4 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h2 className="text-lg font-semibold">
+                          {selectedDirectoryItem?.displayName}
+                        </h2>
+                        {immutable ? <Badge variant="secondary">Read only</Badge> : null}
+                        <Badge variant="outline">Revision {policy.data?.revision}</Badge>
+                      </div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {target.type === "ROLE"
+                          ? `${titleCase(target.role)} · ${target.scope} scope`
+                          : `${
+                              selectedDirectoryItem && "email" in selectedDirectoryItem
+                                ? selectedDirectoryItem.email
+                                : ""
+                            } · ${target.scope} scope`}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={history.length === 0 || savePolicy.isPending}
+                        onClick={() => {
+                          undoDraft();
+                          setAnnouncement("Last draft change undone.");
+                        }}
+                      >
+                        <Undo2 className="mr-2 size-4" />
+                        Undo
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={changedEntries.length === 0 || savePolicy.isPending}
+                        onClick={() => {
+                          discardDraft();
+                          setReviewing(false);
+                          setAnnouncement("Draft changes discarded.");
+                        }}
+                      >
+                        <RotateCcw className="mr-2 size-4" />
+                        Discard
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={changedEntries.length === 0 || immutable}
+                        onClick={() => setReviewing(true)}
+                      >
+                        Review {changedEntries.length} change
+                        {changedEntries.length === 1 ? "" : "s"}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {conflictMessage ? (
+                    <div
+                      role="alert"
+                      className="rounded-lg border border-status-warning-border bg-status-warning-bg p-3 text-sm text-status-warning-fg"
+                    >
+                      {conflictMessage}
+                    </div>
+                  ) : null}
+
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    <div className="relative sm:col-span-1">
+                      <Search className="pointer-events-none absolute left-3 top-3 size-4 text-muted-foreground" />
+                      <Input
+                        value={permissionSearch}
+                        onChange={(event) => setPermissionSearch(event.target.value)}
+                        className="pl-9"
+                        type="search"
+                        aria-label="Search permissions"
+                        placeholder="Search permissions…"
+                      />
+                    </div>
+                    <Select
+                      value={scopeFilter}
+                      onValueChange={(value) => setScopeFilter(value as FilterValue<ResourceScope>)}
+                    >
+                      <SelectTrigger aria-label="Filter permissions by scope">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ALL">All scopes</SelectItem>
+                        {["platform", "tenant", "workspace", "project", "self"].map((scope) => (
+                          <SelectItem key={scope} value={scope}>
+                            {titleCase(scope)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={riskFilter}
+                      onValueChange={(value) =>
+                        setRiskFilter(value as FilterValue<PermissionRiskLevel>)
+                      }
+                    >
+                      <SelectTrigger aria-label="Filter permissions by risk">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ALL">All risk levels</SelectItem>
+                        {["low", "medium", "high", "critical"].map((risk) => (
+                          <SelectItem key={risk} value={risk}>
+                            {titleCase(risk)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {reviewing ? (
+                <Card className="border-primary/30">
+                  <CardContent className="space-y-4 p-5">
+                    <div>
+                      <h3 className="font-semibold">Review draft batch</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {changedEntries.length} changes will be saved atomically against revision{" "}
+                        {policy.data?.revision}.
+                      </p>
+                    </div>
+                    <ul className="max-h-40 space-y-1 overflow-y-auto text-sm">
+                      {changedEntries.map(([permission, configured]) => (
+                        <li key={permission} className="flex justify-between gap-3">
+                          <span>{catalogByPermission.get(permission)?.label ?? permission}</span>
+                          <Badge variant="outline">{configured}</Badge>
+                        </li>
                       ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {Object.entries(groupedItems).map(([groupName, groupItems]) => {
-                      const expanded = expandedGroups[groupName] ?? true;
+                    </ul>
+                    <div className="space-y-2">
+                      <Label htmlFor="policy-change-reason">Reason for change</Label>
+                      <Input
+                        id="policy-change-reason"
+                        value={reason}
+                        onChange={(event) => setReason(event.target.value)}
+                        placeholder="Explain why this access is changing"
+                      />
+                    </div>
+                    <div className="flex flex-wrap justify-end gap-2">
+                      <Button variant="outline" onClick={() => setReviewing(false)}>
+                        Continue editing
+                      </Button>
+                      <Button
+                        disabled={savePolicy.isPending || reason.trim().length < 3}
+                        onClick={() =>
+                          highRiskChanges.length
+                            ? setConfirmingHighRisk(true)
+                            : void submitChanges()
+                        }
+                      >
+                        {savePolicy.isPending ? "Saving…" : "Save batch"}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : null}
 
-                      // Calculate Indeterminate / Partial grant state for parent accordion
-                      const totalAllowed = groupItems.filter((i) => i.allowed).length;
-                      const allAllowed = totalAllowed === groupItems.length;
-                      const noneAllowed = totalAllowed === 0;
-                      const isPartial = !allAllowed && !noneAllowed;
-
-                      return (
-                        <FragmentContainer key={groupName}>
-                          {/* Parent Group Header Row */}
-                          <tr
-                            onClick={() =>
-                              setExpandedGroups((prev) => ({
-                                ...prev,
-                                [groupName]: !expanded
-                              }))
-                            }
-                            className="bg-muted/20 hover:bg-muted/40 cursor-pointer font-medium select-none"
-                          >
-                            <td className="p-3 font-semibold flex items-center gap-2 text-foreground">
-                              {expanded ? (
-                                <ChevronDown className="size-4 text-muted-foreground" />
-                              ) : (
-                                <ChevronRight className="size-4 text-muted-foreground" />
-                              )}
-                              <span>{groupName}</span>
-                              {isPartial && (
-                                <Badge
-                                  variant="secondary"
-                                  className="text-[9px] px-1.5 bg-blue-500/10 text-blue-600 border-blue-200"
-                                >
-                                  • Partial ({totalAllowed}/{groupItems.length})
-                                </Badge>
-                              )}
-                            </td>
-                            {ACTION_DIMENSIONS.map((dim) => {
-                              const dimItems = groupItems.filter((i) => i.actionDimension === dim);
-                              const dimAllowed = dimItems.filter((i) => i.allowed).length;
-                              const dimPartial = dimAllowed > 0 && dimAllowed < dimItems.length;
-
-                              return (
-                                <td key={dim} className="p-3 text-center align-middle">
-                                  {dimItems.length === 0 ? (
-                                    <span className="text-muted-foreground/30">—</span>
-                                  ) : dimPartial ? (
-                                    <Badge
-                                      variant="outline"
-                                      className="text-[10px] px-1 font-mono text-amber-600 border-amber-300"
-                                    >
-                                      -
-                                    </Badge>
-                                  ) : dimAllowed > 0 ? (
-                                    <span className="text-emerald-600 font-bold">✓ Yes</span>
-                                  ) : (
-                                    <span className="text-muted-foreground/40">No</span>
-                                  )}
-                                </td>
-                              );
-                            })}
-                          </tr>
-
-                          {/* Child Item Rows (Rendered when expanded) */}
-                          {expanded &&
-                            groupItems.map((item) => (
-                              <tr key={item.id} className="hover:bg-muted/10 transition-colors">
-                                <td className="p-3 pl-8">
-                                  <div className="space-y-0.5">
-                                    <div className="flex items-center gap-2">
-                                      <span className="font-medium text-foreground">
-                                        {item.label}
-                                      </span>
-                                      {item.isCustomOverride && (
-                                        <Badge
-                                          variant="outline"
-                                          className="text-[9px] px-1 text-primary border-primary/30"
-                                        >
-                                          Override
-                                        </Badge>
-                                      )}
-                                      {item.riskLevel === "high" && (
-                                        <Badge
-                                          variant="destructive"
-                                          className="text-[9px] px-1 py-0 gap-0.5"
-                                        >
-                                          <ShieldAlert className="size-2.5" /> High Risk
-                                        </Badge>
-                                      )}
-                                    </div>
-                                    <p className="font-mono text-[10px] text-muted-foreground">
-                                      {item.id}
-                                    </p>
-                                  </div>
-                                </td>
-
-                                {ACTION_DIMENSIONS.map((dim) => {
-                                  const matchesDim = item.actionDimension === dim;
-                                  if (!matchesDim) {
-                                    return (
-                                      <td
-                                        key={dim}
-                                        className="p-3 text-center align-middle text-muted-foreground/20"
-                                      >
-                                        —
-                                      </td>
-                                    );
-                                  }
-
-                                  const busy = busyPermission === item.id;
-
-                                  return (
-                                    <td key={dim} className="p-3 text-center align-middle">
-                                      <div className="flex items-center justify-center gap-1.5">
-                                        <input
-                                          type="checkbox"
-                                          checked={item.allowed}
-                                          disabled={busy}
-                                          onChange={() =>
-                                            void toggleMemberPermission(item.id, item.allowed)
-                                          }
-                                          className="size-4 rounded border-muted-foreground/30 accent-primary cursor-pointer disabled:cursor-not-allowed"
-                                        />
-                                        <span
-                                          className={
-                                            item.allowed
-                                              ? "text-emerald-700 font-semibold"
-                                              : "text-muted-foreground/60"
-                                          }
-                                        >
-                                          {item.allowed ? "Yes" : "No"}
-                                        </span>
-                                      </div>
-                                    </td>
-                                  );
-                                })}
-                              </tr>
-                            ))}
-                        </FragmentContainer>
+              {groups.length === 0 ? (
+                <EmptyState
+                  title="No permissions found"
+                  description="Adjust search, scope, or risk filters to see permissions."
+                />
+              ) : (
+                groups.map(([group, items]) => (
+                  <PermissionGroup
+                    key={group}
+                    name={group}
+                    items={items}
+                    catalog={catalogByPermission}
+                    target={target}
+                    principalRoles={principalRoles}
+                    draft={draft}
+                    immutable={Boolean(immutable)}
+                    onChange={(permission, configured) => {
+                      setDraft(permission, configured);
+                      setAnnouncement(
+                        `${catalogByPermission.get(permission)?.label ?? permission} set to ${configured.toLowerCase()}.`
                       );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </DataTableCard>
-        </div>
+                    }}
+                  />
+                ))
+              )}
+            </div>
+          )}
+        </main>
       </div>
+
+      <ConfirmDialog
+        open={confirmingHighRisk}
+        title={`Confirm ${highRiskChanges.length} high-risk change${highRiskChanges.length === 1 ? "" : "s"}?`}
+        description="These changes can expose sensitive data or administrative actions. Confirm that the review reason is complete."
+        confirmLabel="Confirm and save"
+        destructive
+        onConfirm={() => void submitChanges()}
+        onCancel={() => setConfirmingHighRisk(false)}
+      />
     </div>
   );
 }
 
-function FragmentContainer({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+function PermissionGroup({
+  name,
+  items,
+  catalog,
+  target,
+  principalRoles,
+  draft,
+  immutable,
+  onChange
+}: {
+  name: string;
+  items: EffectivePermissionItemDto[];
+  catalog: Map<Permission, PermissionCatalogItemDto>;
+  target: PolicyTargetDto;
+  principalRoles: ManagedRole[];
+  draft: Partial<Record<Permission, PolicyConfigurationDto>>;
+  immutable: boolean;
+  onChange: (permission: Permission, configured: PolicyConfigurationDto) => void;
+}) {
+  const [open, setOpen] = useState(true);
+  return (
+    <section className="overflow-hidden rounded-xl border bg-card">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+        className="flex min-h-11 w-full items-center justify-between bg-muted/30 px-4 py-3 text-left font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+      >
+        <span>{name}</span>
+        <ChevronDown className={`size-4 transition-transform ${open ? "" : "-rotate-90"}`} />
+      </button>
+      {open ? (
+        <div className="divide-y">
+          {items.map((item) => {
+            const meta = catalog.get(item.permission);
+            if (!meta) return null;
+            const applicable =
+              target.type === "ROLE"
+                ? meta.applicableTargetRoles.includes(target.role)
+                : principalRoles.some((role) => meta.applicableTargetRoles.includes(role));
+            const disabled = immutable || !meta.customizable || !applicable;
+            const configured = draft[item.permission] ?? item.configured;
+            return (
+              <article
+                key={item.permission}
+                className="grid gap-4 p-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center"
+              >
+                <div className="min-w-0 space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h4 className="text-sm font-semibold">{meta.label}</h4>
+                    <Badge variant="outline">{titleCase(meta.riskLevel)} risk</Badge>
+                    <Badge variant={item.effective === "ALLOW" ? "default" : "secondary"}>
+                      Effective: {titleCase(item.effective)}
+                    </Badge>
+                    <Badge variant="secondary">{SOURCE_LABELS[item.source]}</Badge>
+                    {!applicable ? <Badge variant="secondary">Not applicable</Badge> : null}
+                    {!meta.customizable ? <Badge variant="secondary">Managed</Badge> : null}
+                  </div>
+                  <p className="text-sm text-muted-foreground">{meta.description}</p>
+                  <p className="break-all font-mono text-[11px] text-muted-foreground">{meta.id}</p>
+                  <details className="text-xs">
+                    <summary className="cursor-pointer font-medium text-primary">Why?</summary>
+                    <p className="mt-2 rounded-md bg-muted/40 p-3 text-muted-foreground">
+                      {item.reason ??
+                        `${SOURCE_LABELS[item.source]} resolves this permission to ${item.effective.toLowerCase()}.`}
+                      {item.sourceRole ? ` Source role: ${titleCase(item.sourceRole)}.` : ""}
+                    </p>
+                  </details>
+                </div>
+                <div className="space-y-1">
+                  <span className="block text-xs font-medium text-muted-foreground">
+                    Configured: {titleCase(configured)}
+                  </span>
+                  <PermissionTriStateControl
+                    value={configured}
+                    onValueChange={(value) => onChange(item.permission, value)}
+                    disabled={disabled}
+                    aria-label={`Configure ${meta.label}`}
+                    className="w-full xl:w-auto"
+                  />
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      ) : null}
+    </section>
+  );
 }

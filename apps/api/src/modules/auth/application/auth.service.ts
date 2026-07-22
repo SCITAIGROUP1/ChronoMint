@@ -1,23 +1,29 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import { ErrorCodes, getManagedRolePermissions, parseUserPreferences } from "@kloqra/contracts";
+import { ErrorCodes, parseUserPreferences } from "@kloqra/contracts";
 import type {
   LoginDto,
   AuthSessionDto,
+  CapabilitySnapshot,
   LoginRequires2faResponseDto,
   LoginRequiresPasswordChangeResponseDto,
   LoginRequiresEmailVerificationResponseDto,
   LoginRequiresPlatform2faSetupResponseDto,
+  Permission,
   SetInitialPasswordDto,
   OkResponseDto,
   PlatformSessionDto,
   Platform2faSetupEnableResponseDto,
   CompletePlatform2faSetupDto,
-  SignupDto,
-  ManagedRole
+  SignupDto
 } from "@kloqra/contracts";
 import { Injectable, HttpStatus } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import * as bcrypt from "bcrypt";
+import {
+  AccessPolicyService,
+  type CapabilitySnapshotBinding
+} from "../../../common/access/access-policy.service";
+import { AuthorizationEnforcementService } from "../../../common/access/authorization-enforcement.service";
 import { ProjectAccessService } from "../../../common/access/project-access.service";
 import type { ProductAuthScope } from "../../../common/auth/auth-scope";
 import {
@@ -88,7 +94,9 @@ export class AuthService {
     private jwt: JwtService,
     private authMailer: AuthMailer,
     private projectAccess: ProjectAccessService,
-    private provisioning: TenantProvisioningService
+    private provisioning: TenantProvisioningService,
+    private authorization: AuthorizationEnforcementService,
+    private accessPolicy: AccessPolicyService
   ) {}
 
   /** Tenant-aware Prisma delegate (workspace.tenantId lives on generated client). */
@@ -116,6 +124,15 @@ export class AuthService {
       );
     }
     await assertWorkspaceInUserTenant(this.prisma, userId, membership.workspace.tenantId);
+    await this.authorization.assertAllowed({
+      principalId: userId,
+      permission: "workspace:Access",
+      resource: {
+        scope: "workspace",
+        workspaceId,
+        expectedTenantId: membership.workspace.tenantId
+      }
+    });
     return this.buildSessionFromMembership(membership);
   }
 
@@ -1084,7 +1101,7 @@ export class AuthService {
     );
   }
 
-  private buildTenantOperatorSession(
+  private async buildTenantOperatorSession(
     user: {
       id: string;
       email: string;
@@ -1099,11 +1116,16 @@ export class AuthService {
     requiresWorkspaceSetup: boolean,
     impersonatorId?: string,
     impersonatorName?: string
-  ): AuthSessionDto {
+  ): Promise<AuthSessionDto> {
     const names = user.firstName
       ? { firstName: user.firstName, lastName: user.lastName ?? "" }
       : splitDisplayName(user.name);
     const preferences = parseUserPreferences(user.preferences);
+    const { capabilities, capabilitySnapshot } = await this.scopedCapabilities(
+      user.id,
+      tenantId,
+      tenantRole
+    );
     return {
       user: {
         id: user.id,
@@ -1114,7 +1136,8 @@ export class AuthService {
       },
       tenantId,
       tenantRole,
-      capabilities: this.capabilitiesFor(tenantRole),
+      capabilities,
+      capabilitySnapshot,
       ...(requiresWorkspaceSetup
         ? { requiresWorkspaceSetup: true as const }
         : { organizationOnly: true as const }),
@@ -1123,7 +1146,7 @@ export class AuthService {
         : {}),
       impersonatorId,
       impersonatorName
-    };
+    } as AuthSessionDto;
   }
 
   private async buildSessionFromMembership(
@@ -1168,7 +1191,7 @@ export class AuthService {
     );
   }
 
-  buildSession(
+  async buildSession(
     user: {
       id: string;
       email: string;
@@ -1186,7 +1209,7 @@ export class AuthService {
     impersonatorId?: string,
     impersonatorName?: string,
     managedProjectIds?: string[]
-  ): AuthSessionDto {
+  ): Promise<AuthSessionDto> {
     const names = user.firstName
       ? { firstName: user.firstName, lastName: user.lastName ?? "" }
       : splitDisplayName(user.name);
@@ -1200,6 +1223,14 @@ export class AuthService {
     if (role === "ADMIN") {
       sessionUser.defaultHourlyRate = user.defaultHourlyRate?.toNumber() ?? null;
     }
+    const { capabilities, capabilitySnapshot } = await this.scopedCapabilities(
+      user.id,
+      tenantId,
+      tenantRole,
+      role,
+      workspaceId,
+      managedProjectIds
+    );
     return {
       user: sessionUser,
       tenantId,
@@ -1207,28 +1238,59 @@ export class AuthService {
       workspaceId,
       workspaceName,
       workspaceRole: role,
-      capabilities: this.capabilitiesFor(tenantRole, role, managedProjectIds),
+      capabilities,
+      capabilitySnapshot,
       ...(preferences.defaultWorkspaceId
         ? { defaultWorkspaceId: preferences.defaultWorkspaceId }
         : {}),
       ...(managedProjectIds && managedProjectIds.length > 0 ? { managedProjectIds } : {}),
       impersonatorId,
       impersonatorName
-    };
+    } as AuthSessionDto;
   }
 
-  private capabilitiesFor(
+  /**
+   * Builds a scoped, versioned capability snapshot plus a bounded flat compatibility list.
+   * The API never accepts either payload as authorization evidence.
+   */
+  private async scopedCapabilities(
+    principalId: string,
+    tenantId: string,
     tenantRole?: "OWNER" | "ADMIN",
     workspaceRole?: "ADMIN" | "MEMBER",
+    workspaceId?: string,
     managedProjectIds?: string[]
-  ) {
-    const roles: ManagedRole[] = [];
-    if (tenantRole === "OWNER") roles.push("TENANT_OWNER");
-    if (tenantRole === "ADMIN") roles.push("TENANT_ADMIN");
-    if (workspaceRole === "ADMIN") roles.push("WORKSPACE_ADMIN");
-    if (workspaceRole === "MEMBER") roles.push("WORKSPACE_MEMBER");
-    if ((managedProjectIds?.length ?? 0) > 0) roles.push("PROJECT_MANAGER");
-    return getManagedRolePermissions(roles);
+  ): Promise<{ capabilities: Permission[]; capabilitySnapshot: CapabilitySnapshot }> {
+    const bindings: CapabilitySnapshotBinding[] = [];
+    if (tenantRole === "OWNER") {
+      bindings.push({ role: "TENANT_OWNER", scope: "tenant", resourceId: tenantId });
+    }
+    if (tenantRole === "ADMIN") {
+      bindings.push({ role: "TENANT_ADMIN", scope: "tenant", resourceId: tenantId });
+    }
+    if (workspaceRole === "ADMIN" && workspaceId) {
+      bindings.push({ role: "WORKSPACE_ADMIN", scope: "workspace", resourceId: workspaceId });
+    }
+    if (workspaceRole === "MEMBER" && workspaceId) {
+      bindings.push({ role: "WORKSPACE_MEMBER", scope: "workspace", resourceId: workspaceId });
+    }
+    for (const projectId of managedProjectIds ?? []) {
+      bindings.push({ role: "PROJECT_MANAGER", scope: "project", resourceId: projectId });
+    }
+    const capabilitySnapshot = await this.accessPolicy.capabilitySnapshot({
+      tenantId,
+      principalId,
+      bindings,
+      membershipRevision: bindings.length
+    });
+    const capabilities = [
+      ...new Set(
+        capabilitySnapshot.capabilities
+          .filter((entry) => entry.allowed)
+          .map((entry) => entry.permission)
+      )
+    ];
+    return { capabilities, capabilitySnapshot };
   }
 
   async impersonate(

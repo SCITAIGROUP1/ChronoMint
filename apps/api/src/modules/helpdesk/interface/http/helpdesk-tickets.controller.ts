@@ -7,6 +7,8 @@ import {
   CurrentPlatformUser,
   type PlatformRequestUser
 } from "../../../../common/decorators/current-platform-user.decorator";
+import { RequirePermission } from "../../../../common/decorators/require-permission.decorator";
+import { PermissionGuard } from "../../../../common/guards/permission.guard";
 import { PlatformGuard } from "../../../../common/guards/platform.guard";
 import { PrismaService } from "../../../../common/prisma/prisma.service";
 import { QUEUES } from "../../../../common/queues";
@@ -46,7 +48,8 @@ export class HelpdeskTicketsController {
   }
 
   @Get("platform/helpdesk/tickets")
-  @UseGuards(PlatformGuard)
+  @RequirePermission("platform:ReadSupportTickets", { scope: "platform" })
+  @UseGuards(PlatformGuard, PermissionGuard)
   async getTickets(
     @Query("page") page = "1",
     @Query("limit") limit = "25",
@@ -123,7 +126,8 @@ export class HelpdeskTicketsController {
   }
 
   @Get("platform/helpdesk/tickets/:id")
-  @UseGuards(PlatformGuard)
+  @RequirePermission("platform:ReadSupportTickets", { scope: "platform" })
+  @UseGuards(PlatformGuard, PermissionGuard)
   async getTicket(@Param("id") id: string) {
     const ticket = await this.prisma.helpDeskTicket.findUnique({
       where: { id },
@@ -166,7 +170,8 @@ export class HelpdeskTicketsController {
   }
 
   @Patch("platform/helpdesk/tickets/:id")
-  @UseGuards(PlatformGuard)
+  @RequirePermission("platform:ManageSupportTickets", { scope: "platform" })
+  @UseGuards(PlatformGuard, PermissionGuard)
   async updateTicket(
     @Param("id") id: string,
     @CurrentPlatformUser() user: PlatformRequestUser,
@@ -252,7 +257,8 @@ export class HelpdeskTicketsController {
   }
 
   @Post("platform/helpdesk/tickets/:id/messages")
-  @UseGuards(PlatformGuard)
+  @RequirePermission("platform:ManageSupportTickets", { scope: "platform" })
+  @UseGuards(PlatformGuard, PermissionGuard)
   async createMessage(
     @Param("id") ticketId: string,
     @CurrentPlatformUser() user: PlatformRequestUser,

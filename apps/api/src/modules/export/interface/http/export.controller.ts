@@ -27,6 +27,7 @@ import {
 } from "@nestjs/common";
 import { type Response } from "express";
 import { ProjectAccessService } from "../../../../common/access/project-access.service";
+import { RequirePermission } from "../../../../common/decorators/require-permission.decorator";
 import { Roles } from "../../../../common/decorators/roles.decorator";
 import {
   WorkspaceUser,
@@ -34,6 +35,7 @@ import {
 } from "../../../../common/decorators/workspace-user.decorator";
 import { CommercialFeaturesGuard } from "../../../../common/guards/commercial-features.guard";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
+import { PermissionGuard } from "../../../../common/guards/permission.guard";
 import { RolesGuard } from "../../../../common/guards/roles.guard";
 import { sendAttachment } from "../../../../common/http/attachment.util";
 import { appOrigin } from "../../../../common/mailer/app-origin.util";
@@ -46,7 +48,7 @@ import { ExportService } from "../../application/export.service";
 import { InvoiceService } from "../../application/invoice.service";
 
 @Controller()
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionGuard)
 export class ExportController {
   constructor(
     private exportService: ExportService,
@@ -59,6 +61,11 @@ export class ExportController {
   ) {}
 
   @Roles("ADMIN")
+  @RequirePermission("workspace:CreateExport", {
+    scope: "workspace",
+    workspaceId: { source: "session", field: "workspaceId" },
+    expectedTenantId: { source: "session", field: "tenantId" }
+  })
   @Post(ROUTES.EXPORT.GENERATE)
   async generatePost(
     @WorkspaceUser() user: WorkspaceRequestUser,
@@ -73,6 +80,11 @@ export class ExportController {
   }
 
   @Roles("ADMIN")
+  @RequirePermission("workspace:CreateInvoiceExport", {
+    scope: "workspace",
+    workspaceId: { source: "session", field: "workspaceId" },
+    expectedTenantId: { source: "session", field: "tenantId" }
+  })
   @UseGuards(CommercialFeaturesGuard)
   @Post(ROUTES.EXPORT.INVOICE)
   async generateInvoice(
@@ -89,6 +101,11 @@ export class ExportController {
   }
 
   @Roles("ADMIN")
+  @RequirePermission("workspace:CreateExport", {
+    scope: "workspace",
+    workspaceId: { source: "session", field: "workspaceId" },
+    expectedTenantId: { source: "session", field: "tenantId" }
+  })
   @Post(ROUTES.EXPORT.JOBS)
   async createJob(
     @WorkspaceUser() user: WorkspaceRequestUser,
@@ -102,29 +119,49 @@ export class ExportController {
   }
 
   @Roles("ADMIN")
+  @RequirePermission("workspace:DownloadExports", {
+    scope: "workspace",
+    workspaceId: { source: "session", field: "workspaceId" },
+    expectedTenantId: { source: "session", field: "tenantId" }
+  })
   @Get(ROUTES.EXPORT.JOBS)
   async listJobs(@WorkspaceUser() user: WorkspaceRequestUser) {
-    return this.exportJobs.list(user.workspaceId);
+    return this.exportJobs.list(user.workspaceId, user.userId);
   }
 
   @Roles("ADMIN")
+  @RequirePermission("workspace:DownloadExports", {
+    scope: "workspace",
+    workspaceId: { source: "session", field: "workspaceId" },
+    expectedTenantId: { source: "session", field: "tenantId" }
+  })
   @Get(ROUTES.EXPORT.JOB(":id"))
   async getJob(@WorkspaceUser() user: WorkspaceRequestUser, @Param("id") id: string) {
-    return this.exportJobs.get(user.workspaceId, id);
+    return this.exportJobs.get(user.workspaceId, user.userId, id);
   }
 
   @Roles("ADMIN")
+  @RequirePermission("workspace:DownloadExports", {
+    scope: "workspace",
+    workspaceId: { source: "session", field: "workspaceId" },
+    expectedTenantId: { source: "session", field: "tenantId" }
+  })
   @Get(ROUTES.EXPORT.JOB_DOWNLOAD(":id"))
   async downloadJob(
     @WorkspaceUser() user: WorkspaceRequestUser,
     @Param("id") id: string,
     @Res() res: Response
   ) {
-    const result = await this.exportJobs.download(user.workspaceId, id);
+    const result = await this.exportJobs.download(user.workspaceId, user.userId, id);
     sendAttachment(res, result);
   }
 
   @Roles("ADMIN")
+  @RequirePermission("workspace:CreateExport", {
+    scope: "workspace",
+    workspaceId: { source: "session", field: "workspaceId" },
+    expectedTenantId: { source: "session", field: "tenantId" }
+  })
   @HttpCode(200)
   @Post(ROUTES.EXPORT.PREVIEW)
   async preview(
@@ -138,12 +175,22 @@ export class ExportController {
   }
 
   @Roles("ADMIN")
+  @RequirePermission("workspace:ManageExportConfiguration", {
+    scope: "workspace",
+    workspaceId: { source: "session", field: "workspaceId" },
+    expectedTenantId: { source: "session", field: "tenantId" }
+  })
   @Get(ROUTES.EXPORT.PRESETS)
   async listPresets(@WorkspaceUser() user: WorkspaceRequestUser) {
     return this.exportPresets.list(user.workspaceId);
   }
 
   @Roles("ADMIN")
+  @RequirePermission("workspace:ManageExportConfiguration", {
+    scope: "workspace",
+    workspaceId: { source: "session", field: "workspaceId" },
+    expectedTenantId: { source: "session", field: "tenantId" }
+  })
   @Post(ROUTES.EXPORT.PRESETS)
   async createPreset(
     @WorkspaceUser() user: WorkspaceRequestUser,
@@ -156,6 +203,11 @@ export class ExportController {
   }
 
   @Roles("ADMIN")
+  @RequirePermission("workspace:ManageExportConfiguration", {
+    scope: "workspace",
+    workspaceId: { source: "session", field: "workspaceId" },
+    expectedTenantId: { source: "session", field: "tenantId" }
+  })
   @Delete(ROUTES.EXPORT.PRESET(":id"))
   async deletePreset(@WorkspaceUser() user: WorkspaceRequestUser, @Param("id") id: string) {
     await this.exportPresets.remove(user.workspaceId, id);
@@ -163,12 +215,22 @@ export class ExportController {
   }
 
   @Roles("ADMIN")
+  @RequirePermission("workspace:ManageExportConfiguration", {
+    scope: "workspace",
+    workspaceId: { source: "session", field: "workspaceId" },
+    expectedTenantId: { source: "session", field: "tenantId" }
+  })
   @Get(ROUTES.EXPORT.SCHEDULES)
   async listSchedules(@WorkspaceUser() user: WorkspaceRequestUser) {
     return this.exportSchedules.list(user.workspaceId);
   }
 
   @Roles("ADMIN")
+  @RequirePermission("workspace:ManageExportConfiguration", {
+    scope: "workspace",
+    workspaceId: { source: "session", field: "workspaceId" },
+    expectedTenantId: { source: "session", field: "tenantId" }
+  })
   @Post(ROUTES.EXPORT.SCHEDULES)
   async createSchedule(
     @WorkspaceUser() user: WorkspaceRequestUser,
@@ -181,6 +243,11 @@ export class ExportController {
   }
 
   @Roles("ADMIN")
+  @RequirePermission("workspace:ManageExportConfiguration", {
+    scope: "workspace",
+    workspaceId: { source: "session", field: "workspaceId" },
+    expectedTenantId: { source: "session", field: "tenantId" }
+  })
   @Patch(ROUTES.EXPORT.SCHEDULE(":id"))
   async updateSchedule(
     @WorkspaceUser() user: WorkspaceRequestUser,
@@ -195,6 +262,11 @@ export class ExportController {
   }
 
   @Roles("ADMIN")
+  @RequirePermission("workspace:ManageExportConfiguration", {
+    scope: "workspace",
+    workspaceId: { source: "session", field: "workspaceId" },
+    expectedTenantId: { source: "session", field: "tenantId" }
+  })
   @Delete(ROUTES.EXPORT.SCHEDULE(":id"))
   async deleteSchedule(@WorkspaceUser() user: WorkspaceRequestUser, @Param("id") id: string) {
     await this.exportSchedules.remove(user.workspaceId, id);
@@ -202,6 +274,11 @@ export class ExportController {
   }
 
   @Roles("ADMIN")
+  @RequirePermission("workspace:ManageExportShares", {
+    scope: "workspace",
+    workspaceId: { source: "session", field: "workspaceId" },
+    expectedTenantId: { source: "session", field: "tenantId" }
+  })
   @HttpCode(200)
   @Post(ROUTES.EXPORT.SHARES)
   async createShare(
@@ -210,12 +287,18 @@ export class ExportController {
   ) {
     return this.exportShares.create(
       user.workspaceId,
-      body as Parameters<ExportShareService["create"]>[1],
+      user.userId,
+      body as Parameters<ExportShareService["create"]>[2],
       appOrigin()
     );
   }
 
   @Roles("ADMIN", "MEMBER")
+  @RequirePermission("personal:CreateExport", {
+    scope: "self",
+    workspaceId: { source: "session", field: "workspaceId" },
+    tenantId: { source: "session", field: "tenantId" }
+  })
   @Post(ROUTES.EXPORT.ME)
   async generateMember(
     @WorkspaceUser() user: WorkspaceRequestUser,
@@ -236,6 +319,11 @@ export class ExportController {
   }
 
   @Roles("ADMIN")
+  @RequirePermission("workspace:CreateExport", {
+    scope: "workspace",
+    workspaceId: { source: "session", field: "workspaceId" },
+    expectedTenantId: { source: "session", field: "tenantId" }
+  })
   @Get(ROUTES.EXPORT.GENERATE)
   async generateGet(
     @WorkspaceUser() user: WorkspaceRequestUser,

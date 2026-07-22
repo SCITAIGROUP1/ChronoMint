@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { permissionSchema } from "../permissions";
+import { capabilitySnapshotSchema, permissionSchema } from "../permissions";
 import { PLAN_SLUGS } from "../plan-catalog";
 import { tenantMemberRoleSchema } from "../tenant-rbac";
 import {
@@ -52,6 +52,8 @@ const authSessionCoreSchema = z.object({
   managedProjectIds: z.array(uuidSchema).optional(),
   /** Presentation hint only; API authorization is always reevaluated server-side. */
   capabilities: z.array(permissionSchema).optional(),
+  /** Scoped, revisioned presentation snapshot; never used as authorization evidence. */
+  capabilitySnapshot: capabilitySnapshotSchema.optional(),
   impersonatorId: uuidSchema.optional(),
   impersonatorName: z.string().optional()
 });

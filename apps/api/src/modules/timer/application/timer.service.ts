@@ -1,6 +1,7 @@
 import type { StartTimerDto, StopTimerDto } from "@kloqra/contracts";
 import { ErrorCodes } from "@kloqra/contracts";
 import { Injectable, HttpStatus } from "@nestjs/common";
+import { AuthorizationEnforcementService } from "../../../common/access/authorization-enforcement.service";
 import { ProjectAccessService } from "../../../common/access/project-access.service";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
@@ -30,6 +31,7 @@ export class TimerService {
     private prisma: PrismaService,
     private redis: RedisService,
     private access: ProjectAccessService,
+    private authorization: AuthorizationEnforcementService,
     private audit: TimelogAuditService,
     private timesheetLock: TimesheetLockService,
     private timelogs: TimelogsService,
@@ -186,6 +188,14 @@ export class TimerService {
     await this.timelogs.assertNoOverlap(userId, start, end);
 
     const log = await this.prisma.$transaction(async (tx) => {
+      await this.authorization.assertAllowed(
+        {
+          principalId: userId,
+          permission: "personal:ManageTimer",
+          resource: { scope: "self", workspaceId }
+        },
+        tx
+      );
       const created = await tx.timeLog.create({
         data: {
           userId,

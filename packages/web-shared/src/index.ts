@@ -322,6 +322,19 @@ export { useUpdateTenantCurrent } from "./features/tenant/use-update-tenant-curr
 export { useTenantOverview } from "./features/tenant/use-tenant-overview";
 export { useTenantAnalyticsSummary } from "./features/tenant/use-tenant-analytics-summary";
 export { useTenantMembers } from "./features/tenant/use-tenant-members";
+export {
+  permissionPolicyQueryKeys,
+  usePermissionPolicyCatalog,
+  useRolePolicyDirectory,
+  usePrincipalPolicyDirectory,
+  usePermissionPolicy,
+  useSavePermissionPolicy,
+  useResetPermissionPolicy
+} from "./features/tenant/use-permission-policies";
+export {
+  findCapabilityHint,
+  isCapabilitySnapshotStale
+} from "./features/tenant/permission-policy-capabilities";
 export { useTenantSubscription } from "./features/tenant/use-tenant-subscription";
 export {
   isExportInProgress,

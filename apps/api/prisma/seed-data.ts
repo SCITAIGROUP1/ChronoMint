@@ -165,7 +165,12 @@ export type SeedUserSpec = {
   historyDays: number;
   /** 0–1 daily logging intensity */
   intensity: number;
-  preferences?: { dailyTargetHours?: number; timezone?: string };
+  preferences?: {
+    dailyTargetHours?: number;
+    timezone?: string;
+    onboardingWizardDone?: boolean;
+    onboardingTourDone?: boolean;
+  };
   /** Skews which categories this person logs time against */
   categoryBias?: CategoryBias;
   /** Default true — set false to demo email verification gate */

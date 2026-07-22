@@ -2,8 +2,7 @@ import { ErrorCodes } from "@kloqra/contracts";
 import { HttpStatus, Injectable } from "@nestjs/common";
 import type { Prisma } from "@prisma/client";
 import { DomainException } from "../errors/domain.exception";
-import { AuthorizationPolicyService } from "./authorization-policy.service";
-import { ManagedRoleBindingsService } from "./managed-role-bindings.service";
+import { AuthorizationEnforcementService } from "./authorization-enforcement.service";
 
 type WorkspaceRoleGrant = {
   actorId: string;
@@ -33,10 +32,7 @@ type TenantRoleGrant = {
 
 @Injectable()
 export class RoleGrantPolicyService {
-  constructor(
-    private evaluator: AuthorizationPolicyService,
-    private bindings: ManagedRoleBindingsService
-  ) {}
+  constructor(private authorization: AuthorizationEnforcementService) {}
 
   /**
    * Assert that the acting user may assign or remove a workspace-admin binding
@@ -55,21 +51,17 @@ export class RoleGrantPolicyService {
       this.deny("You cannot change your own workspace-admin assignment");
     }
 
-    const bindingSet = await this.bindings.forTenant(
-      { principalId: input.actorId, tenantId: input.tenantId },
+    await this.authorization.assertAllowed(
+      {
+        principalId: input.actorId,
+        permission: "tenant:ManageWorkspaceAdmins",
+        resource: {
+          scope: "tenant",
+          tenantId: input.tenantId
+        }
+      },
       tx
     );
-    this.evaluator.assertAllowed({
-      principalId: input.actorId,
-      permission: "tenant:ManageWorkspaceAdmins",
-      resource: {
-        scope: "tenant",
-        id: input.tenantId,
-        tenantId: input.tenantId
-      },
-      bindings: bindingSet.bindings,
-      context: { tenantIsolationPassed: bindingSet.isolationPassed }
-    });
   }
 
   async assertWorkspaceRoleGrant(
@@ -84,26 +76,18 @@ export class RoleGrantPolicyService {
       this.deny("You cannot grant yourself broader workspace access");
     }
 
-    const bindingSet = await this.bindings.forWorkspace(
+    await this.authorization.assertAllowed(
       {
         principalId: input.actorId,
-        tenantId: input.tenantId,
-        workspaceId: input.workspaceId
+        permission: "workspace:ManageMembers",
+        resource: {
+          scope: "workspace",
+          workspaceId: input.workspaceId,
+          expectedTenantId: input.tenantId
+        }
       },
       tx
     );
-    this.evaluator.assertAllowed({
-      principalId: input.actorId,
-      permission: "workspace:ManageMembers",
-      resource: {
-        scope: "workspace",
-        id: input.workspaceId,
-        workspaceId: input.workspaceId,
-        tenantId: input.tenantId
-      },
-      bindings: bindingSet.bindings,
-      context: { tenantIsolationPassed: bindingSet.isolationPassed }
-    });
   }
 
   async assertProjectManagerGrant(
@@ -118,32 +102,23 @@ export class RoleGrantPolicyService {
       this.deny("You cannot grant yourself broader project access");
     }
 
-    const bindingSet = await this.bindings.forProject(
+    const decision = await this.authorization.assertAllowed(
       {
         principalId: input.actorId,
-        tenantId: input.tenantId,
-        workspaceId: input.workspaceId,
-        projectId: input.projectId
+        permission: "project:ManageTeam",
+        resource: {
+          scope: "project",
+          projectId: input.projectId,
+          expectedWorkspaceId: input.workspaceId,
+          expectedTenantId: input.tenantId
+        }
       },
       tx
     );
-    const decision = this.evaluator.assertAllowed({
-      principalId: input.actorId,
-      permission: "project:ManageTeam",
-      resource: {
-        scope: "project",
-        id: input.projectId,
-        projectId: input.projectId,
-        workspaceId: input.workspaceId,
-        tenantId: input.tenantId
-      },
-      bindings: bindingSet.bindings,
-      context: { tenantIsolationPassed: bindingSet.isolationPassed }
-    });
 
     // Preserve the existing stricter boundary: project managers may manage a
     // roster, but only workspace admins may create another manager.
-    if (!decision.allowed || decision.role !== "WORKSPACE_ADMIN") {
+    if (!decision.allowed || decision.sourceRole !== "WORKSPACE_ADMIN") {
       this.deny("Only workspace admins can change project manager roles");
     }
   }

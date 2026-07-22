@@ -94,6 +94,9 @@ describe("WorkspaceService", () => {
     const mockProjectAccess = {
       managedProjectIds: vi.fn().mockResolvedValue([])
     };
+    const mockAuthorization = {
+      evaluate: vi.fn().mockResolvedValue({ allowed: true })
+    };
     service = new WorkspaceService(
       mockPrisma,
       mockMailer,
@@ -110,6 +113,7 @@ describe("WorkspaceService", () => {
       mockRoleGrantPolicy as never,
       mockRoleGrantAudit as never,
       mockAuthRevocation as never,
+      mockAuthorization as never,
       mockQueue as any
     );
   });

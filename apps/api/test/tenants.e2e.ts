@@ -117,8 +117,11 @@ describe("Tenants E2E", () => {
     expect(res.status).toBe(403);
   });
 
-  it("lists organization members for tenant admin", async () => {
-    const res = await authedAgent(app, opsSession).get(ROUTES.TENANTS.MEMBERS);
+  it("rejects organization member listing for tenant admin by default", async () => {
+    const denied = await authedAgent(app, opsSession).get(ROUTES.TENANTS.MEMBERS);
+    expect(denied.status).toBe(403);
+
+    const res = await authedAgent(app, adminSession).get(ROUTES.TENANTS.MEMBERS);
     expect(res.status).toBe(200);
     const emails = (res.body as Array<{ userEmail: string }>).map((member) => member.userEmail);
     expect(emails).toContain(SEED_DEMO_PERSONAS.tenantOwner);

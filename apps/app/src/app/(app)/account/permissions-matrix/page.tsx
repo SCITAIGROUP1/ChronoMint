@@ -1,8 +1,8 @@
 import { PermissionMatrixPage } from "@/features/account/permission-matrix/permission-matrix-page";
 
 export const metadata = {
-  title: "Permission matrix",
-  description: "Inspect and configure role authorization policies across your organization."
+  title: "Permission Studio",
+  description: "Review and configure authoritative role and member permission policy."
 };
 
 export default function Page() {

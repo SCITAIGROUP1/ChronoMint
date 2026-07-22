@@ -3,6 +3,7 @@ import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
 import { APP_FILTER, APP_GUARD } from "@nestjs/core";
 import { ScheduleModule } from "@nestjs/schedule";
 import { ThrottlerModule } from "@nestjs/throttler";
+import { AccessModule } from "./common/access/access.module";
 import { CacheModule } from "./common/cache/cache.module";
 import { CustomThrottlerGuard } from "./common/guards/custom-throttler.guard";
 import { SentryFilter } from "./common/http/sentry-filter";
@@ -37,6 +38,7 @@ import { WorkspaceModule } from "./modules/workspace/workspace.module";
 
 @Module({
   imports: [
+    AccessModule,
     ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([
       {
@@ -80,7 +82,10 @@ import { WorkspaceModule } from "./modules/workspace/workspace.module";
     HelpDeskModule,
     BullModule.forRoot({
       connection: {
-        url: process.env.REDIS_URL ?? "redis://localhost:6379"
+        url: process.env.REDIS_URL ?? "redis://localhost:6379",
+        // Avoid unhandled ioredis rejections when Nest apps tear down between e2e files.
+        maxRetriesPerRequest: null,
+        enableOfflineQueue: false
       }
     })
   ],

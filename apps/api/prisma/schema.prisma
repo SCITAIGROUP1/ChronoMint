@@ -81,6 +81,10 @@ model Tenant {
   salesInquiries TenantSalesInquiry[]
   subscriptionEvents TenantSubscriptionEvent[]
   helpDeskTickets    HelpDeskTicket[]
+  rolePermissionOverrides TenantRolePermissionOverride[]
+  principalPermissionOverrides PrincipalPermissionOverride[]
+  permissionPolicyState TenantPermissionPolicyState?
+  permissionPolicyIdempotency PermissionPolicyIdempotencyRecord[]
   churnedAt    DateTime? @map("churned_at")
 
   @@map("tenants")
@@ -789,6 +793,106 @@ model RoleGrantAuditEvent {
   @@index([targetUserId, createdAt(sort: Desc)])
   @@index([actorUserId, createdAt(sort: Desc)])
   @@map("role_grant_audit_events")
+}
+
+/// A missing row means INHERIT. Values are constrained to allow/deny by the migration.
+model TenantRolePermissionOverride {
+  id         String   @id @default(uuid())
+  tenantId   String   @map("tenant_id")
+  role       String
+  scope      String
+  resourceId String   @map("resource_id")
+  permission String
+  effect     String
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, role, scope, resourceId, permission])
+  @@index([tenantId, scope, resourceId, permission])
+  @@map("tenant_role_permission_overrides")
+}
+
+/// principalId is deliberately scalar rather than an FK so cleanup can be explicit and audited.
+model PrincipalPermissionOverride {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  principalId String   @map("principal_id")
+  scope       String
+  resourceId  String   @map("resource_id")
+  permission  String
+  effect      String
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, principalId, scope, resourceId, permission])
+  @@index([tenantId, scope, resourceId, principalId, permission])
+  @@map("principal_permission_overrides")
+}
+
+model TenantPermissionPolicyState {
+  tenantId       String   @id @map("tenant_id")
+  policyVersion  String   @map("policy_version")
+  policyChecksum String   @map("policy_checksum")
+  revision       Int      @default(0)
+  lastAuditHash  String?  @map("last_audit_hash")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("tenant_permission_policy_states")
+}
+
+model PermissionPolicyIdempotencyRecord {
+  id             String   @id @default(uuid())
+  tenantId       String   @map("tenant_id")
+  idempotencyKey String   @map("idempotency_key")
+  requestHash    String   @map("request_hash")
+  response       Json
+  revision       Int
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@map("permission_policy_idempotency_records")
+}
+
+/// Dedicated append-only policy audit. All identity/resource values are scalar on purpose:
+/// evidence remains queryable after principals, resources, or a tenant are deleted.
+model PermissionPolicyAuditEvent {
+  id               String   @id @default(uuid())
+  tenantId         String   @map("tenant_id")
+  revision         Int
+  eventIndex       Int      @map("event_index")
+  actorPrincipalId String   @map("actor_principal_id")
+  targetType       String   @map("target_type")
+  targetId         String   @map("target_id")
+  role             String?
+  scope            String
+  resourceId       String   @map("resource_id")
+  permission       String
+  beforeEffect     String?  @map("before_effect")
+  afterEffect      String?  @map("after_effect")
+  effectiveBefore  String   @map("effective_before")
+  effectiveAfter   String   @map("effective_after")
+  reason           String
+  idempotencyKey   String   @map("idempotency_key")
+  previousHash     String?  @map("previous_hash")
+  eventHash        String   @map("event_hash")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  @@unique([tenantId, revision, eventIndex])
+  @@unique([tenantId, eventHash])
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@index([tenantId, scope, resourceId, permission, createdAt(sort: Desc)])
+  @@index([tenantId, targetType, targetId, createdAt(sort: Desc)])
+  @@map("permission_policy_audit_events")
 }
 
 /// API key + secret pairs for third-party read-only reporting access (Postman / integrations).

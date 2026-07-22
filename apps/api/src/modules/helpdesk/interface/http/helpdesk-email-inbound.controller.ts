@@ -1,18 +1,30 @@
 import { InjectQueue } from "@nestjs/bullmq";
-import { Body, Controller, Logger, Post } from "@nestjs/common";
+import { Body, Controller, Headers, Logger, Post, Req } from "@nestjs/common";
+import type { RawBodyRequest } from "@nestjs/common";
 import { TicketChannel, TicketType } from "@prisma/client";
 import { Queue } from "bullmq";
+import type { Request } from "express";
 import { QUEUES } from "../../../../common/queues";
+import { HelpdeskInboundWebhookService } from "../../application/helpdesk-inbound-webhook.service";
 import { IngestTicketJobPayload } from "../../workers/job-payloads";
 
 @Controller("helpdesk/email-inbound")
 export class HelpdeskEmailInboundController {
   private readonly logger = new Logger(HelpdeskEmailInboundController.name);
 
-  constructor(@InjectQueue(QUEUES.HELPDESK_INGEST) private readonly ingestQueue: Queue) {}
+  constructor(
+    @InjectQueue(QUEUES.HELPDESK_INGEST) private readonly ingestQueue: Queue,
+    private readonly webhook: HelpdeskInboundWebhookService
+  ) {}
 
   @Post()
-  async handleIncomingEmail(@Body() payload: any) {
+  async handleIncomingEmail(
+    @Req() req: RawBodyRequest<Request>,
+    @Headers("x-helpdesk-signature") signature: string | undefined,
+    @Headers("x-helpdesk-timestamp") timestamp: string | undefined,
+    @Body() payload: any
+  ) {
+    this.webhook.assertVerified(req.rawBody, signature, timestamp);
     this.logger.log(`Received inbound email webhook`);
 
     try {

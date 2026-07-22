@@ -15,6 +15,7 @@ import { Injectable, HttpStatus } from "@nestjs/common";
 import { Queue } from "bullmq";
 import * as ExcelJS from "exceljs";
 import type { Response } from "express";
+import { AuthorizationEnforcementService } from "../../../common/access/authorization-enforcement.service";
 import { ProjectAccessService } from "../../../common/access/project-access.service";
 import { RoleGrantAuditService } from "../../../common/access/role-grant-audit.service";
 import { RoleGrantPolicyService } from "../../../common/access/role-grant-policy.service";
@@ -54,6 +55,7 @@ export class WorkspaceService {
     private roleGrantPolicy: RoleGrantPolicyService,
     private roleGrantAudit: RoleGrantAuditService,
     private authRevocation: AuthRevocationService,
+    private authorization: AuthorizationEnforcementService,
     @InjectQueue(QUEUES.BULK_INVITE) private readonly bulkInviteQueue: Queue
   ) {}
 
@@ -65,8 +67,18 @@ export class WorkspaceService {
       where: { userId, workspace: { tenantId } as any },
       include: { workspace: true }
     });
-    return Promise.all(
+    const visible = await Promise.all(
       memberships.map(async (m) => {
+        const decision = await this.authorization.evaluate({
+          principalId: userId,
+          permission: "workspace:Access",
+          resource: {
+            scope: "workspace",
+            workspaceId: m.workspaceId,
+            expectedTenantId: tenantId
+          }
+        });
+        if (!decision.allowed) return null;
         const role = m.role as "ADMIN" | "MEMBER";
         const managedProjectIds =
           role === "MEMBER"
@@ -75,6 +87,7 @@ export class WorkspaceService {
         return this.toListItem(m.workspace, role, managedProjectIds);
       })
     );
+    return visible.filter((workspace): workspace is WorkspaceListItemDto => workspace !== null);
   }
 
   async listForTenant(tenantId: string) {

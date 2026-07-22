@@ -541,7 +541,11 @@ async function seedUsers(passwordHash: string): Promise<Map<string, User>> {
         defaultHourlyRate: spec.defaultHourlyRate,
         mustChangePassword: spec.mustChangePassword ?? false,
         emailVerifiedAt: spec.emailVerified === false ? null : new Date(),
-        preferences: (spec.preferences ?? {}) as Prisma.InputJsonValue
+        preferences: {
+          onboardingWizardDone: true,
+          onboardingTourDone: true,
+          ...(spec.preferences ?? {})
+        } as Prisma.InputJsonValue
       } as Prisma.UserUncheckedCreateInput
     });
     users.set(spec.email, user);

@@ -4,6 +4,7 @@ import {
   type ManagedRole,
   type Permission
 } from "@kloqra/contracts";
+import { isCapabilitySnapshotStale } from "../features/tenant/permission-policy-capabilities";
 
 export function resolveSessionManagedRoles(session: AuthSessionDto): ManagedRole[] {
   const roles: ManagedRole[] = [];
@@ -19,9 +20,18 @@ export function resolveSessionManagedRoles(session: AuthSessionDto): ManagedRole
 
 /**
  * Capabilities control presentation only. API policy evaluation remains authoritative.
- * Role derivation is a mixed-deployment fallback until every API session includes a snapshot.
+ * Prefer the scoped server snapshot when present and fresh; fall back to the flat list,
+ * then to role derivation for mixed-deployment clients.
  */
 export function getSessionCapabilities(session: AuthSessionDto): Permission[] {
+  const snapshot = session.capabilitySnapshot;
+  if (snapshot && !isCapabilitySnapshotStale(snapshot)) {
+    const permissions: Permission[] = [];
+    for (const entry of snapshot.capabilities) {
+      if (entry.allowed) permissions.push(entry.permission);
+    }
+    return [...new Set(permissions)];
+  }
   if (session.capabilities) return [...session.capabilities];
   return getManagedRolePermissions(resolveSessionManagedRoles(session));
 }

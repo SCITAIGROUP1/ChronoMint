@@ -1,259 +1,393 @@
-import { ErrorCodes } from "@kloqra/contracts";
+import { ErrorCodes, POLICY_CHECKSUM, POLICY_VERSION } from "@kloqra/contracts";
 import { describe, expect, it } from "vitest";
 import { DomainException } from "../errors/domain.exception";
-import { AuthorizationPolicyService } from "./authorization-policy.service";
+import {
+  AuthorizationPolicyService,
+  type AuthorizationRequest
+} from "./authorization-policy.service";
 
 const service = new AuthorizationPolicyService();
+const policyState = {
+  policyVersion: POLICY_VERSION,
+  policyChecksum: POLICY_CHECKSUM,
+  revision: 17
+};
+const context = {
+  tenantIsolationPassed: true,
+  accountActive: true,
+  subscriptionAllows: true
+};
+
+const projectRequest = (overrides: Partial<AuthorizationRequest> = {}): AuthorizationRequest => ({
+  principalId: "user-1",
+  permission: "project:ManageTasks",
+  resource: {
+    scope: "project",
+    id: "project-1",
+    projectId: "project-1",
+    workspaceId: "workspace-1",
+    tenantId: "tenant-1"
+  },
+  bindings: [
+    {
+      role: "PROJECT_MANAGER",
+      resourceId: "project-1",
+      bindingScope: "project",
+      active: true
+    }
+  ],
+  context,
+  policyState,
+  ...overrides
+});
 
 describe("AuthorizationPolicyService", () => {
-  it("allows a workspace admin to manage members in its workspace", () => {
-    const decision = service.evaluate({
-      principalId: "user-1",
-      permission: "workspace:ManageMembers",
-      resource: { scope: "workspace", id: "ws-1", tenantId: "tenant-1" },
-      bindings: [{ role: "WORKSPACE_ADMIN", resourceId: "ws-1" }]
-    });
-
-    expect(decision).toEqual({
+  it.each([
+    {
+      name: "canonical role",
+      input: {},
       allowed: true,
-      role: "WORKSPACE_ADMIN",
-      reason: "managed_role",
-      matchedPolicyVersion: "v1"
-    });
-  });
-
-  it("denies the same workspace role in another workspace", () => {
-    const decision = service.evaluate({
-      principalId: "user-1",
-      permission: "workspace:ManageMembers",
-      resource: { scope: "workspace", id: "ws-2", tenantId: "tenant-1" },
-      bindings: [{ role: "WORKSPACE_ADMIN", resourceId: "ws-1" }]
-    });
-
-    expect(decision).toEqual({ allowed: false, reason: "default_deny" });
-  });
-
-  it("allows workspace-admin project policy only for child projects", () => {
-    expect(
-      service.evaluate({
-        principalId: "user-1",
-        permission: "project:ManageTasks",
-        resource: {
-          scope: "project",
-          id: "project-1",
-          projectId: "project-1",
-          workspaceId: "ws-1",
-          tenantId: "tenant-1"
-        },
-        bindings: [{ role: "WORKSPACE_ADMIN", resourceId: "ws-1" }]
-      }).allowed
-    ).toBe(true);
-
-    expect(
-      service.evaluate({
-        principalId: "user-1",
-        permission: "project:ManageTasks",
-        resource: {
-          scope: "project",
-          id: "project-2",
-          projectId: "project-2",
-          workspaceId: "ws-2",
-          tenantId: "tenant-1"
-        },
-        bindings: [{ role: "WORKSPACE_ADMIN", resourceId: "ws-1" }]
-      }).allowed
-    ).toBe(false);
-  });
-
-  it("limits project managers to their bound project", () => {
-    const bindings = [{ role: "PROJECT_MANAGER", resourceId: "project-1" }] as const;
-
-    expect(
-      service.evaluate({
-        principalId: "user-1",
-        permission: "project:ReviewTimesheets",
-        resource: {
-          scope: "project",
-          id: "project-1",
-          projectId: "project-1",
-          workspaceId: "ws-1"
-        },
-        bindings
-      }).allowed
-    ).toBe(true);
-    expect(
-      service.evaluate({
-        principalId: "user-1",
-        permission: "project:ReviewTimesheets",
-        resource: {
-          scope: "project",
-          id: "project-2",
-          projectId: "project-2",
-          workspaceId: "ws-1"
-        },
-        bindings
-      }).allowed
-    ).toBe(false);
-  });
-
-  it("requires self ownership and matching workspace for personal permissions", () => {
-    const bindings = [{ role: "WORKSPACE_MEMBER", resourceId: "ws-1" }] as const;
-
-    expect(
-      service.evaluate({
-        principalId: "user-1",
-        permission: "personal:ManageTimelogs",
-        resource: {
-          scope: "self",
-          id: "user-1",
-          ownerUserId: "user-1",
-          workspaceId: "ws-1"
-        },
-        bindings
-      }).allowed
-    ).toBe(true);
-    expect(
-      service.evaluate({
-        principalId: "user-1",
-        permission: "personal:ManageTimelogs",
-        resource: {
-          scope: "self",
-          id: "user-2",
-          ownerUserId: "user-2",
-          workspaceId: "ws-1"
-        },
-        bindings
-      }).allowed
-    ).toBe(false);
-  });
-
-  it("does not turn tenant ownership into workspace access", () => {
-    const decision = service.evaluate({
-      principalId: "owner-1",
-      permission: "workspace:ReadReports",
-      resource: { scope: "workspace", id: "ws-1", workspaceId: "ws-1", tenantId: "tenant-1" },
-      bindings: [{ role: "TENANT_OWNER", resourceId: "tenant-1" }]
-    });
-
-    expect(decision.allowed).toBe(false);
-  });
-
-  it("applies isolation, account, and subscription denies before role allows", () => {
-    const request = {
-      principalId: "user-1",
-      permission: "personal:ManageTimer" as const,
-      resource: {
-        scope: "self" as const,
-        id: "user-1",
-        ownerUserId: "user-1",
-        workspaceId: "ws-1"
+      source: "CANONICAL_ROLE",
+      sourceRole: "PROJECT_MANAGER"
+    },
+    {
+      name: "role allow overrides a role without a canonical grant",
+      input: {
+        bindings: [
+          {
+            role: "WORKSPACE_MEMBER",
+            resourceId: "workspace-1",
+            bindingScope: "workspace",
+            active: true
+          }
+        ],
+        roleOverrides: [
+          {
+            role: "WORKSPACE_MEMBER",
+            permission: "project:ManageTasks",
+            effect: "allow",
+            scope: "workspace",
+            resourceId: "workspace-1"
+          }
+        ]
       },
-      bindings: [{ role: "WORKSPACE_MEMBER" as const, resourceId: "ws-1" }]
-    };
-
-    expect(service.evaluate({ ...request, context: { tenantIsolationPassed: false } }).reason).toBe(
-      "tenant_isolation"
-    );
-    expect(service.evaluate({ ...request, context: { accountActive: false } }).reason).toBe(
-      "account_inactive"
-    );
-    expect(service.evaluate({ ...request, context: { subscriptionAllows: false } }).reason).toBe(
-      "subscription_blocked"
-    );
+      allowed: true,
+      source: "ROLE_POLICY",
+      sourceRole: "WORKSPACE_MEMBER"
+    },
+    {
+      name: "principal allow beats role deny",
+      input: {
+        roleOverrides: [
+          {
+            role: "PROJECT_MANAGER",
+            permission: "project:ManageTasks",
+            effect: "deny",
+            scope: "project",
+            resourceId: "project-1"
+          }
+        ],
+        principalOverrides: [
+          {
+            principalId: "user-1",
+            permission: "project:ManageTasks",
+            effect: "allow",
+            scope: "project",
+            resourceId: "project-1"
+          }
+        ]
+      },
+      allowed: true,
+      source: "PRINCIPAL_ALLOW",
+      sourceRole: undefined
+    },
+    {
+      name: "principal deny beats principal allow and every role allow",
+      input: {
+        principalOverrides: [
+          {
+            principalId: "user-1",
+            permission: "project:ManageTasks",
+            effect: "allow",
+            scope: "project",
+            resourceId: "project-1"
+          },
+          {
+            principalId: "user-1",
+            permission: "project:ManageTasks",
+            effect: "deny",
+            scope: "project",
+            resourceId: "project-1"
+          }
+        ]
+      },
+      allowed: false,
+      source: "PRINCIPAL_DENY",
+      sourceRole: undefined
+    }
+  ])("$name", ({ input, allowed, source, sourceRole }) => {
+    const decision = service.evaluate(projectRequest(input as Partial<AuthorizationRequest>));
+    expect(decision).toMatchObject({
+      allowed,
+      source,
+      policyVersion: POLICY_VERSION,
+      policyRevision: 17
+    });
+    expect(decision.sourceRole).toBe(sourceRole);
   });
 
-  it("ignores inactive or malformed role bindings", () => {
-    const resource = { scope: "workspace" as const, id: "ws-1", workspaceId: "ws-1" };
-
-    expect(
-      service.evaluate({
-        principalId: "user-1",
-        permission: "workspace:ManageMembers",
-        resource,
-        bindings: [{ role: "WORKSPACE_ADMIN", resourceId: "ws-1", active: false }]
-      }).allowed
-    ).toBe(false);
-    expect(
-      service.evaluate({
-        principalId: "user-1",
-        permission: "workspace:ManageMembers",
-        resource,
+  it("a role deny affects only that role in a multi-role union", () => {
+    const decision = service.evaluate(
+      projectRequest({
+        permission: "project:Read",
         bindings: [
           {
             role: "WORKSPACE_ADMIN",
-            resourceId: "ws-1",
-            bindingScope: "tenant"
+            resourceId: "workspace-1",
+            bindingScope: "workspace"
+          },
+          {
+            role: "PROJECT_MANAGER",
+            resourceId: "project-1",
+            bindingScope: "project"
+          }
+        ],
+        roleOverrides: [
+          {
+            role: "WORKSPACE_ADMIN",
+            permission: "project:Read",
+            effect: "deny",
+            scope: "workspace",
+            resourceId: "workspace-1"
           }
         ]
-      }).allowed
-    ).toBe(false);
+      })
+    );
+
+    expect(decision).toMatchObject({
+      allowed: true,
+      source: "CANONICAL_ROLE",
+      sourceRole: "PROJECT_MANAGER"
+    });
   });
 
-  it("throws a stable forbidden domain error", () => {
+  it("applies a workspace-scoped principal override to a child project", () => {
+    const decision = service.evaluate(
+      projectRequest({
+        principalOverrides: [
+          {
+            principalId: "user-1",
+            permission: "project:ManageTasks",
+            effect: "deny",
+            scope: "workspace",
+            resourceId: "workspace-1"
+          }
+        ]
+      })
+    );
+
+    expect(decision).toMatchObject({
+      allowed: false,
+      reason: "principal_deny",
+      source: "PRINCIPAL_DENY"
+    });
+  });
+
+  it.each([
+    [
+      "foreign role resource",
+      {
+        roleOverrides: [
+          {
+            role: "PROJECT_MANAGER",
+            permission: "project:ManageTasks",
+            effect: "allow",
+            scope: "project",
+            resourceId: "project-2"
+          }
+        ]
+      }
+    ],
+    [
+      "foreign principal",
+      {
+        principalOverrides: [
+          {
+            principalId: "user-2",
+            permission: "project:ManageTasks",
+            effect: "deny",
+            scope: "project",
+            resourceId: "project-1"
+          }
+        ]
+      }
+    ],
+    [
+      "foreign principal resource",
+      {
+        principalOverrides: [
+          {
+            principalId: "user-1",
+            permission: "project:ManageTasks",
+            effect: "deny",
+            scope: "project",
+            resourceId: "project-2"
+          }
+        ]
+      }
+    ],
+    [
+      "foreign principal scope",
+      {
+        principalOverrides: [
+          {
+            principalId: "user-1",
+            permission: "project:ManageTasks",
+            effect: "deny",
+            scope: "workspace",
+            resourceId: "project-1"
+          }
+        ]
+      }
+    ]
+  ])("ignores override scope mismatch: %s", (_name, input) => {
+    expect(
+      service.evaluate(
+        projectRequest({
+          bindings: [],
+          ...(input as Partial<AuthorizationRequest>)
+        })
+      )
+    ).toMatchObject({ allowed: false, source: "DEFAULT_DENY" });
+  });
+
+  it.each([
+    [
+      "tenant isolation",
+      { tenantIsolationPassed: false, accountActive: true, subscriptionAllows: true },
+      "tenant_isolation"
+    ],
+    [
+      "inactive account",
+      { tenantIsolationPassed: true, accountActive: false, subscriptionAllows: true },
+      "account_inactive"
+    ],
+    [
+      "blocked subscription",
+      { tenantIsolationPassed: true, accountActive: true, subscriptionAllows: false },
+      "subscription_blocked"
+    ]
+  ])("immutable %s denial wins over persisted allows", (_name, deniedContext, reason) => {
+    const decision = service.evaluate(
+      projectRequest({
+        context: deniedContext,
+        principalOverrides: [
+          {
+            principalId: "user-1",
+            permission: "project:ManageTasks",
+            effect: "allow",
+            scope: "project",
+            resourceId: "project-1"
+          }
+        ]
+      })
+    );
+    expect(decision).toMatchObject({ allowed: false, source: "SYSTEM_DENY", reason });
+  });
+
+  it.each([
+    ["missing", undefined, "policy_state_missing", null],
+    ["wrong version", { ...policyState, policyVersion: "v1" }, "policy_state_invalid", 17],
+    [
+      "wrong checksum",
+      { ...policyState, policyChecksum: "sha256:invalid" },
+      "policy_state_invalid",
+      17
+    ],
+    ["negative revision", { ...policyState, revision: -1 }, "policy_state_invalid", -1]
+  ])("fails closed for %s policy state", (_name, state, reason, revision) => {
+    expect(service.evaluate(projectRequest({ policyState: state }))).toMatchObject({
+      allowed: false,
+      source: "SYSTEM_DENY",
+      reason,
+      policyRevision: revision
+    });
+  });
+
+  it("rejects permission/resource scope mismatch and incomplete ancestry", () => {
+    expect(
+      service.evaluate(
+        projectRequest({
+          permission: "workspace:ManageMembers",
+          resource: {
+            scope: "project",
+            id: "project-1",
+            projectId: "project-1",
+            workspaceId: "workspace-1",
+            tenantId: "tenant-1"
+          }
+        })
+      )
+    ).toMatchObject({ allowed: false, reason: "malformed_context" });
+
+    expect(
+      service.evaluate(
+        projectRequest({
+          resource: {
+            scope: "project",
+            id: "project-1",
+            projectId: "project-1",
+            tenantId: "tenant-1"
+          }
+        })
+      )
+    ).toMatchObject({ allowed: false, reason: "malformed_context" });
+  });
+
+  it("returns the effective source, exact revision, and policy version only", () => {
+    const decision = service.evaluate(
+      projectRequest({
+        policyState: { ...policyState, revision: 42 }
+      })
+    );
+
+    expect(decision).toEqual({
+      allowed: true,
+      reason: "managed_role",
+      source: "CANONICAL_ROLE",
+      sourceRole: "PROJECT_MANAGER",
+      role: "PROJECT_MANAGER",
+      policyVersion: POLICY_VERSION,
+      policyRevision: 42
+    });
+    expect(decision).not.toHaveProperty("principalId");
+    expect(decision).not.toHaveProperty("resourceId");
+    expect(decision).not.toHaveProperty("policyChecksum");
+  });
+
+  it("throws a stable, sanitized forbidden domain error", () => {
+    expect(() =>
+      service.assertAllowed(
+        projectRequest({
+          bindings: []
+        })
+      )
+    ).toThrowError(DomainException);
+
     try {
-      service.assertAllowed({
-        principalId: "user-1",
-        permission: "workspace:ManageMembers",
-        resource: { scope: "workspace", id: "ws-1", workspaceId: "ws-1" },
-        bindings: [{ role: "WORKSPACE_MEMBER", resourceId: "ws-1" }]
-      });
-      expect.fail("expected authorization failure");
+      service.assertAllowed(projectRequest({ bindings: [] }));
     } catch (error) {
-      expect(error).toBeInstanceOf(DomainException);
-      expect((error as DomainException).code).toBe(ErrorCodes.FORBIDDEN);
+      expect(error).toMatchObject({ code: ErrorCodes.FORBIDDEN });
       expect((error as DomainException).getResponse()).toMatchObject({
         details: {
           reason: "default_deny",
-          permission: "workspace:ManageMembers",
-          resourceScope: "workspace"
+          source: "DEFAULT_DENY",
+          policyVersion: POLICY_VERSION,
+          policyRevision: 17,
+          permission: "project:ManageTasks",
+          resourceScope: "project"
         }
       });
     }
-  });
-
-  it("returns malformed_context for a project resource missing workspaceId", () => {
-    const decision = service.evaluate({
-      principalId: "user-1",
-      permission: "project:ManageTasks",
-      resource: { scope: "project", id: "project-1", projectId: "project-1" }, // no workspaceId
-      bindings: [{ role: "PROJECT_MANAGER", resourceId: "project-1" }]
-    });
-    expect(decision).toEqual({ allowed: false, reason: "malformed_context" });
-  });
-
-  it("multi-role union grants access when any binding matches", () => {
-    const decision = service.evaluate({
-      principalId: "user-1",
-      permission: "project:ReviewTimesheets",
-      resource: {
-        scope: "project",
-        id: "project-1",
-        projectId: "project-1",
-        workspaceId: "ws-1",
-        tenantId: "tenant-1"
-      },
-      // Has both workspace-member (insufficient) and project-manager (sufficient)
-      bindings: [
-        { role: "WORKSPACE_MEMBER", resourceId: "ws-1" },
-        { role: "PROJECT_MANAGER", resourceId: "project-1" }
-      ]
-    });
-    expect(decision.allowed).toBe(true);
-    if (decision.allowed) {
-      expect(decision.matchedPolicyVersion).toBe("v1");
-      expect(decision.role).toBe("PROJECT_MANAGER");
-    }
-  });
-
-  it("malformed_context fires before all other checks including isolation", () => {
-    const decision = service.evaluate({
-      principalId: "user-1",
-      permission: "project:ManageTasks",
-      resource: { scope: "project", id: "project-1" }, // missing workspaceId
-      bindings: [{ role: "PROJECT_MANAGER", resourceId: "project-1" }],
-      context: { tenantIsolationPassed: false } // would deny independently
-    });
-    expect(decision.allowed).toBe(false);
-    expect(decision.reason).toBe("malformed_context");
   });
 });

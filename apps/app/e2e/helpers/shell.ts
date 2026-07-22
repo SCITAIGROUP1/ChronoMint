@@ -7,6 +7,7 @@ export async function waitForAppShell(page: Page) {
   await expect(page).not.toHaveURL(/\/select-(context|workspace)/, { timeout: 30_000 });
   await expect(page.getByText("Loading workspace…")).toBeHidden({ timeout: 30_000 });
   await expect(page.getByText("Checking your session…")).toHaveCount(0);
+  await dismissOnboardingIfOpen(page);
 }
 
 /** Sidebar nav in workspace or account mode — avoids duplicate header/profile matches. */
@@ -16,8 +17,13 @@ export function appSidebar(page: Page) {
 
 export async function dismissOnboardingIfOpen(page: Page) {
   const skip = page.getByRole("button", { name: "Skip onboarding" });
-  if (await skip.isVisible().catch(() => false)) {
+  // Profile load can open the wizard a beat after shell paint.
+  try {
+    await skip.waitFor({ state: "visible", timeout: 3_000 });
     await skip.click();
+    await skip.waitFor({ state: "hidden", timeout: 5_000 }).catch(() => undefined);
+  } catch {
+    // Wizard not shown for users who already completed onboarding.
   }
 }
 

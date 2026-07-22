@@ -677,6 +677,32 @@ describe("contracts", () => {
     expect(ROUTES.WORKSPACES.ASSIGN_ADMIN("ws-1")).toBe("/workspaces/ws-1/admins/assign");
   });
 
+  it("exposes additive authoritative permission policy routes", () => {
+    expect(ROUTES.TENANTS.ROLE_POLICIES).toBe("/tenants/current/permission-policies/roles");
+    expect(ROUTES.TENANTS.ROLE_POLICY("WORKSPACE_MEMBER")).toBe(
+      "/tenants/current/permission-policies/roles/WORKSPACE_MEMBER"
+    );
+    expect(ROUTES.TENANTS.ROLE_POLICY_RESET("WORKSPACE_MEMBER")).toBe(
+      "/tenants/current/permission-policies/roles/WORKSPACE_MEMBER/reset"
+    );
+    expect(ROUTES.TENANTS.PRINCIPAL_POLICIES).toBe(
+      "/tenants/current/permission-policies/principals"
+    );
+    expect(ROUTES.TENANTS.PRINCIPAL_POLICY("user-1")).toBe(
+      "/tenants/current/permission-policies/principals/user-1"
+    );
+    expect(ROUTES.TENANTS.PRINCIPAL_POLICY_RESET("user-1")).toBe(
+      "/tenants/current/permission-policies/principals/user-1/reset"
+    );
+    expect(ROUTES.TENANTS.PERMISSION_POLICY_BATCH).toBe(
+      "/tenants/current/permission-policies/batch"
+    );
+    expect(ROUTES.TENANTS.PERMISSION_POLICY_CATALOG).toBe(
+      "/tenants/current/permission-policies/catalog"
+    );
+    expect(ROUTES.TENANTS.PERMISSION_MATRIX).toBe("/tenants/current/permission-matrix");
+  });
+
   it("exports centralized managed-role permissions", () => {
     expect(
       hasManagedRolePermission("WORKSPACE_ADMIN", "workspace:ManageMembers", "workspace")

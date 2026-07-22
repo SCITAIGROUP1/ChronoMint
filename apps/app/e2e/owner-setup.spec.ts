@@ -113,9 +113,9 @@ async function mockProvisionedOwnerSession(page: Page) {
     accessToken
   };
 
-  await page.route(/localhost:3001\/.*/, async (route) => {
+  await page.route("**/api-proxy/**", async (route) => {
     const url = new URL(route.request().url());
-    const path = url.pathname;
+    const path = url.pathname.replace(/^\/api-proxy/, "") || "/";
     const method = route.request().method();
 
     if (path === "/auth/refresh" && method === "POST") {
@@ -243,7 +243,7 @@ test.describe("provisioned owner without workspace", () => {
   test("owner without workspace is redirected to required workspace setup", async ({ page }) => {
     await mockProvisionedOwnerSession(page);
 
-    await page.route(/localhost:3001\/tenants\/current$/, async (route) => {
+    await page.route("**/api-proxy/tenants/current", async (route) => {
       if (route.request().method() !== "GET") {
         await route.continue();
         return;
@@ -279,9 +279,9 @@ test.describe("provisioned owner without workspace", () => {
       accessToken
     };
 
-    await page.route(/localhost:3001\/.*/, async (route) => {
+    await page.route("**/api-proxy/**", async (route) => {
       const url = new URL(route.request().url());
-      const path = url.pathname;
+      const path = url.pathname.replace(/^\/api-proxy/, "") || "/";
       const method = route.request().method();
 
       if (path === "/auth/login" && method === "POST") {

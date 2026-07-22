@@ -1,94 +1,194 @@
+import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import {
   LEGACY_PERMISSION_MAP,
   MANAGED_ROLE_BINDING_SCOPES,
   MANAGED_ROLE_POLICIES,
+  MANAGED_ROLE_POLICY_METADATA,
+  PERMISSION_METADATA,
   PERMISSIONS,
+  POLICY_CHECKSUM,
+  POLICY_SNAPSHOT,
   POLICY_VERSION,
   ROLE_GRANT_MATRIX,
+  capabilitySnapshotSchema,
   getManagedRoleCapabilities,
-  getManagedRolePermissions,
   hasManagedRolePermission,
   managedRoleSchema,
   permissionSchema,
   policyStatementSchema
 } from "./permissions";
 
-describe("permission contracts", () => {
-  it("keeps permission identifiers unique and AWS-style", () => {
+const V1_PERMISSIONS = [
+  "platform:AccessConsole",
+  "platform:ListTenants",
+  "platform:ManageTenants",
+  "platform:ReadAuditLog",
+  "tenant:Access",
+  "tenant:ReadOrganization",
+  "tenant:UpdateOrganization",
+  "tenant:ReadAnalytics",
+  "tenant:ListWorkspaces",
+  "tenant:CreateWorkspace",
+  "tenant:ManageWorkspaceAdmins",
+  "tenant:ListMembers",
+  "tenant:ManageMembers",
+  "tenant:ReadBilling",
+  "tenant:ManageBilling",
+  "tenant:ExportData",
+  "workspace:Access",
+  "workspace:ReadSettings",
+  "workspace:UpdateSettings",
+  "workspace:ListMembers",
+  "workspace:ManageMembers",
+  "workspace:ListProjects",
+  "workspace:CreateProject",
+  "workspace:UpdateProject",
+  "workspace:DeleteProject",
+  "workspace:ManageCategories",
+  "workspace:ReadReports",
+  "workspace:CreateExport",
+  "workspace:ManageBillingRates",
+  "workspace:ManageApiKeys",
+  "workspace:ReadPresence",
+  "project:Read",
+  "project:Update",
+  "project:ManageTasks",
+  "project:ListTeam",
+  "project:ManageTeam",
+  "project:ReviewTimesheets",
+  "project:ReadReports",
+  "project:ReadPresence",
+  "personal:ManageTimer",
+  "personal:ManageTimelogs",
+  "personal:SubmitTimesheets",
+  "personal:ListProjects",
+  "personal:ReadNotifications",
+  "personal:ManageProfile",
+  "personal:CreateExport"
+] as const;
+
+const EXPECTED_DEFAULT_COUNTS = {
+  PLATFORM_SUPERADMIN: 23,
+  PLATFORM_SUPPORT: 12,
+  TENANT_OWNER: 18,
+  TENANT_ADMIN: 7,
+  WORKSPACE_ADMIN: 44,
+  WORKSPACE_MEMBER: 14,
+  PROJECT_MANAGER: 8
+} as const;
+
+describe("permission contracts v2", () => {
+  it("publishes the exact versioned policy snapshot and checksum", () => {
+    expect(POLICY_VERSION).toBe("v2");
+    expect(POLICY_SNAPSHOT.version).toBe("v2");
+    const digest = createHash("sha256").update(JSON.stringify(POLICY_SNAPSHOT)).digest("hex");
+    expect(POLICY_CHECKSUM).toBe(`sha256:${digest}`);
+    expect(POLICY_CHECKSUM).toBe(
+      "sha256:4ff207ecc9dd196d6a5bdf8e412990540528d2cc5577dc60aac4b0b54b312530"
+    );
+  });
+
+  it("retains every v1 ID and has the exact v2 catalog size", () => {
+    expect(PERMISSIONS).toHaveLength(84);
     expect(new Set(PERMISSIONS).size).toBe(PERMISSIONS.length);
+    expect(PERMISSIONS).toEqual(expect.arrayContaining([...V1_PERMISSIONS]));
+    expect(PERMISSIONS).not.toContain("platform:ImpersonateTenantUser");
+    expect(PERMISSIONS).not.toContain("personal:ReadReports");
+  });
+
+  it("has complete explicit metadata and no orphan IDs", () => {
+    expect(Object.keys(PERMISSION_METADATA).sort()).toEqual([...PERMISSIONS].sort());
     for (const permission of PERMISSIONS) {
-      expect(permission).toMatch(/^[a-z]+:[A-Z][A-Za-z]+$/);
+      const meta = PERMISSION_METADATA[permission];
+      expect(meta.id).toBe(permission);
+      expect(meta.label).not.toBe("");
+      expect(meta.description).not.toBe("");
+      expect(meta.resourceScope).toBeTruthy();
+      expect(meta.resourceFamily).toBeTruthy();
+      expect(meta.parentGroup).not.toBe("");
+      expect(meta.actionDimension).toBeTruthy();
+      expect(meta.riskLevel).toBeTruthy();
+      expect(typeof meta.customizable).toBe("boolean");
+      expect(meta.applicableTargetRoles.length).toBeGreaterThan(0);
+      expect(meta.lifecycle).toBeTruthy();
+      expect(meta.enforcementStatus).toBeTruthy();
       expect(permissionSchema.parse(permission)).toBe(permission);
     }
   });
 
-  it("defines a valid policy for every managed role", () => {
+  it("keeps platform and tenant-owner templates immutable", () => {
+    expect(MANAGED_ROLE_POLICY_METADATA.PLATFORM_SUPERADMIN).toEqual({
+      immutable: true,
+      customizationEnabled: false
+    });
+    expect(MANAGED_ROLE_POLICY_METADATA.PLATFORM_SUPPORT).toEqual({
+      immutable: true,
+      customizationEnabled: false
+    });
+    expect(MANAGED_ROLE_POLICY_METADATA.TENANT_OWNER).toEqual({
+      immutable: true,
+      customizationEnabled: false
+    });
+    for (const permission of PERMISSIONS.filter((id) => id.startsWith("platform:"))) {
+      expect(PERMISSION_METADATA[permission].customizable).toBe(false);
+    }
+  });
+
+  it("has exact conservative managed-role defaults with no duplicates", () => {
     for (const role of managedRoleSchema.options) {
       const statements = MANAGED_ROLE_POLICIES[role];
-      expect(statements.length).toBeGreaterThan(0);
-      for (const statement of statements) {
+      expect(statements).toHaveLength(EXPECTED_DEFAULT_COUNTS[role]);
+      const keys = statements.map(({ permission, scope }) => `${permission}|${scope}`);
+      expect(new Set(keys).size).toBe(keys.length);
+    }
+  });
+
+  it("limits platform support to read, support, and self operations", () => {
+    const supportPermissions = MANAGED_ROLE_POLICIES.PLATFORM_SUPPORT.map(
+      ({ permission }) => permission
+    );
+    expect(supportPermissions).toEqual([
+      "platform:AccessConsole",
+      "platform:ListTenants",
+      "platform:ReadAuditLog",
+      "platform:ReadOperations",
+      "platform:ReadSubscriptions",
+      "platform:ReadPlanCatalog",
+      "platform:ReadSupportTickets",
+      "platform:ManageSupportTickets",
+      "platform:ReadSupportMetrics",
+      "platform:ReadOwnNotifications",
+      "platform:ManageOwnProfile",
+      "platform:ManageOwnSecurity"
+    ]);
+    expect(supportPermissions).not.toContain("platform:ManageTenants");
+    expect(supportPermissions).not.toContain("platform:ManageQueues");
+    expect(supportPermissions).not.toContain("platform:ManageStaff");
+  });
+
+  it("does not silently grant tenant admin policy, member, billing, or data powers", () => {
+    const tenantAdminPermissions = MANAGED_ROLE_POLICIES.TENANT_ADMIN.map(
+      ({ permission }) => permission
+    );
+    expect(tenantAdminPermissions).toEqual([
+      "tenant:Access",
+      "tenant:ReadOrganization",
+      "tenant:UpdateOrganization",
+      "tenant:ListWorkspaces",
+      "tenant:CreateWorkspace",
+      "tenant:ManageWorkspaceAdmins",
+      "personal:ManageAccountSecurity"
+    ]);
+  });
+
+  it("validates scope and target-role applicability for every default", () => {
+    for (const role of managedRoleSchema.options) {
+      for (const statement of MANAGED_ROLE_POLICIES[role]) {
         expect(policyStatementSchema.parse(statement)).toEqual(statement);
-        expect(statement.effect).toBe("allow");
+        expect(PERMISSION_METADATA[statement.permission].applicableTargetRoles).toContain(role);
       }
     }
-  });
-
-  it("defines one binding scope for every managed role", () => {
-    expect(Object.keys(MANAGED_ROLE_BINDING_SCOPES).sort()).toEqual(
-      [...managedRoleSchema.options].sort()
-    );
-    expect(MANAGED_ROLE_BINDING_SCOPES.TENANT_OWNER).toBe("tenant");
-    expect(MANAGED_ROLE_BINDING_SCOPES.WORKSPACE_ADMIN).toBe("workspace");
-    expect(MANAGED_ROLE_BINDING_SCOPES.PROJECT_MANAGER).toBe("project");
-  });
-
-  it("keeps tenant roles out of workspace operational data", () => {
-    for (const role of ["TENANT_OWNER", "TENANT_ADMIN"] as const) {
-      expect(
-        MANAGED_ROLE_POLICIES[role].some(
-          ({ permission }) =>
-            permission.startsWith("workspace:") ||
-            permission.startsWith("project:") ||
-            permission.startsWith("personal:")
-        )
-      ).toBe(false);
-    }
-  });
-
-  it("limits project managers to their project scope", () => {
-    const statements = MANAGED_ROLE_POLICIES.PROJECT_MANAGER;
-    expect(statements.every(({ scope }) => scope === "project")).toBe(true);
-    expect(hasManagedRolePermission("PROJECT_MANAGER", "project:ManageTasks", "project")).toBe(
-      true
-    );
-    expect(
-      hasManagedRolePermission("PROJECT_MANAGER", "workspace:ManageMembers", "workspace")
-    ).toBe(false);
-  });
-
-  it("does not grant tenant admins owner billing or export permissions", () => {
-    expect(hasManagedRolePermission("TENANT_OWNER", "tenant:ManageBilling", "tenant")).toBe(true);
-    expect(hasManagedRolePermission("TENANT_OWNER", "tenant:ExportData", "tenant")).toBe(true);
-    expect(hasManagedRolePermission("TENANT_ADMIN", "tenant:ManageBilling", "tenant")).toBe(false);
-    expect(hasManagedRolePermission("TENANT_ADMIN", "tenant:ExportData", "tenant")).toBe(false);
-  });
-
-  it("builds a deduplicated capability snapshot from combined roles", () => {
-    const capabilities = getManagedRolePermissions([
-      "TENANT_OWNER",
-      "WORKSPACE_ADMIN",
-      "PROJECT_MANAGER"
-    ]);
-
-    expect(capabilities).toContain("tenant:ManageBilling");
-    expect(capabilities).toContain("workspace:ManageMembers");
-    expect(capabilities).toContain("project:ManageTasks");
-    expect(new Set(capabilities).size).toBe(capabilities.length);
-  });
-
-  it("rejects unknown permissions and invalid policy statements", () => {
-    expect(permissionSchema.safeParse("workspace:BecomeOwner").success).toBe(false);
     expect(
       policyStatementSchema.safeParse({
         effect: "allow",
@@ -98,50 +198,68 @@ describe("permission contracts", () => {
     ).toBe(false);
   });
 
-  it("exports a stable non-empty policy version string", () => {
-    expect(typeof POLICY_VERSION).toBe("string");
-    expect(POLICY_VERSION.length).toBeGreaterThan(0);
-    // Version must not change accidentally — update this assertion intentionally when bumping
-    expect(POLICY_VERSION).toBe("v1");
-  });
-
-  it("LEGACY_PERMISSION_MAP values are valid canonical permissions", () => {
-    for (const [legacy, canonical] of Object.entries(LEGACY_PERMISSION_MAP)) {
-      expect(typeof legacy).toBe("string");
-      expect(permissionSchema.safeParse(canonical).success).toBe(true);
+  it("has no policy references outside the canonical catalog", () => {
+    for (const statements of Object.values(MANAGED_ROLE_POLICIES)) {
+      for (const statement of statements) {
+        expect(PERMISSIONS).toContain(statement.permission);
+      }
+    }
+    for (const canonical of Object.values(LEGACY_PERMISSION_MAP)) {
+      expect(PERMISSIONS).toContain(canonical);
     }
   });
 
-  it("ROLE_GRANT_MATRIX covers every managed role and prohibits self-escalation", () => {
-    const roles = managedRoleSchema.options;
-    // Every role appears as a key
-    expect(Object.keys(ROLE_GRANT_MATRIX).sort()).toEqual([...roles].sort());
-    // No role may grant itself (same-level escalation)
+  it("covers binding scopes and enforces safe delegation boundaries", () => {
+    expect(Object.keys(MANAGED_ROLE_BINDING_SCOPES).sort()).toEqual(
+      [...managedRoleSchema.options].sort()
+    );
+    expect(Object.keys(ROLE_GRANT_MATRIX).sort()).toEqual([...managedRoleSchema.options].sort());
     for (const [grantor, grantable] of Object.entries(ROLE_GRANT_MATRIX)) {
       expect(grantable).not.toContain(grantor);
-    }
-    // Nobody can grant a TENANT_OWNER — that is only set by platform operations
-    for (const grantable of Object.values(ROLE_GRANT_MATRIX)) {
       expect(grantable).not.toContain("TENANT_OWNER");
+      expect(grantable).not.toContain("PLATFORM_SUPERADMIN");
     }
-    // WORKSPACE_MEMBER and PROJECT_MANAGER cannot grant anything
-    expect(ROLE_GRANT_MATRIX.WORKSPACE_MEMBER).toHaveLength(0);
-    expect(ROLE_GRANT_MATRIX.PROJECT_MANAGER).toHaveLength(0);
+    expect(ROLE_GRANT_MATRIX.PLATFORM_SUPPORT).toEqual([]);
+    expect(ROLE_GRANT_MATRIX.TENANT_ADMIN).toEqual(["WORKSPACE_ADMIN", "WORKSPACE_MEMBER"]);
+    expect(ROLE_GRANT_MATRIX.WORKSPACE_MEMBER).toEqual([]);
+    expect(ROLE_GRANT_MATRIX.PROJECT_MANAGER).toEqual([]);
   });
 
-  it("getManagedRoleCapabilities returns scoped entries without duplicates", () => {
-    const entries = getManagedRoleCapabilities(["WORKSPACE_ADMIN", "PROJECT_MANAGER"]);
-    expect(entries.length).toBeGreaterThan(0);
-    // Each entry has a permission and a scope
-    for (const entry of entries) {
-      expect(permissionSchema.safeParse(entry.permission).success).toBe(true);
-      expect(typeof entry.scope).toBe("string");
+  it("keeps tenant roles out of workspace and project operational policy", () => {
+    for (const role of ["TENANT_OWNER", "TENANT_ADMIN"] as const) {
+      expect(
+        MANAGED_ROLE_POLICIES[role].some(
+          ({ permission }) =>
+            permission.startsWith("workspace:") || permission.startsWith("project:")
+        )
+      ).toBe(false);
     }
-    // No duplicate permission+scope combinations
-    const keys = entries.map((e) => `${e.permission}|${e.scope}`);
-    expect(new Set(keys).size).toBe(keys.length);
-    // Project manager entries carry project scope
-    const pmEntries = entries.filter((e) => e.permission.startsWith("project:"));
-    expect(pmEntries.every((e) => e.scope === "project" || e.scope === "workspace")).toBe(true);
+  });
+
+  it("builds complete scoped capability snapshots for auth migration", () => {
+    const capabilityTemplates = getManagedRoleCapabilities(["WORKSPACE_ADMIN"]);
+    const capabilities = capabilityTemplates.map((entry) => ({
+      ...entry,
+      resourceId: entry.scope === "self" ? "user-1" : "workspace-1",
+      allowed: true,
+      source: "canonical-role" as const,
+      sourceRole: "WORKSPACE_ADMIN" as const
+    }));
+    const parsed = capabilitySnapshotSchema.parse({
+      policyVersion: POLICY_VERSION,
+      policyChecksum: POLICY_CHECKSUM,
+      policyRevision: 9,
+      membershipRevision: 4,
+      principalId: "user-1",
+      tenantId: "tenant-1",
+      computedAt: "2026-07-22T00:00:00.000Z",
+      expiresAt: "2026-07-22T00:05:00.000Z",
+      etag: '"policy-9-membership-4"',
+      capabilities
+    });
+    expect(parsed.capabilities.every(({ resourceId }) => resourceId.length > 0)).toBe(true);
+    expect(hasManagedRolePermission("PROJECT_MANAGER", "project:ManageTasks", "project")).toBe(
+      true
+    );
   });
 });

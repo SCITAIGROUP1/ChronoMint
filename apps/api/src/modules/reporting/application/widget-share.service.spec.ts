@@ -13,6 +13,7 @@ describe("WidgetShareService", () => {
     dashboard: ReturnType<typeof vi.fn>;
     utilization: ReturnType<typeof vi.fn>;
   };
+  let authorization: { assertAllowed: ReturnType<typeof vi.fn> };
 
   const workspaceId = "ws-1";
   const mockReport = {
@@ -59,12 +60,18 @@ describe("WidgetShareService", () => {
         totalPages: 0
       })
     };
-    service = new WidgetShareService(mockPrisma as never, mockReporting as never);
+    authorization = { assertAllowed: vi.fn().mockResolvedValue({ allowed: true }) };
+    service = new WidgetShareService(
+      mockPrisma as never,
+      mockReporting as never,
+      authorization as never
+    );
   });
 
   it("creates a widget share with admin URL", async () => {
     const result = await service.create(
       workspaceId,
+      "user-1",
       {
         body: {
           widgetId: "distribution_donut",
@@ -85,8 +92,35 @@ describe("WidgetShareService", () => {
         })
       })
     );
+    expect(authorization.assertAllowed).toHaveBeenCalledWith({
+      principalId: "user-1",
+      permission: "workspace:ManageReportShares",
+      resource: { scope: "workspace", workspaceId }
+    });
     expect(result.shareUrl).toBe(`http://localhost:3002/widget/${"a".repeat(48)}`);
     expect(result.token).toHaveLength(48);
+  });
+
+  it("does not create a share when permission was revoked", async () => {
+    authorization.assertAllowed.mockRejectedValueOnce(new Error("revoked"));
+
+    await expect(
+      service.create(
+        workspaceId,
+        "user-1",
+        {
+          body: {
+            widgetId: "distribution_donut",
+            from: "2025-01-01T00:00:00.000Z",
+            to: "2025-01-31T23:59:59.000Z",
+            options: { groupBy: "project" }
+          },
+          expiresInDays: 30
+        },
+        "http://localhost:3002"
+      )
+    ).rejects.toThrow("revoked");
+    expect(mockPrisma.widgetShare.create).not.toHaveBeenCalled();
   });
 
   it("returns public view with dashboard payload for valid token", async () => {

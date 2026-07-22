@@ -226,6 +226,16 @@ export const ROUTES = {
     DATA_EXPORT_JOB_DOWNLOAD: (id: string) => `/tenants/current/data-export/${id}/download`,
     DATA_IMPORT: "/tenants/current/data-import",
     ROLE_GRANT_AUDIT: "/tenants/current/role-grant-audit",
+    ROLE_POLICIES: "/tenants/current/permission-policies/roles",
+    ROLE_POLICY: (role: string) => `/tenants/current/permission-policies/roles/${role}`,
+    ROLE_POLICY_RESET: (role: string) => `/tenants/current/permission-policies/roles/${role}/reset`,
+    PRINCIPAL_POLICIES: "/tenants/current/permission-policies/principals",
+    PRINCIPAL_POLICY: (principalId: string) =>
+      `/tenants/current/permission-policies/principals/${principalId}`,
+    PRINCIPAL_POLICY_RESET: (principalId: string) =>
+      `/tenants/current/permission-policies/principals/${principalId}/reset`,
+    PERMISSION_POLICY_BATCH: "/tenants/current/permission-policies/batch",
+    PERMISSION_POLICY_CATALOG: "/tenants/current/permission-policies/catalog",
     PERMISSION_MATRIX: "/tenants/current/permission-matrix",
     MEMBER_PERMISSIONS: (memberId: string) => `/tenants/current/members/${memberId}/permissions`,
     MEMBER_RESTORE_ROLE_DEFAULTS: (memberId: string) =>

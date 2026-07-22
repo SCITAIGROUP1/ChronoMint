@@ -13,28 +13,34 @@ import {
   CurrentUser,
   type RequestUser
 } from "../../../../common/decorators/current-user.decorator";
-import { TenantRoles } from "../../../../common/decorators/tenant-roles.decorator";
+import { RequirePermission } from "../../../../common/decorators/require-permission.decorator";
 import { TenantScoped } from "../../../../common/decorators/tenant-scoped.decorator";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
-import { TenantRolesGuard } from "../../../../common/guards/tenant-roles.guard";
+import { PermissionGuard } from "../../../../common/guards/permission.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
 import { BILLING_RECEIPT_MAX_BYTES } from "../../application/billing-receipt-storage.util";
 import { SubscriptionSalesInquiryService } from "../../application/subscription-sales-inquiry.service";
 
 @Controller()
 @TenantScoped()
-@UseGuards(JwtAuthGuard, TenantRolesGuard)
+@UseGuards(JwtAuthGuard, PermissionGuard)
 export class SubscriptionSalesInquiryController {
   constructor(private salesInquiries: SubscriptionSalesInquiryService) {}
 
-  @TenantRoles("OWNER")
   @Get(ROUTES.TENANTS.SALES_INQUIRY)
+  @RequirePermission("tenant:ManageSalesInquiry", {
+    scope: "tenant",
+    tenantId: { source: "session", field: "tenantId" }
+  })
   getCurrent(@CurrentUser() user: RequestUser) {
     return this.salesInquiries.getCurrentInquiry(user.tenantId);
   }
 
-  @TenantRoles("OWNER")
   @Post(ROUTES.TENANTS.SALES_INQUIRY)
+  @RequirePermission("tenant:ManageSalesInquiry", {
+    scope: "tenant",
+    tenantId: { source: "session", field: "tenantId" }
+  })
   create(
     @CurrentUser() user: RequestUser,
     @Body(new ZodValidationPipe(createSalesInquirySchema)) body: CreateSalesInquiryDto
@@ -42,8 +48,11 @@ export class SubscriptionSalesInquiryController {
     return this.salesInquiries.createInquiry(user.tenantId, user.userId, body);
   }
 
-  @TenantRoles("OWNER")
   @Post(ROUTES.TENANTS.SALES_INQUIRY_RECEIPTS)
+  @RequirePermission("tenant:ManageSalesInquiry", {
+    scope: "tenant",
+    tenantId: { source: "session", field: "tenantId" }
+  })
   @UseInterceptors(FileInterceptor("file", { limits: { fileSize: BILLING_RECEIPT_MAX_BYTES } }))
   uploadReceipt(
     @CurrentUser() user: RequestUser,

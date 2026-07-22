@@ -14,6 +14,7 @@ import {
   WebSocketServer
 } from "@nestjs/websockets";
 import type { Server, Socket } from "socket.io";
+import { AuthorizationEnforcementService } from "../../../../common/access/authorization-enforcement.service";
 import { isAllowedBrowserOrigin } from "../../../../common/auth/allowed-origins";
 import { AuthRevocationService } from "../../../../common/auth/auth-revocation.service";
 import { JwtTokenService } from "../../../../common/auth/jwt-token.service";
@@ -59,7 +60,8 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
   constructor(
     private jwtTokens: JwtTokenService,
     private authRevocation: AuthRevocationService,
-    private redis: RedisService
+    private redis: RedisService,
+    private authorization: AuthorizationEnforcementService
   ) {}
 
   async handleConnection(client: AuthenticatedSocket): Promise<void> {
@@ -114,6 +116,11 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
       if (payload.family) {
         await this.authRevocation.assertNotRevoked(payload.platformUserId, payload.family);
       }
+      await this.authorization.assertAllowed({
+        principalId: payload.platformUserId,
+        permission: "platform:ReadOwnNotifications",
+        resource: { scope: "platform" }
+      });
       return { userId: payload.platformUserId, isPlatform: true };
     }
 
@@ -122,6 +129,18 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
     }
     const payload = this.jwtTokens.verifyAccessToken(token, "app");
     await this.authRevocation.assertNotRevoked(payload.sub, payload.family);
+    if (!payload.workspaceId) {
+      throw new UnauthorizedException("Workspace context is required");
+    }
+    await this.authorization.assertAllowed({
+      principalId: payload.sub,
+      permission: "personal:ReadNotifications",
+      resource: {
+        scope: "self",
+        workspaceId: payload.workspaceId,
+        tenantId: payload.tenantId
+      }
+    });
     return { userId: payload.sub, isPlatform: false };
   }
 

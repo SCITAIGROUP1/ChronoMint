@@ -228,13 +228,13 @@
     {
       "id": "UPS-01",
       "title": "Central permission catalog and managed-role policies",
-      "status": "in_progress",
+      "status": "done",
       "owner": "LSA"
     },
     {
       "id": "UPS-02",
       "title": "Scoped API policy evaluator and role-grant audit",
-      "status": "in_progress",
+      "status": "done",
       "owner": "BE"
     },
     {
