@@ -580,6 +580,170 @@ describe("TimelogsService createBatch", () => {
   });
 });
 
+describe("TimelogsService update timer entry", () => {
+  it("converts a timer-created entry to manual when edited", async () => {
+    const startTime = new Date("2026-06-09T13:00:00.000Z");
+    const endTime = new Date("2026-06-09T14:00:00.000Z");
+    const updatedEndTime = new Date("2026-06-09T14:30:00.000Z");
+    const log = {
+      id: "log-1",
+      userId: "user-1",
+      taskId: "task-1",
+      startTime,
+      endTime,
+      durationSec: 3600,
+      description: "Timer work",
+      isBillable: true,
+      source: "timer",
+      task: {
+        projectId: "project-1",
+        isActive: true,
+        category: { isActive: true },
+        project: { isActive: true }
+      }
+    };
+    const updated = {
+      ...log,
+      endTime: updatedEndTime,
+      durationSec: 5400,
+      description: "Updated timer work",
+      source: "manual"
+    };
+    const timeLogFindFirst = vi.fn().mockResolvedValueOnce(log).mockResolvedValueOnce(null);
+    const timeLogUpdate = vi.fn().mockResolvedValue(updated);
+    const prisma = {
+      timeLog: { findFirst: timeLogFindFirst, update: timeLogUpdate },
+      task: {
+        findUniqueOrThrow: vi.fn().mockResolvedValue({
+          id: "task-1",
+          projectId: "project-1",
+          billableDefault: true
+        })
+      },
+      $transaction: vi.fn().mockImplementation(async (fn: any) => fn(prisma))
+    };
+    const audit = {
+      snapshotFromLog: vi.fn().mockReturnValue({}),
+      recordEvent: vi.fn().mockResolvedValue(undefined)
+    };
+    const timesheetLock = {
+      assertPeriodEditable: vi.fn().mockResolvedValue(undefined)
+    };
+    const access = {
+      assertCanLogTask: vi.fn().mockResolvedValue(undefined),
+      manageableProjectIds: vi.fn().mockResolvedValue([])
+    };
+    const reportCache = { invalidateWorkspace: vi.fn().mockResolvedValue(undefined) };
+    const realtime = mockWorkspaceDataRealtime();
+    const service = new TimelogsService(
+      prisma as never,
+      reportCache as never,
+      audit as never,
+      timesheetLock as never,
+      access as never,
+      mockAuthorization() as never,
+      mockSubscriptions() as never,
+      realtime as never
+    );
+
+    const result = await service.update("workspace-1", "user-1", "MEMBER", "log-1", {
+      endTime: updatedEndTime.toISOString(),
+      description: "Updated timer work"
+    });
+
+    expect(timeLogUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ source: "manual" })
+      })
+    );
+    expect(result).toMatchObject({
+      id: "log-1",
+      source: "manual",
+      durationSec: 5400,
+      description: "Updated timer work"
+    });
+    expect(timesheetLock.assertPeriodEditable).toHaveBeenCalled();
+    expect(audit.recordEvent).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({ action: "UPDATE" })
+    );
+  });
+
+  it("keeps timer source when only non-time fields are edited", async () => {
+    const startTime = new Date("2026-06-09T13:00:00.000Z");
+    const endTime = new Date("2026-06-09T14:00:00.000Z");
+    const log = {
+      id: "log-1",
+      userId: "user-1",
+      taskId: "task-1",
+      startTime,
+      endTime,
+      durationSec: 3600,
+      description: "Timer work",
+      isBillable: true,
+      source: "timer",
+      task: {
+        projectId: "project-1",
+        isActive: true,
+        category: { isActive: true },
+        project: { isActive: true }
+      }
+    };
+    const updated = { ...log, description: "Updated timer work" };
+    const timeLogFindFirst = vi.fn().mockResolvedValueOnce(log).mockResolvedValueOnce(null);
+    const timeLogUpdate = vi.fn().mockResolvedValue(updated);
+    const prisma = {
+      timeLog: { findFirst: timeLogFindFirst, update: timeLogUpdate },
+      task: {
+        findUniqueOrThrow: vi.fn().mockResolvedValue({
+          id: "task-1",
+          projectId: "project-1",
+          billableDefault: true
+        })
+      },
+      $transaction: vi.fn().mockImplementation(async (fn: any) => fn(prisma))
+    };
+    const audit = {
+      snapshotFromLog: vi.fn().mockReturnValue({}),
+      recordEvent: vi.fn().mockResolvedValue(undefined)
+    };
+    const timesheetLock = {
+      assertPeriodEditable: vi.fn().mockResolvedValue(undefined)
+    };
+    const access = {
+      assertCanLogTask: vi.fn().mockResolvedValue(undefined),
+      manageableProjectIds: vi.fn().mockResolvedValue([])
+    };
+    const reportCache = { invalidateWorkspace: vi.fn().mockResolvedValue(undefined) };
+    const realtime = mockWorkspaceDataRealtime();
+    const service = new TimelogsService(
+      prisma as never,
+      reportCache as never,
+      audit as never,
+      timesheetLock as never,
+      access as never,
+      mockAuthorization() as never,
+      mockSubscriptions() as never,
+      realtime as never
+    );
+
+    const result = await service.update("workspace-1", "user-1", "MEMBER", "log-1", {
+      description: "Updated timer work"
+    });
+
+    expect(timeLogUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.not.objectContaining({ source: expect.anything() })
+      })
+    );
+    expect(result).toMatchObject({
+      id: "log-1",
+      source: "timer",
+      description: "Updated timer work"
+    });
+  });
+});
+
 describe("TimelogsService ownership isolation", () => {
   function createService(findFirst: ReturnType<typeof vi.fn>) {
     return new TimelogsService(

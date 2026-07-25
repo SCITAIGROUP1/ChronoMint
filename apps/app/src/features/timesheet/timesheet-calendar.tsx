@@ -635,8 +635,7 @@ export function TimesheetCalendar({
                   deferToParent(() => onEntryClick(log));
                 }}
                 onResizeStart={(log, clip, edge) => {
-                  if (readOnly || isEntryLocked(log) || isEntryInactive(log) || isTimerEntry(log))
-                    return;
+                  if (readOnly || isEntryLocked(log) || isEntryInactive(log)) return;
                   setResize({
                     log,
                     day,
@@ -928,7 +927,7 @@ function DayColumn({
           const inactive = isEntryInactive(log);
           const locked = submissionLocked || inactive;
           const timer = isTimerEntry(log);
-          const entryReadOnly = readOnly || locked || timer;
+          const entryReadOnly = readOnly || locked;
           const display = isResizing
             ? { start: resizePreview.previewStart, end: resizePreview.previewEnd }
             : clip;
@@ -1010,7 +1009,7 @@ function DayColumn({
                     : submissionLocked
                       ? `${taskName(log.taskId)} — locked (submitted or approved)`
                       : timer
-                        ? `${taskName(log.taskId)} — timer entry (view only)`
+                        ? `${taskName(log.taskId)} — timer entry; drag to move, Ctrl+drag to duplicate`
                         : readOnly
                           ? taskName(log.taskId)
                           : `${taskName(log.taskId)} — drag to move, Ctrl+drag to duplicate`

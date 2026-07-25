@@ -470,13 +470,6 @@ export class TimelogsService {
     if (log.userId !== userId) {
       throw new DomainException(ErrorCodes.FORBIDDEN, "Not your entry", HttpStatus.FORBIDDEN);
     }
-    if (log.source === "timer") {
-      throw new DomainException(
-        ErrorCodes.TIMELOG_NOT_EDITABLE,
-        "Timer entries cannot be edited",
-        HttpStatus.FORBIDDEN
-      );
-    }
 
     this.assertTimeLogEditable(log.task);
 
@@ -528,6 +521,10 @@ export class TimelogsService {
         },
         tx
       );
+      const timeChanged =
+        start.getTime() !== log.startTime.getTime() || end.getTime() !== log.endTime?.getTime();
+      const isTimerSource = log.source === "timer" || log.source === "timer_autostopped";
+      const convertToManual = isTimerSource && timeChanged;
       const row = await tx.timeLog.update({
         where: { id_startTime: { id, startTime: log.startTime } },
         data: {
@@ -536,7 +533,8 @@ export class TimelogsService {
           endTime: end,
           durationSec: Math.floor((end.getTime() - start.getTime()) / 1000),
           ...(dto.description !== undefined ? { description: dto.description } : {}),
-          isBillable
+          isBillable,
+          ...(convertToManual ? { source: "manual" } : {})
         }
       });
       await this.audit.recordEvent(tx, {

@@ -702,7 +702,7 @@ export function TimesheetPage() {
   }
 
   async function updateEntryTimes(log: TimeLogDto, start: Date, end: Date, errorLabel: string) {
-    if (isImpersonating || isEntryReadOnly(log) || isTimerEntry(log)) return;
+    if (isImpersonating || isEntryReadOnly(log)) return;
     if (end <= start) return;
 
     const conflict = findOccupancyConflict(occupancy, start, end, log.id);

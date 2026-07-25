@@ -174,7 +174,7 @@ export function TimeEntryDialog({
   if (!mounted) return null;
 
   const canDelete = Boolean(editingLog && onDelete && !readOnly);
-  const canEdit = !readOnly && editingLog?.source !== "timer";
+  const canEdit = !readOnly;
   const canRepeat = canEdit && !editingLog;
   const showJiraMoreOptions = canEdit && jiraSuggestions.length > 0;
   const canSave = draft ? canSaveTaskDraft(draft) : false;

@@ -21,7 +21,10 @@ describe("formatBulkInviteJobToast", () => {
           successCount: 1,
           skippedCount: 2,
           projectAddedCount: 1,
-          totalProcessed: 3
+          totalProcessed: 3,
+          emailQueuedCount: 1,
+          credentialsResentCount: 0,
+          emailFailedCount: 0
         }
       })
     ).toEqual({ tone: "warning", message: "Added 1 person (2 skipped)." });
@@ -36,7 +39,10 @@ describe("formatBulkInviteJobToast", () => {
           successCount: 0,
           skippedCount: 0,
           projectAddedCount: 3,
-          totalProcessed: 3
+          totalProcessed: 3,
+          emailQueuedCount: 3,
+          credentialsResentCount: 0,
+          emailFailedCount: 0
         }
       })
     ).toEqual({ tone: "success", message: "Added 3 people to the team." });
@@ -55,7 +61,10 @@ describe("waitForBulkInviteJob", () => {
           successCount: 1,
           skippedCount: 0,
           projectAddedCount: 1,
-          totalProcessed: 1
+          totalProcessed: 1,
+          emailQueuedCount: 1,
+          credentialsResentCount: 0,
+          emailFailedCount: 0
         }
       });
     const sleep = vi.fn().mockResolvedValue(undefined);

@@ -67,6 +67,31 @@ describe("TimeEntryDialog", () => {
     expect(screen.getAllByRole("button", { name: "Close" }).length).toBeGreaterThan(0);
   });
 
+  it("allows editing a timer-created entry when it is otherwise editable", async () => {
+    render(
+      <TimeEntryDialog
+        open
+        title="Edit time entry"
+        draft={draft}
+        projects={[]}
+        tasks={[]}
+        taskLabel={() => "Task"}
+        editingLog={{ ...editingLog, source: "timer" }}
+        onClose={vi.fn()}
+        onDraftChange={vi.fn()}
+        onSave={vi.fn()}
+        onDelete={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/started with the stopwatch/i)).toBeTruthy();
+    });
+    expect(screen.getByRole("button", { name: "Save changes" })).toBeTruthy();
+    expect(screen.getByLabelText("Start time")).toHaveProperty("disabled", false);
+    expect(screen.getByLabelText("End time")).toHaveProperty("disabled", false);
+  });
+
   it("renders server validation errors inline under fields", async () => {
     render(
       <TimeEntryDialog
