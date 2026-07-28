@@ -1009,10 +1009,10 @@ function DayColumn({
                     : submissionLocked
                       ? `${taskName(log.taskId)} — locked (submitted or approved)`
                       : timer
-                        ? `${taskName(log.taskId)} — timer entry; drag to move, Ctrl+drag to duplicate`
+                        ? `${taskName(log.taskId)}${log.description?.trim() ? ` · ${log.description.trim()}` : ""} — timer entry; drag to move, Ctrl+drag to duplicate`
                         : readOnly
-                          ? taskName(log.taskId)
-                          : `${taskName(log.taskId)} — drag to move, Ctrl+drag to duplicate`
+                          ? `${taskName(log.taskId)}${log.description?.trim() ? ` · ${log.description.trim()}` : ""}`
+                          : `${taskName(log.taskId)}${log.description?.trim() ? ` · ${log.description.trim()}` : ""} — drag to move, Ctrl+drag to duplicate`
                 }
               >
                 <CalendarEntryContent

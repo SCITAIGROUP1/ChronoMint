@@ -137,8 +137,118 @@ describe("TimeEntryDialog", () => {
     await waitFor(() => {
       expect(screen.getByText("When")).toBeTruthy();
       expect(screen.getByRole("button", { name: "Entry date" })).toBeTruthy();
+      expect(screen.getByLabelText("Duration")).toBeTruthy();
       expect(screen.getByLabelText("Start time")).toBeTruthy();
       expect(screen.getByLabelText("End time")).toBeTruthy();
+    });
+  });
+
+  it("treats 2.5 and 2:30 as the same duration from start", async () => {
+    const onDraftChange = vi.fn();
+    const base = { ...draft, startTime: "09:00", endTime: "09:30" };
+
+    const { rerender } = render(
+      <TimeEntryDialog
+        open
+        title="Log time"
+        draft={base}
+        projects={[]}
+        tasks={[]}
+        taskLabel={() => "Task"}
+        onClose={vi.fn()}
+        onDraftChange={onDraftChange}
+        onSave={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Duration")).toBeTruthy();
+    });
+
+    const duration = screen.getByLabelText("Duration");
+    fireEvent.focus(duration);
+    fireEvent.change(duration, { target: { value: "2.5" } });
+
+    expect(onDraftChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        startTime: "09:00",
+        endTime: "11:30"
+      })
+    );
+
+    onDraftChange.mockClear();
+    rerender(
+      <TimeEntryDialog
+        open
+        title="Log time"
+        draft={base}
+        projects={[]}
+        tasks={[]}
+        taskLabel={() => "Task"}
+        onClose={vi.fn()}
+        onDraftChange={onDraftChange}
+        onSave={vi.fn()}
+      />
+    );
+
+    fireEvent.focus(duration);
+    fireEvent.change(duration, { target: { value: "2:30" } });
+
+    expect(onDraftChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        startTime: "09:00",
+        endTime: "11:30"
+      })
+    );
+  });
+
+  it("keeps duration length when start time moves", async () => {
+    const onDraftChange = vi.fn();
+    render(
+      <TimeEntryDialog
+        open
+        title="Log time"
+        draft={{ ...draft, startTime: "09:00", endTime: "10:00" }}
+        projects={[]}
+        tasks={[]}
+        taskLabel={() => "Task"}
+        onClose={vi.fn()}
+        onDraftChange={onDraftChange}
+        onSave={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Start time")).toBeTruthy();
+    });
+
+    fireEvent.change(screen.getByLabelText("Start time"), { target: { value: "10:00" } });
+
+    expect(onDraftChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        startTime: "10:00",
+        endTime: "11:00"
+      })
+    );
+  });
+
+  it("shows duration formatted from start and end", async () => {
+    render(
+      <TimeEntryDialog
+        open
+        title="Log time"
+        draft={{ ...draft, startTime: "09:00", endTime: "11:30" }}
+        projects={[]}
+        tasks={[]}
+        taskLabel={() => "Task"}
+        onClose={vi.fn()}
+        onDraftChange={vi.fn()}
+        onSave={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Duration")).toHaveProperty("value", "2:30");
     });
   });
 

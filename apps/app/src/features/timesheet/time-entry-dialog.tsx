@@ -23,12 +23,17 @@ import {
 import { extractFieldErrorsFromMessage, useCategoriesListQuery } from "@kloqra/web-shared";
 import { ChevronDown, Clock } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { formatDuration } from "./calendar-utils";
+import {
+  addDurationToStartTime,
+  applyDurationToDraft,
+  durationSecFromStartEnd,
+  formatDurationInput,
+  parseDurationInput
+} from "./parse-duration-input";
 import { RepeatEntryPanel } from "./repeat-entry-panel";
 import {
   type TimeEntryDraft,
   canSaveTaskDraft,
-  draftToIsoRange,
   suggestBillableFromTask,
   taskSaveHint
 } from "./time-entry-draft";
@@ -89,13 +94,16 @@ export function TimeEntryDialog({
   onDelete,
   readOnly = false,
   workspaceId,
-  timezone = "UTC",
+  timezone: _timezone = "UTC",
   jiraSuggestions = []
 }: TimeEntryDialogProps) {
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<"details" | "history">("details");
   const [repeatOpen, setRepeatOpen] = useState(false);
   const [moreOptionsOpen, setMoreOptionsOpen] = useState(false);
+  const [durationText, setDurationText] = useState("0:00");
+  const [durationError, setDurationError] = useState<string | null>(null);
+  const durationFocusedRef = useRef(false);
   const { data: liveCategories = [] } = useCategoriesListQuery(
     workspaceId ?? "",
     open && Boolean(workspaceId)
@@ -122,8 +130,17 @@ export function TimeEntryDialog({
     } else {
       setRepeatOpen(false);
       setMoreOptionsOpen(false);
+      durationFocusedRef.current = false;
+      setDurationError(null);
     }
   }, [open, editingLog]);
+
+  useEffect(() => {
+    if (!draft || durationFocusedRef.current) return;
+    const sec = durationSecFromStartEnd(draft.startTime, draft.endTime);
+    setDurationText(sec != null ? formatDurationInput(sec) : "0:00");
+    setDurationError(null);
+  }, [draft?.startTime, draft?.endTime, draft]);
 
   const selectableProjects = useMemo(() => filterLoggingProjects(projects), [projects]);
   const selectableTasks = useMemo(
@@ -192,17 +209,6 @@ export function TimeEntryDialog({
       })
     : { fieldErrors: {}, formError: "" };
 
-  let durationHint = "";
-  if (draft) {
-    try {
-      const { startTime, endTime } = draftToIsoRange(draft, timezone);
-      const sec = (new Date(endTime).getTime() - new Date(startTime).getTime()) / 1000;
-      if (sec > 0) durationHint = formatDuration(sec);
-    } catch {
-      /* ignore */
-    }
-  }
-
   function patch(partial: Partial<TimeEntryDraft>) {
     if (draft) onDraftChange({ ...draft, ...partial });
   }
@@ -217,6 +223,46 @@ export function TimeEntryDialog({
       partial.repeatUntil = dateKey;
     }
     patch(partial);
+  }
+
+  function handleStartChange(startTime: string) {
+    if (!draft) return;
+    const currentSec = durationSecFromStartEnd(draft.startTime, draft.endTime);
+    if (currentSec != null && currentSec > 0) {
+      patch({
+        startTime,
+        endTime: addDurationToStartTime(startTime, currentSec)
+      });
+      return;
+    }
+    patch({ startTime });
+  }
+
+  function handleEndChange(endTime: string) {
+    patch({ endTime });
+  }
+
+  function handleDurationChange(value: string) {
+    setDurationText(value);
+    const sec = parseDurationInput(value);
+    if (sec != null && sec > 0 && draft) {
+      setDurationError(null);
+      patch(applyDurationToDraft(draft, sec));
+    }
+  }
+
+  function handleDurationBlur() {
+    durationFocusedRef.current = false;
+    const sec = parseDurationInput(durationText);
+    if (sec != null && sec > 0 && draft) {
+      patch(applyDurationToDraft(draft, sec));
+      setDurationText(formatDurationInput(sec));
+      setDurationError(null);
+      return;
+    }
+    const current = draft ? durationSecFromStartEnd(draft.startTime, draft.endTime) : null;
+    setDurationText(current != null ? formatDurationInput(current) : "0:00");
+    setDurationError(durationText.trim() && sec === null ? "Use 2.5 or 2:30" : null);
   }
 
   function openRepeatPanel() {
@@ -420,43 +466,75 @@ export function TimeEntryDialog({
           </div>
 
           <div className="space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <Label>When</Label>
-              {durationHint ? (
-                <span className="text-xs text-muted-foreground">· {durationHint}</span>
-              ) : null}
+            <Label>When</Label>
+            <DatePicker
+              value={draft.date}
+              onChange={handleDateChange}
+              placeholder="Select date"
+              ariaLabel="Entry date"
+              disabled={!canEdit}
+              className="h-10 w-full justify-start bg-background"
+              popoverAlign="start"
+            />
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="entry-duration" className="text-xs text-muted-foreground">
+                  Duration
+                </Label>
+                <Input
+                  id="entry-duration"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="0:00"
+                  value={durationText}
+                  disabled={!canEdit}
+                  className="font-mono tabular-nums"
+                  onFocus={() => {
+                    durationFocusedRef.current = true;
+                  }}
+                  onChange={(e) => handleDurationChange(e.target.value)}
+                  onBlur={handleDurationBlur}
+                  aria-label="Duration"
+                  aria-invalid={Boolean(durationError)}
+                  aria-describedby={durationError ? "entry-duration-error" : undefined}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="entry-start" className="text-xs text-muted-foreground">
+                  Start
+                </Label>
+                <Input
+                  id="entry-start"
+                  type="time"
+                  value={draft.startTime}
+                  disabled={!canEdit}
+                  onChange={(e) => handleStartChange(e.target.value)}
+                  required
+                  aria-label="Start time"
+                  aria-invalid={Boolean(parsedValidation.fieldErrors.start)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="entry-end" className="text-xs text-muted-foreground">
+                  End
+                </Label>
+                <Input
+                  id="entry-end"
+                  type="time"
+                  value={draft.endTime}
+                  disabled={!canEdit}
+                  onChange={(e) => handleEndChange(e.target.value)}
+                  required
+                  aria-label="End time"
+                  aria-invalid={Boolean(parsedValidation.fieldErrors.end)}
+                />
+              </div>
             </div>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1.2fr_1fr_1fr]">
-              <DatePicker
-                value={draft.date}
-                onChange={handleDateChange}
-                placeholder="Select date"
-                ariaLabel="Entry date"
-                disabled={!canEdit}
-                className="h-10 w-full justify-start bg-background"
-                popoverAlign="start"
-              />
-              <Input
-                id="entry-start"
-                type="time"
-                value={draft.startTime}
-                disabled={!canEdit}
-                onChange={(e) => patch({ startTime: e.target.value })}
-                required
-                aria-label="Start time"
-                aria-invalid={Boolean(parsedValidation.fieldErrors.start)}
-              />
-              <Input
-                id="entry-end"
-                type="time"
-                value={draft.endTime}
-                disabled={!canEdit}
-                onChange={(e) => patch({ endTime: e.target.value })}
-                required
-                aria-label="End time"
-                aria-invalid={Boolean(parsedValidation.fieldErrors.end)}
-              />
-            </div>
+            {durationError ? (
+              <p id="entry-duration-error" className="text-xs text-destructive">
+                {durationError}
+              </p>
+            ) : null}
             {parsedValidation.fieldErrors.start ? (
               <p className="text-xs text-destructive">{parsedValidation.fieldErrors.start}</p>
             ) : null}

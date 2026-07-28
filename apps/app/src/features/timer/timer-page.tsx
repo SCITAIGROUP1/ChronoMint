@@ -160,7 +160,7 @@ export function TimerPage() {
 
   const [projectId, setProjectId] = useState("");
   const [taskChoice, setTaskChoice] = useState("");
-  const [stopDescription, setStopDescription] = useState("");
+  const [description, setDescription] = useState("");
   const [starting, setStarting] = useState(false);
   const [stopping, setStopping] = useState(false);
   const [pausing, setPausing] = useState(false);
@@ -276,6 +276,7 @@ export function TimerPage() {
   function onProjectChange(id: string) {
     setProjectId(id);
     setTaskChoice("");
+    setDescription("");
     setError(null);
   }
 
@@ -306,12 +307,12 @@ export function TimerPage() {
 
     try {
       const created = await timerActions.stop({
-        description: stopDescription.trim() || undefined,
+        description: description.trim() || undefined,
         isBillable: activeTask?.billableDefault ?? true
       });
       if (!created) return;
       const logged = formatElapsed(elapsedSec);
-      setStopDescription("");
+      setDescription("");
       toast.success(`Timer stopped. ${logged} logged.`);
     } catch (e) {
       const message =
@@ -515,16 +516,16 @@ export function TimerPage() {
                     ) : (
                       <>
                         <div className="space-y-2">
-                          <Label htmlFor="stop-description">Note (optional)</Label>
+                          <Label htmlFor="timer-description">Description</Label>
                           <Input
-                            id="stop-description"
-                            value={stopDescription}
-                            onChange={(e) => setStopDescription(e.target.value)}
-                            placeholder="What did you work on?"
+                            id="timer-description"
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
+                            placeholder="What are you working on?"
                           />
                           <JiraIssuePicker
                             issues={jiraIssues}
-                            onSelect={(value) => setStopDescription(value)}
+                            onSelect={(value) => setDescription(value)}
                           />
                         </div>
                         {/* Actions Row */}
@@ -647,6 +648,24 @@ export function TimerPage() {
                             </p>
                           )}
                         </div>
+
+                        {taskChoice ? (
+                          <div className="space-y-2">
+                            <Label htmlFor="timer-description">Description</Label>
+                            <Input
+                              id="timer-description"
+                              value={description}
+                              onChange={(e) => setDescription(e.target.value)}
+                              placeholder="What are you working on?"
+                            />
+                            {jiraIssues.length > 0 ? (
+                              <JiraIssuePicker
+                                issues={jiraIssues}
+                                onSelect={(value) => setDescription(value)}
+                              />
+                            ) : null}
+                          </div>
+                        ) : null}
 
                         {!isImpersonating && (
                           <Button
