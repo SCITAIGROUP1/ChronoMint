@@ -37,6 +37,7 @@ const editingLog: TimeLogDto = {
 
 afterEach(() => {
   cleanup();
+  window.sessionStorage.clear();
 });
 
 describe("TimeEntryDialog", () => {
@@ -312,5 +313,76 @@ describe("TimeEntryDialog", () => {
       recurrence: "weekdays",
       repeatUntil: "2026-06-09"
     });
+  });
+
+  it("asks to discard before closing a dirty draft", async () => {
+    const onClose = vi.fn();
+    const onDraftChange = vi.fn();
+    const { rerender } = render(
+      <TimeEntryDialog
+        open
+        title="Log time"
+        draft={draft}
+        projects={[]}
+        tasks={[]}
+        taskLabel={() => "Task"}
+        workspaceId="ws-1"
+        onClose={onClose}
+        onDraftChange={onDraftChange}
+        onSave={vi.fn()}
+      />
+    );
+
+    rerender(
+      <TimeEntryDialog
+        open
+        title="Log time"
+        draft={{ ...draft, description: "Changed description" }}
+        projects={[]}
+        tasks={[]}
+        taskLabel={() => "Task"}
+        workspaceId="ws-1"
+        onClose={onClose}
+        onDraftChange={onDraftChange}
+        onSave={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole("heading", { name: /discard unsaved changes/i })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Discard" }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("restores an unsaved draft from session storage on reopen", async () => {
+    window.sessionStorage.setItem(
+      "kloqra.time-entry-draft:ws-1:create",
+      JSON.stringify({ ...draft, description: "Recovered work" })
+    );
+    const onDraftChange = vi.fn();
+
+    render(
+      <TimeEntryDialog
+        open
+        title="Log time"
+        draft={draft}
+        projects={[]}
+        tasks={[]}
+        taskLabel={() => "Task"}
+        workspaceId="ws-1"
+        onClose={vi.fn()}
+        onDraftChange={onDraftChange}
+        onSave={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(onDraftChange).toHaveBeenCalledWith(
+        expect.objectContaining({ description: "Recovered work" })
+      );
+    });
+    expect(screen.getByText(/restored your unsaved draft/i)).toBeTruthy();
   });
 });

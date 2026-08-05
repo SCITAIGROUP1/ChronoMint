@@ -97,4 +97,32 @@ describe("useTimelogMutations", () => {
       projectId: undefined
     });
   });
+
+  it("rejects concurrent create calls while one is in flight", async () => {
+    let resolveCreate: ((value: TimeLogDto) => void) | undefined;
+    vi.mocked(api).mockImplementationOnce(
+      () =>
+        new Promise<TimeLogDto>((resolve) => {
+          resolveCreate = resolve;
+        })
+    );
+    const { result } = renderHook(() => useTimelogMutations(workspaceId, { onLocalRefresh }));
+
+    const first = result.current.create({
+      taskId: "task-1",
+      startTime: sampleLog.startTime,
+      endTime: sampleLog.endTime
+    });
+    await expect(
+      result.current.create({
+        taskId: "task-1",
+        startTime: sampleLog.startTime,
+        endTime: sampleLog.endTime
+      })
+    ).rejects.toThrow(/already being saved/i);
+
+    resolveCreate?.(sampleLog);
+    await expect(first).resolves.toEqual(sampleLog);
+    expect(api).toHaveBeenCalledTimes(1);
+  });
 });

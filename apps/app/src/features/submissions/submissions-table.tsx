@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import { TimeTrackerEntryActions } from "../time-tracker/time-tracker-entry-actions";
 import { TimeEntryDialog, draftFromLog, type TimeEntryDraft } from "../timesheet/time-entry-dialog";
 import { draftToIsoRange, canSaveTaskDraft } from "../timesheet/time-entry-draft";
+import { clearTimeEntryDraftStorageFor } from "../timesheet/time-entry-draft-storage";
 import { validateTimeEntryOverlap } from "../timesheet/validate-time-entry-overlap";
 import { SubmissionStatusDialogs } from "./submission-status-dialogs";
 import { submitButtonLabel, useSubmissionStatusActions } from "./use-submission-status-actions";
@@ -130,6 +131,7 @@ function SubmissionRowLogs({
   };
 
   const closeDialog = () => {
+    clearTimeEntryDraftStorageFor(workspaceId, editingLog?.id ?? null);
     setEditingLog(null);
     setDraft(null);
     setError(null);

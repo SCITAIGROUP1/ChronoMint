@@ -3,7 +3,7 @@
 import type { ActiveTimerDto, TimeLogDto, TimeLogOccupancyItemDto } from "@kloqra/contracts";
 import { cn } from "@kloqra/ui";
 import { Building2 } from "lucide-react";
-import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CalendarEntryContent, type CalendarTaskInfo } from "./calendar-entry-content";
 import {
   buildDayOccupancySegments,
@@ -304,6 +304,7 @@ export function TimesheetCalendar({
   }, [resize, onEntryResize, timezone]);
 
   useEffect(() => {
+    let rafId = 0;
     const onPointerMove = (e: PointerEvent) => {
       const pending = pendingEntry.current;
       if (pending && e.pointerId === pending.pointerId) {
@@ -330,17 +331,22 @@ export function TimesheetCalendar({
       }
 
       if (!move) return;
-      const day = findDayColumnAt(e.clientX, e.clientY, days, timezone);
-      if (!day) return;
-      const rect = columnRect(day, timezone);
-      if (!rect) return;
-      const blockTop = e.clientY - move.grabOffsetY;
-      const start = pointerYToTime(day, blockTop + 4, rect.top, rect.height, timezone);
-      const end = new Date(start.getTime() + move.durationMs);
-      setMove((m) => (m ? { ...m, preview: { log: m.log, day, start, end } } : m));
+      const { clientX, clientY } = e;
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        const day = findDayColumnAt(clientX, clientY, days, timezone);
+        if (!day) return;
+        const rect = columnRect(day, timezone);
+        if (!rect) return;
+        const blockTop = clientY - move.grabOffsetY;
+        const start = pointerYToTime(day, blockTop + 4, rect.top, rect.height, timezone);
+        const end = new Date(start.getTime() + move.durationMs);
+        setMove((m) => (m ? { ...m, preview: { log: m.log, day, start, end } } : m));
+      });
     };
 
     const onPointerUp = (e: PointerEvent) => {
+      cancelAnimationFrame(rafId);
       if (pendingEntry.current?.pointerId === e.pointerId) {
         const log = pendingEntry.current.log;
         pendingEntry.current = null;
@@ -370,6 +376,7 @@ export function TimesheetCalendar({
     window.addEventListener("pointermove", onPointerMove);
     window.addEventListener("pointerup", onPointerUp);
     return () => {
+      cancelAnimationFrame(rafId);
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
     };
@@ -377,17 +384,23 @@ export function TimesheetCalendar({
 
   useEffect(() => {
     if (!duplicate) return;
+    let rafId = 0;
     const onMove = (e: PointerEvent) => {
-      const day = findDayColumnAt(e.clientX, e.clientY, days, timezone);
-      if (!day) return;
-      const rect = columnRect(day, timezone);
-      if (!rect) return;
-      const blockTop = e.clientY - duplicate.grabOffsetY;
-      const start = pointerYToTime(day, blockTop + 4, rect.top, rect.height, timezone);
-      const end = new Date(start.getTime() + duplicate.durationMs);
-      setDuplicate((d) => (d ? { ...d, preview: { log: d.log, day, start, end } } : d));
+      const { clientX, clientY } = e;
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        const day = findDayColumnAt(clientX, clientY, days, timezone);
+        if (!day) return;
+        const rect = columnRect(day, timezone);
+        if (!rect) return;
+        const blockTop = clientY - duplicate.grabOffsetY;
+        const start = pointerYToTime(day, blockTop + 4, rect.top, rect.height, timezone);
+        const end = new Date(start.getTime() + duplicate.durationMs);
+        setDuplicate((d) => (d ? { ...d, preview: { log: d.log, day, start, end } } : d));
+      });
     };
     const onUp = () => {
+      cancelAnimationFrame(rafId);
       setDuplicate((d) => {
         if (d && d.preview.end > d.preview.start) {
           const { log, preview } = d;
@@ -400,6 +413,7 @@ export function TimesheetCalendar({
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
     return () => {
+      cancelAnimationFrame(rafId);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
     };
@@ -656,7 +670,7 @@ export function TimesheetCalendar({
   );
 }
 
-function DayColumn({
+const DayColumn = memo(function DayColumn({
   day,
   isToday = false,
   logs,
@@ -1055,7 +1069,7 @@ function DayColumn({
       </div>
     </div>
   );
-}
+});
 
 function LiveIndicatorLine({
   day,

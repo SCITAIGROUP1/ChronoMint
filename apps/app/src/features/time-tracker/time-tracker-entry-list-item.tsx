@@ -3,6 +3,7 @@
 import type { ProjectDto, TaskDto, TimeLogDto, TimesheetPeriodDto } from "@kloqra/contracts";
 import { ProjectColorDot, cn } from "@kloqra/ui";
 import { Lock } from "lucide-react";
+import { formatEntryTimeRange } from "./display-format";
 import { resolveEntryApprovalStatus } from "./entry-approval-status";
 import { formatHoursDecimal } from "./group-logs-by-week";
 import { TimeTrackerEntryActions } from "./time-tracker-entry-actions";
@@ -15,6 +16,7 @@ type AdminTimeTrackerEntryListItemProps = {
   projectName: string;
   entryColor: string;
   memberName: string;
+  timezone: string;
 };
 
 type TimeTrackerEntryListItemProps = {
@@ -29,6 +31,7 @@ type TimeTrackerEntryListItemProps = {
   onEdit: (log: TimeLogDto) => void;
   onDelete: (log: TimeLogDto) => void;
   readOnly?: boolean;
+  timezone: string;
 };
 
 function adminDetailLine(
@@ -47,13 +50,44 @@ function personalDetailLine(
   return parts.length > 0 ? parts.join(" · ") : null;
 }
 
+function EntryTimeMeta({
+  log,
+  timezone,
+  inactive = false
+}: {
+  log: TimeLogDto;
+  timezone: string;
+  inactive?: boolean;
+}) {
+  const range = formatEntryTimeRange(log.startTime, log.endTime, timezone);
+  return (
+    <div className="flex shrink-0 flex-col items-end gap-0.5">
+      <span
+        className={cn(
+          "text-sm font-semibold tabular-nums",
+          inactive ? "text-muted-foreground" : "text-foreground"
+        )}
+      >
+        {formatHoursDecimal(log.durationSec)}
+      </span>
+      <span
+        className="text-xs tabular-nums text-muted-foreground"
+        aria-label={`Time range ${range}`}
+      >
+        {range}
+      </span>
+    </div>
+  );
+}
+
 export function AdminTimeTrackerEntryListItem({
   log,
   task,
   project,
   projectName,
   entryColor,
-  memberName
+  memberName,
+  timezone
 }: AdminTimeTrackerEntryListItemProps) {
   const approval = resolveEntryApprovalStatus(log, project, new Map());
   const detailLine = adminDetailLine(memberName, task?.taskName, log.description);
@@ -72,9 +106,7 @@ export function AdminTimeTrackerEntryListItem({
                 <TimeTrackerEntryStatus approval={approval} isBillable={log.isBillable} />
               </div>
             </div>
-            <span className="shrink-0 text-sm font-semibold tabular-nums text-foreground">
-              {formatHoursDecimal(log.durationSec)}
-            </span>
+            <EntryTimeMeta log={log} timezone={timezone} />
           </div>
           <p className="mt-1 line-clamp-2 text-sm leading-snug text-muted-foreground sm:mt-0.5 sm:truncate">
             {detailLine}
@@ -97,7 +129,8 @@ export function TimeTrackerEntryListItem({
   inactive = false,
   onEdit,
   onDelete,
-  readOnly = false
+  readOnly = false,
+  timezone
 }: TimeTrackerEntryListItemProps) {
   const approval = resolveEntryApprovalStatus(log, project, submissionByKey);
   const detailLine = personalDetailLine(task?.taskName, log.description);
@@ -138,14 +171,7 @@ export function TimeTrackerEntryListItem({
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
-              <span
-                className={cn(
-                  "text-sm font-semibold tabular-nums",
-                  inactive ? "text-muted-foreground" : "text-foreground"
-                )}
-              >
-                {formatHoursDecimal(log.durationSec)}
-              </span>
+              <EntryTimeMeta log={log} timezone={timezone} inactive={inactive} />
               {!readOnly && !inactive ? (
                 <TimeTrackerEntryActions
                   log={log}

@@ -211,6 +211,7 @@ function AdminTimeTrackerWeekSection({
                     projectName={project ? formatProjectLabel(project, workspaceNamesById) : "—"}
                     entryColor={entryColor(log.taskId)}
                     memberName={memberName}
+                    timezone={timezone}
                   />
                 );
               })
@@ -320,6 +321,7 @@ function TimeTrackerWeekSection({
                     onEdit={onEdit}
                     onDelete={onDelete}
                     readOnly={readOnly}
+                    timezone={timezone}
                   />
                 );
               })

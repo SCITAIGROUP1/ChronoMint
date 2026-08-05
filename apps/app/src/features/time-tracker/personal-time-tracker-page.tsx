@@ -23,9 +23,13 @@ import {
   useTimesheetSubmissionStatusQuery,
   useTimelogMutations
 } from "@kloqra/web-shared";
-import { Download, Filter, Plus, Search, Upload } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Download, Eye, EyeOff, Filter, Search, Upload } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import {
+  readAnalyticsVisiblePreference,
+  writeAnalyticsVisiblePreference
+} from "./analytics-visibility";
 import {
   isTimeEntryInactive,
   isTimeEntryLocked,
@@ -44,18 +48,18 @@ import {
   TIME_TRACKER_PERIOD_PRESETS,
   type TimeTrackerPeriodSelection
 } from "./time-tracker-period";
+import { TimeTrackerQuickAddBar } from "./time-tracker-quick-add-bar";
 import { TimeTrackerStatCards } from "./time-tracker-stat-cards";
 import { computeTimeTrackerStats } from "./time-tracker-stats";
 import { formatVisibleWeeksSummary, TimeTrackerWeekList } from "./time-tracker-week-list";
 import { useTimeTrackerLogs } from "./use-time-tracker-logs";
-import { todayInZone, toTimeValueInZone } from "@/features/timesheet/calendar-utils";
 import {
   canSaveTaskDraft,
   draftFromLog,
-  draftFromSlot,
   draftToIsoRange,
   type TimeEntryDraft
 } from "@/features/timesheet/time-entry-draft";
+import { clearTimeEntryDraftStorageFor } from "@/features/timesheet/time-entry-draft-storage";
 import { TimeEntryDialog } from "@/features/timesheet/timesheet-lazy";
 import { validateTimeEntryOverlap } from "@/features/timesheet/validate-time-entry-overlap";
 import { useIsImpersonating } from "@/hooks/use-is-impersonating";
@@ -96,10 +100,18 @@ export function PersonalTimeTrackerPage() {
   const [editingLog, setEditingLog] = useState<TimeLogDto | null>(null);
   const [entryDraft, setEntryDraft] = useState<TimeEntryDraft | null>(null);
   const [entrySaving, setEntrySaving] = useState(false);
+  const entrySavingRef = useRef(false);
   const [entryError, setEntryError] = useState<string | null>(null);
+  const [quickAddError, setQuickAddError] = useState<string | null>(null);
+  const [quickAddResetKey, setQuickAddResetKey] = useState(0);
+  const [analyticsVisible, setAnalyticsVisible] = useState(false);
   const [confirmDeleteLog, setConfirmDeleteLog] = useState<TimeLogDto | null>(null);
   const [weeksPerPage, setWeeksPerPage] = useState(1);
   const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    setAnalyticsVisible(readAnalyticsVisiblePreference(false));
+  }, []);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedSearch(search.trim()), 300);
@@ -232,94 +244,114 @@ export function PersonalTimeTrackerPage() {
     setEntryDialogOpen(true);
   }
 
-  function openEntryDialog() {
-    if (isImpersonating) return;
-    const day = todayInZone(timezone);
-    const [zonedHour = "09", zonedMinute = "00"] = toTimeValueInZone(new Date(), timezone).split(
-      ":"
-    );
-    const startHour = Number(zonedHour);
-    const startMinute = startHour === 23 ? 0 : Number(zonedMinute) < 30 ? 0 : 30;
-    openDraft(draftFromSlot(day, startHour, startMinute, timezone));
-  }
-
   function openEditEntry(log: TimeLogDto) {
     openDraft(draftFromLog(log, tasks, timezone), log);
   }
 
   function closeEntryDialog() {
+    clearTimeEntryDraftStorageFor(workspaceId, editingLog?.id ?? null);
     setEntryDialogOpen(false);
     setEditingLog(null);
     setEntryDraft(null);
     setEntryError(null);
   }
 
-  async function saveEntry() {
-    if (isImpersonating) return;
-    if (editingLog && isEntryReadOnly(editingLog)) return;
-    if (!entryDraft || !canSaveTaskDraft(entryDraft)) {
-      setEntryError("Select a project and a task.");
-      return;
+  function toggleAnalyticsVisible() {
+    setAnalyticsVisible((current) => {
+      const next = !current;
+      writeAnalyticsVisiblePreference(next);
+      return next;
+    });
+  }
+
+  async function persistEntry(draft: TimeEntryDraft, editing: TimeLogDto | null): Promise<boolean> {
+    if (isImpersonating) return false;
+    if (entrySavingRef.current) return false;
+    if (editing && isEntryReadOnly(editing)) return false;
+    if (!canSaveTaskDraft(draft)) {
+      const message = "Select a project and a task.";
+      if (editing) setEntryError(message);
+      else setQuickAddError(message);
+      return false;
     }
-    const { startTime, endTime } = draftToIsoRange(entryDraft, timezone);
+    const { startTime, endTime } = draftToIsoRange(draft, timezone);
     if (new Date(endTime) <= new Date(startTime)) {
-      setEntryError("End time must be after start time.");
-      return;
-    }
-    const overlap = await validateTimeEntryOverlap(
-      workspaceId,
-      new Date(startTime),
-      new Date(endTime),
-      timezone,
-      editingLog?.id
-    );
-    if (overlap) {
-      setEntryError(overlap);
-      return;
+      const message = "End time must be after start time.";
+      if (editing) setEntryError(message);
+      else setQuickAddError(message);
+      return false;
     }
 
+    entrySavingRef.current = true;
     setEntrySaving(true);
     setEntryError(null);
+    setQuickAddError(null);
     try {
-      if (!editingLog && entryDraft.recurrence && entryDraft.recurrence !== "none") {
-        if (!entryDraft.repeatUntil) {
+      const overlap = await validateTimeEntryOverlap(
+        workspaceId,
+        new Date(startTime),
+        new Date(endTime),
+        timezone,
+        editing?.id
+      );
+      if (overlap) {
+        if (editing) setEntryError(overlap);
+        else setQuickAddError(overlap);
+        return false;
+      }
+      if (!editing && draft.recurrence && draft.recurrence !== "none") {
+        if (!draft.repeatUntil) {
           setEntryError("Please select an end date for the recurrence.");
-          return;
+          return false;
         }
         await timelogMutations.createBatch({
-          taskId: entryDraft.taskSelection,
-          localStartTime: entryDraft.startTime,
-          localEndTime: entryDraft.endTime,
-          startDate: entryDraft.date,
-          endDate: entryDraft.repeatUntil,
-          recurrence: entryDraft.recurrence,
+          taskId: draft.taskSelection,
+          localStartTime: draft.startTime,
+          localEndTime: draft.endTime,
+          startDate: draft.date,
+          endDate: draft.repeatUntil,
+          recurrence: draft.recurrence,
           timezone,
-          description: entryDraft.description || undefined,
-          isBillable: entryDraft.isBillable
+          description: draft.description || undefined,
+          isBillable: draft.isBillable
         });
       } else {
         const body = {
-          taskId: entryDraft.taskSelection,
+          taskId: draft.taskSelection,
           startTime,
           endTime,
-          description: entryDraft.description || undefined,
-          isBillable: entryDraft.isBillable
+          description: draft.description || undefined,
+          isBillable: draft.isBillable
         };
-        if (editingLog) {
-          await timelogMutations.update(editingLog.id, body);
+        if (editing) {
+          await timelogMutations.update(editing.id, body);
         } else {
           await timelogMutations.create(body);
         }
       }
-      closeEntryDialog();
-      toast.success(editingLog ? "Time entry updated!" : "Time entry created!");
+      toast.success(editing ? "Time entry updated!" : "Time entry created!");
+      return true;
     } catch (saveError) {
       const message = saveError instanceof Error ? saveError.message : "Could not save entry";
-      setEntryError(message);
+      if (editing) setEntryError(message);
+      else setQuickAddError(message);
       toast.error(message);
+      return false;
     } finally {
+      entrySavingRef.current = false;
       setEntrySaving(false);
     }
+  }
+
+  async function saveEntry() {
+    if (!entryDraft) return;
+    const ok = await persistEntry(entryDraft, editingLog);
+    if (ok) closeEntryDialog();
+  }
+
+  async function createFromQuickAdd(draft: TimeEntryDraft) {
+    const ok = await persistEntry(draft, null);
+    if (ok) setQuickAddResetKey((key) => key + 1);
   }
 
   function deleteEntry(log: TimeLogDto) {
@@ -371,6 +403,20 @@ export function PersonalTimeTrackerPage() {
           </>
         }
       />
+
+      {!isImpersonating ? (
+        <TimeTrackerQuickAddBar
+          projects={projects}
+          tasks={tasks}
+          categories={categories}
+          timezone={timezone}
+          resetKey={quickAddResetKey}
+          saving={entrySaving && !entryDialogOpen}
+          error={quickAddError}
+          onClearError={() => setQuickAddError(null)}
+          onSubmit={(draft) => void createFromQuickAdd(draft)}
+        />
+      ) : null}
 
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
@@ -429,11 +475,16 @@ export function PersonalTimeTrackerPage() {
             <Filter className="size-4" /> Filters
             {activeFilterCount ? <Badge>{activeFilterCount}</Badge> : null}
           </Button>
-          {!isImpersonating ? (
-            <Button type="button" onClick={openEntryDialog}>
-              <Plus className="size-4" /> Add Entry
-            </Button>
-          ) : null}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={toggleAnalyticsVisible}
+            aria-pressed={analyticsVisible}
+            aria-label={analyticsVisible ? "Hide analytics" : "Show analytics"}
+          >
+            {analyticsVisible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            Analytics
+          </Button>
         </div>
         {filtersOpen ? (
           <TimeTrackerFiltersPanel
@@ -498,7 +549,12 @@ export function PersonalTimeTrackerPage() {
         onCancel={() => setConfirmDeleteLog(null)}
       />
 
-      <TimeTrackerStatCards stats={stats} loading={loading || search.trim() !== debouncedSearch} />
+      {analyticsVisible ? (
+        <TimeTrackerStatCards
+          stats={stats}
+          loading={loading || search.trim() !== debouncedSearch}
+        />
+      ) : null}
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
       <TimeTrackerWeekList

@@ -29,8 +29,10 @@ test.describe("UPS-05C unified member parity", () => {
     await expect(page.getByRole("button", { name: "Filters" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Export" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Import" })).toBeVisible();
-    await page.getByRole("button", { name: "Add Entry" }).click();
-    await expect(page.getByRole("dialog").getByRole("heading", { name: "Log time" })).toBeVisible();
+    await expect(page.getByRole("form", { name: "Quick add time entry" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Add entry" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Analytics/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Add Entry" })).toHaveCount(0);
     await expect(page).toHaveURL(/\/time-tracker$/);
   });
 

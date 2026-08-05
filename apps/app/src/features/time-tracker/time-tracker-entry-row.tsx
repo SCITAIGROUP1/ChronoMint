@@ -3,7 +3,7 @@
 import type { ProjectDto, TaskDto, TimeLogDto } from "@kloqra/contracts";
 import { ProjectColorDot, TableCell, TableRow } from "@kloqra/ui";
 import { toDateKeyInZone } from "./calendar-utils";
-import { formatEntryShortDate } from "./display-format";
+import { formatEntryShortDate, formatEntryTimeRange } from "./display-format";
 import { resolveEntryApprovalStatus } from "./entry-approval-status";
 import { formatHoursCompact } from "./group-logs-by-week";
 import { TimeTrackerEntryStatus } from "./time-tracker-entry-status";
@@ -30,6 +30,7 @@ export function AdminTimeTrackerEntryRow({
   const approval = resolveEntryApprovalStatus(log, project, new Map());
   const entryDate = new Date(log.startTime);
   const dateLabel = formatEntryShortDate(entryDate, timezone);
+  const timeRange = formatEntryTimeRange(log.startTime, log.endTime, timezone);
 
   return (
     <TableRow className="group border-b border-border/60 last:border-0 hover:bg-muted/30 transition-colors">
@@ -57,8 +58,18 @@ export function AdminTimeTrackerEntryRow({
       <TableCell className="max-w-[260px] truncate py-3.5 text-sm text-muted-foreground">
         {log.description || "—"}
       </TableCell>
-      <TableCell className="whitespace-nowrap py-3.5 tabular-nums text-sm font-semibold text-foreground">
-        {formatHoursCompact(log.durationSec)}
+      <TableCell className="whitespace-nowrap py-3.5 text-sm">
+        <div className="flex flex-col items-end gap-0.5">
+          <span className="tabular-nums font-semibold text-foreground">
+            {formatHoursCompact(log.durationSec)}
+          </span>
+          <span
+            className="tabular-nums text-xs text-muted-foreground"
+            aria-label={`Time range ${timeRange}`}
+          >
+            {timeRange}
+          </span>
+        </div>
       </TableCell>
       <TableCell className="py-3.5">
         <TimeTrackerEntryStatus approval={approval} isBillable={log.isBillable} />

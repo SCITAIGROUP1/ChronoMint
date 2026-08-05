@@ -2,6 +2,7 @@
 import type * as WebSharedModule from "@kloqra/web-shared";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ANALYTICS_VISIBLE_KEY } from "./analytics-visibility";
 import { PersonalTimeTrackerPage } from "./personal-time-tracker-page";
 
 const create = vi.fn();
@@ -63,11 +64,43 @@ vi.mock("./use-time-tracker-logs", () => ({
 }));
 vi.mock("./time-tracker-export-modal", () => ({ TimeTrackerExportModal: () => null }));
 vi.mock("./time-tracker-import-modal", () => ({ TimeTrackerImportModal: () => null }));
-vi.mock("./time-tracker-stat-cards", () => ({ TimeTrackerStatCards: () => null }));
 vi.mock("./time-tracker-filters-panel", () => ({ TimeTrackerFiltersPanel: () => null }));
 vi.mock("./time-tracker-week-list", () => ({
   TimeTrackerWeekList: () => <div data-testid="week-list">Week list</div>,
   formatVisibleWeeksSummary: () => ""
+}));
+vi.mock("./time-tracker-quick-add-bar", () => ({
+  TimeTrackerQuickAddBar: ({
+    onSubmit,
+    saving
+  }: {
+    onSubmit: (draft: Record<string, unknown>) => void;
+    saving?: boolean;
+  }) => (
+    <form
+      aria-label="Quick add time entry"
+      onSubmit={(event) => {
+        event.preventDefault();
+        void onSubmit({
+          projectId: "project-1",
+          taskSelection: "task-1",
+          date: "2026-06-12",
+          startTime: "09:00",
+          endTime: "09:30",
+          description: "",
+          isBillable: true,
+          recurrence: "none"
+        });
+      }}
+    >
+      <button type="submit" disabled={saving}>
+        Add entry
+      </button>
+    </form>
+  )
+}));
+vi.mock("./time-tracker-stat-cards", () => ({
+  TimeTrackerStatCards: () => <div data-testid="analytics-cards">Analytics</div>
 }));
 vi.mock("@/hooks/use-is-impersonating", () => ({ useIsImpersonating: () => false }));
 vi.mock("@/stores/session.store", () => ({
@@ -85,58 +118,25 @@ vi.mock("@/features/timesheet/validate-time-entry-overlap", () => ({
   validateTimeEntryOverlap: vi.fn().mockResolvedValue(null)
 }));
 vi.mock("@/features/timesheet/timesheet-lazy", () => ({
-  TimeEntryDialog: ({
-    open,
-    draft,
-    projects,
-    tasks,
-    onDraftChange,
-    onSave
-  }: {
-    open: boolean;
-    draft: Record<string, unknown> | null;
-    projects: { name: string }[];
-    tasks: { taskName: string }[];
-    onDraftChange: (draft: Record<string, unknown>) => void;
-    onSave: () => void;
-  }) =>
-    open && draft ? (
-      <div role="dialog" aria-label="Log time">
-        <span>{projects[0]?.name}</span>
-        <span>{tasks[0]?.taskName}</span>
-        <button
-          type="button"
-          onClick={() =>
-            onDraftChange({ ...draft, projectId: "project-1", taskSelection: "task-1" })
-          }
-        >
-          Choose assigned task
-        </button>
-        <button type="button" onClick={onSave}>
-          Save entry
-        </button>
-      </div>
-    ) : null
+  TimeEntryDialog: () => null
 }));
 
-describe("PersonalTimeTrackerPage Add Entry", () => {
+describe("PersonalTimeTrackerPage", () => {
   beforeEach(() => {
+    window.localStorage.clear();
     create.mockReset().mockResolvedValue({ id: "log-1" });
     refresh.mockClear();
     api.mockClear();
   });
   afterEach(cleanup);
 
-  it("opens the self-scoped time entry dialog and refreshes its mounted list after create", async () => {
+  it("creates from the flush quick-add bar and refreshes the mounted list", async () => {
     render(<PersonalTimeTrackerPage />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Add Entry" }));
-    expect(screen.getByRole("dialog", { name: "Log time" })).toBeTruthy();
-    expect(screen.getByText("Assigned project")).toBeTruthy();
-    expect(screen.getByText("Assigned task")).toBeTruthy();
+    expect(screen.getByRole("form", { name: "Quick add time entry" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Add Entry" })).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "Choose assigned task" }));
-    fireEvent.click(screen.getByRole("button", { name: "Save entry" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add entry" }));
 
     await waitFor(() =>
       expect(create).toHaveBeenCalledWith(
@@ -150,5 +150,36 @@ describe("PersonalTimeTrackerPage Add Entry", () => {
     expect(refresh).toHaveBeenCalledTimes(1);
     expect(mutationOptions.listPaths).toEqual(["/timelogs?scope=mine"]);
     expect(api).not.toHaveBeenCalled();
+  });
+
+  it("ignores a second create while the first is still in flight", async () => {
+    let resolveCreate: ((value: { id: string }) => void) | undefined;
+    create.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveCreate = resolve;
+        })
+    );
+    render(<PersonalTimeTrackerPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Add entry" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add entry" }));
+
+    await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
+    resolveCreate?.({ id: "log-1" });
+    await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1));
+  });
+
+  it("toggles analytics cards and persists preference", async () => {
+    render(<PersonalTimeTrackerPage />);
+    expect(screen.queryByTestId("analytics-cards")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Show analytics" }));
+    expect(screen.getByTestId("analytics-cards")).toBeTruthy();
+    expect(window.localStorage.getItem(ANALYTICS_VISIBLE_KEY)).toBe("true");
+
+    fireEvent.click(screen.getByRole("button", { name: "Hide analytics" }));
+    expect(screen.queryByTestId("analytics-cards")).toBeNull();
+    expect(window.localStorage.getItem(ANALYTICS_VISIBLE_KEY)).toBe("false");
   });
 });

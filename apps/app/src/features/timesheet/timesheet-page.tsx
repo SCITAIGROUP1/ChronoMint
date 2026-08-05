@@ -31,7 +31,7 @@ import {
 import { Clock, Eye, EyeOff, Lock, X } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { CalendarTaskInfo } from "./calendar-entry-content";
 import {
@@ -67,6 +67,7 @@ import {
   draftToIsoRange,
   type TimeEntryDraft
 } from "./time-entry-draft";
+import { clearTimeEntryDraftStorageFor } from "./time-entry-draft-storage";
 import { TimeEntryDialog, TimesheetCalendar, TimesheetMonth } from "./timesheet-lazy";
 import { validateTimeEntryOverlap } from "./validate-time-entry-overlap";
 import { countActionableSubmissions } from "@/features/submissions/use-my-submissions";
@@ -195,6 +196,7 @@ export function TimesheetPage() {
   const [editingLog, setEditingLog] = useState<TimeLogDto | null>(null);
   const [draft, setDraft] = useState<TimeEntryDraft | null>(null);
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmDeleteLog, setConfirmDeleteLog] = useState<TimeLogDto | null>(null);
 
@@ -433,10 +435,10 @@ export function TimesheetPage() {
     );
   }, [logsQueryError]);
 
-  // Patch the mounted list cache path, then refetch that query once (no global storm).
+  // Patch the mounted list cache path; do not block UI on a full list refetch.
   const timelogMutations = useTimelogMutations(ws, {
-    onLocalRefresh: async () => {
-      await refetchLogs();
+    onLocalRefresh: () => {
+      void refetchLogs();
     },
     listPaths: [logsPath]
   });
@@ -547,6 +549,7 @@ export function TimesheetPage() {
   }
 
   function closeDialog() {
+    clearTimeEntryDraftStorageFor(ws, editingLog?.id ?? null);
     setDialogOpen(false);
     setEditingLog(null);
     setDraft(null);
@@ -555,6 +558,7 @@ export function TimesheetPage() {
 
   async function saveEntry() {
     if (isImpersonating) return;
+    if (savingRef.current) return;
     if (editingLog && isEntryReadOnly(editingLog)) return;
     if (!draft || !canSaveTaskDraft(draft)) {
       setError("Select a project and a task.");
@@ -568,15 +572,16 @@ export function TimesheetPage() {
       return;
     }
     const isRecurring = !editingLog && draft.recurrence && draft.recurrence !== "none";
-    const overlapMsg = await validateTimeEntryOverlap(ws, start, end, timezone, editingLog?.id);
-    if (overlapMsg) {
-      setError(overlapMsg);
-      toast.error(overlapMsg);
-      return;
-    }
+    savingRef.current = true;
     setSaving(true);
     setError(null);
     try {
+      const overlapMsg = await validateTimeEntryOverlap(ws, start, end, timezone, editingLog?.id);
+      if (overlapMsg) {
+        setError(overlapMsg);
+        toast.error(overlapMsg);
+        return;
+      }
       const taskId = draft.taskSelection;
       if (!taskId) {
         setError("Select a task to log time.");
@@ -585,12 +590,10 @@ export function TimesheetPage() {
       if (isRecurring) {
         if (!draft.repeatUntil) {
           setError("Please select an end date for the recurrence.");
-          setSaving(false);
           return;
         }
         if (!draft.recurrence || draft.recurrence === "none") {
           setError("Select a recurrence pattern.");
-          setSaving(false);
           return;
         }
         const body = {
@@ -634,6 +637,7 @@ export function TimesheetPage() {
       setError(msg);
       toast.error(msg);
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
@@ -692,8 +696,10 @@ export function TimesheetPage() {
         description: log.description ?? undefined,
         isBillable: log.isBillable
       });
-      openDraft(draftFromLog(created, tasks, timezone), created);
       toast.success("Time entry duplicated!");
+      startTransition(() => {
+        openDraft(draftFromLog(created, tasks, timezone), created);
+      });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Could not duplicate entry";
       setError(msg);
