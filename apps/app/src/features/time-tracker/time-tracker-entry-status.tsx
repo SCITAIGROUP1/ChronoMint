@@ -37,7 +37,7 @@ export function TimeTrackerEntryStatus({
   const isLocked = approval.status === "SUBMITTED" || approval.status === "APPROVED";
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
+    <div className="flex shrink-0 flex-nowrap items-center gap-1">
       {isLocked ? (
         <Badge
           variant="outline"

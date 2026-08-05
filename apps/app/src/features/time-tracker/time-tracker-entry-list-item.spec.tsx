@@ -23,7 +23,7 @@ const log: TimeLogDto = {
 describe("TimeTrackerEntryListItem", () => {
   afterEach(cleanup);
 
-  it("shows read-only start–end times beside duration", () => {
+  it("shows start–end and duration on a single compact row", () => {
     render(
       <TimeTrackerEntryListItem
         log={log}

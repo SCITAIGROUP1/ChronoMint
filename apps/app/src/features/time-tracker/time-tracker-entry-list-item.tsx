@@ -61,20 +61,17 @@ function EntryTimeMeta({
 }) {
   const range = formatEntryTimeRange(log.startTime, log.endTime, timezone);
   return (
-    <div className="flex shrink-0 flex-col items-end gap-0.5">
+    <div className="flex shrink-0 items-center gap-2 tabular-nums">
+      <span className="text-xs text-muted-foreground" aria-label={`Time range ${range}`}>
+        {range}
+      </span>
       <span
         className={cn(
-          "text-sm font-semibold tabular-nums",
+          "min-w-[2.75rem] text-right text-sm font-semibold",
           inactive ? "text-muted-foreground" : "text-foreground"
         )}
       >
         {formatHoursDecimal(log.durationSec)}
-      </span>
-      <span
-        className="text-xs tabular-nums text-muted-foreground"
-        aria-label={`Time range ${range}`}
-      >
-        {range}
       </span>
     </div>
   );
@@ -93,26 +90,16 @@ export function AdminTimeTrackerEntryListItem({
   const detailLine = adminDetailLine(memberName, task?.taskName, log.description);
 
   return (
-    <div className="group border-b border-border/50 px-3 py-3 transition-colors last:border-0 hover:bg-muted/20 sm:px-5 sm:py-3.5">
-      <div className="flex items-start gap-2.5 sm:gap-3">
-        <ProjectColorDot color={entryColor} className="mt-1 shrink-0" />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-                <p className="text-sm font-semibold leading-snug text-foreground sm:truncate">
-                  {projectName}
-                </p>
-                <TimeTrackerEntryStatus approval={approval} isBillable={log.isBillable} />
-              </div>
-            </div>
-            <EntryTimeMeta log={log} timezone={timezone} />
-          </div>
-          <p className="mt-1 line-clamp-2 text-sm leading-snug text-muted-foreground sm:mt-0.5 sm:truncate">
-            {detailLine}
-          </p>
-        </div>
+    <div className="group flex items-center gap-2.5 border-b border-border/50 px-3 py-2 transition-colors last:border-0 hover:bg-muted/20 sm:gap-3 sm:px-5">
+      <ProjectColorDot color={entryColor} className="shrink-0" />
+      <div className="flex min-w-0 flex-1 items-baseline gap-1.5 overflow-hidden">
+        <p className="shrink-0 truncate text-sm font-semibold text-foreground">{projectName}</p>
+        {detailLine ? (
+          <p className="min-w-0 truncate text-sm text-muted-foreground">{detailLine}</p>
+        ) : null}
       </div>
+      <TimeTrackerEntryStatus approval={approval} isBillable={log.isBillable} />
+      <EntryTimeMeta log={log} timezone={timezone} />
     </div>
   );
 }
@@ -138,62 +125,41 @@ export function TimeTrackerEntryListItem({
   return (
     <div
       className={cn(
-        "group border-b border-border/50 px-3 py-3 transition-colors last:border-0 sm:px-5 sm:py-3.5",
+        "group flex items-center gap-2.5 border-b border-border/50 px-3 py-2 transition-colors last:border-0 sm:gap-3 sm:px-5",
         inactive ? "bg-muted/50 hover:bg-muted/50" : "hover:bg-muted/20"
       )}
     >
-      <div className="flex items-start gap-2.5 sm:gap-3">
-        <ProjectColorDot
-          color={entryColor}
-          className={cn("mt-1 shrink-0", inactive && "opacity-60")}
-        />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-                <p
-                  className={cn(
-                    "text-sm font-semibold leading-snug sm:truncate",
-                    inactive ? "text-muted-foreground" : "text-foreground"
-                  )}
-                >
-                  {projectName}
-                </p>
-                {inactive ? (
-                  <span title="Read-only — project, category, or task is inactive">
-                    <Lock
-                      className="size-3.5 shrink-0 text-muted-foreground"
-                      aria-label="Inactive"
-                    />
-                  </span>
-                ) : null}
-                <TimeTrackerEntryStatus approval={approval} isBillable={log.isBillable} />
-              </div>
-            </div>
-            <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
-              <EntryTimeMeta log={log} timezone={timezone} inactive={inactive} />
-              {!readOnly && !inactive ? (
-                <TimeTrackerEntryActions
-                  log={log}
-                  locked={locked}
-                  onEdit={onEdit}
-                  onDelete={onDelete}
-                />
-              ) : null}
-            </div>
-          </div>
-          {detailLine ? (
-            <p
-              className={cn(
-                "mt-1 line-clamp-2 text-sm leading-snug sm:mt-0.5 sm:truncate",
-                inactive ? "text-muted-foreground/90" : "text-muted-foreground"
-              )}
-            >
-              {detailLine}
-            </p>
-          ) : null}
-        </div>
+      <ProjectColorDot color={entryColor} className={cn("shrink-0", inactive && "opacity-60")} />
+      <div className="flex min-w-0 flex-1 items-baseline gap-1.5 overflow-hidden">
+        <p
+          className={cn(
+            "shrink-0 truncate text-sm font-semibold",
+            inactive ? "text-muted-foreground" : "text-foreground"
+          )}
+        >
+          {projectName}
+        </p>
+        {detailLine ? (
+          <p
+            className={cn(
+              "min-w-0 truncate text-sm",
+              inactive ? "text-muted-foreground/90" : "text-muted-foreground"
+            )}
+          >
+            {detailLine}
+          </p>
+        ) : null}
       </div>
+      {inactive ? (
+        <span title="Read-only — project, category, or task is inactive">
+          <Lock className="size-3.5 shrink-0 text-muted-foreground" aria-label="Inactive" />
+        </span>
+      ) : null}
+      <TimeTrackerEntryStatus approval={approval} isBillable={log.isBillable} />
+      <EntryTimeMeta log={log} timezone={timezone} inactive={inactive} />
+      {!readOnly && !inactive ? (
+        <TimeTrackerEntryActions log={log} locked={locked} onEdit={onEdit} onDelete={onDelete} />
+      ) : null}
     </div>
   );
 }
