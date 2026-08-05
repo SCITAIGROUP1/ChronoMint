@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 test("tenant owner sees organization rollup on account overview", async ({ page }) => {
   await page.goto("/account");
-  await expect(page.getByRole("heading", { name: /account overview/i })).toBeVisible({
+  await expect(page.getByRole("heading", { name: /organization summary/i })).toBeVisible({
     timeout: 30_000
   });
 

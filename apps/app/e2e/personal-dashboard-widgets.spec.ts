@@ -6,7 +6,11 @@ test.describe("restored personal dashboard widgets", () => {
 
   test.beforeEach(async ({ page }) => {
     await loginAsMember(page);
-    await page.goto("/dashboard");
+    // Personal widgets live on Overview (My time), not the management Dashboard.
+    await page.goto("/overview");
+    await expect(page.getByRole("heading", { name: "Overview", exact: true })).toBeVisible({
+      timeout: 30_000
+    });
   });
 
   test("shows the restored personal widgets without horizontal overflow", async ({ page }) => {
@@ -17,7 +21,7 @@ test.describe("restored personal dashboard widgets", () => {
       "My Category Split",
       "My Today’s Logs"
     ]) {
-      await expect(page.getByText(name, { exact: true })).toBeVisible();
+      await expect(page.getByText(name, { exact: true })).toBeVisible({ timeout: 15_000 });
     }
 
     await page.setViewportSize({ width: 375, height: 812 });

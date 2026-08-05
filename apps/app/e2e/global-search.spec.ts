@@ -22,7 +22,7 @@ test.describe("Admin global search", () => {
 
   test("opens command palette with keyboard shortcut", async ({ page }) => {
     await openGlobalSearch(page);
-    await expect(page.getByText("Pages")).toBeVisible();
+    await expect(page.getByText("Pages · Workspace")).toBeVisible();
     await expect(page.getByRole("option", { name: "Projects", exact: true })).toBeVisible();
   });
 

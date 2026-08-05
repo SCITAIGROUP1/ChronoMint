@@ -2,20 +2,15 @@ import { test, expect, type Page } from "@playwright/test";
 import { SEED } from "./constants/seed";
 import { loginAsAdmin, loginAsOrganizationAdmin } from "./helpers/auth";
 import {
+  appSidebar,
   appSidebarUserLink,
   clickAppSidebarLink,
   clickSettingsNavSection,
+  expandSidebarIfCollapsed,
   waitForAppShell,
   waitForProfilePage,
   waitForSettingsPage
 } from "./helpers/shell";
-
-async function expandSidebarIfCollapsed(page: Page) {
-  const expand = page.getByRole("button", { name: "Expand sidebar" });
-  if (await expand.isVisible()) {
-    await expand.click();
-  }
-}
 
 async function openContextSwitcher(page: Page) {
   await expandSidebarIfCollapsed(page);
@@ -31,9 +26,12 @@ test.describe("App navigation by role", () => {
     await expect(page.getByRole("link", { name: /Kloqra/ }).first()).toBeVisible({
       timeout: 30_000
     });
-    await expect(page.getByRole("link", { name: "Dashboard" }).first()).toBeVisible();
-    await expect(page.getByText("Workspace").first()).toBeVisible();
-    await expect(page.getByText("My time").first()).toBeVisible();
+    await expandSidebarIfCollapsed(page);
+    const sidebar = appSidebar(page);
+    await expect(sidebar.getByRole("link", { name: "Dashboard" })).toBeVisible();
+    // Section labels are hidden while the compact-laptop sidebar is collapsed.
+    await expect(sidebar.getByText("Workspace", { exact: true })).toBeVisible();
+    await expect(sidebar.getByText("My time", { exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "Subscription" })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Organization", exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Owner · Workspace admin/i })).toBeVisible();
