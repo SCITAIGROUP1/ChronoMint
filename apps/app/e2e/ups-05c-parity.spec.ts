@@ -30,9 +30,10 @@ test.describe("UPS-05C unified member parity", () => {
     await expect(page.getByRole("button", { name: "Export" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Import" })).toBeVisible();
     await expect(page.getByRole("form", { name: "Quick add time entry" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Add entry" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Add entry", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: /Analytics/i })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Add Entry" })).toHaveCount(0);
+    // Playwright role names are case-insensitive unless exact — assert no title-case AppBar CTA.
+    await expect(page.getByRole("button", { name: "Add Entry", exact: true })).toHaveCount(0);
     await expect(page).toHaveURL(/\/time-tracker$/);
   });
 
