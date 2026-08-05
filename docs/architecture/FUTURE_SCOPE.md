@@ -1,6 +1,8 @@
 # Future scope (Phase 3+)
 
-Platform and integration ideas that are **not** on the near-term product roadmap. For admin/client features (approvals, budgets, client portal, etc.), see [PRODUCT_ROADMAP.md](./PRODUCT_ROADMAP.md).
+Platform and integration ideas that are **not** on the near-term product roadmap. For unified
+customer-product features (approvals, budgets, external client access, etc.), see
+[PRODUCT_ROADMAP.md](./PRODUCT_ROADMAP.md).
 
 ## Integrations & platform
 

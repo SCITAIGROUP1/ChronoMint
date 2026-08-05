@@ -29,7 +29,7 @@ describe("Auth E2E", () => {
   it("POST /auth/register returns 403", async () => {
     const res = await request(app.getHttpServer())
       .post("/auth/register")
-      .set("X-Auth-Scope", "client")
+      .set("X-Auth-Scope", "app")
       .send({
         email: "newuser@example.com",
         password: "password123",
@@ -57,7 +57,7 @@ describe("Auth E2E", () => {
   it("GET /auth/me returns authenticated user", async () => {
     const session = await loginAs(app, "member@kloqra.dev");
     const res = await authedAgent(app, session).get("/auth/me");
-    expect(res.status).toBe(200);
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
     expect(res.body.user.id).toBeTruthy();
     expect(res.body.user.name).toBeTruthy();
     expect(res.body.user.email).toBeUndefined();
@@ -74,7 +74,7 @@ describe("Auth E2E", () => {
   it("POST /auth/refresh rotates session with scoped cookie", async () => {
     const loginRes = await request(app.getHttpServer())
       .post("/auth/login")
-      .set("X-Auth-Scope", "client")
+      .set("X-Auth-Scope", "app")
       .send({ email: "member@kloqra.dev", password: "password123" });
     expect(loginRes.status).toBe(201);
     const cookies = setCookieHeaders(loginRes.headers);
@@ -82,7 +82,7 @@ describe("Auth E2E", () => {
 
     const refreshRes = await request(app.getHttpServer())
       .post("/auth/refresh")
-      .set("X-Auth-Scope", "client")
+      .set("X-Auth-Scope", "app")
       .set("Cookie", cookies);
     expect(refreshRes.status).toBe(201);
     expect(refreshRes.body.accessToken).toBeTruthy();
@@ -91,44 +91,79 @@ describe("Auth E2E", () => {
     expect(refreshRes.body.user.email).toBeUndefined();
   });
 
+  it("supports unified app login and refresh cookies", async () => {
+    const loginRes = await request(app.getHttpServer())
+      .post("/auth/login")
+      .set("X-Auth-Scope", "app")
+      .send({ email: "member@kloqra.dev", password: "password123" });
+    expect(loginRes.status).toBe(201);
+    const cookies = setCookieHeaders(loginRes.headers);
+    expect(cookies.some((cookie) => cookie.startsWith("refresh_token="))).toBe(true);
+
+    const refreshRes = await request(app.getHttpServer())
+      .post("/auth/refresh")
+      .set("X-Auth-Scope", "app")
+      .set("Cookie", cookies);
+    expect(refreshRes.status).toBe(201);
+    expect(refreshRes.body.accessToken).toBeTruthy();
+    expect(refreshRes.body.capabilities).toContain("personal:ManageTimer");
+  });
+
+  it("rejects an obsolete admin refresh cookie", async () => {
+    const loginRes = await request(app.getHttpServer())
+      .post("/auth/login")
+      .set("X-Auth-Scope", "app")
+      .send({ email: "admin@kloqra.dev", password: "password123" });
+    const cookies = setCookieHeaders(loginRes.headers);
+    const refreshCookie = cookies.find((cookie) => cookie.startsWith("refresh_token="));
+    expect(refreshCookie).toBeTruthy();
+    const rawRefresh = refreshCookie!.split(";")[0]!.split("=")[1]!;
+
+    const refreshRes = await request(app.getHttpServer())
+      .post("/auth/refresh")
+      .set("X-Auth-Scope", "app")
+      .set("Cookie", [`refresh_token_admin=${rawRefresh}`]);
+    expect(refreshRes.status).toBe(401);
+  });
+
   it("POST /auth/refresh returns grace response for duplicate in-flight reuse", async () => {
     const loginRes = await request(app.getHttpServer())
       .post("/auth/login")
-      .set("X-Auth-Scope", "client")
+      .set("X-Auth-Scope", "app")
       .send({ email: "admin@kloqra.dev", password: "password123" });
     const cookies = setCookieHeaders(loginRes.headers);
-    const refreshCookie = cookies.find((c) => c.startsWith("refresh_token_client="));
+    const refreshCookie = cookies.find((c) => c.startsWith("refresh_token="));
     expect(refreshCookie).toBeTruthy();
     const rawRefresh = refreshCookie!.split(";")[0]!.split("=")[1]!;
 
     const first = await request(app.getHttpServer())
       .post("/auth/refresh")
-      .set("X-Auth-Scope", "client")
+      .set("X-Auth-Scope", "app")
       .set("Cookie", cookies);
     expect(first.status).toBe(201);
 
     const second = await request(app.getHttpServer())
       .post("/auth/refresh")
-      .set("X-Auth-Scope", "client")
-      .set("Cookie", [`refresh_token_client=${rawRefresh}`]);
+      .set("X-Auth-Scope", "app")
+      .set("Cookie", [`refresh_token=${rawRefresh}`]);
     expect(second.status).toBe(201);
     expect(second.body.accessToken).toBeTruthy();
     expect(second.body.refreshToken).toBeTruthy();
     const secondCookies = setCookieHeaders(second.headers);
-    expect(secondCookies.some((cookie) => cookie.startsWith("refresh_token_client="))).toBe(true);
+    expect(secondCookies.some((cookie) => cookie.startsWith("refresh_token="))).toBe(true);
   });
 
   it("POST /auth/refresh accepts refresh token in request body", async () => {
     const loginRes = await request(app.getHttpServer())
       .post("/auth/login")
-      .set("X-Auth-Scope", "client")
+      .set("X-Auth-Scope", "app")
       .send({ email: "member@kloqra.dev", password: "password123" });
     expect(loginRes.status).toBe(201);
     expect(loginRes.body.refreshToken).toBeTruthy();
 
     const refreshRes = await request(app.getHttpServer())
       .post("/auth/refresh")
-      .set("X-Auth-Scope", "client")
+      .set("X-Auth-Scope", "app")
       .send({ refreshToken: loginRes.body.refreshToken });
     expect(refreshRes.status).toBe(201);
     expect(refreshRes.body.accessToken).toBeTruthy();

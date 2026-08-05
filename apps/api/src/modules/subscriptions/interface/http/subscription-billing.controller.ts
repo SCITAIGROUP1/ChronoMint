@@ -11,10 +11,10 @@ import {
   CurrentUser,
   type RequestUser
 } from "../../../../common/decorators/current-user.decorator";
-import { TenantRoles } from "../../../../common/decorators/tenant-roles.decorator";
+import { RequirePermission } from "../../../../common/decorators/require-permission.decorator";
 import { TenantScoped } from "../../../../common/decorators/tenant-scoped.decorator";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
-import { TenantRolesGuard } from "../../../../common/guards/tenant-roles.guard";
+import { PermissionGuard } from "../../../../common/guards/permission.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
 import { isBillingSimulated } from "../../application/billing-mode.util";
 import { SubscriptionBillingService } from "../../application/subscription-billing.service";
@@ -22,15 +22,18 @@ import { SubscriptionsService } from "../../application/subscriptions.service";
 
 @Controller()
 @TenantScoped()
-@UseGuards(JwtAuthGuard, TenantRolesGuard)
+@UseGuards(JwtAuthGuard, PermissionGuard)
 export class SubscriptionBillingController {
   constructor(
     private billing: SubscriptionBillingService,
     private subscriptions: SubscriptionsService
   ) {}
 
-  @TenantRoles("OWNER")
   @Patch(ROUTES.TENANTS.SUBSCRIPTION)
+  @RequirePermission("tenant:ManageBilling", {
+    scope: "tenant",
+    tenantId: { source: "session", field: "tenantId" }
+  })
   changePlan(
     @CurrentUser() user: RequestUser,
     @Body(new ZodValidationPipe(changeSubscriptionPlanSchema)) body: ChangeSubscriptionPlanDto
@@ -44,8 +47,11 @@ export class SubscriptionBillingController {
     return this.subscriptions.changePlan(user.tenantId, body.planSlug);
   }
 
-  @TenantRoles("OWNER")
   @Post(ROUTES.TENANTS.CHECKOUT)
+  @RequirePermission("tenant:ManageBilling", {
+    scope: "tenant",
+    tenantId: { source: "session", field: "tenantId" }
+  })
   createCheckout(
     @CurrentUser() user: RequestUser,
     @Body(new ZodValidationPipe(createCheckoutSessionSchema)) body: CreateCheckoutSessionDto
@@ -53,8 +59,11 @@ export class SubscriptionBillingController {
     return this.billing.createCheckoutSession(user.tenantId, body);
   }
 
-  @TenantRoles("OWNER")
   @Post(ROUTES.TENANTS.PORTAL)
+  @RequirePermission("tenant:ManageBilling", {
+    scope: "tenant",
+    tenantId: { source: "session", field: "tenantId" }
+  })
   createPortal(@CurrentUser() user: RequestUser) {
     return this.billing.createPortalSession(user.tenantId);
   }

@@ -4,6 +4,7 @@ import { ThemeProvider } from "next-themes";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
 import { useBfCacheSessionReconcile } from "../auth/bfcache-session-reconcile";
+import { configuredAuthScope } from "../auth/configured-auth-scope";
 import { bootstrapTokenSchedulerFromStorage } from "../auth/refresh-session";
 import { initCrossTabSessionReconcile } from "../auth/session-token-reconcile";
 import { themeStorageKey } from "../hooks/theme-storage";
@@ -12,7 +13,7 @@ import { usePlatformSessionStore } from "../stores/platform-session.store";
 import { useSessionStore } from "../stores/session.store";
 import { ThemePreferenceSync } from "./theme-preference-sync";
 
-const AUTH_SCOPE = process.env.NEXT_PUBLIC_AUTH_SCOPE?.trim() || "app";
+const AUTH_SCOPE = configuredAuthScope(process.env.NEXT_PUBLIC_AUTH_SCOPE, "app");
 
 function SessionAwareThemeProvider({ children }: { children: ReactNode }) {
   const tenantUserId = useSessionStore((state) => state.session?.user?.id ?? null);

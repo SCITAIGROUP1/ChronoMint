@@ -13,6 +13,13 @@ function mockWorkspaceDataRealtime() {
   return { publishStaleToUsers: vi.fn().mockResolvedValue(undefined) };
 }
 
+function mockAuthorization() {
+  return {
+    evaluate: vi.fn().mockResolvedValue({ allowed: false }),
+    assertAllowed: vi.fn().mockResolvedValue({ allowed: true })
+  };
+}
+
 describe("TimelogsService listOccupancy", () => {
   let service: TimelogsService;
   let mockPrisma: {
@@ -37,20 +44,21 @@ describe("TimelogsService listOccupancy", () => {
       {} as never,
       mockTimesheetLock as never,
       {} as never,
+      mockAuthorization() as never,
       mockSubscriptions() as never,
       mockWorkspaceDataRealtime() as never
     );
   });
 
-  it("rejects admin role", async () => {
+  it("allows workspace admins to read their own occupancy", async () => {
+    mockPrisma.timeLog.findMany.mockResolvedValue([]);
+
     await expect(
-      service.listOccupancy("user-1", "ADMIN", {
+      service.listOccupancy("user-1", {
         from: "2025-01-01T00:00:00.000Z",
         to: "2025-01-08T00:00:00.000Z"
       })
-    ).rejects.toSatisfy(
-      (err: unknown) => err instanceof DomainException && err.getStatus() === 403
-    );
+    ).resolves.toEqual({ items: [] });
   });
 
   it("maps logs to occupancy items with labels", async () => {
@@ -86,7 +94,7 @@ describe("TimelogsService listOccupancy", () => {
       }
     ]);
 
-    const res = await service.listOccupancy("user-1", "MEMBER", {
+    const res = await service.listOccupancy("user-1", {
       from: "2025-01-01T00:00:00.000Z",
       to: "2025-01-08T00:00:00.000Z"
     });
@@ -137,6 +145,7 @@ describe("TimelogsService list", () => {
       {} as never,
       {} as never,
       {} as never,
+      mockAuthorization() as never,
       mockSubscriptions() as never,
       mockWorkspaceDataRealtime() as never
     );
@@ -251,6 +260,7 @@ describe("TimelogsService assertNoOverlap", () => {
       {} as never,
       {} as never,
       {} as never,
+      mockAuthorization() as never,
       mockSubscriptions() as never,
       mockWorkspaceDataRealtime() as never
     );
@@ -291,7 +301,7 @@ describe("TimelogsService assertNoOverlap", () => {
 });
 
 describe("TimelogAuditService", () => {
-  const audit = new TimelogAuditService({} as never);
+  const audit = new TimelogAuditService({} as never, mockAuthorization() as never);
 
   it("snapshotFromLog serializes log fields for audit diffs", () => {
     const log = {
@@ -343,6 +353,7 @@ describe("TimelogsService resolveBillable", () => {
       {} as never,
       {} as never,
       {} as never,
+      mockAuthorization() as never,
       mockSubscriptions() as never,
       mockWorkspaceDataRealtime() as never
     );
@@ -405,6 +416,7 @@ describe("TimelogsService createBatch", () => {
       mockAudit as any,
       mockTimesheetLock as any,
       mockAccess as any,
+      mockAuthorization() as any,
       mockSubscriptions() as any,
       mockWorkspaceDataRealtime() as any
     );
@@ -565,5 +577,239 @@ describe("TimelogsService createBatch", () => {
     expect(res.skippedCount).toBe(1);
     expect(res.skipped[0]?.date).toBe("2026-06-15");
     expect(res.skipped[0]?.reason).toContain("Locked");
+  });
+});
+
+describe("TimelogsService update timer entry", () => {
+  it("converts a timer-created entry to manual when edited", async () => {
+    const startTime = new Date("2026-06-09T13:00:00.000Z");
+    const endTime = new Date("2026-06-09T14:00:00.000Z");
+    const updatedEndTime = new Date("2026-06-09T14:30:00.000Z");
+    const log = {
+      id: "log-1",
+      userId: "user-1",
+      taskId: "task-1",
+      startTime,
+      endTime,
+      durationSec: 3600,
+      description: "Timer work",
+      isBillable: true,
+      source: "timer",
+      task: {
+        projectId: "project-1",
+        isActive: true,
+        category: { isActive: true },
+        project: { isActive: true }
+      }
+    };
+    const updated = {
+      ...log,
+      endTime: updatedEndTime,
+      durationSec: 5400,
+      description: "Updated timer work",
+      source: "manual"
+    };
+    const timeLogFindFirst = vi.fn().mockResolvedValueOnce(log).mockResolvedValueOnce(null);
+    const timeLogUpdate = vi.fn().mockResolvedValue(updated);
+    const prisma = {
+      timeLog: { findFirst: timeLogFindFirst, update: timeLogUpdate },
+      task: {
+        findUniqueOrThrow: vi.fn().mockResolvedValue({
+          id: "task-1",
+          projectId: "project-1",
+          billableDefault: true
+        })
+      },
+      $transaction: vi.fn().mockImplementation(async (fn: any) => fn(prisma))
+    };
+    const audit = {
+      snapshotFromLog: vi.fn().mockReturnValue({}),
+      recordEvent: vi.fn().mockResolvedValue(undefined)
+    };
+    const timesheetLock = {
+      assertPeriodEditable: vi.fn().mockResolvedValue(undefined)
+    };
+    const access = {
+      assertCanLogTask: vi.fn().mockResolvedValue(undefined),
+      manageableProjectIds: vi.fn().mockResolvedValue([])
+    };
+    const reportCache = { invalidateWorkspace: vi.fn().mockResolvedValue(undefined) };
+    const realtime = mockWorkspaceDataRealtime();
+    const service = new TimelogsService(
+      prisma as never,
+      reportCache as never,
+      audit as never,
+      timesheetLock as never,
+      access as never,
+      mockAuthorization() as never,
+      mockSubscriptions() as never,
+      realtime as never
+    );
+
+    const result = await service.update("workspace-1", "user-1", "MEMBER", "log-1", {
+      endTime: updatedEndTime.toISOString(),
+      description: "Updated timer work"
+    });
+
+    expect(timeLogUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ source: "manual" })
+      })
+    );
+    expect(result).toMatchObject({
+      id: "log-1",
+      source: "manual",
+      durationSec: 5400,
+      description: "Updated timer work"
+    });
+    expect(timesheetLock.assertPeriodEditable).toHaveBeenCalled();
+    expect(audit.recordEvent).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({ action: "UPDATE" })
+    );
+  });
+
+  it("keeps timer source when only non-time fields are edited", async () => {
+    const startTime = new Date("2026-06-09T13:00:00.000Z");
+    const endTime = new Date("2026-06-09T14:00:00.000Z");
+    const log = {
+      id: "log-1",
+      userId: "user-1",
+      taskId: "task-1",
+      startTime,
+      endTime,
+      durationSec: 3600,
+      description: "Timer work",
+      isBillable: true,
+      source: "timer",
+      task: {
+        projectId: "project-1",
+        isActive: true,
+        category: { isActive: true },
+        project: { isActive: true }
+      }
+    };
+    const updated = { ...log, description: "Updated timer work" };
+    const timeLogFindFirst = vi.fn().mockResolvedValueOnce(log).mockResolvedValueOnce(null);
+    const timeLogUpdate = vi.fn().mockResolvedValue(updated);
+    const prisma = {
+      timeLog: { findFirst: timeLogFindFirst, update: timeLogUpdate },
+      task: {
+        findUniqueOrThrow: vi.fn().mockResolvedValue({
+          id: "task-1",
+          projectId: "project-1",
+          billableDefault: true
+        })
+      },
+      $transaction: vi.fn().mockImplementation(async (fn: any) => fn(prisma))
+    };
+    const audit = {
+      snapshotFromLog: vi.fn().mockReturnValue({}),
+      recordEvent: vi.fn().mockResolvedValue(undefined)
+    };
+    const timesheetLock = {
+      assertPeriodEditable: vi.fn().mockResolvedValue(undefined)
+    };
+    const access = {
+      assertCanLogTask: vi.fn().mockResolvedValue(undefined),
+      manageableProjectIds: vi.fn().mockResolvedValue([])
+    };
+    const reportCache = { invalidateWorkspace: vi.fn().mockResolvedValue(undefined) };
+    const realtime = mockWorkspaceDataRealtime();
+    const service = new TimelogsService(
+      prisma as never,
+      reportCache as never,
+      audit as never,
+      timesheetLock as never,
+      access as never,
+      mockAuthorization() as never,
+      mockSubscriptions() as never,
+      realtime as never
+    );
+
+    const result = await service.update("workspace-1", "user-1", "MEMBER", "log-1", {
+      description: "Updated timer work"
+    });
+
+    expect(timeLogUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.not.objectContaining({ source: expect.anything() })
+      })
+    );
+    expect(result).toMatchObject({
+      id: "log-1",
+      source: "timer",
+      description: "Updated timer work"
+    });
+  });
+});
+
+describe("TimelogsService ownership isolation", () => {
+  function createService(findFirst: ReturnType<typeof vi.fn>) {
+    return new TimelogsService(
+      { timeLog: { findFirst } } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      mockAuthorization() as never,
+      mockSubscriptions() as never,
+      mockWorkspaceDataRealtime() as never
+    );
+  }
+
+  it("denies a member editing another member's timelog", async () => {
+    const authorization = mockAuthorization();
+    const service = new TimelogsService(
+      {
+        timeLog: {
+          findFirst: vi.fn().mockResolvedValue({
+            id: "log-1",
+            userId: "other-user",
+            task: {
+              projectId: "project-1",
+              category: { isActive: true },
+              project: { isActive: true }
+            }
+          })
+        }
+      } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      authorization as never,
+      mockSubscriptions() as never,
+      mockWorkspaceDataRealtime() as never
+    );
+
+    await expect(
+      service.update("workspace-1", "member-1", "MEMBER", "log-1", {})
+    ).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof DomainException &&
+        error.code === ErrorCodes.FORBIDDEN &&
+        error.getStatus() === HttpStatus.FORBIDDEN
+    );
+    expect(authorization.assertAllowed).not.toHaveBeenCalled();
+  });
+
+  it("does not resolve a timelog from another workspace", async () => {
+    const findFirst = vi.fn().mockResolvedValue(null);
+    const service = createService(findFirst);
+
+    await expect(
+      service.update("workspace-1", "member-1", "MEMBER", "foreign-log", {})
+    ).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof DomainException &&
+        error.code === ErrorCodes.NOT_FOUND &&
+        error.getStatus() === HttpStatus.NOT_FOUND
+    );
+    expect(findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "foreign-log", task: { project: { workspaceId: "workspace-1" } } }
+      })
+    );
   });
 });

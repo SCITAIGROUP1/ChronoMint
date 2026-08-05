@@ -55,7 +55,7 @@ describe("JwtAuthGuard", () => {
   it("throws token_expired when bearer is expired and no valid cookie", async () => {
     jwtTokens.isTokenExpired.mockReturnValue(true);
     const req = {
-      headers: { authorization: "Bearer expired-bearer", "x-auth-scope": "client" },
+      headers: { authorization: "Bearer expired-bearer", "x-auth-scope": "app" },
       cookies: {}
     };
     await expect(guard.canActivate(contextWithReq(req) as never)).rejects.toThrow(
@@ -78,7 +78,8 @@ describe("JwtAuthGuard", () => {
       tenantId: "t1",
       workspaceId: "ws1",
       role: "MEMBER",
-      family: "fam-1"
+      family: "fam-1",
+      issuedAtMs: 1234
     });
     jwtTokens.toRequestUser.mockReturnValue({
       userId: "u1",
@@ -87,12 +88,12 @@ describe("JwtAuthGuard", () => {
       role: "MEMBER"
     });
     const req = {
-      headers: { authorization: "Bearer expired-bearer", "x-auth-scope": "client" },
-      cookies: { access_token_client: "valid-cookie" }
+      headers: { authorization: "Bearer expired-bearer", "x-auth-scope": "app" },
+      cookies: { access_token: "valid-cookie" }
     };
     await expect(guard.canActivate(contextWithReq(req) as never)).resolves.toBe(true);
-    expect(jwtTokens.verifyAccessToken).toHaveBeenCalledWith("valid-cookie", "client");
-    expect(authRevocation.assertNotRevoked).toHaveBeenCalledWith("u1", "fam-1");
+    expect(jwtTokens.verifyAccessToken).toHaveBeenCalledWith("valid-cookie", "app");
+    expect(authRevocation.assertNotRevoked).toHaveBeenCalledWith("u1", "fam-1", 1234);
   });
 
   it("rejects revoked sessions", async () => {
@@ -109,7 +110,7 @@ describe("JwtAuthGuard", () => {
       })
     );
     const req = {
-      headers: { authorization: "Bearer valid", "x-auth-scope": "client" },
+      headers: { authorization: "Bearer valid", "x-auth-scope": "app" },
       cookies: {}
     };
     await expect(guard.canActivate(contextWithReq(req) as never)).rejects.toThrow(
@@ -127,7 +128,7 @@ describe("JwtAuthGuard", () => {
     });
     prisma.workspace.findUnique.mockResolvedValue({ tenantId: "t-other" });
     const req = {
-      headers: { authorization: "Bearer valid", "x-auth-scope": "client" },
+      headers: { authorization: "Bearer valid", "x-auth-scope": "app" },
       cookies: {}
     };
     await expect(guard.canActivate(contextWithReq(req) as never)).rejects.toMatchObject({
@@ -146,7 +147,7 @@ describe("JwtAuthGuard", () => {
     const req = {
       headers: {
         authorization: "Bearer valid",
-        "x-auth-scope": "client",
+        "x-auth-scope": "app",
         "x-workspace-id": "ws-other"
       },
       cookies: {}
@@ -166,7 +167,7 @@ describe("JwtAuthGuard", () => {
     });
     reflector.getAllAndOverride.mockReturnValue(false);
     const req = {
-      headers: { authorization: "Bearer valid", "x-auth-scope": "admin" },
+      headers: { authorization: "Bearer valid", "x-auth-scope": "app" },
       cookies: {}
     };
     await expect(guard.canActivate(contextWithReq(req) as never)).rejects.toMatchObject({
@@ -187,7 +188,7 @@ describe("JwtAuthGuard", () => {
     });
     reflector.getAllAndOverride.mockImplementation((key: string) => key === TENANT_SCOPED_KEY);
     const req = {
-      headers: { authorization: "Bearer valid", "x-auth-scope": "admin" },
+      headers: { authorization: "Bearer valid", "x-auth-scope": "app" },
       cookies: {}
     };
     await expect(guard.canActivate(contextWithReq(req) as never)).resolves.toBe(true);

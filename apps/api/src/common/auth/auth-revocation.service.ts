@@ -38,13 +38,22 @@ export class AuthRevocationService {
   }
 
   async revokeUser(userId: string): Promise<void> {
-    await this.redis.getClient().setex(this.userKey(userId), accessTtlSeconds(), "1");
+    await this.redis
+      .getClient()
+      .setex(this.userKey(userId), accessTtlSeconds(), String(Date.now()));
   }
 
-  async assertNotRevoked(userId: string, familyId?: string): Promise<void> {
+  async assertNotRevoked(userId: string, familyId?: string, issuedAtMs?: number): Promise<void> {
     const client = this.redis.getClient();
     const userRevoked = await client.get(this.userKey(userId));
-    if (userRevoked) {
+    const revokedAtMs = userRevoked ? Number(userRevoked) : Number.NaN;
+    const userTokenRevoked =
+      Boolean(userRevoked) &&
+      (userRevoked === "1" ||
+        !Number.isFinite(revokedAtMs) ||
+        issuedAtMs == null ||
+        issuedAtMs <= revokedAtMs);
+    if (userTokenRevoked) {
       throw new UnauthorizedException({
         code: ErrorCodes.UNAUTHORIZED,
         message: "Session revoked",

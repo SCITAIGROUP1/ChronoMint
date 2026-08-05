@@ -2,7 +2,8 @@
 
 ## User-visible outcome
 
-- **Admins** open global search from anywhere in the admin app via **⌘K** (Mac) / **Ctrl+K** (Windows/Linux) or a header search affordance.
+- Authorized users open global search from the unified product via **⌘K** (Mac) / **Ctrl+K**
+  (Windows/Linux) or a header search affordance.
 - Results are grouped: **Pages**, **Projects**, **Tasks**, **Categories**, **People**.
 - Selecting a result navigates to the correct admin destination and closes the palette.
 - With an empty query, **Pages** lists all sidebar destinations (quick jump).
@@ -10,7 +11,7 @@
 
 ## Scope and exclusions
 
-- Admin app only (`apps/admin`); no client/member surface.
+- Unified product (`apps/app`); results and navigation are capability-filtered.
 - Scoped to the active workspace from session; no cross-workspace search.
 - No free-text search on approvals, notifications, billing, or exports in v1.
 - Clients are not a separate entity; project `clientName` matches via project search.
@@ -77,8 +78,8 @@ When a group returns more than five hits, a **View all** row links to the list p
 ## UI
 
 - Entry: search trigger in admin shell toolbar (search icon + “Search…” hint with ⌘K badge).
-- Feature: [`apps/admin/src/features/global-search/`](../../apps/admin/src/features/global-search/)
-- Nav config: [`apps/admin/src/config/admin-nav.ts`](../../apps/admin/src/config/admin-nav.ts)
+- Feature: [`apps/app/src/features/global-search/`](../../apps/app/src/features/global-search/)
+- Nav config: [`apps/app/src/config/app-nav.ts`](../../apps/app/src/config/app-nav.ts)
 
 ## Edge cases
 
@@ -93,4 +94,4 @@ When a group returns more than five hits, a **View all** row links to the list p
 - Timesheet/approval text search.
 - Wire ignored `search` on notifications and billing list endpoints.
 - Recent searches (localStorage).
-- Client app parity (out of scope).
+- Broader member-result parity (out of scope).

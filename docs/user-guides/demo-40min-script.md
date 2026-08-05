@@ -3,7 +3,7 @@
 Presenter guide for product + engineering audiences. Covers live product flows, architecture, engineering discipline, and **agentic-assisted development**.
 
 **Duration:** 40 minutes (+ 5–10 min Q&A optional)  
-**Format:** Two-browser live demo (member + admin) + IDE/repo walkthrough
+**Format:** Two-browser live demo (two personas, one product) + IDE/repo walkthrough
 
 ---
 
@@ -11,8 +11,7 @@ Presenter guide for product + engineering audiences. Covers live product flows, 
 
 | Item                           | Value                                                            |
 | ------------------------------ | ---------------------------------------------------------------- |
-| Client                         | http://localhost:3000                                            |
-| Admin                          | http://localhost:3002                                            |
+| Unified product                | http://localhost:3000                                            |
 | API                            | http://localhost:3001                                            |
 | API docs (Swagger)             | http://localhost:3001/api/docs                                   |
 | Test hub                       | `pnpm test:dashboard` → http://localhost:9321                    |
@@ -32,17 +31,18 @@ Presenter guide for product + engineering audiences. Covers live product flows, 
 ```bash
 pnpm install
 pnpm serve:docker    # or pnpm serve:native
-pnpm dev:all         # API :3001, client :3000, admin :3002
+pnpm dev:api         # API :3001
+pnpm --filter @kloqra/app dev # unified product :3000
 ```
 
 - [ ] `GET http://localhost:3001/health` returns OK
 - [ ] Redis running (or `REDIS_USE_MEMORY=true` — realtime works single-process only)
-- [ ] Seed applied: projects visible in admin; member sees assigned tasks
+- [ ] Seed applied: management projects visible; member sees assigned tasks
 
 ### Browsers
 
-- [ ] **Browser A:** member session on client
-- [ ] **Browser B:** admin session on admin
+- [ ] **Browser A:** member session on the unified product
+- [ ] **Browser B:** workspace-admin session on the same product URL
 - [ ] Member tab: DevTools → Network → filter **WS** → confirm `…/notifications` after login
 - [ ] Bell icon shows connection indicator when socket live
 
@@ -55,7 +55,7 @@ pnpm dev:all         # API :3001, client :3000, admin :3002
 
 ### Fallback assets if live demo fails
 
-- [ ] `apps/client/e2e/submissions.spec.ts` recording or Playwright report
+- [ ] `apps/app/e2e/member-personal-routes.spec.ts` recording or Playwright report
 - [ ] `.cursor/plans/websocket_notifications_guide.plan.md` (realtime diagram)
 - [ ] `docs/architecture/CONTEXT.md` mermaid diagram
 
@@ -67,8 +67,8 @@ pnpm dev:all         # API :3001, client :3000, admin :3002
 | ----- | --------------------------- | ------------- |
 | 0–3   | Hook & positioning          | Talk          |
 | 3–8   | Architecture & completeness | Talk + IDE    |
-| 8–16  | Member app (client)         | Live          |
-| 16–24 | Admin app                   | Live          |
+| 8–16  | Member experience           | Live          |
+| 16–24 | Management experience       | Live          |
 | 24–30 | Technical deep dive         | IDE + diagram |
 | 30–35 | Engineering discipline      | Talk + CI     |
 | 35–40 | Agentic development         | IDE + story   |
@@ -80,7 +80,10 @@ pnpm dev:all         # API :3001, client :3000, admin :3002
 
 ### Opening line
 
-> **Kloqra is a time analytics engine for agencies and product teams** — not a standalone timer. Members capture time with low friction; admins enforce accountability through approvals and turn hours into billing-ready exports. One API, two role-specific apps, built as a contract-first monorepo with production CI and agent-assisted delivery.
+> **Kloqra is a time analytics engine for agencies and product teams** — not a standalone timer.
+> Members capture time with low friction; project and workspace managers enforce accountability
+> through approvals and turn hours into billing-ready exports. One API and one capability-driven
+> customer product, built as a contract-first monorepo with production CI and agent-assisted delivery.
 
 ### Problem → solution (30 sec)
 
@@ -107,15 +110,15 @@ pnpm dev:all         # API :3001, client :3000, admin :3002
 
 ### Stack slide / talk track
 
-| Layer          | Technology                                  | Why                                                         |
-| -------------- | ------------------------------------------- | ----------------------------------------------------------- |
-| API            | NestJS 10, Prisma, PostgreSQL 16            | Vertical slices, typed ORM, migrations                      |
-| Cache / queues | Redis, BullMQ                               | Timer state, export jobs, notification pub/sub, rate limits |
-| Client         | Next.js 15 App Router, Zustand, Tailwind v4 | Member UX                                                   |
-| Admin          | Next.js 15 App Router                       | Operator UX — separate deploy                               |
-| Contracts      | Zod in `@kloqra/contracts`                  | Single source of truth for routes + DTOs                    |
-| UI             | `@kloqra/ui`                                | Shared tables, modals, design system                        |
-| Shared logic   | `@kloqra/web-shared`                        | Auth, API client, realtime, hooks                           |
+| Layer           | Technology                                  | Why                                                         |
+| --------------- | ------------------------------------------- | ----------------------------------------------------------- |
+| API             | NestJS 10, Prisma, PostgreSQL 16            | Vertical slices, typed ORM, migrations                      |
+| Cache / queues  | Redis, BullMQ                               | Timer state, export jobs, notification pub/sub, rate limits |
+| Unified product | Next.js 15 App Router, Zustand, Tailwind v4 | Member, PM, workspace, and tenant experiences               |
+| Platform admin  | Next.js 15 App Router                       | Isolated internal operations                                |
+| Contracts       | Zod in `@kloqra/contracts`                  | Single source of truth for routes + DTOs                    |
+| UI              | `@kloqra/ui`                                | Shared tables, modals, design system                        |
+| Shared logic    | `@kloqra/web-shared`                        | Auth, API client, realtime, hooks                           |
 
 ### Monorepo map (show tree)
 
@@ -123,8 +126,8 @@ pnpm dev:all         # API :3001, client :3000, admin :3002
 ChronoMint/
 ├── apps/
 │   ├── api/           # NestJS — sole write path to PostgreSQL
-│   ├── client/        # MEMBER app (:3000)
-│   ├── admin/         # ADMIN app (:3002)
+│   ├── app/           # unified customer product (:3000)
+│   ├── platform-admin/# isolated internal operations (:3003)
 │   └── assistant-api/ # FastAPI — internal LLM service (optional)
 ├── packages/
 │   ├── contracts/     # routes.ts + dto/*.ts (Zod)
@@ -150,7 +153,7 @@ Each follows: `domain/` → `application/` → `infrastructure/` → `interface/
 
 1. **Contract-first** — change `packages/contracts` before API or UI
 2. **REST is truth, push is hint** — WebSocket sends invalidation scopes; pages REST-refetch
-3. **Member privacy** — client never shows org revenue totals or peer rankings
+3. **Member privacy** — member capabilities never expose org revenue totals or peer rankings
 4. **Manual ledger before automation** — time logs + approvals are authoritative; Jira/AI overlay
 
 ### Completeness statement
@@ -161,7 +164,7 @@ Point to **`docs/api/ROUTES.md`** — 200+ lines cataloging every route with con
 
 ---
 
-## 8–16 min — Member app (client)
+## 8–16 min — Member experience
 
 **Login:** `member@kloqra.dev` → confirm workspace **Acme Corporation**
 
@@ -186,7 +189,7 @@ Point to **`docs/api/ROUTES.md`** — 200+ lines cataloging every route with con
 - Auto-stop policy (stale timer dialog) — mention if visible in seed
 - Optional: link Jira issue on entry (`GET /jira/my-issues`)
 
-**Files:** `apps/client/src/features/timer/timer-page.tsx` · `apps/api/src/modules/timer/`
+**Files:** `apps/app/src/features/timer/timer-page.tsx` · `apps/api/src/modules/timer/`
 
 ---
 
@@ -210,7 +213,7 @@ Point to **`docs/api/ROUTES.md`** — 200+ lines cataloging every route with con
 - `POST /timelogs/batch` — recurring entries
 - Amendment flow when period already submitted
 
-**Files:** `apps/client/src/features/timesheet/timesheet-page.tsx` · `docs/specs/timelogs.md`
+**Files:** `apps/app/src/features/timesheet/timesheet-page.tsx` · `docs/specs/timelogs.md`
 
 ---
 
@@ -260,7 +263,10 @@ Point to **`docs/api/ROUTES.md`** — 200+ lines cataloging every route with con
 
 **Say (script):**
 
-> We don’t push full timesheet JSON over the socket — that would duplicate REST and go stale. We push a **small notification** plus **which caches to invalidate**. The client refetches via HTTP. PostgreSQL remains source of truth. If the socket drops, a 60-second poll keeps the bell roughly correct; reconnect triggers a broad catch-up refetch.
+> We don’t push full timesheet JSON over the socket — that would duplicate REST and go stale. We
+> push a **small notification** plus **which caches to invalidate**. The product refetches via HTTP.
+> PostgreSQL remains source of truth. If the socket drops, a 60-second poll keeps the bell roughly
+> correct; reconnect triggers a broad catch-up refetch.
 
 **Architecture (verbal):**
 
@@ -299,7 +305,7 @@ Pick **one** — don’t rush all:
 
 ---
 
-## 16–24 min — Admin app
+## 16–24 min — Management experience
 
 **Login:** `admin@kloqra.dev`
 
@@ -388,15 +394,15 @@ Pick **one** — don’t rush all:
 
 ---
 
-### Admin power features (pick 1 if ahead of schedule)
+### Management power features (pick 1 if ahead of schedule)
 
-| Feature              | How to show                                   | Technical                                   |
-| -------------------- | --------------------------------------------- | ------------------------------------------- |
-| Global search        | `Cmd+K` / palette                             | `docs/specs/global-search.md`               |
-| Impersonation        | Admin → view as member (read-only client)     | `apps/client/e2e/impersonation.spec.ts`     |
-| Jira                 | Workspace settings → credentials              | `apps/api/src/modules/jira/`                |
-| Public reporting API | Settings → API keys                           | `docs/api/public-reporting-client-guide.md` |
-| Workspace settings   | `/workspace` — timezone, week start, rounding | `Workspace.settings` JSON                   |
+| Feature              | How to show                                   | Technical                                     |
+| -------------------- | --------------------------------------------- | --------------------------------------------- |
+| Global search        | `Cmd+K` / palette                             | `docs/specs/global-search.md`                 |
+| Capability contrast  | Sign in as member in Browser A                | `apps/app/e2e/member-personal-routes.spec.ts` |
+| Jira                 | Workspace settings → credentials              | `apps/api/src/modules/jira/`                  |
+| Public reporting API | Settings → API keys                           | `docs/api/public-reporting-client-guide.md`   |
+| Workspace settings   | `/workspace` — timezone, week start, rounding | `Workspace.settings` JSON                     |
 
 ---
 
@@ -408,13 +414,15 @@ Pick **one** — don’t rush all:
 
 **Show:**
 
-- Nested `ROUTES.TIMESHEETS.SUBMIT` etc. — same strings API + clients use
+- Nested `ROUTES.TIMESHEETS.SUBMIT` etc. — same strings API + product uses
 - Open `packages/contracts/src/dto/timesheet.dto.ts` — Zod schemas infer TypeScript types
 - Open `packages/contracts/src/notification-realtime.ts` — socket event + invalidate scopes
 
 **Say:**
 
-> Add a route here first. API controller and both Next apps import from `@kloqra/contracts`. Turbo builds packages before apps. Breaking changes fail typecheck across the monorepo.
+> Add a route here first. The API controller and unified product import from
+> `@kloqra/contracts`. Turbo builds packages before apps. Breaking changes fail typecheck across
+> the monorepo.
 
 ---
 
@@ -443,7 +451,8 @@ timelogs/
 - `POST /auth/login` → access JWT + httpOnly refresh cookie
 - Refresh rotation with grace window (`REFRESH_ROTATION_GRACE_MS`)
 - Every workspace route: `JwtAuthGuard` + `X-Workspace-Id`
-- Roles: `ADMIN` vs `MEMBER` — admin controllers gated
+- Managed tenant/workspace/project roles — central policy evaluator and scoped service checks
+- Role changes immediately reject access tokens issued before the change; refresh-family rows remain
 - 2FA: `POST /users/me/2fa/enable`
 - Production: `AUTH_COOKIE_SAME_SITE=none` for Vercel + Railway cross-site
 - Throttler on auth endpoints (`apps/api/src/main.ts`)
@@ -489,7 +498,7 @@ timelogs/
 - `apps/api/src/modules/notifications/interface/ws/notifications.gateway.ts`
 - `apps/api/src/modules/notifications/application/notifications-realtime.service.ts`
 - `packages/web-shared/src/realtime/notification-socket-manager.ts`
-- `apps/client/src/lib/workspace-data-sync.ts`
+- `apps/app/src/lib/workspace-data-sync.ts`
 
 **Intentional limits (shows maturity):**
 
@@ -506,27 +515,29 @@ timelogs/
 2. packages/contracts (+ failing spec)
 3. Failing tests (QA / TDD)
 4. apps/api module
-5. apps/client or apps/admin
+5. apps/app (unified customer product)
 6. TASK_BOARD.json + docs/agent/ROC.md
 7. pnpm format:check && lint && typecheck && test && build
 ```
 
 ### CI pipeline (show `.github/workflows/ci.yml` or diagram in `docs/architecture/ci-cd-pipeline.md`)
 
-| Job             | What it proves                                                  |
-| --------------- | --------------------------------------------------------------- |
-| **quality**     | Prettier, ESLint, TypeScript, Turbo build, client bundle budget |
-| **unit**        | Vitest + coverage artifacts (api, contracts, ui, web-shared)    |
-| **integration** | Postgres 16 + Redis 7, migrate, seed, Supertest e2e             |
-| **e2e**         | Playwright Chrome — admin + client against live API             |
+| Job             | What it proves                                                   |
+| --------------- | ---------------------------------------------------------------- |
+| **quality**     | Prettier, ESLint, TypeScript, Turbo build, product bundle budget |
+| **unit**        | Vitest + coverage artifacts (api, contracts, ui, web-shared)     |
+| **integration** | Postgres 16 + Redis 7, migrate, seed, Supertest e2e              |
+| **e2e**         | Playwright Chrome — unified persona coverage                     |
 
-**Deploy** (`.github/workflows/deploy.yml`): CI green on `main` → migrate → Railway API → health wait → Vercel client + admin → smoke checks.
+**Deploy** (`.github/workflows/deploy.yml`): CI green on `main` → migrate → Railway API → health
+wait → Vercel unified product → smoke checks.
 
 ### Test inventory (breadth = confidence)
 
-**Client e2e:** smoke · timesheet · submissions · time-tracker · dashboard · onboarding · profile · settings · assistant · impersonation
+**Unified-product e2e:** member personal routes · PM project scope · workspace/tenant operations ·
+timesheet · submissions · dashboard · onboarding · profile/settings · assistant
 
-**Admin e2e:** smoke · approvals · projects · billing · exports-quick · categories · global-search · team-management
+**Product e2e:** capability composition and direct-route authorization
 
 **Pre-commit:** Husky + lint-staged + `scripts/check-staged-has-tests.mjs` — code without tests blocked.
 
@@ -536,7 +547,7 @@ timelogs/
 | ------------------ | ------------------------------------------------------ |
 | Feature specs (14) | `docs/specs/*.md`                                      |
 | API catalog        | `docs/api/ROUTES.md`                                   |
-| User guides        | `docs/user-guides/member/` · `admin/` · `qa/`          |
+| User guides        | `docs/user-guides/member/` · `management/` · `qa/`     |
 | Runbooks           | `docs/runbooks/deploy.md` · `railway.md` · `vercel.md` |
 | Future plan        | `docs/architecture/KLOQRA_FUTURE_PLAN.md`              |
 
@@ -558,7 +569,7 @@ timelogs/
 | --------------------------------------- | ---------------------------------------------------------------------- |
 | `.cursor/rules/master-orchestrator.mdc` | Lead architect policy: contract-first, test-with-feature, MIP handoffs |
 | `.cursor/rules/role-be.mdc`             | BE agent may only touch `apps/api/src/`                                |
-| `.cursor/rules/role-fe.mdc`             | FE agent: `apps/client`, `apps/admin`, `packages/ui`                   |
+| `.cursor/rules/role-fe.mdc`             | FE agent: unified product + shared UI                                  |
 | `.cursor/rules/role-qa.mdc`             | QA agent: `*.spec.ts`, `e2e/` only                                     |
 | `.cursor/rules/contracts-gate.mdc`      | LSA owns `packages/contracts`                                          |
 | `.cursor/rules/testing-tdd.mdc`         | Tests required per layer                                               |
@@ -596,13 +607,13 @@ Parallel agents don’t conflict because **directory bounds** are enforced in ru
 
 | Step          | What agents did                                                                                |
 | ------------- | ---------------------------------------------------------------------------------------------- |
-| **Problem**   | Admin approves timesheet; member UI stale up to 60s                                            |
+| **Problem**   | Product approves timesheet; member UI stale up to 60s                                          |
 | **Spec**      | `docs/specs/notifications-realtime.md`                                                         |
 | **Contracts** | `notification-realtime.ts`, scopes enum, `project.approvalSettingsChanged` template            |
 | **API**       | `notifications.gateway.ts`, Redis publisher, hook in `createInApp`                             |
 | **Shared**    | `notification-socket-manager.ts`, `workspace-data-sync.ts`, `use-notification-socket.ts`       |
-| **Client**    | `workspace-shell.tsx`, `workspace-data-sync.ts`, page stale listeners                          |
-| **Tests**     | gateway spec, workspace-data-sync specs (client + web-shared), contracts spec                  |
+| **Product**   | `app-shell.tsx`, `workspace-data-sync.ts`, page stale listeners                                |
+| **Tests**     | gateway spec, workspace-data-sync specs (admin + web-shared), contracts spec                   |
 | **Plan**      | `.cursor/plans/websocket_notifications_guide.plan.md` — before/after, env vars, coverage table |
 | **Follow-up** | `tasks` scope for assign/unassign — same pattern, one PR                                       |
 
@@ -623,7 +634,7 @@ Parallel agents don’t conflict because **directory bounds** are enforced in ru
 
 ### Close (30 sec)
 
-> Kloqra demonstrates that a **small team + agent factory** can deliver production-grade B2B SaaS: dual apps, approval workflows, exports, realtime, partitioning, full CI — with documented scope and honest roadmap. Next step: H0 pilot customers on production.
+> Kloqra demonstrates that a **small team + agent factory** can deliver production-grade B2B SaaS: one capability-driven product, approval workflows, exports, realtime, partitioning, full CI — with documented scope and honest roadmap. Next step: H0 pilot customers on production.
 
 ---
 
@@ -687,7 +698,7 @@ Parallel agents don’t conflict because **directory bounds** are enforced in ru
 
 - [User guides hub](./README.md)
 - [Member getting started](./member/getting-started.md)
-- [Admin getting started](./admin/getting-started.md)
+- [Management getting started](./management/getting-started.md)
 - [Timesheet submissions and approval](./timesheet-submissions-and-approval.md)
 - [QA testing guide](./qa/testing-guide.md)
 - [Architecture context](../architecture/CONTEXT.md)

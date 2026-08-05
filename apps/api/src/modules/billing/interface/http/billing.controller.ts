@@ -6,6 +6,7 @@ import {
   ROUTES
 } from "@kloqra/contracts";
 import { Body, Controller, Get, Post, Query, UseGuards } from "@nestjs/common";
+import { RequirePermission } from "../../../../common/decorators/require-permission.decorator";
 import { Roles } from "../../../../common/decorators/roles.decorator";
 import {
   WorkspaceUser,
@@ -13,16 +14,20 @@ import {
 } from "../../../../common/decorators/workspace-user.decorator";
 import { CommercialFeaturesGuard } from "../../../../common/guards/commercial-features.guard";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
+import { PermissionGuard } from "../../../../common/guards/permission.guard";
 import { RolesGuard } from "../../../../common/guards/roles.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
 import { BillingService } from "../../application/billing.service";
 
 @Controller()
-@UseGuards(JwtAuthGuard, RolesGuard, CommercialFeaturesGuard)
+@UseGuards(JwtAuthGuard, PermissionGuard, CommercialFeaturesGuard)
 export class BillingController {
   constructor(private billing: BillingService) {}
 
-  @Roles("ADMIN")
+  @RequirePermission("workspace:ManageBillingRates", {
+    scope: "workspace",
+    workspaceId: { source: "session", field: "workspaceId" }
+  })
   @Get(ROUTES.BILLING.RATES)
   listRates(
     @WorkspaceUser() user: WorkspaceRequestUser,
@@ -31,7 +36,10 @@ export class BillingController {
     return this.billing.listRates(user.workspaceId, query);
   }
 
-  @Roles("ADMIN")
+  @RequirePermission("workspace:ManageBillingRates", {
+    scope: "workspace",
+    workspaceId: { source: "session", field: "workspaceId" }
+  })
   @Post(ROUTES.BILLING.RATES)
   createRate(
     @WorkspaceUser() user: WorkspaceRequestUser,
@@ -44,6 +52,7 @@ export class BillingController {
   }
 
   @Roles("ADMIN")
+  @UseGuards(RolesGuard)
   @Get(ROUTES.BILLING.SUMMARY)
   summary(
     @WorkspaceUser() user: WorkspaceRequestUser,

@@ -60,10 +60,12 @@ DTOs: [timesheet.dto.ts](../../packages/contracts/src/dto/timesheet.dto.ts)
 
 ## UI
 
-| App    | Route          | Feature folder                                                                       |
-| ------ | -------------- | ------------------------------------------------------------------------------------ |
-| Client | `/submissions` | [apps/client/src/features/submissions/](../../apps/client/src/features/submissions/) |
-| Admin  | `/approvals`   | [apps/admin/src/features/approvals/](../../apps/admin/src/features/approvals/)       |
+Both routes live in the unified product:
+
+| Capability              | Route          | Feature folder                                                                 |
+| ----------------------- | -------------- | ------------------------------------------------------------------------------ |
+| Own submissions         | `/submissions` | [apps/app/src/features/submissions/](../../apps/app/src/features/submissions/) |
+| Authorized review queue | `/approvals`   | [apps/app/src/features/approvals/](../../apps/app/src/features/approvals/)     |
 
 ## Given / When / Then
 

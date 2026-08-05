@@ -20,7 +20,7 @@ import {
   notifySalesInquiry,
   notifySalesReceiptUploaded
 } from "../../platform/application/platform-notifications.helper";
-import { resolvePublicAdminUrl } from "../admin-app-url.util";
+import { resolvePublicAppUrl } from "../app-url.util";
 import {
   BILLING_RECEIPT_ALLOWED_TYPES,
   BILLING_RECEIPT_MAX_BYTES,
@@ -42,7 +42,7 @@ export class SubscriptionSalesInquiryService {
   ) {}
 
   private billingUrl(): string {
-    return `${resolvePublicAdminUrl()}/account/billing`;
+    return `${resolvePublicAppUrl()}/account/billing`;
   }
 
   private inquiryInclude() {

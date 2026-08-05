@@ -9,9 +9,9 @@ export class ExportWorker extends WorkerHost {
     super();
   }
 
-  async process(job: Job<{ jobId: string }>): Promise<any> {
-    const { jobId } = job.data;
-    await this.exportJobService.runJob(jobId);
+  async process(job: Job<{ jobId: string; actorUserId: string }>): Promise<any> {
+    const { jobId, actorUserId } = job.data;
+    await this.exportJobService.runJob(jobId, actorUserId);
     return { ok: true, jobId };
   }
 }

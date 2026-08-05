@@ -79,11 +79,24 @@ describe("Project lead E2E", () => {
       );
     }
     expect(leadMember?.id).toBeTruthy();
+    if (leadMember.role === "PROJECT_MANAGER") {
+      const resetRoleRes = await authedAgent(app, adminSession)
+        .patch(`/projects/${ledProjectId}/team/members/${leadMember.id}`)
+        .send({ role: "MEMBER" });
+      expect(resetRoleRes.status).toBe(200);
+      leadSession = {
+        ...(await loginAs(app, leadEmail)),
+        workspaceId
+      };
+    }
 
     const roleRes = await authedAgent(app, adminSession)
       .patch(`/projects/${ledProjectId}/team/members/${leadMember.id}`)
       .send({ role: "PROJECT_MANAGER" });
     expect(roleRes.status).toBe(200);
+    const staleLeadSessionRes = await authedAgent(app, leadSession).get("/auth/me");
+    expect(staleLeadSessionRes.status).toBe(401);
+    expect(staleLeadSessionRes.body.details?.reason).toBe("session_revoked");
 
     const secondLedRes = await authedAgent(app, adminSession)
       .post("/projects")
@@ -136,6 +149,13 @@ describe("Project lead E2E", () => {
         .patch(`/projects/${otherProjectId}/team/members/${otherMember.id}`)
         .send({ role: "MEMBER" });
     }
+
+    // Role changes revoke existing sessions immediately; obtain a fresh
+    // capability snapshot before exercising project-manager authorization.
+    leadSession = {
+      ...(await loginAs(app, leadEmail)),
+      workspaceId
+    };
   });
 
   afterAll(async () => {

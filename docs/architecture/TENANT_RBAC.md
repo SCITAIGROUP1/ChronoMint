@@ -9,12 +9,12 @@
 
 Kloqra uses **four authorization layers**. Higher layers manage lower layers; **data isolation** is enforced at **workspace** and **tenant** boundaries.
 
-| Layer                 | Role(s)                      | App                                       |
-| --------------------- | ---------------------------- | ----------------------------------------- |
-| Platform              | Superadmin                   | `platform-admin`                          |
-| Tenant (Organization) | Owner                        | `admin` → **Account** mode (`/account/*`) |
-| Workspace             | Admin, Member                | `admin` / `client`                        |
-| Project               | Project Manager, Team member | `admin` (filtered) / `client`             |
+| Layer                 | Role(s)                      | Experience                                   |
+| --------------------- | ---------------------------- | -------------------------------------------- |
+| Platform              | Superadmin                   | Isolated `apps/platform-admin`               |
+| Tenant (Organization) | Owner, organization admin    | Unified product → `/account/*`               |
+| Workspace             | Admin, Member                | Unified product, capability-driven           |
+| Project               | Project Manager, Team member | Unified product, project-scoped capabilities |
 
 **Workspace roles** (`ADMIN` \| `MEMBER`) and **team roles** (`PROJECT_MANAGER` \| `MEMBER`) are defined in `@kloqra/contracts` (`common.dto`, `tenant-rbac.ts`).
 
@@ -39,7 +39,7 @@ Full action catalog: [platform-admin.md](../specs/platform-admin.md). Plan confi
 |             |                                                                                      |
 | ----------- | ------------------------------------------------------------------------------------ |
 | **Persona** | Agency principal / org owner                                                         |
-| **App**     | `admin` → Account home                                                               |
+| **App**     | Unified product (`apps/app`) → Account home                                          |
 | **DB**      | `tenant_members.role = OWNER`                                                        |
 | **Can**     | Create workspaces, assign workspace admins, subscription/billing (F13), org settings |
 | **Cannot**  | Auto-access every workspace’s ops unless also `workspace_members` row                |
@@ -49,7 +49,7 @@ Full action catalog: [platform-admin.md](../specs/platform-admin.md). Plan confi
 |             |                                                                                              |
 | ----------- | -------------------------------------------------------------------------------------------- |
 | **Persona** | Operations delegate for the organization                                                     |
-| **App**     | `admin` → Account mode (Workspaces, Workspace admins, Organization) + workspace mode         |
+| **App**     | Unified product → Account (Workspaces, Workspace admins, Organization) + workspace context   |
 | **Can**     | Org profile (`PATCH /tenants/current`), create workspaces, assign/manage workspace admins    |
 | **Cannot**  | Subscription/billing, data export, invite other organization admins, account overview rollup |
 
@@ -58,7 +58,7 @@ Full action catalog: [platform-admin.md](../specs/platform-admin.md). Plan confi
 |             |                                                                                    |
 | ----------- | ---------------------------------------------------------------------------------- |
 | **Persona** | Client or department manager                                                       |
-| **App**     | `admin` → Workspace mode (today’s admin)                                           |
+| **App**     | Unified product → workspace-management capabilities                                |
 | **Can**     | Projects, categories, approvals, exports, billing rates, team live                 |
 | **Scope**   | **One workspace** per membership; same person needs **separate row** per workspace |
 
@@ -67,7 +67,7 @@ Full action catalog: [platform-admin.md](../specs/platform-admin.md). Plan confi
 |             |                                                                     |
 | ----------- | ------------------------------------------------------------------- |
 | **Persona** | Project manager                                                     |
-| **App**     | `admin` with nav filtered to led projects                           |
+| **App**     | Unified product with navigation filtered to managed projects        |
 | **Can**     | Tasks, team invites, approvals **for assigned projects only** (F17) |
 | **Cannot**  | Workspace-wide billing, categories CRUD, create projects (v1)       |
 | **Note**    | Same user may be `PROJECT_MANAGER` on **multiple projects** (D06)   |
@@ -77,38 +77,48 @@ Full action catalog: [platform-admin.md](../specs/platform-admin.md). Plan confi
 |             |                                                    |
 | ----------- | -------------------------------------------------- |
 | **Persona** | Staff logging time                                 |
-| **App**     | `client`                                           |
+| **App**     | Unified product personal experience                |
 | **Can**     | Timer, timesheet, assigned projects, member export |
 | **Cannot**  | Admin aggregates, other members’ revenue           |
 
 ---
 
-## 3. Role hierarchy
+## 3. Assignment-authority relationships
+
+Roles are **assigned** at specific scopes — they are not inherited. The arrows below show who
+may grant a binding to whom, not data inheritance.
 
 ```mermaid
 flowchart TB
-  subgraph platform [Platform]
-    Superadmin[PlatformSuperadmin]
+  subgraph platform [Platform scope]
+    Superadmin["PLATFORM_SUPERADMIN\n(may grant: PLATFORM_SUPPORT)"]
+    Support[PLATFORM_SUPPORT]
   end
-  subgraph tenant [Tenant]
-    Owner[TenantOwner]
-    TenantAdmin[TenantAdmin_optional]
+  subgraph tenant [Tenant scope]
+    Owner["TENANT_OWNER\n(may grant: TENANT_ADMIN, WORKSPACE_ADMIN, WORKSPACE_MEMBER)"]
+    TenantAdmin["TENANT_ADMIN\n(may grant: WORKSPACE_ADMIN, WORKSPACE_MEMBER)"]
   end
-  subgraph ws [Workspace]
-    WsAdmin[WorkspaceAdmin]
-    Member[Member]
+  subgraph ws [Workspace scope]
+    WsAdmin["WORKSPACE_ADMIN\n(may grant: WORKSPACE_MEMBER, PROJECT_MANAGER)"]
+    Member[WORKSPACE_MEMBER]
   end
-  subgraph project [Project]
-    PM[ProjectManager]
-    TeamMember[TeamMember]
+  subgraph project [Project scope]
+    PM["PROJECT_MANAGER\n(may grant: nothing)"]
   end
-  Superadmin --> Owner
-  Owner --> TenantAdmin
-  Owner --> WsAdmin
-  WsAdmin --> PM
-  WsAdmin --> Member
-  PM --> TeamMember
+  Superadmin -->|grants| Support
+  Owner -->|grants| TenantAdmin
+  Owner -->|grants| WsAdmin
+  Owner -->|grants| Member
+  TenantAdmin -->|grants| WsAdmin
+  TenantAdmin -->|grants| Member
+  WsAdmin -->|grants| Member
+  WsAdmin -->|grants| PM
 ```
+
+> [!NOTE]
+> **Tenant ownership does not imply workspace operational access.** A `TENANT_OWNER` with no
+> `workspace_members` row cannot access workspace data — they require a separate membership.
+> The ROLE_GRANT_MATRIX in `packages/contracts/src/permissions.ts` is the machine-readable SSOT.
 
 ---
 
@@ -118,25 +128,24 @@ flowchart TB
 flowchart LR
   subgraph apps [Apps]
     PA[platform-admin]
-    AD[admin]
-    CL[client]
+    Product[apps/app unified product]
   end
   Superadmin --> PA
-  Owner --> AD
-  WsAdmin --> AD
-  PM --> AD
-  Member --> CL
-  AD --> Account[Account mode]
-  AD --> Workspace[Workspace mode]
+  Owner --> Product
+  WsAdmin --> Product
+  PM --> Product
+  Member --> Product
+  Product --> Account[Account capabilities]
+  Product --> Workspace[Workspace and personal capabilities]
 ```
 
-| App              | `NEXT_PUBLIC_AUTH_SCOPE` | Primary roles              |
-| ---------------- | ------------------------ | -------------------------- |
-| `platform-admin` | `platform` (new)         | Superadmin                 |
-| `admin`          | `admin`                  | Owner, workspace admin, PM |
-| `client`         | `client`                 | Member                     |
+| App                   | `NEXT_PUBLIC_AUTH_SCOPE` | Primary roles                                   |
+| --------------------- | ------------------------ | ----------------------------------------------- |
+| `apps/platform-admin` | `platform`               | Internal platform operations                    |
+| `apps/app`            | `app`                    | Member, PM, workspace admin, tenant owner/admin |
 
-**Admin shell:** Tenant owner lands on **Account** (`/account`); workspace operators land on **Workspace** (`/dashboard`, etc.). Use existing `LayoutShell` from `@kloqra/ui`.
+**Unified shell:** `/dashboard` composes personal and management widgets from effective
+capabilities. Tenant controls remain under `/account/*`. There is no member/admin mode switch.
 
 **Context orientation (admin):**
 
@@ -253,35 +262,45 @@ flowchart LR
 
 ## 9. Request authorization flow
 
+All authorization decisions flow through the central `AuthorizationPolicyService` evaluator.
+No direct role-string comparisons at controller level.
+
 ```mermaid
 flowchart TD
   Req[HTTP request] --> JwtGuard[JwtAuthGuard]
   JwtGuard --> PlatformRoute{Platform route?}
   PlatformRoute -->|yes| PlatformGuard[PlatformGuard]
-  PlatformRoute -->|no| TenantMember[Tenant membership]
-  TenantMember --> WsSwitch{Workspace context}
-  WsSwitch --> TenantMatch{workspace.tenantId matches user}
-  TenantMatch -->|no| Deny403[403]
-  TenantMatch -->|yes| SubGuard[SubscriptionWriteGuard]
-  SubGuard --> RolesGuard[RolesGuard workspace role]
-  RolesGuard --> ProjectCheck{Project-scoped action?}
-  ProjectCheck -->|yes| PMCheck[PROJECT_MANAGER or ADMIN]
-  ProjectCheck -->|no| Handler[Controller]
+  PlatformRoute -->|no| MalformedCheck{Resource context\nwell-formed?}
+  MalformedCheck -->|no| Deny400[malformed_context deny]
+  MalformedCheck -->|yes| IsolationCheck{Tenant isolation\npassed?}
+  IsolationCheck -->|no| Deny403a[tenant_isolation deny]
+  IsolationCheck -->|yes| AccountCheck{Account active +\nsubscription ok?}
+  AccountCheck -->|no| Deny403b[account_inactive /\nsubscription_blocked deny]
+  AccountCheck -->|yes| BindingEval[Evaluate managed-role bindings\nvia AuthorizationPolicyService]
+  BindingEval -->|match| Allow[Allow + log matchedPolicyVersion]
+  BindingEval -->|no match| DefaultDeny[default_deny 403]
 ```
 
-Implement in SaaS-F04, F05, F10, F17. Until then, existing `workspaceId` guards remain.
+**Evaluation order** (fixed):
+
+1. Malformed/unresolved context → deny
+2. Tenant isolation → deny
+3. Account inactive → deny
+4. Subscription blocked → deny
+5. Scoped managed-role allow → allow
+6. Default → deny
 
 ---
 
 ## 10. Combined personas
 
-| Person      | Memberships                                  | Apps                             |
-| ----------- | -------------------------------------------- | -------------------------------- |
-| **Alex**    | `OWNER` only                                 | Account                          |
-| **Sarah**   | `ADMIN` in Workspace Fabrikam + Contoso      | Admin, workspace switcher        |
-| **Mike**    | `MEMBER` + `PROJECT_MANAGER` on Project X, Y | Admin filtered + client for time |
-| **Jane**    | `MEMBER` in two workspaces                   | Client, switcher                 |
-| **Sarah+M** | `ADMIN` + `PROJECT_MANAGER` on one project   | Admin full in WS + PM on project |
+| Person      | Memberships                                      | Product experience                      |
+| ----------- | ------------------------------------------------ | --------------------------------------- |
+| **Alex**    | `OWNER` only                                     | Account capabilities                    |
+| **Sarah**   | `ADMIN` in two workspaces                        | Workspace management and switcher       |
+| **Mike**    | `MEMBER` + `PROJECT_MANAGER` on projects X and Y | Personal plus scoped project management |
+| **Jane**    | `MEMBER` in two workspaces                       | Personal workflows and switcher         |
+| **Sarah+M** | `ADMIN` + `PROJECT_MANAGER`                      | Workspace-wide management               |
 
 ---
 
@@ -303,11 +322,11 @@ Follow [FRONTEND-UI.md](../development/FRONTEND-UI.md) and [chronomint-fe-featur
 ### Layout
 
 ```
-apps/admin/src/app/(admin)/account/
+apps/app/src/app/(app)/account/
   page.tsx              → thin server wrapper
   layout.tsx            → Account sub-nav (optional)
 
-apps/admin/src/features/account/
+apps/app/src/features/account/
   account-overview-page.tsx
   account-workspaces-page.tsx
   account-organization-page.tsx
@@ -347,11 +366,22 @@ Same table/modal patterns; **separate** `NEXT_PUBLIC_AUTH_SCOPE=platform`.
 
 Canonical checklist: [SAAS_PLATFORM_PLAN.md §7.2](./SAAS_PLATFORM_PLAN.md). RBAC-specific gates:
 
-- [ ] `TENANT_RBAC.md` signed off (this doc)
-- [ ] Contracts enums match matrix (`tenant-rbac.spec.ts` green)
-- [x] F05 isolation E2E before F06+
-- [x] F17 matrix rows implemented in code (`docs/specs/project-manager.md`)
-- [ ] No `@Roles("ADMIN")` bypass for PROJECT_MANAGER without service check
+| Gate                                                                     | Status                                           |
+| ------------------------------------------------------------------------ | ------------------------------------------------ |
+| `TENANT_RBAC.md` signed off (this doc)                                   | ✅ implemented                                   |
+| Contracts enums match matrix (`permissions.spec.ts` green)               | ✅ implemented                                   |
+| `ROLE_GRANT_MATRIX` covers every managed role, no self-escalation        | ✅ implemented                                   |
+| `AuthorizationPolicyService` fail-closed with `malformed_context`        | ✅ implemented                                   |
+| `matchedPolicyVersion` present on every allow decision                   | ✅ implemented                                   |
+| `RoleGrantAuditEvent` carries `tenantId`, `policyVersion`, `priorRole`   | ✅ implemented                                   |
+| Worker re-authorization at execution time (not trusted serialized role)  | ✅ implemented                                   |
+| WebSocket room namespacing (`product:user:*` vs `platform:user:*`)       | ✅ implemented                                   |
+| Tenant-operator paths through authoritative evaluator                    | ✅ implemented                                   |
+| F05 isolation E2E before F06+                                            | ✅ implemented                                   |
+| F17 matrix rows implemented in code (`docs/specs/project-manager.md`)    | ✅ implemented                                   |
+| Negative integration coverage for every privilege boundary               | ⚠️ partial — unit tests done, E2E matrix pending |
+| No `@Roles("ADMIN")` bypass for PROJECT_MANAGER without service check    | ⚠️ partial — migration in progress               |
+| `CapabilitySnapshot` consumed by UI (short-lived, scoped, no JWT claims) | 🎯 target                                        |
 
 ---
 

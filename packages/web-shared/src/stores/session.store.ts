@@ -7,6 +7,7 @@ import {
 } from "../auth/auth-channel";
 import { invalidateAuthRefresh } from "../auth/auth-refresh-guard";
 import { readWorkspaceIdFromToken } from "../auth/jwt-payload";
+import { clearObsoleteSessionStorage } from "../auth/obsolete-session-storage";
 import {
   applySessionBoundary,
   resolveColdHydrationBoundaryLevel,
@@ -15,33 +16,20 @@ import {
 import type { SessionBoundaryLevel } from "../auth/session-identity";
 import { cancelProactiveRefresh, scheduleProactiveRefresh } from "../auth/token-scheduler";
 
-/** Per-app scope (e.g. `client` / `admin`) so tokens are not mixed on the same origin. */
-const AUTH_SCOPE = process.env.NEXT_PUBLIC_AUTH_SCOPE?.trim() || "app";
-
 function tokenKey() {
-  return `cm-${AUTH_SCOPE}-access-token`;
+  return "cm-app-access-token";
 }
 
 function refreshTokenKey() {
-  return `cm-${AUTH_SCOPE}-refresh-token`;
+  return "cm-app-refresh-token";
 }
 
 function workspaceKey() {
-  return `cm-${AUTH_SCOPE}-workspace-id`;
+  return "cm-app-workspace-id";
 }
 
-/** Migrate legacy shared keys once per origin (pre–dual-app split). */
-function migrateLegacyStorage() {
-  const legacyToken = localStorage.getItem("cm-access-token");
-  const legacyWs = localStorage.getItem("cm-workspace-id");
-  if (legacyToken && !localStorage.getItem(tokenKey())) {
-    localStorage.setItem(tokenKey(), legacyToken);
-  }
-  if (legacyWs && !localStorage.getItem(workspaceKey())) {
-    localStorage.setItem(workspaceKey(), legacyWs);
-  }
-  if (legacyToken) localStorage.removeItem("cm-access-token");
-  if (legacyWs) localStorage.removeItem("cm-workspace-id");
+function clearObsoleteStorage() {
+  clearObsoleteSessionStorage(localStorage);
 }
 
 function persistSessionTokens(
@@ -50,7 +38,7 @@ function persistSessionTokens(
   refreshToken?: string
 ): void {
   if (typeof window === "undefined") return;
-  migrateLegacyStorage();
+  clearObsoleteStorage();
   localStorage.setItem(tokenKey(), accessToken);
   if (session.workspaceId) {
     localStorage.setItem(workspaceKey(), session.workspaceId);
@@ -68,8 +56,7 @@ function clearPersistedTokens(): void {
   localStorage.removeItem(tokenKey());
   localStorage.removeItem(refreshTokenKey());
   localStorage.removeItem(workspaceKey());
-  localStorage.removeItem("cm-access-token");
-  localStorage.removeItem("cm-workspace-id");
+  clearObsoleteStorage();
 }
 
 interface SessionState {
@@ -139,19 +126,19 @@ export function getWorkspaceId(): string | null {
 /** Align localStorage workspace with JWT after login or when another tab switched workspace. */
 export function syncWorkspaceIdToStorage(workspaceId: string): void {
   if (typeof window === "undefined") return;
-  migrateLegacyStorage();
+  clearObsoleteStorage();
   localStorage.setItem(workspaceKey(), workspaceId);
 }
 
 export function getAccessToken(): string | null {
   if (typeof window === "undefined") return null;
-  migrateLegacyStorage();
+  clearObsoleteStorage();
   return localStorage.getItem(tokenKey());
 }
 
 export function getRefreshToken(): string | null {
   if (typeof window === "undefined") return null;
-  migrateLegacyStorage();
+  clearObsoleteStorage();
   return localStorage.getItem(refreshTokenKey());
 }
 

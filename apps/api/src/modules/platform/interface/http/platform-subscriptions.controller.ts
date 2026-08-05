@@ -5,7 +5,9 @@ import {
   CurrentPlatformUser,
   type PlatformRequestUser
 } from "../../../../common/decorators/current-platform-user.decorator";
-import { PlatformSuperadminGuard } from "../../../../common/guards/platform-superadmin.guard";
+import { RequirePermission } from "../../../../common/decorators/require-permission.decorator";
+import { PermissionGuard } from "../../../../common/guards/permission.guard";
+import { PlatformJwtAuthGuard } from "../../../../common/guards/platform-jwt-auth.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
 import { PlatformSubscriptionsService } from "../../application/platform-subscriptions.service";
 
@@ -15,11 +17,12 @@ const paginationQuerySchema = z.object({
 });
 
 @Controller()
-@UseGuards(PlatformSuperadminGuard)
+@UseGuards(PlatformJwtAuthGuard, PermissionGuard)
 export class PlatformSubscriptionsController {
   constructor(private subscriptionsService: PlatformSubscriptionsService) {}
 
   @Get(ROUTES.PLATFORM.SUBSCRIPTIONS)
+  @RequirePermission("platform:ReadSubscriptions", { scope: "platform" })
   list(
     @Query(new ZodValidationPipe(listPlatformSubscriptionsQuerySchema)) query: unknown,
     @CurrentPlatformUser() _user: PlatformRequestUser
@@ -30,16 +33,19 @@ export class PlatformSubscriptionsController {
   }
 
   @Get(ROUTES.PLATFORM.SUBSCRIPTION_WORK_QUEUE)
+  @RequirePermission("platform:ReadSubscriptions", { scope: "platform" })
   workQueue(@CurrentPlatformUser() _user: PlatformRequestUser) {
     return this.subscriptionsService.getWorkQueue();
   }
 
   @Get(`${ROUTES.PLATFORM.SUBSCRIPTIONS}/:tenantId`)
+  @RequirePermission("platform:ReadSubscriptions", { scope: "platform" })
   detail(@Param("tenantId") tenantId: string, @CurrentPlatformUser() _user: PlatformRequestUser) {
     return this.subscriptionsService.getSubscriptionDetail(tenantId);
   }
 
   @Get(`${ROUTES.PLATFORM.SUBSCRIPTIONS}/:tenantId/events`)
+  @RequirePermission("platform:ReadSubscriptions", { scope: "platform" })
   events(
     @Param("tenantId") tenantId: string,
     @Query(new ZodValidationPipe(paginationQuerySchema)) query: any,

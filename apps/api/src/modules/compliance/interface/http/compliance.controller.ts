@@ -18,17 +18,17 @@ import {
   CurrentUser,
   type RequestUser
 } from "../../../../common/decorators/current-user.decorator";
-import { TenantRoles } from "../../../../common/decorators/tenant-roles.decorator";
+import { RequirePermission } from "../../../../common/decorators/require-permission.decorator";
 import { TenantScoped } from "../../../../common/decorators/tenant-scoped.decorator";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
-import { TenantRolesGuard } from "../../../../common/guards/tenant-roles.guard";
+import { PermissionGuard } from "../../../../common/guards/permission.guard";
 import { RedisService } from "../../../../common/redis/redis.service";
 import { TenantDataExportService } from "../../application/tenant-data-export.service";
 import { TenantDataImportService } from "../../application/tenant-data-import.service";
 
 @Controller()
 @TenantScoped()
-@UseGuards(JwtAuthGuard, TenantRolesGuard)
+@UseGuards(JwtAuthGuard, PermissionGuard)
 export class ComplianceController {
   constructor(
     private tenantDataExport: TenantDataExportService,
@@ -36,32 +36,47 @@ export class ComplianceController {
     private redisService: RedisService
   ) {}
 
-  @TenantRoles("OWNER")
   @Post(ROUTES.TENANTS.DATA_EXPORT)
+  @RequirePermission("tenant:ExportData", {
+    scope: "tenant",
+    tenantId: { source: "session", field: "tenantId" }
+  })
   createExport(@CurrentUser() user: RequestUser) {
     return this.tenantDataExport.create(user.tenantId, user.userId);
   }
 
-  @TenantRoles("OWNER")
   @Get(ROUTES.TENANTS.DATA_EXPORT)
+  @RequirePermission("tenant:ExportData", {
+    scope: "tenant",
+    tenantId: { source: "session", field: "tenantId" }
+  })
   getLatestExport(@CurrentUser() user: RequestUser) {
     return this.tenantDataExport.getLatest(user.tenantId);
   }
 
-  @TenantRoles("OWNER")
   @Get(ROUTES.TENANTS.DATA_EXPORT_JOB(":jobId"))
+  @RequirePermission("tenant:ExportData", {
+    scope: "tenant",
+    tenantId: { source: "session", field: "tenantId" }
+  })
   getExport(@CurrentUser() user: RequestUser, @Param("jobId") jobId: string) {
     return this.tenantDataExport.get(user.tenantId, jobId);
   }
 
-  @TenantRoles("OWNER")
   @Delete(ROUTES.TENANTS.DATA_EXPORT_JOB(":jobId"))
+  @RequirePermission("tenant:ExportData", {
+    scope: "tenant",
+    tenantId: { source: "session", field: "tenantId" }
+  })
   cancelExport(@CurrentUser() user: RequestUser, @Param("jobId") jobId: string) {
     return this.tenantDataExport.cancel(user.tenantId, jobId);
   }
 
-  @TenantRoles("OWNER")
   @Get(ROUTES.TENANTS.DATA_EXPORT_JOB_DOWNLOAD(":jobId"))
+  @RequirePermission("tenant:ExportData", {
+    scope: "tenant",
+    tenantId: { source: "session", field: "tenantId" }
+  })
   @Header("Cache-Control", "private, no-store")
   async downloadExport(
     @CurrentUser() user: RequestUser,
@@ -77,8 +92,11 @@ export class ComplianceController {
     res.send(buffer);
   }
 
-  @TenantRoles("OWNER")
   @Post(ROUTES.TENANTS.DATA_IMPORT)
+  @RequirePermission("tenant:ImportData", {
+    scope: "tenant",
+    tenantId: { source: "session", field: "tenantId" }
+  })
   @UseInterceptors(FileInterceptor("file"))
   async importData(
     @UploadedFile() file: { originalname: string; buffer: Buffer } | undefined,
@@ -90,8 +108,11 @@ export class ComplianceController {
     return this.tenantDataImport.create(user.tenantId, user.userId, file.originalname, file.buffer);
   }
 
-  @TenantRoles("OWNER")
   @Get(ROUTES.TENANTS.DATA_IMPORT)
+  @RequirePermission("tenant:ImportData", {
+    scope: "tenant",
+    tenantId: { source: "session", field: "tenantId" }
+  })
   async getLatestImport(@CurrentUser() user: RequestUser) {
     const redis = this.redisService.getClient();
     const latestJobId = await redis.get(`tenant:${user.tenantId}:latest-import`);

@@ -10,6 +10,7 @@ import type {
 } from "@kloqra/contracts";
 import { ErrorCodes } from "@kloqra/contracts";
 import { Injectable, HttpStatus } from "@nestjs/common";
+import { AuthorizationEnforcementService } from "../../../common/access/authorization-enforcement.service";
 import { ProjectAccessService } from "../../../common/access/project-access.service";
 import { ReportCacheService } from "../../../common/cache/report-cache.service";
 import { DomainException } from "../../../common/errors/domain.exception";
@@ -37,6 +38,7 @@ export class TimelogsService {
     private audit: TimelogAuditService,
     private timesheetLock: TimesheetLockService,
     private access: ProjectAccessService,
+    private authorization: AuthorizationEnforcementService,
     private subscriptions: SubscriptionsService,
     private workspaceDataRealtime: WorkspaceDataRealtimeService
   ) {}
@@ -94,8 +96,29 @@ export class TimelogsService {
       from.setDate(from.getDate() - DEFAULT_LIST_LOOKBACK_DAYS);
     }
 
-    const isGlobalAdmin = role === "ADMIN";
-    const hasManagedProjects = managedProjectIds.length > 0;
+    const workspaceReports = await this.authorization.evaluate({
+      principalId: userId,
+      permission: "workspace:ReadReports",
+      resource: { scope: "workspace", workspaceId }
+    });
+    const authorizedManagedProjects = workspaceReports.allowed
+      ? managedProjectIds
+      : (
+          await Promise.all(
+            managedProjectIds.map(async (projectId) => ({
+              projectId,
+              decision: await this.authorization.evaluate({
+                principalId: userId,
+                permission: "project:ReadReports",
+                resource: { scope: "project", projectId, expectedWorkspaceId: workspaceId }
+              })
+            }))
+          )
+        )
+          .filter(({ decision }) => decision.allowed)
+          .map(({ projectId }) => projectId);
+    const isGlobalAdmin = workspaceReports.allowed;
+    const hasManagedProjects = authorizedManagedProjects.length > 0;
 
     // If not admin, and querying for another user, they must be a project manager
     // and they can ONLY see logs for projects they manage.
@@ -117,7 +140,7 @@ export class TimelogsService {
           restrictToOwnLogs = true;
         } else {
           // They are a PM querying someone else's logs. Restrict to projects they manage.
-          overrideProjectIds = managedProjectIds;
+          overrideProjectIds = authorizedManagedProjects;
         }
       } else if (!query.userId && hasManagedProjects) {
         // Querying all users' logs. They can see their own logs for ANY project,
@@ -203,7 +226,7 @@ export class TimelogsService {
             AND: [
               baseWhere,
               {
-                OR: [{ userId }, { task: { projectId: { in: managedProjectIds } } }]
+                OR: [{ userId }, { task: { projectId: { in: authorizedManagedProjects } } }]
               }
             ]
           }
@@ -229,17 +252,8 @@ export class TimelogsService {
 
   async listOccupancy(
     userId: string,
-    role: string,
     query: ListTimeLogOccupancyQueryDto
   ): Promise<ListTimeLogOccupancyResponseDto> {
-    if (role === "ADMIN") {
-      throw new DomainException(
-        ErrorCodes.FORBIDDEN,
-        "Occupancy is only available for members",
-        HttpStatus.FORBIDDEN
-      );
-    }
-
     const from = new Date(query.from);
     const to = new Date(query.to);
 
@@ -453,15 +467,8 @@ export class TimelogsService {
     });
     if (!log)
       throw new DomainException(ErrorCodes.NOT_FOUND, "TimeLog not found", HttpStatus.NOT_FOUND);
-    if (role !== "ADMIN" && log.userId !== userId) {
+    if (log.userId !== userId) {
       throw new DomainException(ErrorCodes.FORBIDDEN, "Not your entry", HttpStatus.FORBIDDEN);
-    }
-    if (log.source === "timer") {
-      throw new DomainException(
-        ErrorCodes.TIMELOG_NOT_EDITABLE,
-        "Timer entries cannot be edited",
-        HttpStatus.FORBIDDEN
-      );
     }
 
     this.assertTimeLogEditable(log.task);
@@ -506,6 +513,18 @@ export class TimelogsService {
     );
 
     const updated = await this.prisma.$transaction(async (tx) => {
+      await this.authorization.assertAllowed(
+        {
+          principalId: userId,
+          permission: "personal:ManageTimelogs",
+          resource: { scope: "self", workspaceId }
+        },
+        tx
+      );
+      const timeChanged =
+        start.getTime() !== log.startTime.getTime() || end.getTime() !== log.endTime?.getTime();
+      const isTimerSource = log.source === "timer" || log.source === "timer_autostopped";
+      const convertToManual = isTimerSource && timeChanged;
       const row = await tx.timeLog.update({
         where: { id_startTime: { id, startTime: log.startTime } },
         data: {
@@ -514,7 +533,8 @@ export class TimelogsService {
           endTime: end,
           durationSec: Math.floor((end.getTime() - start.getTime()) / 1000),
           ...(dto.description !== undefined ? { description: dto.description } : {}),
-          isBillable
+          isBillable,
+          ...(convertToManual ? { source: "manual" } : {})
         }
       });
       await this.audit.recordEvent(tx, {
@@ -580,7 +600,7 @@ export class TimelogsService {
     });
     if (!log)
       throw new DomainException(ErrorCodes.NOT_FOUND, "TimeLog not found", HttpStatus.NOT_FOUND);
-    if (role !== "ADMIN" && log.userId !== userId) {
+    if (log.userId !== userId) {
       throw new DomainException(ErrorCodes.FORBIDDEN, "Not your entry", HttpStatus.FORBIDDEN);
     }
 
@@ -589,6 +609,14 @@ export class TimelogsService {
     await this.timesheetLock.assertPeriodEditable(log.userId, log.task.projectId, log.startTime);
 
     await this.prisma.$transaction(async (tx) => {
+      await this.authorization.assertAllowed(
+        {
+          principalId: userId,
+          permission: "personal:ManageTimelogs",
+          resource: { scope: "self", workspaceId }
+        },
+        tx
+      );
       await this.audit.recordEvent(tx, {
         workspaceId,
         timeLogId: log.id,

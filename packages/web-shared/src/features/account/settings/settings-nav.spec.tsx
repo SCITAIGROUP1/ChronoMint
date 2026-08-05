@@ -10,7 +10,7 @@ describe("SettingsNav", () => {
 
     render(
       <SettingsNav
-        items={[{ id: "appearance", label: "Appearance", icon: Monitor }]}
+        items={[{ id: "appearance", label: "Appearance", icon: Monitor, section: "preferences" }]}
         active="appearance"
         onChange={onChange}
       />

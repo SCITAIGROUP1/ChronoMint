@@ -3,10 +3,12 @@ import { ErrorCodes, parseUserPreferences } from "@kloqra/contracts";
 import type {
   LoginDto,
   AuthSessionDto,
+  CapabilitySnapshot,
   LoginRequires2faResponseDto,
   LoginRequiresPasswordChangeResponseDto,
   LoginRequiresEmailVerificationResponseDto,
   LoginRequiresPlatform2faSetupResponseDto,
+  Permission,
   SetInitialPasswordDto,
   OkResponseDto,
   PlatformSessionDto,
@@ -17,7 +19,13 @@ import type {
 import { Injectable, HttpStatus } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import * as bcrypt from "bcrypt";
+import {
+  AccessPolicyService,
+  type CapabilitySnapshotBinding
+} from "../../../common/access/access-policy.service";
+import { AuthorizationEnforcementService } from "../../../common/access/authorization-enforcement.service";
 import { ProjectAccessService } from "../../../common/access/project-access.service";
+import type { ProductAuthScope } from "../../../common/auth/auth-scope";
 import {
   verify as verifyTotp,
   generateSecret,
@@ -27,7 +35,6 @@ import { hashPassword } from "../../../common/auth/password.util";
 import { DomainException } from "../../../common/errors/domain.exception";
 import {
   AuthMailer,
-  buildAdminVerifyEmailUrl,
   buildPasswordResetUrl,
   buildPlatformPasswordResetUrl,
   buildVerifyEmailUrl
@@ -87,7 +94,9 @@ export class AuthService {
     private jwt: JwtService,
     private authMailer: AuthMailer,
     private projectAccess: ProjectAccessService,
-    private provisioning: TenantProvisioningService
+    private provisioning: TenantProvisioningService,
+    private authorization: AuthorizationEnforcementService,
+    private accessPolicy: AccessPolicyService
   ) {}
 
   /** Tenant-aware Prisma delegate (workspace.tenantId lives on generated client). */
@@ -115,6 +124,15 @@ export class AuthService {
       );
     }
     await assertWorkspaceInUserTenant(this.prisma, userId, membership.workspace.tenantId);
+    await this.authorization.assertAllowed({
+      principalId: userId,
+      permission: "workspace:Access",
+      resource: {
+        scope: "workspace",
+        workspaceId,
+        expectedTenantId: membership.workspace.tenantId
+      }
+    });
     return this.buildSessionFromMembership(membership);
   }
 
@@ -383,25 +401,20 @@ export class AuthService {
   async sendEmailVerification(userId: string): Promise<void> {
     const raw = await this.mintEmailVerificationToken(userId);
     if (!raw) return;
-    await this.sendEmailVerificationWithToken(userId, raw, "client");
+    await this.sendEmailVerificationWithToken(userId, raw);
   }
 
   async sendAdminEmailVerification(userId: string): Promise<void> {
     const raw = await this.mintEmailVerificationToken(userId);
     if (!raw) return;
-    await this.sendEmailVerificationWithToken(userId, raw, "admin");
+    await this.sendEmailVerificationWithToken(userId, raw);
   }
 
-  async sendEmailVerificationWithToken(
-    userId: string,
-    rawToken: string,
-    scope: "client" | "admin" = "client"
-  ): Promise<void> {
+  async sendEmailVerificationWithToken(userId: string, rawToken: string): Promise<void> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user || user.emailVerifiedAt) return;
 
-    const verifyUrl =
-      scope === "admin" ? buildAdminVerifyEmailUrl(rawToken) : buildVerifyEmailUrl(rawToken);
+    const verifyUrl = buildVerifyEmailUrl(rawToken);
 
     void this.authMailer
       .sendEmailVerification({ to: user.email, verifyUrl })
@@ -693,7 +706,7 @@ export class AuthService {
     tenantId: string,
     context: { workspaceId: string; role: "ADMIN" | "MEMBER" } | { tenantRole: "OWNER" | "ADMIN" },
     impersonatorId?: string,
-    scope?: "client" | "admin",
+    scope: ProductAuthScope = "app",
     family?: string
   ): string {
     const secret = process.env.JWT_ACCESS_SECRET?.trim();
@@ -705,8 +718,9 @@ export class AuthService {
       userId,
       tenantId,
       typ: "access" as const,
+      issuedAtMs: Date.now(),
       ...(family ? { family } : {}),
-      ...(scope ? { scope } : {}),
+      scope,
       ...(impersonatorId ? { impersonatorId } : {})
     };
     const payload =
@@ -726,7 +740,7 @@ export class AuthService {
     family?: string,
     impersonatorId?: string,
     sessionMeta?: { userAgent?: string; ipAddress?: string },
-    scope?: "client" | "admin"
+    scope: ProductAuthScope = "app"
   ): Promise<{ raw: string; family: string }> {
     const secret = process.env.JWT_REFRESH_SECRET?.trim();
     if (!secret) throw new Error("JWT_REFRESH_SECRET is not set on the API service");
@@ -739,7 +753,7 @@ export class AuthService {
         family: tokenFamily,
         jti: randomUUID(),
         typ: "refresh",
-        ...(scope ? { scope } : {}),
+        scope,
         ...(impersonatorId ? { impersonatorId } : {})
       },
       { secret, expiresIn: process.env.JWT_REFRESH_EXPIRES ?? "7d" }
@@ -770,25 +784,12 @@ export class AuthService {
     return { raw, family: tokenFamily };
   }
 
-  /**
-   * @deprecated Legacy signing for code paths that don't yet use DB rotation.
-   * REMOVE: All callers migrated to signAndStoreRefreshToken.
-   */
-  signRefreshToken(userId: string, workspaceId: string): string {
-    const secret = process.env.JWT_REFRESH_SECRET?.trim();
-    if (!secret) throw new Error("JWT_REFRESH_SECRET is not set on the API service");
-    return this.jwt.sign(
-      { sub: userId, workspaceId },
-      { secret, expiresIn: process.env.JWT_REFRESH_EXPIRES ?? "7d" }
-    );
-  }
-
   verifyRefresh(token: string): {
     userId: string;
     workspaceId?: string;
     family?: string;
     impersonatorId?: string;
-    scope?: "client" | "admin";
+    scope: ProductAuthScope;
   } {
     const payload = this.jwt.verify(token, { secret: process.env.JWT_REFRESH_SECRET }) as {
       sub: string;
@@ -798,10 +799,17 @@ export class AuthService {
       typ?: string;
       scope?: string;
     };
-    if (payload.typ === "access") {
+    if (payload.typ !== "refresh") {
       throw new DomainException(
         ErrorCodes.UNAUTHORIZED,
         "Wrong token type",
+        HttpStatus.UNAUTHORIZED
+      );
+    }
+    if (payload.scope !== "app") {
+      throw new DomainException(
+        ErrorCodes.UNAUTHORIZED,
+        "Refresh token scope mismatch",
         HttpStatus.UNAUTHORIZED
       );
     }
@@ -810,7 +818,7 @@ export class AuthService {
       workspaceId: payload.workspaceId,
       family: payload.family,
       impersonatorId: payload.impersonatorId,
-      scope: payload.scope === "client" || payload.scope === "admin" ? payload.scope : undefined
+      scope: "app"
     };
   }
 
@@ -822,9 +830,10 @@ export class AuthService {
    */
   async rotateRefreshToken(
     rawToken: string,
-    requestMeta?: { userAgent?: string }
+    requestMeta?: { userAgent?: string },
+    nextScope: ProductAuthScope = "app"
   ): Promise<{ session: AuthSessionDto | null; newRefreshToken: string | null; family?: string }> {
-    const { userId, workspaceId, family, impersonatorId, scope } = this.verifyRefresh(rawToken);
+    const { userId, workspaceId, family, impersonatorId } = this.verifyRefresh(rawToken);
     const hash = hashToken(rawToken);
 
     const stored = await this.prisma.refreshToken.findUnique({ where: { tokenHash: hash } });
@@ -872,7 +881,7 @@ export class AuthService {
                 requestMeta?.userAgent ?? active.userAgent ?? stored.userAgent ?? undefined,
               ipAddress: active.ipAddress ?? stored.ipAddress ?? undefined
             },
-            scope
+            nextScope
           );
           return {
             session,
@@ -922,7 +931,7 @@ export class AuthService {
         userAgent: requestMeta?.userAgent ?? stored.userAgent ?? undefined,
         ipAddress: stored.ipAddress ?? undefined
       },
-      scope
+      nextScope
     );
 
     // Revoke the consumed token LAST to avoid race conditions
@@ -1078,16 +1087,21 @@ export class AuthService {
     }
 
     await assertTenantAllowsOperations(this.prisma, tenantMember.tenantId);
+    const existingWorkspace = await this.prisma.workspace.findFirst({
+      where: { tenantId: tenantMember.tenantId },
+      select: { id: true }
+    });
     return this.buildTenantOperatorSession(
       user,
       tenantMember.tenantId,
       tenantMember.role as "OWNER" | "ADMIN",
+      !existingWorkspace,
       impersonatorId,
       impersonatorName
     );
   }
 
-  private buildTenantOperatorSession(
+  private async buildTenantOperatorSession(
     user: {
       id: string;
       email: string;
@@ -1099,13 +1113,19 @@ export class AuthService {
     },
     tenantId: string,
     tenantRole: "OWNER" | "ADMIN",
+    requiresWorkspaceSetup: boolean,
     impersonatorId?: string,
     impersonatorName?: string
-  ): AuthSessionDto {
+  ): Promise<AuthSessionDto> {
     const names = user.firstName
       ? { firstName: user.firstName, lastName: user.lastName ?? "" }
       : splitDisplayName(user.name);
     const preferences = parseUserPreferences(user.preferences);
+    const { capabilities, capabilitySnapshot } = await this.scopedCapabilities(
+      user.id,
+      tenantId,
+      tenantRole
+    );
     return {
       user: {
         id: user.id,
@@ -1116,13 +1136,17 @@ export class AuthService {
       },
       tenantId,
       tenantRole,
-      requiresWorkspaceSetup: true,
+      capabilities,
+      capabilitySnapshot,
+      ...(requiresWorkspaceSetup
+        ? { requiresWorkspaceSetup: true as const }
+        : { organizationOnly: true as const }),
       ...(preferences.defaultWorkspaceId
         ? { defaultWorkspaceId: preferences.defaultWorkspaceId }
         : {}),
       impersonatorId,
       impersonatorName
-    };
+    } as AuthSessionDto;
   }
 
   private async buildSessionFromMembership(
@@ -1167,7 +1191,7 @@ export class AuthService {
     );
   }
 
-  buildSession(
+  async buildSession(
     user: {
       id: string;
       email: string;
@@ -1185,7 +1209,7 @@ export class AuthService {
     impersonatorId?: string,
     impersonatorName?: string,
     managedProjectIds?: string[]
-  ): AuthSessionDto {
+  ): Promise<AuthSessionDto> {
     const names = user.firstName
       ? { firstName: user.firstName, lastName: user.lastName ?? "" }
       : splitDisplayName(user.name);
@@ -1199,6 +1223,14 @@ export class AuthService {
     if (role === "ADMIN") {
       sessionUser.defaultHourlyRate = user.defaultHourlyRate?.toNumber() ?? null;
     }
+    const { capabilities, capabilitySnapshot } = await this.scopedCapabilities(
+      user.id,
+      tenantId,
+      tenantRole,
+      role,
+      workspaceId,
+      managedProjectIds
+    );
     return {
       user: sessionUser,
       tenantId,
@@ -1206,13 +1238,59 @@ export class AuthService {
       workspaceId,
       workspaceName,
       workspaceRole: role,
+      capabilities,
+      capabilitySnapshot,
       ...(preferences.defaultWorkspaceId
         ? { defaultWorkspaceId: preferences.defaultWorkspaceId }
         : {}),
       ...(managedProjectIds && managedProjectIds.length > 0 ? { managedProjectIds } : {}),
       impersonatorId,
       impersonatorName
-    };
+    } as AuthSessionDto;
+  }
+
+  /**
+   * Builds a scoped, versioned capability snapshot plus a bounded flat compatibility list.
+   * The API never accepts either payload as authorization evidence.
+   */
+  private async scopedCapabilities(
+    principalId: string,
+    tenantId: string,
+    tenantRole?: "OWNER" | "ADMIN",
+    workspaceRole?: "ADMIN" | "MEMBER",
+    workspaceId?: string,
+    managedProjectIds?: string[]
+  ): Promise<{ capabilities: Permission[]; capabilitySnapshot: CapabilitySnapshot }> {
+    const bindings: CapabilitySnapshotBinding[] = [];
+    if (tenantRole === "OWNER") {
+      bindings.push({ role: "TENANT_OWNER", scope: "tenant", resourceId: tenantId });
+    }
+    if (tenantRole === "ADMIN") {
+      bindings.push({ role: "TENANT_ADMIN", scope: "tenant", resourceId: tenantId });
+    }
+    if (workspaceRole === "ADMIN" && workspaceId) {
+      bindings.push({ role: "WORKSPACE_ADMIN", scope: "workspace", resourceId: workspaceId });
+    }
+    if (workspaceRole === "MEMBER" && workspaceId) {
+      bindings.push({ role: "WORKSPACE_MEMBER", scope: "workspace", resourceId: workspaceId });
+    }
+    for (const projectId of managedProjectIds ?? []) {
+      bindings.push({ role: "PROJECT_MANAGER", scope: "project", resourceId: projectId });
+    }
+    const capabilitySnapshot = await this.accessPolicy.capabilitySnapshot({
+      tenantId,
+      principalId,
+      bindings,
+      membershipRevision: bindings.length
+    });
+    const capabilities = [
+      ...new Set(
+        capabilitySnapshot.capabilities
+          .filter((entry) => entry.allowed)
+          .map((entry) => entry.permission)
+      )
+    ];
+    return { capabilities, capabilitySnapshot };
   }
 
   async impersonate(
@@ -1253,7 +1331,7 @@ export class AuthService {
       undefined,
       adminUser.id,
       undefined,
-      "client"
+      "app"
     );
 
     const accessToken = this.signAccessToken(
@@ -1264,7 +1342,7 @@ export class AuthService {
         role: targetMembership.role as "ADMIN" | "MEMBER"
       },
       adminUser.id,
-      "client",
+      "app",
       issued.family
     );
 

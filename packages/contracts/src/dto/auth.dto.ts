@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { capabilitySnapshotSchema, permissionSchema } from "../permissions";
 import { PLAN_SLUGS } from "../plan-catalog";
 import { tenantMemberRoleSchema } from "../tenant-rbac";
 import {
@@ -7,6 +8,9 @@ import {
   workspaceRoleSchema,
   passwordValidationSchema
 } from "./common.dto";
+
+export const productAuthScopeSchema = z.literal("app");
+export const authScopeSchema = z.enum(["app", "platform"]);
 
 export const loginSchema = z.object({
   email: emailSchema,
@@ -40,10 +44,16 @@ const authSessionCoreSchema = z.object({
   workspaceRole: workspaceRoleSchema.optional(),
   /** Tenant owner/admin with no workspace yet — must create one before workspace ops. */
   requiresWorkspaceSetup: z.literal(true).optional(),
+  /** Tenant owner/admin managing the organization without a direct workspace assignment. */
+  organizationOnly: z.literal(true).optional(),
   /** Preferred workspace from user preferences — avoids bootstrap GET /users/me. */
   defaultWorkspaceId: uuidSchema.optional(),
   /** Project IDs where user is team_members.role = PROJECT_MANAGER (MEMBER workspace role only; not in JWT). */
   managedProjectIds: z.array(uuidSchema).optional(),
+  /** Presentation hint only; API authorization is always reevaluated server-side. */
+  capabilities: z.array(permissionSchema).optional(),
+  /** Scoped, revisioned presentation snapshot; never used as authorization evidence. */
+  capabilitySnapshot: capabilitySnapshotSchema.optional(),
   impersonatorId: uuidSchema.optional(),
   impersonatorName: z.string().optional()
 });
@@ -58,10 +68,10 @@ function refineAuthSession<T extends z.ZodTypeAny>(schema: T) {
         path: ["workspaceRole"]
       });
     }
-    if (!session.workspaceId && !session.requiresWorkspaceSetup) {
+    if (!session.workspaceId && !session.requiresWorkspaceSetup && !session.organizationOnly) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "workspaceId or requiresWorkspaceSetup is required",
+        message: "workspaceId, requiresWorkspaceSetup, or organizationOnly is required",
         path: ["workspaceId"]
       });
     }
@@ -74,6 +84,31 @@ function refineAuthSession<T extends z.ZodTypeAny>(schema: T) {
         code: z.ZodIssueCode.custom,
         message: "requiresWorkspaceSetup requires tenant owner or admin role",
         path: ["requiresWorkspaceSetup"]
+      });
+    }
+    if (
+      session.organizationOnly &&
+      session.tenantRole !== "OWNER" &&
+      session.tenantRole !== "ADMIN"
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "organizationOnly requires tenant owner or admin role",
+        path: ["organizationOnly"]
+      });
+    }
+    if (session.workspaceId && session.organizationOnly) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "organizationOnly cannot include workspaceId",
+        path: ["organizationOnly"]
+      });
+    }
+    if (session.requiresWorkspaceSetup && session.organizationOnly) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "workspace setup and organization-only states are mutually exclusive",
+        path: ["organizationOnly"]
       });
     }
   });
@@ -166,6 +201,8 @@ export const signupSchema = z.object({
 export const signupResponseSchema = okResponseSchema;
 
 export type SignupPlanSlug = z.infer<typeof signupPlanSlugSchema>;
+export type ProductAuthScope = z.infer<typeof productAuthScopeSchema>;
+export type AuthScope = z.infer<typeof authScopeSchema>;
 
 export type LoginDto = z.infer<typeof loginSchema>;
 export type LoginRequiresPasswordChangeResponseDto = z.infer<

@@ -51,6 +51,7 @@ export function AppModal({
         showClose={showClose}
         className={className}
         onInteractOutside={onInteractOutside}
+        {...(description ? {} : { "aria-describedby": undefined })}
       >
         <DialogHeader>
           {icon ? <div className={cn(modalIconWrapVariants({ tone }))}>{icon}</div> : null}

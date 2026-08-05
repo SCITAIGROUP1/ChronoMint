@@ -23,7 +23,7 @@ Query parameters: `from`, `to` (ISO datetimes), optional `projectId`, `userId`, 
 
 - Aggregates **time logs** in the workspace for the period.
 - Billable amounts use the same rate resolution as [billing.md](./billing.md).
-- Shared aggregation logic with export: [time-aggregation.service.ts](../../apps/api/src/modules/reporting/application/time-aggregation.service.ts)
+- Reporting aggregation: [reporting.service.ts](../../apps/api/src/modules/reporting/application/reporting.service.ts)
 
 ## Given / When / Then
 
@@ -36,7 +36,7 @@ Query parameters: `from`, `to` (ISO datetimes), optional `projectId`, `userId`, 
 ## Widget public sharing
 
 **When** ADMIN POSTs `/reporting/widget-shares` with `widgetId`, date range, optional scope filters, and widget options  
-**Then** a tokenized share URL is returned (`{PUBLIC_ADMIN_URL}/widget/{token}`).
+**Then** a tokenized share URL is returned (`{PUBLIC_APP_URL}/widget/{token}`).
 
 **When** anyone GETs `/reporting/widget-share/:token` with a valid, unexpired token  
 **Then** the API returns workspace name, widget metadata, and a fresh `DashboardReportDto` payload for read-only rendering.
@@ -48,8 +48,8 @@ Expired `WidgetShare` rows are purged on the same daily interval as `ReportShare
 
 ## UI
 
-- Admin: [apps/admin/src/app/(admin)/dashboard/page.tsx](<../../apps/admin/src/app/(admin)/dashboard/page.tsx>)
-- Public widget share: [apps/admin/src/app/widget/[token]/page.tsx](../../apps/admin/src/app/widget/[token]/page.tsx)
+- Admin: [apps/app/src/app/(app)/dashboard/page.tsx](<../../apps/app/src/app/(app)/dashboard/page.tsx>)
+- Public widget share: [apps/app/src/app/widget/[token]/page.tsx](../../apps/app/src/app/widget/[token]/page.tsx)
 - Client timesheet may use `/reporting/me` for “My week summary”.
 
 ## Edge cases

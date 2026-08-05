@@ -6,6 +6,7 @@ import {
   WebSocketServer
 } from "@nestjs/websockets";
 import type { Server, Socket } from "socket.io";
+import { AuthorizationEnforcementService } from "../../../../common/access/authorization-enforcement.service";
 import { isAllowedBrowserOrigin } from "../../../../common/auth/allowed-origins";
 import { AuthRevocationService } from "../../../../common/auth/auth-revocation.service";
 import { JwtTokenService } from "../../../../common/auth/jwt-token.service";
@@ -31,7 +32,8 @@ export class HelpdeskGateway implements OnGatewayConnection, OnGatewayDisconnect
   constructor(
     private jwtTokens: JwtTokenService,
     private authRevocation: AuthRevocationService,
-    private redis: RedisService
+    private redis: RedisService,
+    private authorization: AuthorizationEnforcementService
   ) {}
 
   async handleConnection(client: AuthenticatedSocket): Promise<void> {
@@ -47,6 +49,11 @@ export class HelpdeskGateway implements OnGatewayConnection, OnGatewayDisconnect
       if (payload.family) {
         await this.authRevocation.assertNotRevoked(payload.platformUserId, payload.family);
       }
+      await this.authorization.assertAllowed({
+        principalId: payload.platformUserId,
+        permission: "platform:ReadSupportTickets",
+        resource: { scope: "platform" }
+      });
 
       client.data.userId = payload.platformUserId;
       await client.join("helpdesk_agents"); // Broadcast room for all agents

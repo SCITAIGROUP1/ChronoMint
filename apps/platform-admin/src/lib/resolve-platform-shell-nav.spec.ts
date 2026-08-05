@@ -1,21 +1,24 @@
 import { describe, expect, it } from "vitest";
 import {
+  flattenNavSections,
   isPlatformAccountPath,
   resolvePlatformShellMode,
   resolvePlatformShellNav
 } from "./resolve-platform-shell-nav";
 
 describe("resolvePlatformShellNav", () => {
-  const consoleNav = [{ href: "/tenants", label: "Tenants", Icon: () => null }];
-
-  it("uses console nav on tenant routes", () => {
+  it("uses grouped console nav on tenant routes", () => {
     const result = resolvePlatformShellNav({
       pathname: "/tenants",
-      consoleNavItems: consoleNav,
       notificationUnreadCount: 0
     });
     expect(result.mode).toBe("console");
-    expect(result.navItems[0]?.href).toBe("/tenants");
+    expect(result.navSections.map((section) => section.label)).toEqual([
+      "Operations",
+      "Commercial",
+      "Support"
+    ]);
+    expect(flattenNavSections(result.navSections)[0]?.href).toBe("/ops");
   });
 
   it("uses account nav on profile and settings", () => {
@@ -25,10 +28,31 @@ describe("resolvePlatformShellNav", () => {
 
     const result = resolvePlatformShellNav({
       pathname: "/settings",
-      consoleNavItems: consoleNav,
       notificationUnreadCount: 2
     });
     expect(result.mode).toBe("account");
-    expect(result.navItems.map((item) => item.href)).toEqual(["/profile", "/settings"]);
+    expect(flattenNavSections(result.navSections).map((item) => item.href)).toEqual([
+      "/profile",
+      "/settings"
+    ]);
+  });
+
+  it("limits support role console nav to helpdesk and notifications", () => {
+    const result = resolvePlatformShellNav({
+      pathname: "/helpdesk",
+      notificationUnreadCount: 4,
+      platformRole: "SUPPORT"
+    });
+
+    expect(result.navSections).toEqual([
+      {
+        id: "support",
+        label: "Support",
+        items: expect.arrayContaining([
+          expect.objectContaining({ href: "/helpdesk" }),
+          expect.objectContaining({ href: "/notifications", badge: 4 })
+        ])
+      }
+    ]);
   });
 });

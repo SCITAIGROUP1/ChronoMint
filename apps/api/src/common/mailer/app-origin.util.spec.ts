@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { adminOrigin, clientOrigin, originForNotificationHref } from "./app-origin.util";
+import { appOrigin, originForNotificationHref } from "./app-origin.util";
 
 describe("originForNotificationHref", () => {
   it("routes platform tenant paths to platform origin", () => {
@@ -11,11 +11,13 @@ describe("originForNotificationHref", () => {
     else process.env.PUBLIC_PLATFORM_URL = prev;
   });
 
-  it("routes admin billing paths to admin origin", () => {
-    expect(originForNotificationHref("/account/billing")).toBe(adminOrigin());
-  });
-
-  it("routes client paths to client origin", () => {
-    expect(originForNotificationHref("/dashboard")).toBe(clientOrigin());
+  it("routes all product paths to the unified app origin", () => {
+    const prev = process.env.PUBLIC_APP_URL;
+    process.env.PUBLIC_APP_URL = "https://app.test/";
+    expect(originForNotificationHref("/account/billing")).toBe(appOrigin());
+    expect(originForNotificationHref("/dashboard")).toBe(appOrigin());
+    expect(appOrigin()).toBe("https://app.test");
+    if (prev === undefined) delete process.env.PUBLIC_APP_URL;
+    else process.env.PUBLIC_APP_URL = prev;
   });
 });

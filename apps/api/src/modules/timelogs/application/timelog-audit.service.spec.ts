@@ -3,7 +3,12 @@ import { TimelogAuditService } from "./timelog-audit.service";
 
 describe("TimelogAuditService", () => {
   const prisma = {};
-  const service = new TimelogAuditService(prisma as any);
+  const service = new TimelogAuditService(
+    prisma as any,
+    {
+      assertAllowed: async () => ({ allowed: true })
+    } as any
+  );
 
   it("snapshotFromLog captures all 7 required fields", () => {
     const log = {

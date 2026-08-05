@@ -4,7 +4,7 @@ export const ASSISTANT_FALLBACK_LINKS: AssistantLinkDto[] = [
   { label: "Timer", href: "/timer" },
   { label: "Timesheet", href: "/timesheet" },
   { label: "Submissions", href: "/submissions" },
-  { label: "My Projects", href: "/projects" }
+  { label: "My Projects", href: "/my-projects" }
 ];
 
 export function buildAssistantFallbackReply(): AssistantChatResponseDto {

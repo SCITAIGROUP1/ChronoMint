@@ -1,6 +1,7 @@
 import type { AuthSessionDto } from "@kloqra/contracts";
+import { configuredAuthScope } from "./configured-auth-scope";
 
-const AUTH_SCOPE = process.env.NEXT_PUBLIC_AUTH_SCOPE?.trim() || "app";
+const AUTH_SCOPE = configuredAuthScope(process.env.NEXT_PUBLIC_AUTH_SCOPE, "app");
 
 export type AuthChannelMessage =
   | {

@@ -1,109 +1,83 @@
 # Authentication and authorization
 
-## Overview
+Kloqra uses JWT access tokens plus httpOnly refresh cookies. All customer personas authenticate
+through the unified product with `NEXT_PUBLIC_AUTH_SCOPE=app`. Platform operations use a separate
+`platform` scope and origin.
 
-Kloqra uses JWT access tokens plus httpOnly refresh cookies. All workspace-scoped API routes require authentication and an active workspace context.
-
-## Login flow
+## Login and refresh
 
 ```mermaid
 sequenceDiagram
   participant Browser
   participant API
   participant DB
-
-  Browser->>API: POST /auth/login
-  API->>DB: Verify user + workspace membership
-  API-->>Browser: accessToken in JSON body
-  API-->>Browser: Set httpOnly access_token + refresh_token cookies
-  Browser->>API: API calls with Authorization Bearer + X-Workspace-Id
+  Browser->>API: POST /auth/login (X-Auth-Scope: app)
+  API->>DB: Verify identity and membership
+  API-->>Browser: Access token plus app cookies
+  Browser->>API: Bearer token plus X-Workspace-Id
+  Browser->>API: POST /auth/refresh (X-Auth-Scope: app)
 ```
 
-### Register / login response
+The product stores the access token under `cm-app-*` keys and sends it as a Bearer token. The API
+prefers a valid Bearer token and can use the access cookie when appropriate. Refresh preserves the
+active workspace and rotates the refresh family.
 
-- **Body:** `accessToken`, `user`, `workspaceId`, `workspaceName`, `workspaceRole`
-- **Cookies:** `access_token` (short-lived), `refresh_token` (7 days)
+## Workspace and device behavior
 
-Each frontend stores `accessToken` in **scoped** `localStorage` keys (`cm-client-*` / `cm-admin-*` via `NEXT_PUBLIC_AUTH_SCOPE`) and sends `Authorization: Bearer <token>` when the token is not expired. The API guard prefers a **valid** Bearer token; if Bearer is expired, it falls back to the scoped access cookie.
+`JwtAuthGuard` resolves workspace authority from the token. A conflicting `X-Workspace-Id` is denied;
+it never changes authority. `POST /auth/switch-workspace` issues tokens for another workspace only
+after membership validation.
 
-401 responses include `details.reason` when applicable (`token_expired`, `token_invalid`, etc.) so the client can refresh vs force re-login.
+Multiple devices and tabs are supported. Logout revokes the presented refresh family. Password
+changes and explicit session revocation can invalidate broader session sets. A role change marks
+older access tokens revoked; the product clears cached session/capability state and requires a fresh
+sign-in.
 
-**Two apps (client + admin):** Auth cookies are scoped per app via `X-Auth-Scope` (`client` / `admin`): `access_token_client`, `refresh_token_admin`, etc. Admin and client can stay logged in on the same browser without overwriting each other's refresh cookie. Legacy unscoped `access_token` / `refresh_token` cookies are still read until cleared.
+See [MULTI_DEVICE_SESSIONS.md](./MULTI_DEVICE_SESSIONS.md).
 
-## Refresh
+## Authorization
 
-`POST /auth/refresh` reads the scoped refresh cookie for the caller's `X-Auth-Scope`, issues a new access token, and updates the matching access cookie. The refresh JWT includes `workspaceId` so refresh does not jump to an arbitrary workspace when the user has multiple memberships.
+Workspace, tenant, and project roles supply identity context, but the API policy evaluator remains
+authoritative for every protected request. Frontend capabilities only compose navigation, widgets,
+and actions. Browser-supplied tenant or workspace identifiers are never authorization truth.
 
-## Multiple devices / tabs
+| Product               | Scope      | Audience                              |
+| --------------------- | ---------- | ------------------------------------- |
+| `apps/app`            | `app`      | Members through tenant owners/admins  |
+| `apps/platform-admin` | `platform` | Isolated internal platform operations |
 
-| Scenario                                                                             | Behavior                                                                                                            |
-| ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
-| Same user, **admin + client**, same browser                                          | Allowed — separate scoped cookies and `localStorage` keys per app.                                                  |
-| Same user, **two devices** (e.g. laptop + phone)                                     | Allowed — stateless JWTs; each device keeps its own Bearer token and workspace in `localStorage`.                   |
-| **Stale `X-Workspace-Id`** (switch workspace on device A, device B still has old id) | API returns **403** with workspace mismatch — sign in again or switch workspace on that device.                     |
-| **One running timer** per user per workspace                                         | Second device gets `TIMER_ALREADY_ACTIVE` (409) — by design; stop timer on one device or use one device for timing. |
+### Capability freshness
 
-Parallel logins do **not** invalidate other devices unless you add a server-side session store (not implemented today). Full matrix: [MULTI_DEVICE_SESSIONS.md](./MULTI_DEVICE_SESSIONS.md).
+The `CapabilitySnapshot` type (defined in `packages/contracts/src/permissions.ts`) describes a
+versioned, short-lived UI composition hint. It is **not** an authorization token and must never
+appear in JWT claims.
 
-## Workspace context
+| Field           | Purpose                                                                             |
+| --------------- | ----------------------------------------------------------------------------------- |
+| `policyVersion` | Version of the managed-role policy at snapshot time                                 |
+| `computedAt`    | ISO-8601 timestamp of generation                                                    |
+| `expiresAt`     | Recommended client-side expiry (typically 5–15 minutes)                             |
+| `etag`          | Changes when policy or membership changes; use for cache validation                 |
+| `capabilities`  | `CapabilityEntry[]` — each carries `permission`, `scope`, and optional `resourceId` |
 
-`JwtAuthGuard` resolves workspace from the JWT `workspaceId` claim. If `X-Workspace-Id` is sent and **differs** from the token, the request is rejected (stale tab / other device switched workspace). If the header is omitted, the token workspace is used.
+**Invalidation triggers** — the client must discard and refetch the snapshot when:
 
-Missing workspace → `WORKSPACE_REQUIRED` error.
+- Any role mutation event is received (WebSocket `workspace_data_stale`)
+- The active workspace changes (`POST /auth/switch-workspace`)
+- The access token is refreshed after a session-revocation event
+- The policy version embedded in the snapshot does not match the current `POLICY_VERSION` constant
+- The `expiresAt` timestamp is reached
 
-## Switch workspace
+**Invariant**: Every API call reevaluates against the `AuthorizationPolicyService` regardless of
+snapshot state. A stale or missing snapshot only affects UI composition, never security.
 
-`POST /auth/switch-workspace` (authenticated) changes the active workspace and re-issues tokens for users with multiple memberships.
+## Production security
 
-## Logout
+For cross-site Vercel and Railway hosting, set secure cookies, `SameSite=None`, an exact
+`PUBLIC_APP_URL`, and `X-Auth-Scope: app`. Cookie endpoints require a valid production `Origin`.
+Use strong independent JWT secrets, CSRF protections, refresh replay detection, rate limiting, and
+reviewed CSP/HSTS/frame/referrer headers.
 
-`DELETE /auth/logout` clears scoped (`access_token_{scope}`, `refresh_token_{scope}`) and legacy cookies for the calling app only. Other devices and the other app remain signed in.
-
-See [MULTI_DEVICE_SESSIONS.md](./MULTI_DEVICE_SESSIONS.md) for the full multi-device model.
-
-## Role-based access
-
-Workspace roles: `ADMIN` | `MEMBER`.
-
-| Area                              | ADMIN                       | MEMBER                     |
-| --------------------------------- | --------------------------- | -------------------------- |
-| Create/edit/delete projects       | Yes                         | No                         |
-| Team invites                      | Yes                         | No                         |
-| Billing rates                     | Yes                         | No                         |
-| Reporting dashboard               | Yes                         | No                         |
-| Admin export wizard               | Yes                         | No                         |
-| Timer, own timelogs               | Yes                         | Yes                        |
-| Member export (`POST /export/me`) | Yes                         | Yes                        |
-| List projects                     | All in workspace            | Only where on project team |
-| Timelogs list                     | All users (optional filter) | Own logs only              |
-
-Enforced via `@Roles("ADMIN")` and `RolesGuard` on controllers, plus service-level checks (e.g. timelogs ownership).
-
-## App separation
-
-| App              | Expected role                                                     |
-| ---------------- | ----------------------------------------------------------------- |
-| Client (`:3000`) | `MEMBER` (admins may use it but admin features live in admin app) |
-| Admin (`:3002`)  | `ADMIN` — member accounts should use the client app               |
-
-## Production hardening (Vercel + Railway)
-
-Frontends on `*.vercel.app` and API on `*.up.railway.app` are **cross-site**. Refresh cookies must use `SameSite=None; Secure` or browsers will not send them on `fetch` with `credentials: "include"`.
-
-| Railway API variable        | Value for Vercel + Railway cross-site                           |
-| --------------------------- | --------------------------------------------------------------- |
-| `AUTH_COOKIE_SAME_SITE`     | `none` (auto-detected in production if omitted when cross-site) |
-| `AUTH_COOKIE_SECURE`        | `true`                                                          |
-| `FRONTEND_ORIGIN`           | Exact client + admin Vercel URLs (comma-separated)              |
-| `REFRESH_ROTATION_GRACE_MS` | `10000` (concurrent tab refresh tolerance)                      |
-
-Do **not** set `COOKIE_DOMAIN` for Vercel + Railway — cookies are stored on the API host only.
-
-- Use strong `JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET` (see [SECURITY.md](../development/SECURITY.md)).
-- `POST /auth/refresh` requires `X-Auth-Scope: client` or `admin` in production.
-- Cookie auth endpoints (`login`, `register`, `refresh`, `logout`) require a valid **`Origin`** header matching `FRONTEND_ORIGIN` in production (CSRF mitigation when `SameSite=None`).
-- API **fails startup** in production if cross-site setup lacks `AUTH_COOKIE_SAME_SITE=none` or `FRONTEND_ORIGIN` is unset.
-- Client **proactive refresh** runs ~2 minutes before access token expiry to avoid 401 bursts.
-- Access JWTs include a `family` claim tied to the refresh rotation family; revoking a session or changing password blocks the family (or user) in Redis for the access-token TTL (`session_revoked`).
-
-Implementation: [auth.controller.ts](../../apps/api/src/modules/auth/interface/http/auth.controller.ts), [jwt-auth.guard.ts](../../apps/api/src/common/guards/jwt-auth.guard.ts), [cookie-options.ts](../../apps/api/src/common/auth/cookie-options.ts), [allowed-origins.ts](../../apps/api/src/common/auth/allowed-origins.ts).
+Implementation: [auth controller](../../apps/api/src/modules/auth/interface/http/auth.controller.ts),
+[JWT guard](../../apps/api/src/common/guards/jwt-auth.guard.ts), and
+[allowed origins](../../apps/api/src/common/auth/allowed-origins.ts).

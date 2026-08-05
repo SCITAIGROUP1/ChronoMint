@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     "./globals.css": "./src/globals.css",
+    "./dashboard-grid.css": "./src/dashboard-grid.css",
     ".": {
       "types": "./src/index.ts",
       "import": "./dist/index.js",

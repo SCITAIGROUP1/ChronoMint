@@ -24,6 +24,9 @@ import {
   createTaskSchema,
   createWidgetShareSchema,
   taskListItemSchema,
+  taskImportRowSchema,
+  taskImportResponseSchema,
+  exportTasksQuerySchema,
   projectSummarySchema,
   createTimeLogSchema,
   formatUserDate,
@@ -31,6 +34,9 @@ import {
   listTimeLogOccupancyQuerySchema,
   listTimeLogsQuerySchema,
   loginSchema,
+  authSessionSchema,
+  authScopeSchema,
+  productAuthScopeSchema,
   inviteHandoffSchema,
   mergeUserPreferences,
   normalizeNotificationChannels,
@@ -38,6 +44,7 @@ import {
   parseWorkspaceSettings,
   reportQuerySchema,
   refreshSessionSchema,
+  hasManagedRolePermission,
   resolveEffectiveDailyTargetHours,
   resolveEffectiveLanguage,
   resolveEffectiveNotifications,
@@ -79,6 +86,22 @@ describe("contracts", () => {
   it("validates login", () => {
     const r = loginSchema.safeParse({ email: "a@b.com", password: "secret" });
     expect(r.success).toBe(true);
+  });
+
+  it("validates an organization-only tenant admin session", () => {
+    expect(
+      authSessionSchema.safeParse({
+        user: { id: UUID, name: "Second Admin" },
+        tenantId: UUID_2,
+        tenantRole: "ADMIN",
+        organizationOnly: true
+      }).success
+    ).toBe(true);
+  });
+
+  it("exports unified auth scope contracts", () => {
+    expect(authScopeSchema.options).toEqual(["app", "platform"]);
+    expect(productAuthScopeSchema.parse("app")).toBe("app");
   });
 
   it("validates invite handoff token", () => {
@@ -578,6 +601,46 @@ describe("contracts", () => {
     expect(r.success).toBe(true);
   });
 
+  it("exposes task bulk import and export routes", () => {
+    expect(ROUTES.TASKS.BULK_TEMPLATE).toBe("/tasks/bulk/template");
+    expect(ROUTES.TASKS.BULK_UPLOAD).toBe("/tasks/bulk/upload");
+    expect(ROUTES.TASKS.EXPORT).toBe("/tasks/export");
+  });
+
+  it("validates task import row schema", () => {
+    const valid = taskImportRowSchema.safeParse({
+      project: "Platform API",
+      category: "Development",
+      task: "K8s rollout",
+      billable: "true",
+      active: "yes"
+    });
+    expect(valid.success).toBe(true);
+
+    const missingProject = taskImportRowSchema.safeParse({
+      category: "Development",
+      task: "K8s rollout"
+    });
+    expect(missingProject.success).toBe(false);
+  });
+
+  it("validates task import response schema", () => {
+    const valid = taskImportResponseSchema.safeParse({
+      created: 2,
+      skipped: 1,
+      failed: [{ row: 4, reason: 'Unknown project "X"' }]
+    });
+    expect(valid.success).toBe(true);
+  });
+
+  it("validates export tasks query schema", () => {
+    const valid = exportTasksQuerySchema.safeParse({ format: "csv", search: "deploy" });
+    expect(valid.success).toBe(true);
+    if (valid.success) {
+      expect(valid.data.format).toBe("csv");
+    }
+  });
+
   it("keeps billableDefault on task list items but omits assignees", () => {
     const r = taskListItemSchema.safeParse({
       id: UUID,
@@ -657,6 +720,41 @@ describe("contracts", () => {
     expect(ROUTES.WORKSPACES.ASSIGN_ADMIN("ws-1")).toBe("/workspaces/ws-1/admins/assign");
   });
 
+  it("exposes additive authoritative permission policy routes", () => {
+    expect(ROUTES.TENANTS.ROLE_POLICIES).toBe("/tenants/current/permission-policies/roles");
+    expect(ROUTES.TENANTS.ROLE_POLICY("WORKSPACE_MEMBER")).toBe(
+      "/tenants/current/permission-policies/roles/WORKSPACE_MEMBER"
+    );
+    expect(ROUTES.TENANTS.ROLE_POLICY_RESET("WORKSPACE_MEMBER")).toBe(
+      "/tenants/current/permission-policies/roles/WORKSPACE_MEMBER/reset"
+    );
+    expect(ROUTES.TENANTS.PRINCIPAL_POLICIES).toBe(
+      "/tenants/current/permission-policies/principals"
+    );
+    expect(ROUTES.TENANTS.PRINCIPAL_POLICY("user-1")).toBe(
+      "/tenants/current/permission-policies/principals/user-1"
+    );
+    expect(ROUTES.TENANTS.PRINCIPAL_POLICY_RESET("user-1")).toBe(
+      "/tenants/current/permission-policies/principals/user-1/reset"
+    );
+    expect(ROUTES.TENANTS.PERMISSION_POLICY_BATCH).toBe(
+      "/tenants/current/permission-policies/batch"
+    );
+    expect(ROUTES.TENANTS.PERMISSION_POLICY_CATALOG).toBe(
+      "/tenants/current/permission-policies/catalog"
+    );
+    expect(ROUTES.TENANTS.PERMISSION_MATRIX).toBe("/tenants/current/permission-matrix");
+  });
+
+  it("exports centralized managed-role permissions", () => {
+    expect(
+      hasManagedRolePermission("WORKSPACE_ADMIN", "workspace:ManageMembers", "workspace")
+    ).toBe(true);
+    expect(
+      hasManagedRolePermission("WORKSPACE_MEMBER", "workspace:ManageMembers", "workspace")
+    ).toBe(false);
+  });
+
   it("exposes tenant workspace admin routes", () => {
     expect(ROUTES.TENANTS.WORKSPACE_ADMINS_OVERVIEW).toBe(
       "/tenants/current/workspace-admins/overview"
@@ -684,6 +782,9 @@ describe("contracts", () => {
     );
     expect(ROUTES.WORKSPACES.BULK_MEMBERS_UPLOAD("ws-1")).toBe(
       "/workspaces/ws-1/members/bulk/upload"
+    );
+    expect(ROUTES.WORKSPACES.BULK_MEMBERS_JOB("ws-1", "job-1")).toBe(
+      "/workspaces/ws-1/members/bulk/jobs/job-1"
     );
   });
 

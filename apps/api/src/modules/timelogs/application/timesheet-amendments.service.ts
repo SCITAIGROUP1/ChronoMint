@@ -1,6 +1,7 @@
 import { ErrorCodes, formatTimesheetPeriodLabel, buildPaginationMeta } from "@kloqra/contracts";
 import type { TimesheetAmendmentDto, TimesheetApprovalsFilterQuery } from "@kloqra/contracts";
 import { Injectable, HttpStatus, Logger } from "@nestjs/common";
+import { AuthorizationEnforcementService } from "../../../common/access/authorization-enforcement.service";
 import { ProjectAccessService } from "../../../common/access/project-access.service";
 import { ReportCacheService } from "../../../common/cache/report-cache.service";
 import { DomainException } from "../../../common/errors/domain.exception";
@@ -19,6 +20,7 @@ export class TimesheetAmendmentsService {
     private prisma: PrismaService,
     private notificationsDispatch: NotificationsDispatchService,
     private access: ProjectAccessService,
+    private authorization: AuthorizationEnforcementService,
     private reportCache: ReportCacheService
   ) {}
 
@@ -106,6 +108,11 @@ export class TimesheetAmendmentsService {
       );
     }
 
+    await this.authorization.assertAllowed({
+      principalId: userId,
+      permission: "personal:SubmitTimesheets",
+      resource: { scope: "self", workspaceId }
+    });
     const row = await this.prisma.timesheetAmendmentRequest.create({
       data: {
         periodId,
@@ -162,10 +169,35 @@ export class TimesheetAmendmentsService {
     role: "ADMIN" | "MEMBER",
     filter: TimesheetApprovalsFilterQuery = {}
   ) {
-    const managedProjectIds =
-      role === "ADMIN"
-        ? undefined
-        : await this.access.manageableProjectIds(workspaceId, userId, role);
+    const workspaceDecision = await this.authorization.evaluate({
+      principalId: userId,
+      permission: "workspace:ReviewTimesheets",
+      resource: { scope: "workspace", workspaceId }
+    });
+    const candidateProjectIds = await this.access.manageableProjectIds(workspaceId, userId, role);
+    const managedProjectIds = workspaceDecision.allowed
+      ? undefined
+      : (
+          await Promise.all(
+            candidateProjectIds.map(async (projectId) => ({
+              projectId,
+              decision: await this.authorization.evaluate({
+                principalId: userId,
+                permission: "project:ReviewTimesheets",
+                resource: { scope: "project", projectId, expectedWorkspaceId: workspaceId }
+              })
+            }))
+          )
+        )
+          .filter(({ decision }) => decision.allowed)
+          .map(({ projectId }) => projectId);
+    if (!workspaceDecision.allowed && managedProjectIds?.length === 0) {
+      await this.authorization.assertAllowed({
+        principalId: userId,
+        permission: "workspace:ReviewTimesheets",
+        resource: { scope: "workspace", workspaceId }
+      });
+    }
     const periodStartRange = buildPeriodStartRange(filter);
     const periodWhere =
       filter.projectId || periodStartRange
@@ -226,7 +258,7 @@ export class TimesheetAmendmentsService {
     workspaceId: string,
     amendmentId: string,
     reviewerUserId: string,
-    reviewerRole: "ADMIN" | "MEMBER"
+    _reviewerRole: "ADMIN" | "MEMBER"
   ) {
     const amendment = await this.prisma.timesheetAmendmentRequest.findFirst({
       where: { id: amendmentId, workspaceId, status: "PENDING" },
@@ -258,14 +290,29 @@ export class TimesheetAmendmentsService {
       );
     }
 
-    await this.access.assertCanManageProject(
-      workspaceId,
-      reviewerUserId,
-      reviewerRole,
-      amendment.period.projectId
-    );
+    await this.authorization.assertAllowed({
+      principalId: reviewerUserId,
+      permission: "project:ReviewTimesheets",
+      resource: {
+        scope: "project",
+        projectId: amendment.period.projectId,
+        expectedWorkspaceId: workspaceId
+      }
+    });
 
     await this.prisma.$transaction(async (tx) => {
+      await this.authorization.assertAllowed(
+        {
+          principalId: reviewerUserId,
+          permission: "project:ReviewTimesheets",
+          resource: {
+            scope: "project",
+            projectId: amendment.period.projectId,
+            expectedWorkspaceId: workspaceId
+          }
+        },
+        tx
+      );
       const updatedAmendment = await tx.timesheetAmendmentRequest.updateMany({
         where: { id: amendmentId, status: "PENDING" },
         data: {
@@ -345,7 +392,7 @@ export class TimesheetAmendmentsService {
     workspaceId: string,
     amendmentId: string,
     reviewerUserId: string,
-    reviewerRole: "ADMIN" | "MEMBER",
+    _reviewerRole: "ADMIN" | "MEMBER",
     adminNote?: string
   ) {
     if (!adminNote?.trim()) {
@@ -367,14 +414,29 @@ export class TimesheetAmendmentsService {
         HttpStatus.NOT_FOUND
       );
     }
-    await this.access.assertCanManageProject(
-      workspaceId,
-      reviewerUserId,
-      reviewerRole,
-      amendment.period.projectId
-    );
+    await this.authorization.assertAllowed({
+      principalId: reviewerUserId,
+      permission: "project:ReviewTimesheets",
+      resource: {
+        scope: "project",
+        projectId: amendment.period.projectId,
+        expectedWorkspaceId: workspaceId
+      }
+    });
 
     const row = await this.prisma.$transaction(async (tx) => {
+      await this.authorization.assertAllowed(
+        {
+          principalId: reviewerUserId,
+          permission: "project:ReviewTimesheets",
+          resource: {
+            scope: "project",
+            projectId: amendment.period.projectId,
+            expectedWorkspaceId: workspaceId
+          }
+        },
+        tx
+      );
       const result = await tx.timesheetAmendmentRequest.updateMany({
         where: { id: amendmentId, workspaceId, status: "PENDING" },
         data: {

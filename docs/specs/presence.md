@@ -30,7 +30,7 @@ Controller: [presence.controller.ts](../../apps/api/src/modules/presence/interfa
 
 ## UI
 
-- [apps/admin/src/app/(admin)/team/page.tsx](<../../apps/admin/src/app/(admin)/team/page.tsx>)
+- [apps/app/src/app/(app)/team/page.tsx](<../../apps/app/src/app/(app)/team/page.tsx>)
 
 ## Edge cases
 

@@ -1,6 +1,7 @@
 import type { CreateTaskDto, ListTasksQuery, UpdateTaskDto } from "@kloqra/contracts";
 import { ErrorCodes } from "@kloqra/contracts";
 import { HttpStatus, Injectable } from "@nestjs/common";
+import { AuthorizationEnforcementService } from "../../../common/access/authorization-enforcement.service";
 import { ProjectAccessService } from "../../../common/access/project-access.service";
 import { DomainException } from "../../../common/errors/domain.exception";
 import {
@@ -28,7 +29,8 @@ export class TasksService {
   constructor(
     private prisma: PrismaService,
     private access: ProjectAccessService,
-    private notificationsDispatch: NotificationsDispatchService
+    private notificationsDispatch: NotificationsDispatchService,
+    private authorization: AuthorizationEnforcementService
   ) {}
 
   toListItem(t: TaskWithRelations) {
@@ -93,6 +95,23 @@ export class TasksService {
       const filterProjectIds = Array.isArray(query.projectId) ? query.projectId : [query.projectId];
       projectIds = projectIds.filter((id) => filterProjectIds.includes(id));
     }
+    // Workspace admins/PMs prove project visibility via project:Read. Members are already
+    // limited by ProjectAccessService team membership plus assignee/common filters below.
+    if (role === "ADMIN" || managedProjectIds.length > 0) {
+      const decisions = await Promise.all(
+        projectIds.map((projectId) => {
+          if (role === "MEMBER" && !managedProjectIds.includes(projectId)) {
+            return Promise.resolve({ allowed: true as const });
+          }
+          return this.authorization.evaluate({
+            principalId: userId,
+            permission: "project:Read",
+            resource: { scope: "project", projectId, expectedWorkspaceId: workspaceId }
+          });
+        })
+      );
+      projectIds = projectIds.filter((_, index) => decisions[index]?.allowed);
+    }
     if (projectIds.length === 0) {
       return emptyPaginatedResponse(query.page, query.limit);
     }
@@ -145,8 +164,16 @@ export class TasksService {
     );
   }
 
-  async create(workspaceId: string, userId: string, role: "ADMIN" | "MEMBER", dto: CreateTaskDto) {
-    await this.access.assertCanManageProject(workspaceId, userId, role, dto.projectId);
+  async create(workspaceId: string, userId: string, _role: "ADMIN" | "MEMBER", dto: CreateTaskDto) {
+    await this.authorization.assertAllowed({
+      principalId: userId,
+      permission: "project:ManageTasks",
+      resource: {
+        scope: "project",
+        projectId: dto.projectId,
+        expectedWorkspaceId: workspaceId
+      }
+    });
     await this.assertProjectInWorkspace(workspaceId, dto.projectId);
     await this.assertCategoryActiveInWorkspace(workspaceId, dto.categoryId);
     if (!dto.isCommon) {
@@ -205,12 +232,20 @@ export class TasksService {
   async update(
     workspaceId: string,
     userId: string,
-    role: "ADMIN" | "MEMBER",
+    _role: "ADMIN" | "MEMBER",
     id: string,
     dto: UpdateTaskDto
   ) {
     const task = await this.assertWorkspaceTask(workspaceId, id);
-    await this.access.assertCanManageProject(workspaceId, userId, role, task.projectId);
+    await this.authorization.assertAllowed({
+      principalId: userId,
+      permission: "project:ManageTasks",
+      resource: {
+        scope: "project",
+        projectId: task.projectId,
+        expectedWorkspaceId: workspaceId
+      }
+    });
     const willBeCommon = dto.isCommon !== undefined ? dto.isCommon : task.isCommon;
     const existingAssigneeIds = dto.assigneeUserIds
       ? (
@@ -306,9 +341,17 @@ export class TasksService {
     return this.toDto(t);
   }
 
-  async remove(workspaceId: string, userId: string, role: "ADMIN" | "MEMBER", id: string) {
+  async remove(workspaceId: string, userId: string, _role: "ADMIN" | "MEMBER", id: string) {
     const task = await this.assertWorkspaceTask(workspaceId, id);
-    await this.access.assertCanManageProject(workspaceId, userId, role, task.projectId);
+    await this.authorization.assertAllowed({
+      principalId: userId,
+      permission: "project:ManageTasks",
+      resource: {
+        scope: "project",
+        projectId: task.projectId,
+        expectedWorkspaceId: workspaceId
+      }
+    });
     if (task.taskName === "Uncategorized Task") {
       throw new DomainException(
         ErrorCodes.VALIDATION_ERROR,

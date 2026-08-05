@@ -30,4 +30,14 @@ describe("resolveActiveNavHref", () => {
   it("returns null when no nav item matches", () => {
     expect(resolveActiveNavHref("/unknown", ACCOUNT_NAV)).toBeNull();
   });
+
+  it("highlights My Projects for nested personal project routes", () => {
+    const nav = ["/projects", "/my-projects", "/dashboard"] as const;
+    expect(resolveActiveNavHref("/my-projects/abc/overview", nav)).toBe("/my-projects");
+    expect(resolveActiveNavHref("/my-projects/abc/tasks", nav)).toBe("/my-projects");
+    expect(resolveActiveNavHref("/projects/abc/overview", nav, "from=my-projects")).toBe(
+      "/my-projects"
+    );
+    expect(resolveActiveNavHref("/projects/abc/overview", nav)).toBe("/projects");
+  });
 });

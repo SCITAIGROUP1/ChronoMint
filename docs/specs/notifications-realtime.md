@@ -2,7 +2,7 @@
 
 ## User-visible outcome
 
-- When an admin approves a timesheet, rejects a submission, or changes approval settings, **members see the bell update immediately** and **open pages refetch** without a manual refresh.
+- When an administrator approves a timesheet, rejects a submission, or changes approval settings, **members see the bell update immediately** and **open pages refetch** without a manual refresh.
 - Admins see pending approvals refresh when members submit timesheets or request amendments.
 - If the WebSocket drops, **60s polling** (5 min when connected) and **tab focus refetch** keep data reasonably fresh.
 
@@ -43,29 +43,28 @@ Publisher: [notifications-realtime.service.ts](../../apps/api/src/modules/notifi
 | Shared socket singleton | [notification-socket-manager.ts](../../packages/web-shared/src/realtime/notification-socket-manager.ts) |
 | Shell hook              | [use-notification-socket.ts](../../packages/web-shared/src/hooks/use-notification-socket.ts)            |
 | Data invalidation bus   | [workspace-data-sync.ts](../../packages/web-shared/src/realtime/workspace-data-sync.ts)                 |
-| Client store wiring     | [apps/client/src/lib/workspace-data-sync.ts](../../apps/client/src/lib/workspace-data-sync.ts)          |
-| Admin store wiring      | [apps/admin/src/lib/workspace-data-sync.ts](../../apps/admin/src/lib/workspace-data-sync.ts)            |
+| Unified-product wiring  | [apps/app/src/lib/workspace-data-sync.ts](../../apps/app/src/lib/workspace-data-sync.ts)                |
 
 ## Given / When / Then
 
-**Given** a member has submissions open  
-**When** an admin approves their timesheet  
+**Given** a member has submissions open
+**When** an administrator approves their timesheet
 **Then** the member's bell unread count updates via WebSocket and submissions refetch.
 
-**Given** a member has the tasks page or timer open  
-**When** an admin assigns or unassigns them to a task or project  
+**Given** a member has the tasks page or timer open
+**When** an admin assigns or unassigns them to a task or project
 **Then** task pickers and paginated task lists refetch via the `tasks` scope.
 
-**Given** an admin toggles project approval settings  
-**When** the change is saved  
+**Given** an admin toggles project approval settings
+**When** the change is saved
 **Then** each project member receives `project.approvalSettingsChanged` and submissions/projects caches invalidate.
 
-**Given** the user logs out  
-**When** `logoutSession` runs  
+**Given** the user logs out
+**When** `logoutSession` runs
 **Then** the notification socket disconnects immediately.
 
-**Given** the access token is refreshed in another tab  
-**When** `subscribeSessionUpdates` fires  
+**Given** the access token is refreshed in another tab
+**When** `subscribeSessionUpdates` fires
 **Then** the socket reconnects with the new token.
 
 ## Production notes

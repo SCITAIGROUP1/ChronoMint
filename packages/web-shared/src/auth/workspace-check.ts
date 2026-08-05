@@ -6,7 +6,7 @@ import { filterAdminAccessibleWorkspaces } from "./admin-context";
 
 export type WorkspaceCheckOptions = {
   roleFilter?: "ADMIN";
-  /** Include workspace ADMINs and project managers (admin app access). */
+  /** Include workspace administrators and project managers. */
   filterAdminAccess?: boolean;
 };
 

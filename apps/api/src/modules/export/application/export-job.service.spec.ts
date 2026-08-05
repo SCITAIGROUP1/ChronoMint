@@ -40,12 +40,16 @@ describe("ExportJobService", () => {
     const mockExportQueue = {
       add: vi.fn().mockResolvedValue(undefined)
     };
+    const authorization = {
+      assertAllowed: vi.fn().mockResolvedValue({ allowed: true })
+    };
 
     const service = new ExportJobService(
       mockPrisma as any,
       {} as any,
       {} as any,
       {} as any,
+      authorization as any,
       mockExportQueue as any
     );
 
@@ -68,7 +72,72 @@ describe("ExportJobService", () => {
       })
     );
 
-    expect(mockExportQueue.add).toHaveBeenCalledWith("runExport", { jobId: "job-1" });
+    expect(authorization.assertAllowed).toHaveBeenCalledWith({
+      principalId: "user-1",
+      permission: "workspace:CreateExport",
+      resource: { scope: "workspace", workspaceId: "ws-1" }
+    });
+    expect(mockExportQueue.add).toHaveBeenCalledWith("runExport", {
+      jobId: "job-1",
+      actorUserId: "user-1"
+    });
     expect(result.id).toBe("job-1");
+  });
+
+  it("does not persist or enqueue after permission revocation", async () => {
+    const mockPrisma = { exportJob: { create: vi.fn() } };
+    const queue = { add: vi.fn() };
+    const authorization = {
+      assertAllowed: vi.fn().mockRejectedValue(new Error("revoked"))
+    };
+    const service = new ExportJobService(
+      mockPrisma as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      authorization as any,
+      queue as any
+    );
+
+    await expect(
+      service.create("ws-2", "user-1", {
+        from: "2025-06-01T00:00:00.000Z",
+        to: "2025-06-07T00:00:00.000Z",
+        reportTypes: ["time_entries"],
+        format: "xlsx"
+      })
+    ).rejects.toThrow("revoked");
+    expect(mockPrisma.exportJob.create).not.toHaveBeenCalled();
+    expect(queue.add).not.toHaveBeenCalled();
+  });
+
+  it("reauthorizes the persisted actor before worker side effects", async () => {
+    const mockPrisma = {
+      exportJob: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: "job-1",
+          workspaceId: "ws-1",
+          requestedByUserId: "user-1",
+          status: "queued"
+        }),
+        update: vi.fn()
+      }
+    };
+    const exportService = { generate: vi.fn() };
+    const authorization = {
+      assertAllowed: vi.fn().mockRejectedValue(new Error("revoked"))
+    };
+    const service = new ExportJobService(
+      mockPrisma as any,
+      exportService as any,
+      {} as any,
+      {} as any,
+      authorization as any,
+      {} as any
+    );
+
+    await expect(service.runJob("job-1", "user-1")).rejects.toThrow("revoked");
+    expect(mockPrisma.exportJob.update).not.toHaveBeenCalled();
+    expect(exportService.generate).not.toHaveBeenCalled();
   });
 });

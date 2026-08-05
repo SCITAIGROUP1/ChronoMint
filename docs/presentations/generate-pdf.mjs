@@ -7,7 +7,7 @@ import { createRequire } from "module";
 import path from "path";
 import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const require = createRequire(path.join(__dirname, "../../apps/client/package.json"));
+const require = createRequire(path.join(__dirname, "../../apps/app/package.json"));
 const { chromium } = require("@playwright/test");
 
 const htmlPath = path.join(__dirname, "kloqra-demo-and-roadmap.html");

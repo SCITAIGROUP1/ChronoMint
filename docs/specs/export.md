@@ -4,7 +4,7 @@
 
 - **Admins** run a multi-report export wizard: filters, report types, per-report columns, CSV / Excel / PDF, row preview, presets (local + server), scheduled exports, shareable links.
 - **Admins** quick-export from the dashboard (same date range as analytics chips).
-- **Members** export their own timesheet from the client app (`POST /export/me`).
+- **Members** export their own timesheet from the unified product (`POST /export/me`).
 - **Public** read-only report views via share token (`GET /export/share/:token`).
 
 Exports query **TimeLog** rows in the active workspace (not `TeamMember` directly). “Team member” in filters means **filter by user**, optionally limited to a project’s team.
@@ -35,7 +35,7 @@ Domain note: [DOMAIN_MODEL.md](../architecture/DOMAIN_MODEL.md).
 
 Controller: [export.controller.ts](../../apps/api/src/modules/export/interface/http/export.controller.ts), [export-share.controller.ts](../../apps/api/src/modules/export/interface/http/export-share.controller.ts)
 
-Aggregation: [export.service.ts](../../apps/api/src/modules/export/application/export.service.ts), [export-rows.builder.ts](../../apps/api/src/modules/export/application/export-rows.builder.ts), [time-aggregation.service.ts](../../apps/api/src/modules/reporting/application/time-aggregation.service.ts)
+Aggregation: [export.service.ts](../../apps/api/src/modules/export/application/export.service.ts), [export-rows.builder.ts](../../apps/api/src/modules/export/application/export-rows.builder.ts)
 
 Filenames: [export-filename.ts](../../packages/contracts/src/export-filename.ts)
 
@@ -147,12 +147,11 @@ For heavy or long-running exports that could timeout or block the main HTTP thre
 
 ## UI
 
-- Admin: [exports/page.tsx](<../../apps/admin/src/app/(admin)/exports/page.tsx>), [dashboard/page.tsx](<../../apps/admin/src/app/(admin)/dashboard/page.tsx>)
-- Client: timesheet export on client app
+- Admin: [exports/page.tsx](<../../apps/app/src/app/(app)/exports/page.tsx>), [dashboard/page.tsx](<../../apps/app/src/app/(app)/dashboard/page.tsx>)
+- Personal experience: timesheet export in the unified product
 
 ## Testing
 
-- [export-week.util.spec.ts](../../apps/api/src/modules/export/application/export-week.util.spec.ts)
 - [export-preview.spec.ts](../../apps/api/src/modules/export/application/export-preview.spec.ts)
 - Aggregation parity: `time-aggregation.export.spec.ts`
 

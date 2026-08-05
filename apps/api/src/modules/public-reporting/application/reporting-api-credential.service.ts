@@ -10,6 +10,7 @@ import {
 } from "@kloqra/contracts";
 import { HttpStatus, Injectable } from "@nestjs/common";
 import * as bcrypt from "bcrypt";
+import { AuthorizationEnforcementService } from "../../../common/access/authorization-enforcement.service";
 import { hashPassword } from "../../../common/auth/password.util";
 import type { ApiCredentialContext } from "../../../common/decorators/api-credential.decorator";
 import { DomainException } from "../../../common/errors/domain.exception";
@@ -30,10 +31,16 @@ function generateSecret(): string {
 export class ReportingApiCredentialService {
   constructor(
     private prisma: PrismaService,
-    private planLimit: PlanLimitService
+    private planLimit: PlanLimitService,
+    private authorization: AuthorizationEnforcementService
   ) {}
 
-  async list(workspaceId: string, tenantId: string): Promise<ReportingApiKeyDto[]> {
+  async list(
+    workspaceId: string,
+    tenantId: string,
+    actorUserId: string
+  ): Promise<ReportingApiKeyDto[]> {
+    await this.assertCanManage(actorUserId, workspaceId, tenantId);
     await this.assertWorkspaceInTenant(workspaceId, tenantId);
     const rows = await this.prisma.reportingApiCredential.findMany({
       where: { workspaceId },
@@ -45,9 +52,11 @@ export class ReportingApiCredentialService {
   async create(
     workspaceId: string,
     tenantId: string,
+    actorUserId: string,
     dto: CreateReportingApiKeyDto
   ): Promise<CreateReportingApiKeyResponseDto> {
     const parsed = createReportingApiKeySchema.parse(dto);
+    await this.assertCanManage(actorUserId, workspaceId, tenantId);
     await this.assertWorkspaceInTenant(workspaceId, tenantId);
     await this.assertProjectsInWorkspace(workspaceId, parsed.projectIds);
     await this.planLimit.assertReportingApiKeysAllowed(tenantId);
@@ -73,10 +82,12 @@ export class ReportingApiCredentialService {
   async update(
     workspaceId: string,
     tenantId: string,
+    actorUserId: string,
     id: string,
     dto: UpdateReportingApiKeyDto
   ): Promise<ReportingApiKeyDto> {
     const parsed = updateReportingApiKeySchema.parse(dto);
+    await this.assertCanManage(actorUserId, workspaceId, tenantId);
     await this.assertWorkspaceInTenant(workspaceId, tenantId);
     await this.getOrThrow(workspaceId, id);
 
@@ -99,7 +110,13 @@ export class ReportingApiCredentialService {
     return this.toDto(row);
   }
 
-  async revoke(workspaceId: string, tenantId: string, id: string): Promise<void> {
+  async revoke(
+    workspaceId: string,
+    tenantId: string,
+    actorUserId: string,
+    id: string
+  ): Promise<void> {
+    await this.assertCanManage(actorUserId, workspaceId, tenantId);
     await this.assertWorkspaceInTenant(workspaceId, tenantId);
     await this.getOrThrow(workspaceId, id);
     await this.prisma.reportingApiCredential.delete({ where: { id } });
@@ -159,6 +176,14 @@ export class ReportingApiCredentialService {
         HttpStatus.FORBIDDEN
       );
     }
+  }
+
+  private assertCanManage(actorUserId: string, workspaceId: string, tenantId: string) {
+    return this.authorization.assertAllowed({
+      principalId: actorUserId,
+      permission: "workspace:ManageApiKeys",
+      resource: { scope: "workspace", workspaceId, expectedTenantId: tenantId }
+    });
   }
 
   private async assertWorkspaceInTenant(workspaceId: string, tenantId: string): Promise<void> {

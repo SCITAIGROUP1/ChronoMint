@@ -19,11 +19,10 @@ concurrency:
 env:
   JWT_ACCESS_SECRET: ci-access-secret-min-32-chars-long
   JWT_REFRESH_SECRET: ci-refresh-secret-min-32-chars-long
-  PUBLIC_CLIENT_URL: http://localhost:3000
-  PUBLIC_ADMIN_URL: http://localhost:3002
+  APP_URL: http://localhost:3000
   PUBLIC_PLATFORM_URL: http://localhost:3003
   NEXT_PUBLIC_API_BASE_URL: http://localhost:3001
-  # Keep commercial features ON in CI (admin e2e covers /billing hourly rates)
+  # Keep commercial features ON in product app e2e.
   CLIENT_COMMERCIAL_FEATURES_ENABLED: "true"
   NEXT_PUBLIC_CLIENT_COMMERCIAL_FEATURES: "true"
   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
@@ -55,11 +54,12 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm build
-      - name: Client dashboard bundle budget
+      - name: Product app dashboard bundle budget
         run: node scripts/check-bundle-budget.mjs
-      - name: Bundle analysis (admin, non-blocking)
+      - name: Bundle analysis (app, non-blocking)
         continue-on-error: true
-        run: pnpm --filter @kloqra/admin analyze
+        run: pnpm --filter @kloqra/app analyze
+      - run: pnpm test:config
 
   unit:
     needs: [quality]
@@ -168,7 +168,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        app: [admin, client, platform-admin]
+        app: [app, platform-admin]
     services:
       postgres:
         image: postgres:16-alpine
@@ -196,7 +196,6 @@ jobs:
       DATABASE_URL: postgresql://kloqra:kloqra@localhost:5432/kloqra_test
       REDIS_URL: redis://localhost:6379
       NEXT_PUBLIC_API_BASE_URL: http://localhost:3001
-      NEXT_PUBLIC_AUTH_SCOPE: client
       CLIENT_COMMERCIAL_FEATURES_ENABLED: "true"
       NEXT_PUBLIC_CLIENT_COMMERCIAL_FEATURES: "true"
     steps:
@@ -212,8 +211,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            apps/admin/.next/cache
-            apps/client/.next/cache
+            apps/app/.next/cache
+            apps/platform-admin/.next/cache
           key: ${{ runner.os }}-nextjs-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-nextjs-

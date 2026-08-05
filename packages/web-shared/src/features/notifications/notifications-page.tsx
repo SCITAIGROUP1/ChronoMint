@@ -22,10 +22,19 @@ import {
 } from "../../hooks/use-notifications";
 import { activateNotification } from "./notification-actions";
 import {
+  groupNotificationsByCategory,
+  notificationInboxCategory,
+  NOTIFICATION_INBOX_CATEGORY_LABELS,
+  type NotificationInboxCategory
+} from "./notification-inbox-groups";
+import {
   NotificationDetails,
   iconForNotificationType,
   notificationVariantClass
 } from "./notification-ui";
+
+type ReadFilter = "all" | "unread";
+type CategoryFilter = "all" | NotificationInboxCategory;
 
 function iconForType(type: NotificationType, title?: string | null) {
   return iconForNotificationType(type, title);
@@ -55,50 +64,63 @@ function NotificationRow({
     onUpdated();
   }
 
-  async function handleCardClick() {
+  async function handleRowActivate() {
     if (isUnread) {
       await setRead(true);
+    } else if (href) {
+      await handleActivate();
     }
   }
 
-  const content = (
-    <div
+  return (
+    <article
       className={cn(
-        "flex items-start gap-4 rounded-xl border border-border bg-card p-4",
-        "transition-[background-color,border-color,opacity] duration-[var(--motion-base)] ease-[var(--motion-ease-out)]",
-        isUnread && "border-primary/30",
-        !isUnread && "opacity-90",
-        isUnread && "cursor-pointer hover:border-primary/40 hover:bg-muted/30",
+        "group relative flex items-start gap-3 rounded-lg border border-border/70 bg-card px-3 py-3 sm:gap-4 sm:px-4",
+        "transition-[background-color,border-color,box-shadow] duration-[var(--motion-base)] ease-[var(--motion-ease-out)]",
+        isUnread && "border-primary/25 bg-primary/[0.03] shadow-sm",
+        !isUnread && "opacity-95",
+        "hover:border-border hover:bg-muted/20",
         notificationVariantClass(item.metadata)
       )}
       role="button"
       tabIndex={0}
-      onClick={() => void handleCardClick()}
+      onClick={() => void handleRowActivate()}
       onKeyDown={(event: KeyboardEvent) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
-          void handleCardClick();
+          void handleRowActivate();
         }
       }}
     >
-      <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+      <div
+        className={cn(
+          "flex size-9 shrink-0 items-center justify-center rounded-full sm:size-10",
+          isUnread ? "bg-primary/12 text-primary" : "bg-muted text-muted-foreground"
+        )}
+      >
         <Icon className="size-4" aria-hidden />
       </div>
+
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold text-foreground">{item.title}</p>
-            <p className="mt-1 text-sm text-muted-foreground">{item.body}</p>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="truncate text-sm font-semibold text-foreground">{item.title}</p>
+              {isUnread ? (
+                <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                  New
+                </span>
+              ) : null}
+            </div>
+            <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">{item.body}</p>
             <NotificationDetails details={item.metadata?.details} />
-            <p className="mt-2 text-xs text-muted-foreground">
-              {formatNotificationTimeAgo(item.createdAt)}
-            </p>
           </div>
-          {isUnread ? (
-            <span className="mt-1 size-2 shrink-0 rounded-full bg-primary" aria-label="Unread" />
-          ) : null}
+          <time className="shrink-0 text-xs text-muted-foreground">
+            {formatNotificationTimeAgo(item.createdAt)}
+          </time>
         </div>
-        <div className="mt-3 flex flex-wrap gap-2">
+
+        <div className="mt-2.5 flex flex-wrap gap-2 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
           {href ? (
             <Button
               type="button"
@@ -127,7 +149,7 @@ function NotificationRow({
             <Button
               type="button"
               size="sm"
-              variant="outline"
+              variant="ghost"
               onClick={(e) => {
                 e.stopPropagation();
                 void setRead(false);
@@ -138,24 +160,41 @@ function NotificationRow({
           )}
         </div>
       </div>
-    </div>
+    </article>
   );
-
-  return content;
 }
 
 export function NotificationsPage({ workspaceId }: { workspaceId: string }) {
-  const [filter, setFilter] = useState<"all" | "unread">("all");
+  const [readFilter, setReadFilter] = useState<ReadFilter>("all");
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
   const { count, refresh: refreshUnread, aligned } = useNotificationUnreadCount(workspaceId);
   const { items, page, setPage, total, totalPages, limit, setLimit, loading, reload } =
-    usePaginatedNotifications(workspaceId, { unreadOnly: filter === "unread" });
+    usePaginatedNotifications(workspaceId, { unreadOnly: readFilter === "unread" });
 
-  const filterOptions = useMemo(
+  const filteredItems = useMemo(() => {
+    if (categoryFilter === "all") return items;
+    return items.filter((item) => notificationInboxCategory(item.type) === categoryFilter);
+  }, [categoryFilter, items]);
+
+  const groupedItems = useMemo(() => groupNotificationsByCategory(filteredItems), [filteredItems]);
+
+  const readFilterOptions = useMemo(
     () => [
       { value: "all" as const, label: "All" },
       { value: "unread" as const, label: `Unread${count > 0 ? ` (${count})` : ""}` }
     ],
     [count]
+  );
+
+  const categoryFilterOptions = useMemo(
+    () => [
+      { value: "all" as const, label: "All topics" },
+      ...Object.entries(NOTIFICATION_INBOX_CATEGORY_LABELS).map(([value, label]) => ({
+        value: value as NotificationInboxCategory,
+        label
+      }))
+    ],
+    []
   );
 
   async function handleMarkAllRead() {
@@ -171,7 +210,7 @@ export function NotificationsPage({ workspaceId }: { workspaceId: string }) {
     <div className="space-y-6">
       <AppBar
         title="Notifications"
-        description="View and manage your in-app notifications"
+        description="Grouped by topic so you can scan work, time, and account updates quickly."
         actions={
           count > 0 ? (
             <Button type="button" size="sm" onClick={() => void handleMarkAllRead()}>
@@ -181,35 +220,65 @@ export function NotificationsPage({ workspaceId }: { workspaceId: string }) {
         }
       />
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <SegmentedControl value={filter} onChange={setFilter} options={filterOptions} />
-        {count > 0 ? <Badge variant="secondary">{count} unread</Badge> : null}
+      <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <SegmentedControl
+            value={readFilter}
+            onChange={setReadFilter}
+            options={readFilterOptions}
+          />
+          {count > 0 ? <Badge variant="secondary">{count} unread</Badge> : null}
+        </div>
+        <SegmentedControl
+          value={categoryFilter}
+          onChange={setCategoryFilter}
+          options={categoryFilterOptions}
+        />
       </div>
 
       {!aligned || loading ? (
         <div className="space-y-3">
           {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-24 rounded-xl" />
+            <Skeleton key={i} className="h-20 rounded-lg" />
           ))}
         </div>
-      ) : items.length === 0 ? (
+      ) : filteredItems.length === 0 ? (
         <EmptyState
-          title={filter === "unread" ? "No unread notifications" : "No notifications yet"}
+          title={
+            readFilter === "unread"
+              ? "No unread notifications"
+              : categoryFilter === "all"
+                ? "No notifications yet"
+                : `No ${NOTIFICATION_INBOX_CATEGORY_LABELS[categoryFilter].toLowerCase()} notifications`
+          }
           description={
-            filter === "unread"
+            readFilter === "unread"
               ? "You're all caught up."
               : "Activity from your workspace will appear here."
           }
         />
       ) : (
-        <div className="space-y-3 animate-fade-in motion-reduce:animate-none">
-          {items.map((item) => (
-            <NotificationRow
-              key={item.id}
-              item={item}
-              workspaceId={workspaceId}
-              onUpdated={handleUpdated}
-            />
+        <div className="space-y-8 animate-fade-in motion-reduce:animate-none">
+          {groupedItems.map((group) => (
+            <section key={group.category} aria-label={group.label} className="space-y-3">
+              <div className="flex items-center gap-3">
+                <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                  {group.label}
+                </h2>
+                <div className="h-px flex-1 bg-border/70" aria-hidden />
+                <span className="text-xs text-muted-foreground">{group.items.length}</span>
+              </div>
+              <div className="space-y-2">
+                {group.items.map((item) => (
+                  <NotificationRow
+                    key={item.id}
+                    item={item}
+                    workspaceId={workspaceId}
+                    onUpdated={handleUpdated}
+                  />
+                ))}
+              </div>
+            </section>
           ))}
         </div>
       )}

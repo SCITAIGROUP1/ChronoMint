@@ -1,6 +1,7 @@
 # Member: Profile and settings
 
-Available at **Profile** (`/profile`) and **Settings** (`/settings`) in the client app (same pages in the admin app for your personal account).
+Available at **Profile** (`/profile`) and **Settings** (`/settings`) in the unified product for every
+persona.
 
 ## Profile
 

@@ -1,8 +1,11 @@
-const AUTH_SCOPE = process.env.NEXT_PUBLIC_AUTH_SCOPE?.trim() || "app";
+import type { AuthScope } from "@kloqra/contracts";
+import { configuredAuthScope } from "../auth/configured-auth-scope";
+
+const AUTH_SCOPE = configuredAuthScope(process.env.NEXT_PUBLIC_AUTH_SCOPE, "app");
 
 export type ScopedStorageIdentity = {
   userId: string;
-  authScope?: string;
+  authScope?: AuthScope;
   workspaceId?: string | null;
   tenantId?: string;
 };
@@ -37,20 +40,4 @@ export function writeScopedJSON(key: string, value: unknown): void {
 export function removeScopedKey(key: string): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(key);
-}
-
-/** Read from scoped key, falling back to a legacy global key once (then migrate). */
-export function readScopedWithLegacyMigration<T>(
-  scopedKey: string,
-  legacyKey: string,
-  migrate: (value: T) => void
-): T | null {
-  const scoped = readScopedJSON<T>(scopedKey);
-  if (scoped != null) return scoped;
-  const legacy = readScopedJSON<T>(legacyKey);
-  if (legacy == null) return null;
-  writeScopedJSON(scopedKey, legacy);
-  localStorage.removeItem(legacyKey);
-  migrate(legacy);
-  return legacy;
 }

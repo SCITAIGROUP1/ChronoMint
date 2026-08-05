@@ -9,7 +9,8 @@ Full action catalog and API reference: [platform-admin.md](../specs/platform-adm
 1. Confirm the tenant in **Tenants** — note `status`, plan, workspace/member counts, owner email.
 2. Check **Audit log** for recent platform actions (`platform.tenant.*`, `platform.login`).
 3. Check **Ops** for fleet-wide issues (queue failures, subscription drift, past-due counts).
-4. Ask the **tenant owner** to reproduce the issue while screen-sharing, or to export data from the admin app (Exports).
+4. Ask the **tenant owner** to reproduce the issue in the unified product while screen-sharing, or
+   to export data from **Exports** if their workspace role permits it.
 5. Escalate to engineering with tenant ID, audit event IDs, and timestamps.
 
 ## What platform staff can do

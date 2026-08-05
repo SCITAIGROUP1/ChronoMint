@@ -1,0 +1,388 @@
+/** @vitest-environment jsdom */
+import type { TimeLogDto } from "@kloqra/contracts";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { TimeEntryDialog } from "./time-entry-dialog";
+import type { TimeEntryDraft } from "./time-entry-draft";
+
+vi.mock("@kloqra/web-shared", async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...(actual as Record<string, unknown>),
+    useCategoriesListQuery: () => ({ data: [] })
+  };
+});
+
+const draft: TimeEntryDraft = {
+  date: "2026-06-09",
+  projectId: "proj-1",
+  taskSelection: "task-1",
+  startTime: "13:04",
+  endTime: "14:04",
+  description: "Code review",
+  isBillable: true
+};
+
+const editingLog: TimeLogDto = {
+  id: "log-1",
+  userId: "user-1",
+  taskId: "task-1",
+  startTime: "2026-06-09T13:04:00.000Z",
+  endTime: "2026-06-09T14:04:00.000Z",
+  durationSec: 3600,
+  description: "Code review",
+  isBillable: true,
+  source: "manual"
+};
+
+afterEach(() => {
+  cleanup();
+  window.sessionStorage.clear();
+});
+
+describe("TimeEntryDialog", () => {
+  it("hides save and delete actions when read-only", async () => {
+    render(
+      <TimeEntryDialog
+        open
+        title="Edit time entry"
+        draft={draft}
+        projects={[]}
+        tasks={[]}
+        taskLabel={() => "Task"}
+        editingLog={editingLog}
+        readOnly
+        onClose={vi.fn()}
+        onDraftChange={vi.fn()}
+        onSave={vi.fn()}
+        onDelete={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/locked \(submitted or approved\)/i)).toBeTruthy();
+    });
+
+    expect(screen.queryByRole("button", { name: "Save changes" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Delete entry" })).toBeNull();
+    expect(screen.getAllByRole("button", { name: "Close" }).length).toBeGreaterThan(0);
+  });
+
+  it("allows editing a timer-created entry when it is otherwise editable", async () => {
+    render(
+      <TimeEntryDialog
+        open
+        title="Edit time entry"
+        draft={draft}
+        projects={[]}
+        tasks={[]}
+        taskLabel={() => "Task"}
+        editingLog={{ ...editingLog, source: "timer" }}
+        onClose={vi.fn()}
+        onDraftChange={vi.fn()}
+        onSave={vi.fn()}
+        onDelete={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/started with the stopwatch/i)).toBeTruthy();
+    });
+    expect(screen.getByRole("button", { name: "Save changes" })).toBeTruthy();
+    expect(screen.getByLabelText("Start time")).toHaveProperty("disabled", false);
+    expect(screen.getByLabelText("End time")).toHaveProperty("disabled", false);
+  });
+
+  it("renders server validation errors inline under fields", async () => {
+    render(
+      <TimeEntryDialog
+        open
+        title="Edit time entry"
+        draft={draft}
+        projects={[]}
+        tasks={[]}
+        taskLabel={() => "Task"}
+        editingLog={editingLog}
+        workspaceId="ws-1"
+        error="Validation failed — Project Id is required; Task Selection is required; Start Time is required; End Time is required; Description is required"
+        onClose={vi.fn()}
+        onDraftChange={vi.fn()}
+        onSave={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText(/project id is required/i)).toBeTruthy();
+      expect(screen.getByText(/task selection is required/i)).toBeTruthy();
+      expect(screen.getByText(/start time is required/i)).toBeTruthy();
+      expect(screen.getByText(/end time is required/i)).toBeTruthy();
+      expect(screen.getByText(/description is required/i)).toBeTruthy();
+    });
+  });
+
+  it("renders When row with entry date picker", async () => {
+    render(
+      <TimeEntryDialog
+        open
+        title="Log time"
+        draft={draft}
+        projects={[]}
+        tasks={[]}
+        taskLabel={() => "Task"}
+        onClose={vi.fn()}
+        onDraftChange={vi.fn()}
+        onSave={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("When")).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Entry date" })).toBeTruthy();
+      expect(screen.getByLabelText("Duration")).toBeTruthy();
+      expect(screen.getByLabelText("Start time")).toBeTruthy();
+      expect(screen.getByLabelText("End time")).toBeTruthy();
+    });
+  });
+
+  it("treats 2.5 and 2:30 as the same duration from start", async () => {
+    const onDraftChange = vi.fn();
+    const base = { ...draft, startTime: "09:00", endTime: "09:30" };
+
+    const { rerender } = render(
+      <TimeEntryDialog
+        open
+        title="Log time"
+        draft={base}
+        projects={[]}
+        tasks={[]}
+        taskLabel={() => "Task"}
+        onClose={vi.fn()}
+        onDraftChange={onDraftChange}
+        onSave={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Duration")).toBeTruthy();
+    });
+
+    const duration = screen.getByLabelText("Duration");
+    fireEvent.focus(duration);
+    fireEvent.change(duration, { target: { value: "2.5" } });
+
+    expect(onDraftChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        startTime: "09:00",
+        endTime: "11:30"
+      })
+    );
+
+    onDraftChange.mockClear();
+    rerender(
+      <TimeEntryDialog
+        open
+        title="Log time"
+        draft={base}
+        projects={[]}
+        tasks={[]}
+        taskLabel={() => "Task"}
+        onClose={vi.fn()}
+        onDraftChange={onDraftChange}
+        onSave={vi.fn()}
+      />
+    );
+
+    fireEvent.focus(duration);
+    fireEvent.change(duration, { target: { value: "2:30" } });
+
+    expect(onDraftChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        startTime: "09:00",
+        endTime: "11:30"
+      })
+    );
+  });
+
+  it("keeps duration length when start time moves", async () => {
+    const onDraftChange = vi.fn();
+    render(
+      <TimeEntryDialog
+        open
+        title="Log time"
+        draft={{ ...draft, startTime: "09:00", endTime: "10:00" }}
+        projects={[]}
+        tasks={[]}
+        taskLabel={() => "Task"}
+        onClose={vi.fn()}
+        onDraftChange={onDraftChange}
+        onSave={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Start time")).toBeTruthy();
+    });
+
+    fireEvent.change(screen.getByLabelText("Start time"), { target: { value: "10:00" } });
+
+    expect(onDraftChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        startTime: "10:00",
+        endTime: "11:00"
+      })
+    );
+  });
+
+  it("shows duration formatted from start and end", async () => {
+    render(
+      <TimeEntryDialog
+        open
+        title="Log time"
+        draft={{ ...draft, startTime: "09:00", endTime: "11:30" }}
+        projects={[]}
+        tasks={[]}
+        taskLabel={() => "Task"}
+        onClose={vi.fn()}
+        onDraftChange={vi.fn()}
+        onSave={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Duration")).toHaveProperty("value", "2:30");
+    });
+  });
+
+  it("shows repeat affordance on create but not on edit", async () => {
+    const { rerender } = render(
+      <TimeEntryDialog
+        open
+        title="Log time"
+        draft={draft}
+        projects={[]}
+        tasks={[]}
+        taskLabel={() => "Task"}
+        onClose={vi.fn()}
+        onDraftChange={vi.fn()}
+        onSave={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "+ Repeat on more days" })).toBeTruthy();
+    });
+
+    rerender(
+      <TimeEntryDialog
+        open
+        title="Edit time entry"
+        draft={draft}
+        projects={[]}
+        tasks={[]}
+        taskLabel={() => "Task"}
+        editingLog={editingLog}
+        onClose={vi.fn()}
+        onDraftChange={vi.fn()}
+        onSave={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByRole("button", { name: "+ Repeat on more days" })).toBeNull();
+  });
+
+  it("opens repeat panel and patches draft when repeat affordance is clicked", () => {
+    const onDraftChange = vi.fn();
+    render(
+      <TimeEntryDialog
+        open
+        title="Log time"
+        draft={draft}
+        projects={[]}
+        tasks={[]}
+        taskLabel={() => "Task"}
+        onClose={vi.fn()}
+        onDraftChange={onDraftChange}
+        onSave={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "+ Repeat on more days" }));
+
+    expect(onDraftChange).toHaveBeenCalledWith({
+      ...draft,
+      recurrence: "weekdays",
+      repeatUntil: "2026-06-09"
+    });
+  });
+
+  it("asks to discard before closing a dirty draft", async () => {
+    const onClose = vi.fn();
+    const onDraftChange = vi.fn();
+    const { rerender } = render(
+      <TimeEntryDialog
+        open
+        title="Log time"
+        draft={draft}
+        projects={[]}
+        tasks={[]}
+        taskLabel={() => "Task"}
+        workspaceId="ws-1"
+        onClose={onClose}
+        onDraftChange={onDraftChange}
+        onSave={vi.fn()}
+      />
+    );
+
+    rerender(
+      <TimeEntryDialog
+        open
+        title="Log time"
+        draft={{ ...draft, description: "Changed description" }}
+        projects={[]}
+        tasks={[]}
+        taskLabel={() => "Task"}
+        workspaceId="ws-1"
+        onClose={onClose}
+        onDraftChange={onDraftChange}
+        onSave={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole("heading", { name: /discard unsaved changes/i })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Discard" }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("restores an unsaved draft from session storage on reopen", async () => {
+    window.sessionStorage.setItem(
+      "kloqra.time-entry-draft:ws-1:create",
+      JSON.stringify({ ...draft, description: "Recovered work" })
+    );
+    const onDraftChange = vi.fn();
+
+    render(
+      <TimeEntryDialog
+        open
+        title="Log time"
+        draft={draft}
+        projects={[]}
+        tasks={[]}
+        taskLabel={() => "Task"}
+        workspaceId="ws-1"
+        onClose={vi.fn()}
+        onDraftChange={onDraftChange}
+        onSave={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(onDraftChange).toHaveBeenCalledWith(
+        expect.objectContaining({ description: "Recovered work" })
+      );
+    });
+    expect(screen.getByText(/restored your unsaved draft/i)).toBeTruthy();
+  });
+});

@@ -53,12 +53,13 @@ State stored in Redis (or in-memory when `REDIS_USE_MEMORY=true`).
 
 ### Stale auto-stop
 
-**When** elapsed exceeds configured hard limit (client env `NEXT_PUBLIC_HARD_AUTO_STOP_HOURS`, server policy)  
-**Then** timer stops automatically; client shows recovery dialog with stopped duration.
+**When** elapsed exceeds configured hard limit (product env
+`NEXT_PUBLIC_HARD_AUTO_STOP_HOURS`, server policy)
+**Then** timer stops automatically; the product shows a recovery dialog with stopped duration.
 
 ## UI
 
-- Client timer: [apps/client/src/features/timer/](../../apps/client/src/features/timer/)
+- Unified-product timer: [apps/app/src/features/timer/](../../apps/app/src/features/timer/)
 - Sequence diagram: [TIMER_SEQUENCE.md](../architecture/TIMER_SEQUENCE.md)
 
 ## Edge cases

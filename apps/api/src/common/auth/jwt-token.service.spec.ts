@@ -42,12 +42,37 @@ describe("JwtTokenService", () => {
       workspaceId: "ws1",
       role: "ADMIN",
       typ: "access",
-      scope: "admin"
+      scope: "app"
     });
-    const payload = service.verifyAccessToken("token", "admin");
+    const payload = service.verifyAccessToken("token", "app");
     expect(payload.userId).toBe("u1");
     expect(payload.tenantId).toBe("t1");
-    expect(payload.scope).toBe("admin");
+    expect(payload.scope).toBe("app");
+  });
+
+  it("accepts only unified app product tokens", () => {
+    mockJwt.verify.mockReturnValue({
+      sub: "u1",
+      tenantId: "t1",
+      workspaceId: "ws1",
+      role: "MEMBER",
+      typ: "access",
+      scope: "app"
+    });
+    expect(service.verifyAccessToken("token", "app").scope).toBe("app");
+  });
+
+  it.each(["client", "admin"])("rejects retired %s product tokens", (scope) => {
+    mockJwt.verify.mockReturnValue({
+      sub: "u1",
+      tenantId: "t1",
+      workspaceId: "ws1",
+      role: "MEMBER",
+      typ: "access",
+      scope
+    });
+    expect(() => service.verifyAccessToken("token", "app")).toThrow(UnauthorizedException);
+    expect(() => service.verifyAccessToken("token")).toThrow(UnauthorizedException);
   });
 
   it("verifyAccessToken maps TokenExpiredError", () => {

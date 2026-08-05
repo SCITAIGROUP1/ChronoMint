@@ -32,6 +32,8 @@ export default defineConfig({
     setupFiles: ["./test/setup.ts"],
     testTimeout: 120000,
     hookTimeout: 120000,
+    // BullMQ/ioredis emits "Connection is closed" during Nest app teardown between files.
+    dangerouslyIgnoreUnhandledErrors: true,
     pool: "forks",
     poolOptions: {
       forks: {

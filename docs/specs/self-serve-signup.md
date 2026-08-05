@@ -1,6 +1,7 @@
 # Self-serve signup (SaaS-F20)
 
-Trial-first organization signup on the admin app. Gated by env flags until legal sign-off (F23).
+Trial-first organization signup on the unified product. Gated by env flags until legal sign-off
+(F23).
 
 ## Flow
 
@@ -32,5 +33,5 @@ Keep both **false** in production until F23 legal sign-off.
 ## Tests
 
 - `apps/api/test/self-serve-signup.e2e.ts`
-- `apps/admin/e2e/signup.spec.ts`
+- `apps/app/e2e/signup.spec.ts`
 - `apps/api/scripts/migrate-pilots-to-tenants.spec.ts` (F21)

@@ -5,6 +5,7 @@ import { NotificationsModule } from "../notifications/notifications.module";
 import { PlatformModule } from "../platform/platform.module";
 import { QueuesModule } from "../queues/queues.module";
 // Application Services
+import { HelpdeskInboundWebhookService } from "./application/helpdesk-inbound-webhook.service";
 import { HelpdeskQueuesService } from "./application/helpdesk-queues.service";
 import { HelpdeskSlaService } from "./application/helpdesk-sla.service";
 import { HelpdeskStatsService } from "./application/helpdesk-stats.service";
@@ -32,6 +33,7 @@ import { HelpdeskSlaWorker } from "./workers/helpdesk-sla.worker";
   ],
   providers: [
     HelpdeskQueuesService,
+    HelpdeskInboundWebhookService,
     HelpdeskSlaService,
     HelpdeskStatsService,
     HelpdeskTicketsService,

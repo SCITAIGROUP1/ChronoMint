@@ -21,14 +21,14 @@ pnpm --filter @kloqra/contracts build
 pnpm --filter @kloqra/web-shared build
 pnpm --filter @kloqra/api test:coverage
 pnpm --parallel --filter @kloqra/contracts --filter @kloqra/ui test -- --coverage
-pnpm --parallel --filter @kloqra/web-shared --filter @kloqra/admin --filter @kloqra/client test
+pnpm --parallel --filter @kloqra/web-shared --filter @kloqra/app --filter @kloqra/platform-admin test
 
 echo "→ build"
 pnpm --filter @kloqra/ui build
 pnpm --filter @kloqra/web-shared build
 pnpm --filter @kloqra/api exec nest build
-pnpm --filter @kloqra/admin exec next build
-pnpm --filter @kloqra/client exec next build
+pnpm --filter @kloqra/app exec next build
+pnpm --filter @kloqra/platform-admin exec next build
 
 echo "→ bundle budget"
 node scripts/check-bundle-budget.mjs

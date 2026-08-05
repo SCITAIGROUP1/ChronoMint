@@ -1,6 +1,7 @@
 # Frontend UI patterns
 
-Shared UI lives in `@kloqra/ui`. Cross-app features (profile, settings, API helpers) live in `@kloqra/web-shared`. Both client and admin apps import these packages — do not duplicate primitives in app folders.
+Shared UI lives in `@kloqra/ui`. Stateful cross-product composites, providers, API/session hooks,
+and theme persistence live in `@kloqra/web-shared`. The unified product in `apps/app` owns routes, data orchestration, and capability-driven composition.
 
 ## Package roles
 
@@ -126,16 +127,17 @@ Profile and settings are shared:
 import { ProfilePage, AccountSettingsPage } from "@kloqra/web-shared";
 ```
 
-Wired in both apps at `/profile` and `/settings`. Spec: [user-profile.md](../specs/user-profile.md).
+Wired in the unified product at `/profile` and `/settings`. Spec:
+[user-profile.md](../specs/user-profile.md).
 
 ## Feature module layout (apps)
 
 ```
-apps/{client|admin}/src/
+apps/app/src/
   app/              # Next.js routes (thin wrappers)
   features/<domain>/  # pages, hooks, components
   components/       # app-specific shell pieces
-  lib/api.ts        # re-exports web-shared api with app scope
+  lib/api.ts        # re-exports web-shared API with `app` scope
 ```
 
 New UI features: read `.cursor/skills/chronomint-fe-feature/SKILL.md`.
@@ -144,7 +146,7 @@ New UI features: read `.cursor/skills/chronomint-fe-feature/SKILL.md`.
 
 REST is source of truth; Socket.IO pushes **invalidation hints** only. See [notifications-realtime.md](../specs/notifications-realtime.md).
 
-1. Mount `useNotificationSocket` once in the authenticated shell (client + admin).
+1. Mount `useNotificationSocket` once in the unified authenticated shell.
 2. Register store refetch handlers in `apps/*/src/lib/workspace-data-sync.ts` for scopes: `submissions`, `timesheet`, `projects`, `tasks`, `pending_approvals`.
 3. List pages use `useWorkspaceStaleRefetch(scope, reload)` alongside `usePaginatedList`.
 

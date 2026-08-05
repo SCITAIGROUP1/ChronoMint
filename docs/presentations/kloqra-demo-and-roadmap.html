@@ -279,8 +279,7 @@
     <section class="slide">
       <h1>Architecture</h1>
       <pre>
-apps/client (:3000)  ─┐
-apps/admin  (:3002)  ─┼─►  apps/api (:3001)  ──►  PostgreSQL 16
+apps/app (:3000)  ─────►  apps/api (:3001)  ──►  PostgreSQL 16
                       │         │
                       │         └──► Redis (timer, BullMQ, pub/sub)
 packages/contracts · @kloqra/ui · @kloqra/web-shared</pre
@@ -385,7 +384,7 @@ packages/contracts · @kloqra/ui · @kloqra/web-shared</pre
     </section>
 
     <section class="slide">
-      <h1>Admin app — operate the org</h1>
+      <h1>Product app — operate the org</h1>
       <div class="cols">
         <div>
           <h2>Demo path</h2>
@@ -413,7 +412,7 @@ packages/contracts · @kloqra/ui · @kloqra/web-shared</pre
 
     <section class="slide">
       <h1>Hero moment — realtime live sync</h1>
-      <p><strong>Two browsers:</strong> member on Submissions · admin approves OR assigns task</p>
+      <p><strong>Two browsers:</strong> member on Submissions · product approves OR assigns task</p>
       <pre>
 createInApp → Redis PUBLISH notifications:user:{userId}
            → NotificationsGateway (Socket.IO /notifications)
@@ -555,7 +554,7 @@ createInApp → Redis PUBLISH notifications:user:{userId}
         </tr>
         <tr>
           <td>Problem</td>
-          <td>Admin approves; member UI stale up to 60s</td>
+          <td>Product approves; member UI stale up to 60s</td>
         </tr>
         <tr>
           <td>Contracts</td>
@@ -786,7 +785,7 @@ createInApp → Redis PUBLISH notifications:user:{userId}
         </tr>
         <tr>
           <td>16–24</td>
-          <td>Admin app (approvals, exports, dashboard)</td>
+          <td>Product app (approvals, exports, dashboard)</td>
         </tr>
         <tr>
           <td>24–30</td>

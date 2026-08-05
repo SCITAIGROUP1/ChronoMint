@@ -16,7 +16,9 @@ import {
   CurrentPlatformUser,
   type PlatformRequestUser
 } from "../../../../common/decorators/current-platform-user.decorator";
-import { PlatformSuperadminGuard } from "../../../../common/guards/platform-superadmin.guard";
+import { RequirePermission } from "../../../../common/decorators/require-permission.decorator";
+import { PermissionGuard } from "../../../../common/guards/permission.guard";
+import { PlatformJwtAuthGuard } from "../../../../common/guards/platform-jwt-auth.guard";
 import { PrismaService } from "../../../../common/prisma/prisma.service";
 
 const createStaffSchema = z.object({
@@ -35,23 +37,20 @@ const updateStaffSchema = z.object({
 });
 
 @Controller("platform/staff")
-@UseGuards(PlatformSuperadminGuard)
+@UseGuards(PlatformJwtAuthGuard, PermissionGuard)
+@RequirePermission("platform:ManageStaff", { scope: "platform" })
 export class PlatformStaffController {
   constructor(private readonly prisma: PrismaService) {}
 
   @Get()
   async getStaff(
-    @CurrentPlatformUser() user: PlatformRequestUser,
+    @CurrentPlatformUser() _user: PlatformRequestUser,
     @Query("page") pageQuery?: string,
     @Query("limit") limitQuery?: string,
     @Query("search") search?: string,
     @Query("role") role?: string,
     @Query("isActive") isActiveQuery?: string
   ) {
-    if (user.platformRole !== "SUPERADMIN") {
-      throw new Error("Unauthorized");
-    }
-
     const page = Math.max(1, parseInt(pageQuery || "1", 10));
     const limit = Math.max(1, Math.min(100, parseInt(limitQuery || "20", 10)));
     const skip = (page - 1) * limit;
@@ -100,11 +99,7 @@ export class PlatformStaffController {
   }
 
   @Post()
-  async createStaff(@CurrentPlatformUser() user: PlatformRequestUser, @Body() body: any) {
-    if (user.platformRole !== "SUPERADMIN") {
-      throw new Error("Unauthorized");
-    }
-
+  async createStaff(@CurrentPlatformUser() _user: PlatformRequestUser, @Body() body: any) {
     const parsed = createStaffSchema.parse(body);
     const existingUser = await this.prisma.platformUser.findUnique({
       where: { email: parsed.email }
@@ -131,10 +126,6 @@ export class PlatformStaffController {
 
   @Delete(":id")
   async deleteStaff(@CurrentPlatformUser() user: PlatformRequestUser, @Param("id") id: string) {
-    if (user.platformRole !== "SUPERADMIN") {
-      throw new Error("Unauthorized");
-    }
-
     if (user.platformUserId === id) {
       throw new Error("Cannot delete yourself");
     }
@@ -152,10 +143,6 @@ export class PlatformStaffController {
     @Param("id") id: string,
     @Body() body: any
   ) {
-    if (user.platformRole !== "SUPERADMIN") {
-      throw new Error("Unauthorized");
-    }
-
     const parsed = updateStaffSchema.parse(body);
 
     if (parsed.email) {

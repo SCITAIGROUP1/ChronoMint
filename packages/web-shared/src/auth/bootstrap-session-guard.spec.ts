@@ -14,7 +14,7 @@ describe("shouldApplyBootstrapSession", () => {
   beforeEach(() => {
     vi.resetModules();
     localStorage.clear();
-    process.env.NEXT_PUBLIC_AUTH_SCOPE = "client";
+    process.env.NEXT_PUBLIC_AUTH_SCOPE = "app";
   });
 
   afterEach(() => {
@@ -25,7 +25,7 @@ describe("shouldApplyBootstrapSession", () => {
   it("rejects stale bootstrap when another login replaced the access token", async () => {
     const samToken = makeToken({ sub: "user-sam" });
     const newMemberToken = makeToken({ sub: "user-new" });
-    localStorage.setItem("cm-client-access-token", newMemberToken);
+    localStorage.setItem("cm-app-access-token", newMemberToken);
 
     const { shouldApplyBootstrapSession } = await import("./bootstrap-session");
     const { useSessionStore } = await import("../stores/session.store");
@@ -52,7 +52,7 @@ describe("shouldApplyBootstrapSession", () => {
 
   it("accepts bootstrap when token and session still match", async () => {
     const token = makeToken({ sub: "user-1" });
-    localStorage.setItem("cm-client-access-token", token);
+    localStorage.setItem("cm-app-access-token", token);
 
     const { shouldApplyBootstrapSession } = await import("./bootstrap-session");
 

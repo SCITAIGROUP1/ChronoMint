@@ -6,6 +6,11 @@
 
 This document is the **single source of truth** for transforming Kloqra into a multi-tenant B2B SaaS product. **Do not implement epics until that epic’s research gate is signed off.**
 
+> **Current-state notice (July 2026):** This planning record originally assumed separate customer
+> applications. That topology is superseded: all customer workflows are in `apps/app` under auth
+> scope `app`, composed by capability. `apps/platform-admin` remains isolated. Use
+> [Unified product site](../specs/unified-product-site.md) for current application topology.
+
 Agent index: [.cursor/plans/saas_platform_master.plan.md](../../.cursor/plans/saas_platform_master.plan.md)
 
 ---
@@ -73,10 +78,10 @@ erDiagram
 
 ```
 Platform superadmin     →  apps/platform-admin (new, internal)
-Tenant owner / admin    →  apps/admin → Account section
-Workspace admin         →  apps/admin → Workspace mode (today)
-Project manager            →  apps/admin → filtered by project
-Member                  →  apps/client
+Tenant owner / admin    →  apps/app → Account capabilities
+Workspace admin         →  apps/app → Workspace capabilities
+Project manager         →  apps/app → project-scoped capabilities
+Member                  →  apps/app → personal capabilities
 ```
 
 ### 3.2 Three “billing” concepts (keep separate)
@@ -112,13 +117,13 @@ flowchart TB
   WA --> M
 ```
 
-| Role            | App               | Contract enum            |
-| --------------- | ----------------- | ------------------------ |
-| Superadmin      | `platform-admin`  | `SUPERADMIN`             |
-| Tenant owner    | `admin` Account   | `OWNER`                  |
-| Workspace admin | `admin` Workspace | `ADMIN` (workspace)      |
-| Project manager | `admin` filtered  | `PROJECT_MANAGER` (team) |
-| Member          | `client`          | `MEMBER` (workspace)     |
+| Role            | App                          | Contract enum     |
+| --------------- | ---------------------------- | ----------------- |
+| Superadmin      | `platform-admin`             | `SUPERADMIN`      |
+| Tenant owner    | `app` account capabilities   | `OWNER`           |
+| Workspace admin | `app` workspace capabilities | `ADMIN`           |
+| Project manager | `app` project capabilities   | `PROJECT_MANAGER` |
+| Member          | `app` personal capabilities  | `MEMBER`          |
 
 ---
 
@@ -132,20 +137,19 @@ flowchart TB
 | Payments         | None (no Stripe)                  | Full subscription stack             |
 | Workspace create | Any auth user `POST /workspaces`  | Tenant-scoped + plan limits         |
 | Isolation        | `workspaceId` in JWT/guards       | `tenantId` verification on switch   |
-| Apps             | client, admin, api                | platform-admin + Account UI         |
+| Apps             | API plus unified product          | Isolated platform operations        |
 
 ---
 
 ## 5. App strategy
 
-| App                   | Audience                             | Action                                              |
-| --------------------- | ------------------------------------ | --------------------------------------------------- |
-| `apps/client`         | Members                              | No structural change                                |
-| `apps/admin`          | Workspace admins, tenant owners, PMs | Add **Account** layer                               |
-| `apps/platform-admin` | Kloqra superadmin                    | **New** — internal deploy only                      |
-| `apps/api`            | All                                  | New modules: `tenants`, `platform`, `subscriptions` |
+| App                   | Audience              | Action                                              |
+| --------------------- | --------------------- | --------------------------------------------------- |
+| `apps/app`            | All customer personas | Compose personal and management capabilities        |
+| `apps/platform-admin` | Kloqra superadmin     | **New** — internal deploy only                      |
+| `apps/api`            | All                   | New modules: `tenants`, `platform`, `subscriptions` |
 
-**No fourth customer-facing app.**
+**One customer-facing app.**
 
 ---
 
@@ -748,7 +752,7 @@ sequenceDiagram
 
 ---
 
-## F08 — Account UI (admin app extension)
+## F08 — Account UI (product app extension)
 
 **Phase:** P2  
 **Dependencies:** F06, F07  
@@ -770,7 +774,7 @@ sequenceDiagram
 
 ### Deliverables
 
-- `apps/admin/src/app/(account)/` or `(admin)/account/`
+- `apps/app/src/app/(account)/` or `(admin)/account/`
 - `@kloqra/web-shared` hooks: `useTenant`, `useTenantWorkspaces`
 - Playwright: tenant owner creates workspace + assigns admin
 
@@ -939,7 +943,7 @@ trial (30d) → active → past_due → suspended → canceled
 
 ---
 
-## F14 — Platform admin app (scaffold)
+## F14 — Platform product app (scaffold)
 
 **Phase:** P4  
 **Dependencies:** F04 (platform auth)  
@@ -1033,7 +1037,7 @@ trial (30d) → active → past_due → suspended → canceled
 - [x] **Same user may be PROJECT_MANAGER on multiple projects** within a workspace (D06)
 - [x] PROJECT_MANAGER can: tasks, team invites, approve timesheets **for that project only**
 - [x] PROJECT_MANAGER cannot: billing, workspace categories, all-projects export, create projects
-- [x] Admin app nav filtered by union of led `projectId`s
+- [x] Product app nav filtered by union of led `projectId`s
 - [x] Resolve PROJECT_MANAGER permissions per request from `team_members` (no PROJECT_MANAGER in JWT v1)
 
 ### Deliverables
@@ -1107,7 +1111,7 @@ trial (30d) → active → past_due → suspended → canceled
 
 ### Research gate
 
-- [x] Signup on marketing domain vs admin app — **admin `/signup`**; marketing deep-links later
+- [x] Signup on marketing domain vs product app — **admin `/signup`**; marketing deep-links later
 - [x] Email verification before workspace create — **yes** (login blocks unverified users)
 - [x] Default workspace name — `{organizationName} Workspace`
 - [x] Re-enable `POST /auth/register` — **no**; use `POST /auth/signup` with tenant context

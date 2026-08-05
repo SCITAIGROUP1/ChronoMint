@@ -1,7 +1,7 @@
 "use client";
 
 import { BRAND_NAME, PLATFORM_PORTAL_LABEL } from "@kloqra/contracts";
-import { ResponsiveLayoutShell, SidebarUserFooter, type SidebarNavItem } from "@kloqra/ui";
+import { ResponsiveLayoutShell, SidebarUserFooter } from "@kloqra/ui";
 import {
   bootstrapPlatformSession,
   BrandMark,
@@ -12,30 +12,9 @@ import {
   usePlatformNotificationUnreadCount,
   usePlatformSessionStore
 } from "@kloqra/web-shared";
-import {
-  Building2,
-  Bell,
-  CreditCard,
-  Gauge,
-  ScrollText,
-  Layers,
-  LifeBuoy,
-  Users
-} from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo } from "react";
 import { resolvePlatformShellNav } from "@/lib/resolve-platform-shell-nav";
-
-const CONSOLE_NAV_ITEMS: SidebarNavItem[] = [
-  { href: "/ops", label: "Ops", Icon: Gauge },
-  { href: "/staff", label: "Staff", Icon: Users },
-  { href: "/tenants", label: "Tenants", Icon: Building2 },
-  { href: "/subscriptions", label: "Subscriptions", Icon: CreditCard },
-  { href: "/plans", label: "Plans", Icon: Layers },
-  { href: "/helpdesk", label: "Help Desk", Icon: LifeBuoy },
-  { href: "/audit", label: "Audit log", Icon: ScrollText },
-  { href: "/notifications", label: "Notifications", Icon: Bell }
-];
 
 export function PlatformShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -45,11 +24,10 @@ export function PlatformShell({ children }: { children: React.ReactNode }) {
   usePlatformNotificationSocket(Boolean(session));
   const { count: notificationUnreadCount } = usePlatformNotificationUnreadCount(Boolean(session));
 
-  const { mode, navItems } = useMemo(
+  const { mode, navSections } = useMemo(
     () =>
       resolvePlatformShellNav({
         pathname,
-        consoleNavItems: CONSOLE_NAV_ITEMS,
         notificationUnreadCount,
         platformRole: session?.platformRole
       }),
@@ -97,7 +75,7 @@ export function PlatformShell({ children }: { children: React.ReactNode }) {
 
   return (
     <ResponsiveLayoutShell
-      navItems={navItems}
+      navSections={navSections}
       logoIcon={<BrandMark size="lg" iconOnly />}
       logoTitle={BRAND_NAME}
       logoSubtitle={
@@ -110,7 +88,6 @@ export function PlatformShell({ children }: { children: React.ReactNode }) {
       logoLinkHref={
         isAccountMode ? "/profile" : session.platformRole === "SUPPORT" ? "/helpdesk" : "/tenants"
       }
-      navSectionLabel={isAccountMode ? "Account" : "Platform"}
       navAriaLabel={isAccountMode ? "Account navigation" : "Platform navigation"}
       shellToolbar={
         <ShellHeaderActions

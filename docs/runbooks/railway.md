@@ -1,13 +1,14 @@
 # Deploy API on Railway (staging and production)
 
-Railway hosts the **NestJS API** with managed PostgreSQL and Redis. Frontends deploy separately on [Vercel](./vercel.md).
+Railway hosts the **NestJS API** with managed PostgreSQL and Redis. The unified product deploys
+from `apps/app` on [Vercel](./vercel.md).
 
 ## Topology
 
-| Environment | Railway project  | Vercel client           | Vercel admin           |
-| ----------- | ---------------- | ----------------------- | ---------------------- |
-| Staging     | `kloqra-staging` | `kloqra-client-staging` | `kloqra-admin-staging` |
-| Production  | `kloqra-prod`    | `kloqra-client`         | `kloqra-admin`         |
+| Environment | Railway project  | Unified product      |
+| ----------- | ---------------- | -------------------- |
+| Staging     | `kloqra-staging` | `kloqra-app-staging` |
+| Production  | `kloqra-prod`    | `kloqra-app`         |
 
 Each environment uses **isolated** Postgres, Redis, and JWT secrets.
 
@@ -19,12 +20,11 @@ Each environment uses **isolated** Postgres, Redis, and JWT secrets.
 # 1. Railway API + DB + Redis
 bash scripts/deploy/setup-railway.sh staging
 
-# 2. Vercel frontends (after API URL is known)
+# 2. Vercel unified product (after API URL is known)
 bash scripts/deploy/setup-vercel.sh staging https://your-staging-api.up.railway.app
 
-# 3. Wire CORS and smoke test
-bash scripts/deploy/wire-cors.sh https://kloqra-client-staging.vercel.app https://kloqra-admin-staging.vercel.app
-# → paste output as FRONTEND_ORIGIN on Railway API service
+# 3. Set PUBLIC_APP_URL to the exact unified-product origin, then smoke
+# PUBLIC_APP_URL=https://kloqra-app-staging.vercel.app
 
 bash scripts/deploy/smoke.sh https://your-staging-api.up.railway.app
 ```
@@ -66,8 +66,7 @@ On the **API service** → **Variables**:
 | `REDIS_URL`                          | From Redis plugin                                                                               |
 | `JWT_ACCESS_SECRET`                  | `bash scripts/deploy/generate-secrets.sh`                                                       |
 | `JWT_REFRESH_SECRET`                 | Same script — unique per environment                                                            |
-| `FRONTEND_ORIGIN`                    | Staging Vercel URLs (update after [vercel.md](./vercel.md))                                     |
-| `PUBLIC_ADMIN_URL`                   | `https://kloqra-admin-staging.vercel.app`                                                       |
+| `PUBLIC_APP_URL`                     | Exact canonical product origin used for CORS and generated links                                |
 | `AUTH_COOKIE_SAME_SITE`              | `none` (required for Vercel `*.vercel.app` → Railway API)                                       |
 | `AUTH_COOKIE_SECURE`                 | `true`                                                                                          |
 | `REFRESH_ROTATION_GRACE_MS`          | `10000`                                                                                         |
@@ -98,10 +97,10 @@ DATABASE_URL="<railway-postgres-url>" pnpm --filter @kloqra/api exec prisma db s
 
 After seed:
 
-| Account             | Password      | Use        |
-| ------------------- | ------------- | ---------- |
-| `admin@kloqra.dev`  | `password123` | Admin app  |
-| `member@kloqra.dev` | `password123` | Client app |
+| Account             | Password      | Use                                    |
+| ------------------- | ------------- | -------------------------------------- |
+| `admin@kloqra.dev`  | `password123` | Unified product, admin capabilities    |
+| `member@kloqra.dev` | `password123` | Unified product, personal capabilities |
 
 Primary workspace: **Acme Corporation**. Do **not** seed production unless you intend to load demo data.
 
@@ -123,15 +122,15 @@ bash scripts/deploy/smoke.sh https://kloqra-api-staging.up.railway.app
 
 Duplicate the staging project as **`kloqra-prod`** with these differences:
 
-| Item              | Production                               |
-| ----------------- | ---------------------------------------- |
-| Branch            | `main`                                   |
-| JWT secrets       | **New** values — never copy from staging |
-| Database          | Separate Postgres instance               |
-| Redis             | Separate Redis instance                  |
-| Custom domain     | `api.example.com` via Railway Networking |
-| `FRONTEND_ORIGIN` | Production Vercel URLs + custom domains  |
-| Seed              | Do not seed unless intentional           |
+| Item             | Production                               |
+| ---------------- | ---------------------------------------- |
+| Branch           | `main`                                   |
+| JWT secrets      | **New** values — never copy from staging |
+| Database         | Separate Postgres instance               |
+| Redis            | Separate Redis instance                  |
+| Custom domain    | `api.example.com` via Railway Networking |
+| `PUBLIC_APP_URL` | Canonical product origin                 |
+| Seed             | Do not seed unless intentional           |
 
 Template: [`deploy/env.production.example`](../../deploy/env.production.example).
 
@@ -140,8 +139,8 @@ Template: [`deploy/env.production.example`](../../deploy/env.production.example)
 - [ ] Separate Railway project `kloqra-prod`
 - [ ] Unique JWT secrets (`generate-secrets.sh`)
 - [ ] `prisma migrate deploy` against prod DB before traffic
-- [ ] Custom domains on Railway (API) and Vercel (client/admin)
-- [ ] `FRONTEND_ORIGIN` lists all HTTPS frontend origins
+- [ ] Custom domains on Railway (API) and Vercel (unified product)
+- [ ] `PUBLIC_APP_URL` is the canonical HTTPS product origin
 - [ ] Smoke: health, login, timer, presence, export
 - [ ] Entry in [CHANGELOG.md](../../CHANGELOG.md)
 
@@ -149,20 +148,16 @@ Template: [`deploy/env.production.example`](../../deploy/env.production.example)
 
 ## Wire CORS after Vercel deploy
 
-Once both Vercel apps are live:
+Once the unified product is live, set the API variable directly:
 
-```bash
-bash scripts/deploy/wire-cors.sh \
-  https://kloqra-client-staging.vercel.app \
-  https://kloqra-admin-staging.vercel.app
+```env
+PUBLIC_APP_URL=https://kloqra-app-staging.vercel.app
 ```
-
-Set the output as `FRONTEND_ORIGIN` on the Railway API service and redeploy.
 
 For custom domains, include every origin:
 
 ```env
-FRONTEND_ORIGIN=https://app.example.com,https://admin.example.com
+PUBLIC_APP_URL=https://app.example.com
 ```
 
 ---
@@ -252,7 +247,7 @@ Set matching vars in `apps/api/.env`.
 | `@prisma/client did not initialize yet`    | `pnpm deploy` omits `prisma generate` in the runtime bundle. Use latest `apps/api/Dockerfile` (runs `prisma generate` against `/prod/prisma/schema.prisma` after deploy). Rebuild and redeploy.                                                                                                                                                                                                                                                                                                                                                            |
 | `InstanceLoader` / Prisma engine error     | Deploy logs often show only a Nest stack tail — scroll up for `PrismaClientInitializationError` or `libquery_engine-linux-musl`. Use latest `apps/api/Dockerfile` (OpenSSL + `prisma generate` in `/prod`). Set **Config file** to `/railway.toml`.                                                                                                                                                                                                                                                                                                        |
 | Timer/presence broken                      | Confirm `REDIS_URL` is set; `REDIS_USE_MEMORY` is unset                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| CORS errors                                | `FRONTEND_ORIGIN` must match exact frontend URL (scheme + host)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| CORS errors                                | `PUBLIC_APP_URL` must match the exact product URL (scheme + host)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | Migrations pending                         | Run `scripts/deploy/migrate.sh` with prod/staging `DATABASE_URL`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 
 See also [deploy.md](./deploy.md), [vercel.md](./vercel.md), [ENVIRONMENT.md](../development/ENVIRONMENT.md).

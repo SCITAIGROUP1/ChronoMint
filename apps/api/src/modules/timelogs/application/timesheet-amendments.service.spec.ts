@@ -31,6 +31,10 @@ describe("TimesheetAmendmentsService", () => {
       assertCanManageProject: vi.fn().mockResolvedValue(undefined),
       manageableProjectIds: vi.fn().mockResolvedValue(["proj-1"])
     };
+    const mockAuthorization = {
+      evaluate: vi.fn().mockResolvedValue({ allowed: true }),
+      assertAllowed: vi.fn().mockResolvedValue({ allowed: true })
+    };
     const mockReportCache = {
       invalidateWorkspace: vi.fn().mockResolvedValue(undefined)
     };
@@ -41,6 +45,7 @@ describe("TimesheetAmendmentsService", () => {
         notifyWorkspaceAdmins: vi.fn().mockResolvedValue(undefined)
       } as never,
       mockAccess as never,
+      mockAuthorization as never,
       mockReportCache as never
     );
   });

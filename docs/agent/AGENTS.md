@@ -1,47 +1,28 @@
-# Kloqra Agent Playbook
+# Kloqra agent playbook
 
-## Execution order per task
+## Delivery order
 
-1. Read `docs/specs/<feature>.md`
-2. Update `packages/contracts` (contract gate — LSA only)
-3. QA writes failing tests
-4. BE implements `apps/api/src/modules/<feature>/`
-5. FE implements `apps/client` or `apps/admin`
-6. Update `docs/agent/ROC.md` and `TASK_BOARD.json`
+1. Read the canonical feature spec.
+2. Update `packages/contracts` first when the interface changes.
+3. Add failing tests.
+4. Implement API behavior in `apps/api`.
+5. Implement customer workflows in `apps/app` using shared packages.
+6. Update documentation and `TASK_BOARD.json`.
 
-## Role directory bounds
+| Role | Primary bounds                                   |
+| ---- | ------------------------------------------------ |
+| BA   | `docs/specs`, guides, and runbooks               |
+| BE   | `apps/api/src`                                   |
+| FE   | `apps/app`, `packages/ui`, `packages/web-shared` |
+| QA   | tests and e2e coverage                           |
+| LSA  | contracts and orchestration                      |
 
-| Role | May edit                                      |
-| ---- | --------------------------------------------- |
-| BA   | `docs/specs/`, `docs/` markdown               |
-| BE   | `apps/api/src/`                               |
-| FE   | `apps/client/`, `apps/admin/`, `packages/ui/` |
-| QA   | `**/*.spec.ts`, `**/test/**`, `**/e2e/**`     |
-| LSA  | `packages/contracts/`, orchestration          |
-
-## MIP handoff block
-
-```markdown
-<AGENT_INSTRUCTION role="BE" task_id="P1-07">
-
-- Target: apps/api/src/modules/timer/
-- Contracts: packages/contracts/src/dto/timer.dto.ts
-- TDD: apps/api/src/modules/timer/\*_/_.spec.ts must fail first
-  </AGENT_INSTRUCTION>
-```
-
-## Commands
+All customer personas use `apps/app` with auth scope `app`. `apps/platform-admin` remains isolated.
 
 ```bash
-pnpm dev          # all apps
-pnpm test         # unit tests
-pnpm test:e2e     # API + client e2e
+pnpm --filter @kloqra/app dev
+pnpm test
+pnpm test:e2e
 pnpm lint
 pnpm build
 ```
-
-## Documentation
-
-- Hub: [docs/README.md](../README.md)
-- Feature specs: `docs/specs/<feature>.md`
-- API routes: [docs/api/ROUTES.md](../api/ROUTES.md)

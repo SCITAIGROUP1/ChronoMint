@@ -8,6 +8,7 @@ import {
   type ReportShareDto
 } from "@kloqra/contracts";
 import { HttpStatus, Injectable } from "@nestjs/common";
+import { AuthorizationEnforcementService } from "../../../common/access/authorization-enforcement.service";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { ExportRowsBuilder } from "./export-rows.builder";
@@ -18,14 +19,21 @@ export class ExportShareService {
   constructor(
     private prisma: PrismaService,
     private exportService: ExportService,
-    private rowsBuilder: ExportRowsBuilder
+    private rowsBuilder: ExportRowsBuilder,
+    private authorization: AuthorizationEnforcementService
   ) {}
 
   async create(
     workspaceId: string,
+    actorUserId: string,
     dto: CreateReportShareDto,
     adminPublicBaseUrl: string
   ): Promise<ReportShareDto> {
+    await this.authorization.assertAllowed({
+      principalId: actorUserId,
+      permission: "workspace:ManageExportShares",
+      resource: { scope: "workspace", workspaceId }
+    });
     const parsed = createReportShareSchema.parse(dto);
     exportPreviewBodySchema.parse(parsed.body);
 

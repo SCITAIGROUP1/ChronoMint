@@ -56,7 +56,7 @@ Every project + period goes through simple states:
 ```mermaid
 flowchart LR
   A[Draft] -->|Member submits| B[Pending review]
-  B -->|Admin approves| C[Approved]
+  B -->|Product approves| C[Approved]
   B -->|Admin rejects| D[Rejected]
   D -->|Member fixes and resubmits| B
   C -->|Member requests edit, admin allows| A
@@ -97,7 +97,7 @@ The admin sees a confirmation when saving approval settings that explains this.
 
 ---
 
-## For members (client app)
+## For members
 
 ### Where to go
 
@@ -154,20 +154,20 @@ If a project does not require approval, it will **not** appear on **Submissions*
 
 ---
 
-## For admins (admin app)
+## For project managers and workspace admins
 
 ### Turning approval on for a project
 
-1. **Admin → Projects → [project] → Settings**
+1. **Projects → [project] → Settings**
 2. Check **Require timesheet approval**
 3. Choose **Approval period**:
-   - **Workspace default** — uses **Admin → Workspace → Default timesheet approval period** (usually weekly)
+   - **Workspace default** — uses **Workspace → Default timesheet approval period** (usually weekly)
    - **Daily**, **Weekly**, or **Monthly** — overrides the default for this project only
 4. **Save changes**
 
 If you change approval settings, you will be asked to confirm: open drafts and rejections on that project will be waived so members start fresh.
 
-### Workspace defaults (Admin → Workspace)
+### Workspace defaults (Workspace)
 
 Set once for the whole workspace:
 
@@ -230,7 +230,9 @@ Resolve pending edit requests before approving or rejecting the underlying submi
 
 **Timer entries:** entries created by stopping the timer cannot be edited like manual entries; they can be deleted when the period is editable. **Manual entries** on the timesheet can be edited when the period is not locked.
 
-**Admins** reviewing on the admin app can see everyone’s time, but approval locks apply to them too on approval-enabled projects — the process is the same for fairness and audit.
+Authorized reviewers use the same product shell. Workspace admins can review workspace-wide;
+project managers are limited to assigned projects. Approval locks apply to reviewers too on
+approval-enabled projects.
 
 ---
 
@@ -238,12 +240,12 @@ Resolve pending edit requests before approving or rejecting the underlying submi
 
 People are notified at key steps (exact channels depend on account notification settings):
 
-| Event                    | Who is notified  |
-| ------------------------ | ---------------- |
-| Member submits           | Workspace admins |
-| Admin approves / rejects | Member           |
-| Admin sends reminder     | Member           |
-| Edit request / decision  | Admins or member |
+| Event                      | Who is notified  |
+| -------------------------- | ---------------- |
+| Member submits             | Workspace admins |
+| Product approves / rejects | Member           |
+| Admin sends reminder       | Member           |
+| Edit request / decision    | Admins or member |
 
 Notifications link back to **Approvals** or **Submissions** where possible.
 
@@ -284,21 +286,21 @@ Open drafts and rejections are waived. Entries are no longer locked by approval.
 
 ## Quick reference
 
-| I want to…                          | Where to go (app)                  |
-| ----------------------------------- | ---------------------------------- |
-| Log time                            | Client → Timer / Timesheet         |
-| Submit my hours                     | Client → Submissions               |
-| Turn approval on/off                | Admin → Project → Settings         |
-| Set workspace week / default period | Admin → Workspace                  |
-| Approve or reject                   | Admin → Approvals → Pending review |
-| See who has not submitted           | Admin → Approvals → Missing        |
-| Allow edits after approval          | Admin → Approvals → Amendments     |
+| I want to…                          | Where to go                |
+| ----------------------------------- | -------------------------- |
+| Log time                            | Timer / Timesheet          |
+| Submit my hours                     | Submissions                |
+| Turn approval on/off                | Project → Settings         |
+| Set workspace week / default period | Workspace                  |
+| Approve or reject                   | Approvals → Pending review |
+| See who has not submitted           | Approvals → Missing        |
+| Allow edits after approval          | Approvals → Amendments     |
 
 ---
 
 ## Related guides
 
 - [Member: Timer and timesheet](member/timer-and-timesheet.md) — logging time
-- [Admin: Projects and teams](admin/projects-and-teams.md) — projects, teams, and settings
-- [Admin: Getting started](admin/getting-started.md) — admin app overview
-- [Member: Getting started](member/getting-started.md) — client app overview
+- [Management: Projects and teams](management/projects-and-teams.md) — projects, teams, and settings
+- [Management capabilities: Getting started](management/getting-started.md)
+- [Member: Getting started](member/getting-started.md)

@@ -36,7 +36,7 @@ describe("syncSessionFromStoredToken", () => {
     mockForceSignOut.mockReset();
     mockGetAccessToken.mockReset();
     mockGetState.mockReset();
-    process.env.NEXT_PUBLIC_AUTH_SCOPE = "admin";
+    process.env.NEXT_PUBLIC_AUTH_SCOPE = "app";
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -69,7 +69,7 @@ describe("syncSessionFromStoredToken", () => {
       expect.objectContaining({
         headers: expect.objectContaining({
           Authorization: "Bearer token-user-a",
-          "X-Auth-Scope": "admin"
+          "X-Auth-Scope": "app"
         })
       })
     );

@@ -9,6 +9,7 @@ import {
 import { useTheme } from "next-themes";
 import { useEffect } from "react";
 import { api } from "../api/client";
+import { configuredAuthScope } from "../auth/configured-auth-scope";
 import { useProfileCacheKey } from "../features/account/profile-cache-key";
 import {
   clearThemeHydration,
@@ -20,7 +21,7 @@ import { useSessionStore } from "../stores/session.store";
 import { useUserProfileStore } from "../stores/user-profile.store";
 
 function isPlatformAuthScope(): boolean {
-  return (process.env.NEXT_PUBLIC_AUTH_SCOPE?.trim() || "app") === "platform";
+  return configuredAuthScope(process.env.NEXT_PUBLIC_AUTH_SCOPE, "app") === "platform";
 }
 
 type ThemeProfile = {

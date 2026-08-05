@@ -88,8 +88,7 @@ jobs:
       REDIS_URL: redis://localhost:6379
       JWT_ACCESS_SECRET: ci-access-secret-min-32-chars-long
       JWT_REFRESH_SECRET: ci-refresh-secret-min-32-chars-long
-      PUBLIC_CLIENT_URL: http://localhost:3000
-      PUBLIC_ADMIN_URL: http://localhost:3002
+      APP_URL: http://localhost:3000
       PUBLIC_PLATFORM_URL: http://localhost:3003
     steps:
       - uses: actions/checkout@v4
@@ -106,8 +105,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            apps/admin/.next/cache
-            apps/client/.next/cache
+            apps/app/.next/cache
           key: ${{ runner.os }}-nextjs-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-nextjs-
@@ -209,14 +207,14 @@ jobs:
           MAX_WAIT_SEC: "600"
         run: bash scripts/deploy/wait-health.sh "$API_URL"
 
-  deploy-client:
-    name: Deploy client (Vercel)
-    needs: [gate, wait-api]
+  deploy-app:
+    name: Deploy unified product app (Vercel)
+    needs: [gate, migrate, wait-api]
     runs-on: ubuntu-latest
     environment: ${{ needs.gate.outputs.environment }}
     if: >-
       needs.wait-api.result == 'success' &&
-      vars.VERCEL_CLIENT_PROJECT != '' &&
+      vars.VERCEL_APP_PROJECT != '' &&
       needs.migrate.outputs.has_vercel_token == 'true'
     steps:
       - uses: actions/checkout@v4
@@ -230,52 +228,20 @@ jobs:
           node-version: "20"
           cache: "pnpm"
       - run: pnpm install --frozen-lockfile
-      - name: vercel deploy client
+      - name: vercel deploy unified product app
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
         run: |
           pnpm exec vercel deploy --prod \
-            --cwd apps/client \
-            --project "${{ vars.VERCEL_CLIENT_PROJECT }}" \
-            --yes \
-            --token "$VERCEL_TOKEN"
-
-  deploy-admin:
-    name: Deploy admin (Vercel)
-    needs: [gate, wait-api]
-    runs-on: ubuntu-latest
-    environment: ${{ needs.gate.outputs.environment }}
-    if: >-
-      needs.wait-api.result == 'success' &&
-      vars.VERCEL_ADMIN_PROJECT != '' &&
-      needs.migrate.outputs.has_vercel_token == 'true'
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.gate.outputs.sha }}
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9.15.0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "pnpm"
-      - run: pnpm install --frozen-lockfile
-      - name: vercel deploy admin
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-        run: |
-          pnpm exec vercel deploy --prod \
-            --cwd apps/admin \
-            --project "${{ vars.VERCEL_ADMIN_PROJECT }}" \
+            --cwd apps/app \
+            --project "${{ vars.VERCEL_APP_PROJECT }}" \
             --yes \
             --token "$VERCEL_TOKEN"
 
   smoke:
     name: Post-deploy smoke
-    needs: [gate, wait-api, deploy-client, deploy-admin]
+    needs: [gate, wait-api, deploy-app]
     if: always() && needs.wait-api.result == 'success'
     runs-on: ubuntu-latest
     environment: ${{ needs.gate.outputs.environment }}
@@ -286,14 +252,14 @@ jobs:
           API_URL: ${{ vars.API_URL }}
         run: bash scripts/deploy/smoke.sh "$API_URL"
       - name: Frontend reachability (optional)
-        if: vars.CLIENT_URL != '' && vars.ADMIN_URL != ''
+        if: vars.APP_URL != ''
+        env:
+          APP_URL: ${{ vars.APP_URL }}
         run: |
           set -euo pipefail
-          for url in "${{ vars.CLIENT_URL }}" "${{ vars.ADMIN_URL }}"; do
-            code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 "${url%/}/")"
-            if [[ "$code" != "200" && "$code" != "307" && "$code" != "308" ]]; then
-              echo "error: ${url} returned HTTP ${code}" >&2
-              exit 1
-            fi
-            echo "OK: ${url} (HTTP ${code})"
-          done
+          code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 "${APP_URL%/}/")"
+          if [[ "$code" != "200" && "$code" != "307" && "$code" != "308" ]]; then
+            echo "error: ${APP_URL} returned HTTP ${code}" >&2
+            exit 1
+          fi
+          echo "OK: ${APP_URL} (HTTP ${code})"

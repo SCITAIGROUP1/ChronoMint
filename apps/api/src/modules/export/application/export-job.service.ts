@@ -10,6 +10,7 @@ import { InjectQueue } from "@nestjs/bullmq";
 import { HttpStatus, Injectable, Logger } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 import { Queue } from "bullmq";
+import { AuthorizationEnforcementService } from "../../../common/access/authorization-enforcement.service";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { MailerService } from "../../../common/mailer/mailer.service";
 import { PrismaService } from "../../../common/prisma/prisma.service";
@@ -34,21 +35,24 @@ export class ExportJobService {
     private exportService: ExportService,
     private mailer: MailerService,
     private notificationsDispatch: NotificationsDispatchService,
+    private authorization: AuthorizationEnforcementService,
     @InjectQueue(QUEUES.EXPORT) private readonly exportQueue: Queue
   ) {}
 
-  async list(workspaceId: string, limit = 20): Promise<ExportJobDto[]> {
+  async list(workspaceId: string, actorUserId: string, limit = 20): Promise<ExportJobDto[]> {
+    await this.assertWorkspacePermission(actorUserId, workspaceId, "workspace:DownloadExports");
     const rows = await this.prisma.exportJob.findMany({
-      where: { workspaceId },
+      where: { workspaceId, requestedByUserId: actorUserId },
       orderBy: { createdAt: "desc" },
       take: limit
     });
     return rows.map((row) => this.toDto(row));
   }
 
-  async get(workspaceId: string, id: string): Promise<ExportJobDto> {
+  async get(workspaceId: string, actorUserId: string, id: string): Promise<ExportJobDto> {
+    await this.assertWorkspacePermission(actorUserId, workspaceId, "workspace:DownloadExports");
     const row = await this.prisma.exportJob.findFirst({
-      where: { id, workspaceId }
+      where: { id, workspaceId, requestedByUserId: actorUserId }
     });
     if (!row) {
       throw new DomainException(ErrorCodes.NOT_FOUND, "Export job not found", HttpStatus.NOT_FOUND);
@@ -62,6 +66,7 @@ export class ExportJobService {
     dto: CreateExportJobDto
   ): Promise<ExportJobDto> {
     const parsed = createExportJobSchema.parse(dto);
+    await this.assertWorkspacePermission(requestedByUserId, workspaceId, "workspace:CreateExport");
     const expiresAt = new Date();
     expiresAt.setUTCDate(expiresAt.getUTCDate() + JOB_RETENTION_DAYS);
 
@@ -76,7 +81,10 @@ export class ExportJobService {
     });
 
     try {
-      await this.exportQueue.add("runExport", { jobId: row.id });
+      await this.exportQueue.add("runExport", {
+        jobId: row.id,
+        actorUserId: requestedByUserId
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       this.logger.error(`Failed to enqueue export job ${row.id}: ${message}`);
@@ -96,10 +104,12 @@ export class ExportJobService {
 
   async download(
     workspaceId: string,
+    actorUserId: string,
     id: string
   ): Promise<{ buffer: Buffer; contentType: string; filename: string }> {
+    await this.assertWorkspacePermission(actorUserId, workspaceId, "workspace:DownloadExports");
     const row = await this.prisma.exportJob.findFirst({
-      where: { id, workspaceId }
+      where: { id, workspaceId, requestedByUserId: actorUserId }
     });
     if (!row || row.status !== "ready" || !row.storageKey || !row.filename || !row.contentType) {
       throw new DomainException(
@@ -115,9 +125,11 @@ export class ExportJobService {
     return { buffer, contentType: row.contentType, filename: row.filename };
   }
 
-  async runJob(jobId: string) {
+  async runJob(jobId: string, actorUserId: string) {
     const job = await this.prisma.exportJob.findUnique({ where: { id: jobId } });
-    if (!job || job.status !== "queued") return;
+    if (!job || job.status !== "queued" || job.requestedByUserId !== actorUserId) return;
+
+    await this.assertWorkspacePermission(actorUserId, job.workspaceId, "workspace:CreateExport");
 
     await this.prisma.exportJob.update({
       where: { id: jobId },
@@ -203,6 +215,18 @@ export class ExportJobService {
         data: { status: "expired", storageKey: null }
       });
     }
+  }
+
+  private assertWorkspacePermission(
+    principalId: string,
+    workspaceId: string,
+    permission: "workspace:CreateExport" | "workspace:DownloadExports"
+  ) {
+    return this.authorization.assertAllowed({
+      principalId,
+      permission,
+      resource: { scope: "workspace", workspaceId }
+    });
   }
 
   private toDto(row: {

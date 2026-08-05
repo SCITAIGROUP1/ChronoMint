@@ -22,4 +22,14 @@ describe("AppModal", () => {
     expect(screen.getByText("Form content")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
   });
+
+  it("does not reference a missing description", () => {
+    render(
+      <AppModal open title="Quick entry">
+        <p>Form content</p>
+      </AppModal>
+    );
+
+    expect(screen.getByRole("dialog")).not.toHaveAttribute("aria-describedby");
+  });
 });

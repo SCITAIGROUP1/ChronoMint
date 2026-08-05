@@ -1,6 +1,7 @@
-import type { AuthSessionDto } from "@kloqra/contracts";
+import type { AuthScope, AuthSessionDto } from "@kloqra/contracts";
+import { configuredAuthScope } from "./configured-auth-scope";
 
-const AUTH_SCOPE = process.env.NEXT_PUBLIC_AUTH_SCOPE?.trim() || "app";
+const AUTH_SCOPE = configuredAuthScope(process.env.NEXT_PUBLIC_AUTH_SCOPE, "app");
 
 export type SessionIdentity = {
   userId: string;
@@ -8,7 +9,7 @@ export type SessionIdentity = {
   workspaceId: string | null;
   requiresWorkspaceSetup: boolean;
   impersonatorId: string | null;
-  authScope: string;
+  authScope: AuthScope;
 };
 
 export type SessionBoundaryLevel = "none" | "workspace" | "full";

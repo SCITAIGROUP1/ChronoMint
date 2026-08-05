@@ -17,7 +17,7 @@ export function hasAdminWorkspaceAccess(workspace: AdminAccessibleWorkspace): bo
   );
 }
 
-/** Workspaces the user can open in the admin app (ADMIN or project manager). */
+/** Workspaces the user can manage as an administrator or project manager. */
 export function filterAdminAccessibleWorkspaces<T extends AdminAccessibleWorkspace>(
   workspaces: readonly T[]
 ): T[] {

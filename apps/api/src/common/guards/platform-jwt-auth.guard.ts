@@ -26,8 +26,7 @@ export class PlatformJwtAuthGuard implements CanActivate {
         ? authHeader.slice(7).trim()
         : null;
     const scope = getAuthScope(req);
-    const cookieToken =
-      req.cookies?.[accessCookieName(scope)] || req.cookies?.access_token_platform || null;
+    const cookieToken = req.cookies?.[accessCookieName(scope)] ?? null;
 
     let token: string | null = null;
     if (bearer && !this.jwtTokens.isTokenExpired(bearer)) {

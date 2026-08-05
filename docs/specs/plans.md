@@ -93,7 +93,7 @@ Platform staff edit catalog via `PATCH /platform/plans/:id` (audited as `platfor
 
 - Unit: `plan-limit.service.spec.ts`, `subscriptions.service.spec.ts`, `plan-catalog.spec.ts`, `subscription-sync.service.spec.ts`
 - E2E: `tenants.e2e.ts`, `plan-limits.e2e.ts`, `subscription-lifecycle.e2e.ts`, `subscription-plan-change.e2e.ts`, `stripe-webhook.e2e.ts`
-- Playwright: `apps/admin/e2e/account-billing.spec.ts`
+- Playwright: `apps/app/e2e/account-billing.spec.ts`
 
 ## Stripe upgrade path (F11–F13)
 

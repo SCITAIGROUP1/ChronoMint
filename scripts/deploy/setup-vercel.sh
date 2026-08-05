@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Bootstrap Vercel staging or production projects for client and admin apps.
+# Bootstrap the Vercel staging or production product app.
 #
 # Prerequisites:
 #   - Vercel CLI: npm i -g vercel && vercel login
@@ -37,18 +37,15 @@ fi
 
 VERCEL_SCOPE="${VERCEL_SCOPE:-production}"
 if [[ "$ENV_NAME" == "staging" ]]; then
-  CLIENT_PROJECT="kloqra-client-staging"
-  ADMIN_PROJECT="kloqra-admin-staging"
+  VERCEL_APP_PROJECT="${VERCEL_APP_PROJECT:-kloqra-app-staging}"
 else
-  CLIENT_PROJECT="kloqra-client"
-  ADMIN_PROJECT="kloqra-admin"
+  VERCEL_APP_PROJECT="${VERCEL_APP_PROJECT:-kloqra-app}"
 fi
 
 setup_app() {
   local app_dir="$1"
   local project_name="$2"
-  local auth_scope="$3"
-  local admin_url="${4:-}"
+  local app_url="$3"
 
   echo ""
   echo "=== Setting up ${project_name} (${app_dir}) ==="
@@ -57,11 +54,8 @@ setup_app() {
   vercel link --yes --project "$project_name" 2>/dev/null || vercel link
 
   echo "$API_URL" | vercel env add NEXT_PUBLIC_API_BASE_URL "$VERCEL_SCOPE" --force
-  echo "$auth_scope" | vercel env add NEXT_PUBLIC_AUTH_SCOPE "$VERCEL_SCOPE" --force
-
-  if [[ -n "$admin_url" ]]; then
-    echo "$admin_url" | vercel env add NEXT_PUBLIC_ADMIN_URL "$VERCEL_SCOPE" --force
-  fi
+  echo "app" | vercel env add NEXT_PUBLIC_AUTH_SCOPE "$VERCEL_SCOPE" --force
+  echo "$app_url" | vercel env add APP_URL "$VERCEL_SCOPE" --force
 
   echo "Deploying ${project_name}..."
   vercel deploy --prod
@@ -71,7 +65,7 @@ echo "=== Kloqra Vercel setup: ${ENV_NAME} ==="
 echo "API URL: ${API_URL}"
 echo ""
 echo "Ensure each Vercel project has:"
-echo "  - Root Directory: apps/client or apps/admin"
+echo "  - Product app Root Directory: apps/app"
 echo "  - Include source files outside Root Directory: ON"
 echo ""
 
@@ -81,22 +75,19 @@ case "$CONFIRM" in
   *) echo "Manual setup: see docs/runbooks/vercel.md"; exit 0 ;;
 esac
 
-setup_app "apps/client" "$CLIENT_PROJECT" "client"
-
-ADMIN_URL=""
+APP_URL=""
 if [[ "$ENV_NAME" == "staging" ]]; then
-  ADMIN_URL="https://${ADMIN_PROJECT}.vercel.app"
+  APP_URL="https://${VERCEL_APP_PROJECT}.vercel.app"
 else
-  read -r -p "Admin public URL (for share links, e.g. https://admin.example.com): " ADMIN_URL
-  ADMIN_URL="${ADMIN_URL:-https://${ADMIN_PROJECT}.vercel.app}"
+  read -r -p "Product app URL (e.g. https://app.example.com): " APP_URL
+  APP_URL="${APP_URL:-https://${VERCEL_APP_PROJECT}.vercel.app}"
 fi
 
-setup_app "apps/admin" "$ADMIN_PROJECT" "admin" "$ADMIN_URL"
+setup_app "apps/app" "$VERCEL_APP_PROJECT" "$APP_URL"
 
-CLIENT_URL="https://${CLIENT_PROJECT}.vercel.app"
 echo ""
 echo "=== Wire CORS on Railway API ==="
-echo "FRONTEND_ORIGIN=$(bash "${ROOT}/scripts/deploy/wire-cors.sh" "$CLIENT_URL" "$ADMIN_URL")"
+echo "FRONTEND_ORIGIN=$(bash "${ROOT}/scripts/deploy/wire-cors.sh" "$APP_URL")"
 echo ""
 echo "Update FRONTEND_ORIGIN on the Railway API service, then run:"
 echo "  bash scripts/deploy/smoke.sh ${API_URL}"

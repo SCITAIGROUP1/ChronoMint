@@ -9,9 +9,9 @@ describe("clearSessionScopedBrowserStorage", () => {
   });
 
   it("removes scoped keys for the previous user", () => {
-    localStorage.setItem("kloqra:client:user-a:favorites", "[]");
-    localStorage.setItem("kloqra:client:user-b:favorites", "[]");
-    sessionStorage.setItem("kloqra:client:user-a:assistant_turns", "[]");
+    localStorage.setItem("kloqra:app:user-a:favorites", "[]");
+    localStorage.setItem("kloqra:app:user-b:favorites", "[]");
+    sessionStorage.setItem("kloqra:app:user-a:assistant_turns", "[]");
     localStorage.setItem("kloqra_favorites", "legacy");
 
     clearSessionScopedBrowserStorage({
@@ -20,12 +20,12 @@ describe("clearSessionScopedBrowserStorage", () => {
       workspaceId: "ws-1",
       requiresWorkspaceSetup: false,
       impersonatorId: null,
-      authScope: "client"
+      authScope: "app"
     });
 
-    expect(localStorage.getItem("kloqra:client:user-a:favorites")).toBeNull();
-    expect(localStorage.getItem("kloqra:client:user-b:favorites")).toBe("[]");
-    expect(sessionStorage.getItem("kloqra:client:user-a:assistant_turns")).toBeNull();
+    expect(localStorage.getItem("kloqra:app:user-a:favorites")).toBeNull();
+    expect(localStorage.getItem("kloqra:app:user-b:favorites")).toBe("[]");
+    expect(sessionStorage.getItem("kloqra:app:user-a:assistant_turns")).toBeNull();
     expect(localStorage.getItem("kloqra_favorites")).toBeNull();
   });
 });

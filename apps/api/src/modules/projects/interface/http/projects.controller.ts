@@ -30,23 +30,27 @@ import {
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import type { Response } from "express";
-import { Roles } from "../../../../common/decorators/roles.decorator";
+import { RequirePermission } from "../../../../common/decorators/require-permission.decorator";
 import {
   WorkspaceUser,
   type WorkspaceRequestUser
 } from "../../../../common/decorators/workspace-user.decorator";
-import { AdminOrProjectManagerGuard } from "../../../../common/guards/admin-or-project-manager.guard";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
-import { RolesGuard } from "../../../../common/guards/roles.guard";
+import { PermissionGuard } from "../../../../common/guards/permission.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
 import { ProjectsService } from "../../application/projects.service";
 
 @Controller()
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionGuard)
 export class ProjectsController {
   constructor(private projects: ProjectsService) {}
 
   @Get(ROUTES.PROJECTS.LIST)
+  @RequirePermission("workspace:ListProjects", {
+    scope: "workspace",
+    workspaceId: { source: "session", field: "workspaceId" },
+    expectedTenantId: { source: "session", field: "tenantId" }
+  })
   list(
     @WorkspaceUser() user: WorkspaceRequestUser,
     @Query(new ZodValidationPipe(listProjectsQuerySchema)) query: ListProjectsQuery,
@@ -58,8 +62,12 @@ export class ProjectsController {
     });
   }
 
-  @Roles("ADMIN")
   @Post(ROUTES.PROJECTS.CREATE)
+  @RequirePermission("workspace:CreateProject", {
+    scope: "workspace",
+    workspaceId: { source: "session", field: "workspaceId" },
+    expectedTenantId: { source: "session", field: "tenantId" }
+  })
   create(
     @WorkspaceUser() user: WorkspaceRequestUser,
     @Body(new ZodValidationPipe(createProjectSchema)) body: unknown
@@ -68,12 +76,23 @@ export class ProjectsController {
   }
 
   @Get(ROUTES.PROJECTS.BY_ID(":id"))
+  @RequirePermission("project:Read", {
+    scope: "project",
+    projectId: { source: "route", parameter: "id" },
+    expectedWorkspaceId: { source: "session", field: "workspaceId" },
+    expectedTenantId: { source: "session", field: "tenantId" }
+  })
   get(@WorkspaceUser() user: WorkspaceRequestUser, @Param("id") id: string) {
     return this.projects.get(user.workspaceId, user.userId, user.role, id);
   }
 
-  @Roles("ADMIN")
   @Patch(ROUTES.PROJECTS.BY_ID(":id"))
+  @RequirePermission("project:Update", {
+    scope: "project",
+    projectId: { source: "route", parameter: "id" },
+    expectedWorkspaceId: { source: "session", field: "workspaceId" },
+    expectedTenantId: { source: "session", field: "tenantId" }
+  })
   update(
     @WorkspaceUser() user: WorkspaceRequestUser,
     @Param("id") id: string,
@@ -86,14 +105,22 @@ export class ProjectsController {
     );
   }
 
-  @Roles("ADMIN")
   @Delete(ROUTES.PROJECTS.BY_ID(":id"))
+  @RequirePermission("workspace:DeleteProject", {
+    scope: "workspace",
+    workspaceId: { source: "session", field: "workspaceId" },
+    expectedTenantId: { source: "session", field: "tenantId" }
+  })
   remove(@WorkspaceUser() user: WorkspaceRequestUser, @Param("id") id: string) {
     return this.projects.remove(user.workspaceId, id);
   }
 
-  @UseGuards(AdminOrProjectManagerGuard)
   @Get(ROUTES.PROJECTS.TEAM(":id"))
+  @RequirePermission("project:ListTeam", {
+    scope: "project",
+    projectId: { source: "route", parameter: "id" },
+    expectedWorkspaceId: { source: "session", field: "workspaceId" }
+  })
   getTeam(
     @WorkspaceUser() user: WorkspaceRequestUser,
     @Param("id") id: string,
@@ -103,6 +130,11 @@ export class ProjectsController {
   }
 
   @Get(ROUTES.PROJECTS.TEAM_ROSTER(":id"))
+  @RequirePermission("project:ListTeam", {
+    scope: "project",
+    projectId: { source: "route", parameter: "id" },
+    expectedWorkspaceId: { source: "session", field: "workspaceId" }
+  })
   getMemberTeamRoster(
     @WorkspaceUser() user: WorkspaceRequestUser,
     @Param("id") id: string,
@@ -111,8 +143,12 @@ export class ProjectsController {
     return this.projects.getMemberTeamRoster(user.workspaceId, user.userId, user.role, id, query);
   }
 
-  @UseGuards(AdminOrProjectManagerGuard)
   @Post(ROUTES.PROJECTS.TEAM_MEMBERS(":id"))
+  @RequirePermission("project:ManageTeam", {
+    scope: "project",
+    projectId: { source: "route", parameter: "id" },
+    expectedWorkspaceId: { source: "session", field: "workspaceId" }
+  })
   addTeamMember(
     @WorkspaceUser() user: WorkspaceRequestUser,
     @Param("id") id: string,
@@ -127,8 +163,12 @@ export class ProjectsController {
     );
   }
 
-  @Roles("ADMIN")
   @Post(ROUTES.PROJECTS.TEAM_MEMBERS_PROVISION(":id"))
+  @RequirePermission("project:ManageTeam", {
+    scope: "project",
+    projectId: { source: "route", parameter: "id" },
+    expectedWorkspaceId: { source: "session", field: "workspaceId" }
+  })
   provisionTeamMembers(
     @WorkspaceUser() user: WorkspaceRequestUser,
     @Param("id") id: string,
@@ -138,8 +178,12 @@ export class ProjectsController {
     return this.projects.provisionTeamMembers(user.workspaceId, user.userId, user.role, id, body);
   }
 
-  @Roles("ADMIN")
   @Get(ROUTES.PROJECTS.TEAM_MEMBERS_BULK_TEMPLATE(":id"))
+  @RequirePermission("project:ManageTeam", {
+    scope: "project",
+    projectId: { source: "route", parameter: "id" },
+    expectedWorkspaceId: { source: "session", field: "workspaceId" }
+  })
   async getBulkProjectInviteTemplate(
     @Param("id") id: string,
     @WorkspaceUser() user: WorkspaceRequestUser,
@@ -154,8 +198,12 @@ export class ProjectsController {
     );
   }
 
-  @Roles("ADMIN")
   @Post(ROUTES.PROJECTS.TEAM_MEMBERS_BULK_UPLOAD(":id"))
+  @RequirePermission("project:ManageTeam", {
+    scope: "project",
+    projectId: { source: "route", parameter: "id" },
+    expectedWorkspaceId: { source: "session", field: "workspaceId" }
+  })
   @UseInterceptors(FileInterceptor("file", { limits: { fileSize: 2 * 1024 * 1024 } }))
   async bulkProjectInviteUpload(
     @Param("id") id: string,
@@ -175,8 +223,12 @@ export class ProjectsController {
     );
   }
 
-  @Roles("ADMIN")
   @Get(ROUTES.PROJECTS.TEAM_MEMBERS_BULK_JOB(":id", ":jobId"))
+  @RequirePermission("project:ManageTeam", {
+    scope: "project",
+    projectId: { source: "route", parameter: "id" },
+    expectedWorkspaceId: { source: "session", field: "workspaceId" }
+  })
   getBulkProjectInviteJob(
     @WorkspaceUser() user: WorkspaceRequestUser,
     @Param("id") id: string,
@@ -191,8 +243,12 @@ export class ProjectsController {
     );
   }
 
-  @UseGuards(AdminOrProjectManagerGuard)
   @Patch(ROUTES.PROJECTS.TEAM_MEMBER(":projectId", ":memberId"))
+  @RequirePermission("project:ManageTeam", {
+    scope: "project",
+    projectId: { source: "route", parameter: "projectId" },
+    expectedWorkspaceId: { source: "session", field: "workspaceId" }
+  })
   updateTeamMember(
     @WorkspaceUser() user: WorkspaceRequestUser,
     @Param("projectId") projectId: string,
@@ -209,8 +265,12 @@ export class ProjectsController {
     );
   }
 
-  @UseGuards(AdminOrProjectManagerGuard)
   @Delete(ROUTES.PROJECTS.TEAM_MEMBER(":projectId", ":memberId"))
+  @RequirePermission("project:ManageTeam", {
+    scope: "project",
+    projectId: { source: "route", parameter: "projectId" },
+    expectedWorkspaceId: { source: "session", field: "workspaceId" }
+  })
   removeTeamMember(
     @WorkspaceUser() user: WorkspaceRequestUser,
     @Param("projectId") projectId: string,
@@ -225,8 +285,12 @@ export class ProjectsController {
     );
   }
 
-  @UseGuards(AdminOrProjectManagerGuard)
   @Post(ROUTES.PROJECTS.TEAM_INVITES(":id"))
+  @RequirePermission("project:ManageTeam", {
+    scope: "project",
+    projectId: { source: "route", parameter: "id" },
+    expectedWorkspaceId: { source: "session", field: "workspaceId" }
+  })
   createTeamInvite(
     @WorkspaceUser() user: WorkspaceRequestUser,
     @Param("id") id: string,

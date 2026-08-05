@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  bulkInviteJobResultSchema,
   bulkInviteJobStatusSchema,
   listProjectTeamQuerySchema,
   provisionProjectTeamMembersResponseSchema,
@@ -145,9 +146,27 @@ describe("bulkInviteJobStatusSchema", () => {
           successCount: 2,
           skippedCount: 1,
           projectAddedCount: 2,
-          totalProcessed: 3
+          totalProcessed: 3,
+          emailQueuedCount: 2,
+          credentialsResentCount: 0,
+          emailFailedCount: 0
         }
       }).success
     ).toBe(true);
+  });
+
+  it("defaults email counters when omitted", () => {
+    const parsed = bulkInviteJobResultSchema.safeParse({
+      successCount: 1,
+      skippedCount: 0,
+      projectAddedCount: 0,
+      totalProcessed: 1
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.emailQueuedCount).toBe(0);
+      expect(parsed.data.credentialsResentCount).toBe(0);
+      expect(parsed.data.emailFailedCount).toBe(0);
+    }
   });
 });

@@ -31,8 +31,7 @@ describe("cookie-options", () => {
 
   it("detects cross-site setup using dedicated app URLs", () => {
     process.env.NODE_ENV = "production";
-    process.env.PUBLIC_CLIENT_URL = "https://kloqra-client.vercel.app";
-    process.env.PUBLIC_ADMIN_URL = "https://kloqra-admin.vercel.app";
+    process.env.PUBLIC_APP_URL = "https://kloqra-app.vercel.app";
     process.env.RAILWAY_PUBLIC_DOMAIN = "kloqra-api.up.railway.app";
     delete process.env.AUTH_COOKIE_SAME_SITE;
 

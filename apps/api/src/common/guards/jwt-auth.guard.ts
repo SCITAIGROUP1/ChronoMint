@@ -10,7 +10,7 @@ import {
 import { Reflector } from "@nestjs/core";
 import { ProjectAccessService } from "../access/project-access.service";
 import { AuthRevocationService } from "../auth/auth-revocation.service";
-import { accessCookieName, getAuthScope } from "../auth/auth-scope";
+import { accessCookieName, getAuthScope, isProductAuthScope } from "../auth/auth-scope";
 import { JwtTokenService } from "../auth/jwt-token.service";
 import { resolveWorkspaceId } from "../auth/resolve-workspace-id";
 import { TENANT_SCOPED_KEY } from "../decorators/tenant-scoped.decorator";
@@ -35,9 +35,9 @@ export class JwtAuthGuard implements CanActivate {
         ? authHeader.slice(7).trim()
         : null;
     const scope = getAuthScope(req);
-    const cookieToken = req.cookies?.[accessCookieName(scope)] || req.cookies?.access_token || null;
+    const cookieToken = req.cookies?.[accessCookieName(scope)] ?? null;
 
-    const expectedScope = scope === "client" || scope === "admin" ? scope : undefined;
+    const expectedScope = isProductAuthScope(scope) ? scope : undefined;
 
     let token: string | null = null;
     if (bearer && !this.jwtTokens.isTokenExpired(bearer)) {
@@ -63,7 +63,7 @@ export class JwtAuthGuard implements CanActivate {
 
     try {
       const payload = this.jwtTokens.verifyAccessToken(token, expectedScope);
-      await this.authRevocation.assertNotRevoked(payload.sub, payload.family);
+      await this.authRevocation.assertNotRevoked(payload.sub, payload.family, payload.issuedAtMs);
       const headerWs = req.headers["x-workspace-id"];
       const headerValue = Array.isArray(headerWs) ? headerWs[0] : headerWs;
       const workspaceId = resolveWorkspaceId(payload.workspaceId, headerValue);

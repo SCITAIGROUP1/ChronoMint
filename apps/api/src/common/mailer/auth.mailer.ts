@@ -1,11 +1,10 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { adminClientOrigin } from "./admin-origin.util";
+import { appOrigin } from "./app-origin.util";
 import {
   renderBrandedEmailHtml,
   renderBrandedEmailText,
   subjectPrefix
 } from "./branded-email.layout";
-import { clientOrigin } from "./client-origin.util";
 import { MailerService, type SendMailResult } from "./mailer.service";
 import { platformClientOrigin } from "./platform-origin.util";
 
@@ -98,7 +97,7 @@ export class AuthMailer {
 }
 
 export function buildPasswordResetUrl(token: string): string {
-  return `${clientOrigin()}/reset-password?token=${encodeURIComponent(token)}`;
+  return `${appOrigin()}/reset-password?token=${encodeURIComponent(token)}`;
 }
 
 export function buildPlatformPasswordResetUrl(token: string): string {
@@ -106,9 +105,5 @@ export function buildPlatformPasswordResetUrl(token: string): string {
 }
 
 export function buildVerifyEmailUrl(token: string): string {
-  return `${clientOrigin()}/verify-email?token=${encodeURIComponent(token)}`;
-}
-
-export function buildAdminVerifyEmailUrl(token: string): string {
-  return `${adminClientOrigin()}/verify-email?token=${encodeURIComponent(token)}`;
+  return `${appOrigin()}/verify-email?token=${encodeURIComponent(token)}`;
 }

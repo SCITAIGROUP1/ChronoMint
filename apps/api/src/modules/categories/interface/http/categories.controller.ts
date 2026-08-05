@@ -23,22 +23,27 @@ import {
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import type { Response } from "express";
-import { Roles } from "../../../../common/decorators/roles.decorator";
+import { RequirePermission } from "../../../../common/decorators/require-permission.decorator";
 import {
   WorkspaceUser,
   type WorkspaceRequestUser
 } from "../../../../common/decorators/workspace-user.decorator";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
-import { RolesGuard } from "../../../../common/guards/roles.guard";
+import { PermissionGuard } from "../../../../common/guards/permission.guard";
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe";
 import { CategoriesService } from "../../application/categories.service";
 
 @Controller()
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionGuard)
 export class CategoriesController {
   constructor(private categories: CategoriesService) {}
 
   @Get(ROUTES.CATEGORIES.LIST)
+  @RequirePermission("workspace:ListCategories", {
+    scope: "workspace",
+    workspaceId: { source: "session", field: "workspaceId" },
+    expectedTenantId: { source: "session", field: "tenantId" }
+  })
   list(
     @WorkspaceUser() user: WorkspaceRequestUser,
     @Query(new ZodValidationPipe(listCategoriesQuerySchema)) query: ListCategoriesQuery
@@ -46,8 +51,12 @@ export class CategoriesController {
     return this.categories.list(user.workspaceId, query);
   }
 
-  @Roles("ADMIN")
   @Post(ROUTES.CATEGORIES.CREATE)
+  @RequirePermission("workspace:ManageCategories", {
+    scope: "workspace",
+    workspaceId: { source: "session", field: "workspaceId" },
+    expectedTenantId: { source: "session", field: "tenantId" }
+  })
   create(
     @WorkspaceUser() user: WorkspaceRequestUser,
     @Body(new ZodValidationPipe(createCategorySchema)) body: unknown
@@ -58,8 +67,11 @@ export class CategoriesController {
     );
   }
 
-  @Roles("ADMIN")
   @Get(ROUTES.CATEGORIES.BULK_TEMPLATE)
+  @RequirePermission("workspace:ManageCategories", {
+    scope: "workspace",
+    workspaceId: { source: "session", field: "workspaceId" }
+  })
   async getBulkCategoryTemplate(
     @WorkspaceUser() _user: WorkspaceRequestUser,
     @Res() res: Response
@@ -67,8 +79,11 @@ export class CategoriesController {
     await this.categories.generateBulkCategoryTemplate(res);
   }
 
-  @Roles("ADMIN")
   @Post(ROUTES.CATEGORIES.BULK_UPLOAD)
+  @RequirePermission("workspace:ManageCategories", {
+    scope: "workspace",
+    workspaceId: { source: "session", field: "workspaceId" }
+  })
   @UseInterceptors(FileInterceptor("file", { limits: { fileSize: 2 * 1024 * 1024 } }))
   async bulkCategoryUpload(
     @UploadedFile() file: { buffer: Buffer } | undefined,
@@ -80,8 +95,11 @@ export class CategoriesController {
     return this.categories.bulkImport(user.workspaceId, categories);
   }
 
-  @Roles("ADMIN")
   @Post(ROUTES.CATEGORIES.BULK)
+  @RequirePermission("workspace:ManageCategories", {
+    scope: "workspace",
+    workspaceId: { source: "session", field: "workspaceId" }
+  })
   bulkCategoryImport(
     @WorkspaceUser() user: WorkspaceRequestUser,
     @Body(new ZodValidationPipe(bulkCategoryImportSchema))
@@ -90,8 +108,11 @@ export class CategoriesController {
     return this.categories.bulkImport(user.workspaceId, body.categories);
   }
 
-  @Roles("ADMIN")
   @Patch(ROUTES.CATEGORIES.BY_ID(":id"))
+  @RequirePermission("workspace:ManageCategories", {
+    scope: "workspace",
+    workspaceId: { source: "session", field: "workspaceId" }
+  })
   update(
     @WorkspaceUser() user: WorkspaceRequestUser,
     @Param("id") id: string,
@@ -104,8 +125,11 @@ export class CategoriesController {
     );
   }
 
-  @Roles("ADMIN")
   @Delete(ROUTES.CATEGORIES.BY_ID(":id"))
+  @RequirePermission("workspace:ManageCategories", {
+    scope: "workspace",
+    workspaceId: { source: "session", field: "workspaceId" }
+  })
   remove(@WorkspaceUser() user: WorkspaceRequestUser, @Param("id") id: string) {
     return this.categories.remove(user.workspaceId, id);
   }

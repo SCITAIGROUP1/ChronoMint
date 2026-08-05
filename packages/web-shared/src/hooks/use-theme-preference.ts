@@ -4,12 +4,13 @@ import { ROUTES, type ThemePreference } from "@kloqra/contracts";
 import { useTheme } from "next-themes";
 import { useCallback } from "react";
 import { api } from "../api/client";
+import { configuredAuthScope } from "../auth/configured-auth-scope";
 import { usePlatformSessionStore } from "../stores/platform-session.store";
 import { getWorkspaceId, useSessionStore } from "../stores/session.store";
 import { markThemeHydrated } from "./theme-preference-state";
 
 function isPlatformAuthScope(): boolean {
-  return (process.env.NEXT_PUBLIC_AUTH_SCOPE?.trim() || "app") === "platform";
+  return configuredAuthScope(process.env.NEXT_PUBLIC_AUTH_SCOPE, "app") === "platform";
 }
 
 /** Applies theme in the UI and persists to user preferences when authenticated. */

@@ -6,6 +6,7 @@ import { clearStoredThemePreference } from "../hooks/theme-storage";
 import { usePlatformNotificationsStore } from "../stores/platform-notifications-store";
 import { getPlatformAccessToken, usePlatformSessionStore } from "../stores/platform-session.store";
 import { usePlatformUserProfileStore } from "../stores/platform-user-profile.store";
+import { configuredAuthScope } from "./configured-auth-scope";
 import { establishPlatformSession } from "./establish-tenant-session";
 import { isAccessTokenExpired } from "./jwt-payload";
 import { beginLogout, isLogoutEpochCurrent } from "./logout-session";
@@ -13,7 +14,7 @@ import { tryRefreshPlatformSession } from "./refresh-platform-session";
 
 export { tryRefreshPlatformSession } from "./refresh-platform-session";
 
-const AUTH_SCOPE = process.env.NEXT_PUBLIC_AUTH_SCOPE?.trim() || "platform";
+const AUTH_SCOPE = configuredAuthScope(process.env.NEXT_PUBLIC_AUTH_SCOPE, "platform");
 
 async function fetchPlatformMe(token: string): Promise<PlatformSessionDto> {
   const res = await fetch(`${getApiBase()}${ROUTES.AUTH.ME}`, {

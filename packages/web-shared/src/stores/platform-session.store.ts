@@ -1,9 +1,10 @@
 import type { PlatformSessionDto } from "@kloqra/contracts";
 import { create } from "zustand";
+import { configuredAuthScope } from "../auth/configured-auth-scope";
 import { applySessionBoundary, type SessionBoundaryReason } from "../auth/session-boundary";
 import { scheduleProactiveRefresh, cancelProactiveRefresh } from "../auth/token-scheduler";
 
-const AUTH_SCOPE = process.env.NEXT_PUBLIC_AUTH_SCOPE?.trim() || "platform";
+const AUTH_SCOPE = configuredAuthScope(process.env.NEXT_PUBLIC_AUTH_SCOPE, "platform");
 
 function tokenKey() {
   return `cm-${AUTH_SCOPE}-access-token`;

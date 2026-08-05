@@ -2,21 +2,21 @@
 
 ```mermaid
 sequenceDiagram
-  participant Client
+  participant Product as Unified product
   participant API
   participant Redis
   participant DB
 
-  Client->>API: POST /timer/start
+  Product->>API: POST /timer/start
   API->>Redis: SET timer:workspace:user
-  API-->>Client: ActiveTimerDto
+  API-->>Product: ActiveTimerDto
 
-  Client->>API: GET /timer/active
+  Product->>API: GET /timer/active
   API->>Redis: GET
-  API-->>Client: elapsedSec
+  API-->>Product: elapsedSec
 
-  Client->>API: POST /timer/stop
+  Product->>API: POST /timer/stop
   API->>Redis: DEL
   API->>DB: INSERT time_logs source=timer
-  API-->>Client: TimeLogDto
+  API-->>Product: TimeLogDto
 ```

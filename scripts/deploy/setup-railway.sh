@@ -66,7 +66,7 @@ cat <<EOF
   JWT_ACCESS_SECRET=<from generate-secrets output>
   JWT_REFRESH_SECRET=<from generate-secrets output>
   FRONTEND_ORIGIN=<set after Vercel deploy — see scripts/deploy/wire-cors.sh>
-  PUBLIC_ADMIN_URL=<admin app URL>
+  APP_URL=<product app URL>
   NODE_ENV=production
 EOF
 

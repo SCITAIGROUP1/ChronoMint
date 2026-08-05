@@ -7,8 +7,6 @@ import {
   verifyEmailSchema,
   resendVerificationSchema,
   switchWorkspaceSchema,
-  completeImpersonationSchema,
-  impersonateSchema,
   refreshSessionSchema,
   inviteHandoffSchema,
   platform2faSetupEnableRequestSchema,
@@ -31,12 +29,15 @@ import {
 } from "@nestjs/common";
 import { Throttle, SkipThrottle } from "@nestjs/throttler";
 import { type Response, type Request } from "express";
+import { AuthorizationEnforcementService } from "../../../../common/access/authorization-enforcement.service";
 import { assertAllowedAuthOrigin } from "../../../../common/auth/allowed-origins";
 import {
   accessCookieName,
   getAuthScope,
+  isProductAuthScope,
   refreshCookieName
 } from "../../../../common/auth/auth-scope";
+import type { AuthScope } from "../../../../common/auth/auth-scope";
 import { getClearCookieOpts, getCookieOpts } from "../../../../common/auth/cookie-options";
 import {
   CurrentPlatformUser,
@@ -47,10 +48,6 @@ import {
   type RequestUser
 } from "../../../../common/decorators/current-user.decorator";
 import { TenantScoped } from "../../../../common/decorators/tenant-scoped.decorator";
-import {
-  WorkspaceUser,
-  type WorkspaceRequestUser
-} from "../../../../common/decorators/workspace-user.decorator";
 import { DomainException } from "../../../../common/errors/domain.exception";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { SessionAuthGuard } from "../../../../common/guards/session-auth.guard";
@@ -58,13 +55,13 @@ import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe"
 import { PlatformAuditService } from "../../../platform/application/platform-audit.service";
 import { AuthService } from "../../application/auth.service";
 
-function requireProductionAuthScope(req: Request): string {
+function requireProductionAuthScope(req: Request): AuthScope {
   const scope = getAuthScope(req);
-  if (scope === "client" || scope === "admin" || scope === "platform") return scope;
+  if (isProductAuthScope(scope) || scope === "platform") return scope;
   if (process.env.NODE_ENV === "production") {
     throw new DomainException(
       ErrorCodes.UNAUTHORIZED,
-      "X-Auth-Scope header required (client, admin, or platform)",
+      "X-Auth-Scope header required (app or platform)",
       HttpStatus.UNAUTHORIZED
     );
   }
@@ -80,7 +77,8 @@ function guardCookieAuthRequest(req: Request): void {
 export class AuthController {
   constructor(
     private auth: AuthService,
-    private platformAudit: PlatformAuditService
+    private platformAudit: PlatformAuditService,
+    private authorization: AuthorizationEnforcementService
   ) {}
 
   @Throttle({ auth: { limit: 5, ttl: 60_000 } })
@@ -99,7 +97,7 @@ export class AuthController {
     return this.auth.signup(body as Parameters<AuthService["signup"]>[0]);
   }
 
-  @Throttle({ auth: { limit: 10, ttl: 60_000 } })
+  @Throttle({ auth: { limit: 60, ttl: 60_000 } })
   @Post(ROUTES.AUTH.INVITE_HANDOFF)
   async inviteHandoff(
     @Body(new ZodValidationPipe(inviteHandoffSchema)) body: { inviteToken: string }
@@ -269,10 +267,7 @@ export class AuthController {
   ) {
     guardCookieAuthRequest(req);
     const scope = getAuthScope(req);
-    const refresh =
-      req.cookies?.[refreshCookieName(scope)] ??
-      req.cookies?.refresh_token ??
-      body.refreshToken?.trim();
+    const refresh = req.cookies?.[refreshCookieName(scope)] ?? body.refreshToken?.trim();
     if (!refresh) {
       throw new DomainException(
         ErrorCodes.UNAUTHORIZED,
@@ -310,12 +305,14 @@ export class AuthController {
       };
     }
 
-    const { session, newRefreshToken, family } = await this.auth.rotateRefreshToken(refresh, {
-      userAgent: req.headers["user-agent"]
-    });
+    const { session, newRefreshToken, family } = await this.auth.rotateRefreshToken(
+      refresh,
+      { userAgent: req.headers["user-agent"] },
+      scope
+    );
     if (!session) return { error: "No workspace" };
 
-    const tokenScope = scope === "client" || scope === "admin" ? scope : undefined;
+    const tokenScope = isProductAuthScope(scope) ? scope : undefined;
     const access = session.workspaceId
       ? this.auth.signAccessToken(
           session.user.id,
@@ -383,7 +380,7 @@ export class AuthController {
   @SkipThrottle()
   @UseGuards(SessionAuthGuard)
   @Get(ROUTES.AUTH.ME)
-  me(
+  async me(
     @Req() req: Request,
     @CurrentUser() user?: RequestUser,
     @CurrentPlatformUser() platformUser?: PlatformRequestUser
@@ -397,6 +394,11 @@ export class AuthController {
           HttpStatus.UNAUTHORIZED
         );
       }
+      await this.authorization.assertAllowed({
+        principalId: platformUser.platformUserId,
+        permission: "platform:AccessConsole",
+        resource: { scope: "platform" }
+      });
       return this.auth.getPlatformMe(platformUser.platformUserId);
     }
     if (!user) {
@@ -406,99 +408,18 @@ export class AuthController {
         HttpStatus.UNAUTHORIZED
       );
     }
+    await this.authorization.assertAllowed({
+      principalId: user.userId,
+      permission: user.workspaceId ? "workspace:Access" : "tenant:Access",
+      resource: user.workspaceId
+        ? {
+            scope: "workspace",
+            workspaceId: user.workspaceId,
+            expectedTenantId: user.tenantId
+          }
+        : { scope: "tenant", tenantId: user.tenantId }
+    });
     return this.auth.getMe(user.userId, user.workspaceId, user.impersonatorId);
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Post(ROUTES.AUTH.IMPERSONATE)
-  async impersonate(
-    @WorkspaceUser() user: WorkspaceRequestUser,
-    @Body(new ZodValidationPipe(impersonateSchema)) body: { userId: string },
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response
-  ) {
-    const workspaceUser = user;
-    if (workspaceUser.role !== "ADMIN") {
-      throw new DomainException(
-        ErrorCodes.FORBIDDEN,
-        "Only workspace administrators can view as another member",
-        HttpStatus.FORBIDDEN
-      );
-    }
-
-    const { session, handoffToken, accessToken, refreshToken } =
-      await this.auth.createImpersonationHandoff(
-        workspaceUser.userId,
-        workspaceUser.workspaceId,
-        body.userId
-      );
-
-    const clientScope = "client" as const;
-    const cookieOpts = getCookieOpts();
-    res.cookie(accessCookieName(clientScope), accessToken, {
-      ...cookieOpts,
-      maxAge: 15 * 60 * 1000
-    });
-    res.cookie(refreshCookieName(clientScope), refreshToken, {
-      ...cookieOpts,
-      maxAge: 7 * 24 * 60 * 60 * 1000
-    });
-
-    return { ...session, handoffToken };
-  }
-
-  @Throttle({ auth: { limit: 10, ttl: 60_000 } })
-  @Post(ROUTES.AUTH.IMPERSONATE_COMPLETE)
-  async completeImpersonation(
-    @Body(new ZodValidationPipe(completeImpersonationSchema)) body: { handoffToken: string },
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response
-  ) {
-    guardCookieAuthRequest(req);
-    const handoff = await this.auth.consumeImpersonationHandoff(body.handoffToken);
-    if (!handoff) {
-      throw new DomainException(
-        ErrorCodes.UNAUTHORIZED,
-        "Impersonation handoff expired or invalid",
-        HttpStatus.UNAUTHORIZED
-      );
-    }
-
-    const clientScope = "client" as const;
-    const cookieOpts = getCookieOpts();
-    res.cookie(accessCookieName(clientScope), handoff.accessToken, {
-      ...cookieOpts,
-      maxAge: 15 * 60 * 1000
-    });
-    res.cookie(refreshCookieName(clientScope), handoff.refreshToken, {
-      ...cookieOpts,
-      maxAge: 7 * 24 * 60 * 60 * 1000
-    });
-
-    return {
-      ...handoff.session,
-      accessToken: handoff.accessToken,
-      refreshToken: handoff.refreshToken
-    };
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Post(ROUTES.AUTH.STOP_IMPERSONATION)
-  async stopImpersonation(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    guardCookieAuthRequest(req);
-    const refresh =
-      req.cookies?.[refreshCookieName("client")] ??
-      req.cookies?.refresh_token_client ??
-      req.cookies?.refresh_token;
-    if (refresh) {
-      await this.auth.revokeRefreshToken(refresh);
-    }
-    const clearOpts = getClearCookieOpts();
-    res.clearCookie(accessCookieName("client"), clearOpts);
-    res.clearCookie(refreshCookieName("client"), clearOpts);
-    res.clearCookie("access_token", clearOpts);
-    res.clearCookie("refresh_token", clearOpts);
-    return { ok: true };
   }
 
   @Delete(ROUTES.AUTH.LOGOUT)
@@ -509,8 +430,7 @@ export class AuthController {
   ) {
     guardCookieAuthRequest(req);
     const scope = getAuthScope(req);
-    const cookieRefresh =
-      req.cookies?.[refreshCookieName(scope)] ?? req.cookies?.refresh_token ?? undefined;
+    const cookieRefresh = req.cookies?.[refreshCookieName(scope)] ?? undefined;
     const refresh = body.refreshToken?.trim() ?? cookieRefresh;
     if (refresh) {
       if (scope === "platform") {
@@ -524,8 +444,6 @@ export class AuthController {
       const clearOpts = getClearCookieOpts();
       res.clearCookie(accessCookieName(scope), clearOpts);
       res.clearCookie(refreshCookieName(scope), clearOpts);
-      res.clearCookie("access_token", clearOpts);
-      res.clearCookie("refresh_token", clearOpts);
     }
     return { ok: true };
   }
@@ -544,7 +462,7 @@ export class AuthController {
     impersonatorId?: string
   ): Promise<{ accessToken: string; refreshToken: string }> {
     const scope = requireProductionAuthScope(req);
-    const tokenScope = scope === "client" || scope === "admin" ? scope : undefined;
+    const tokenScope = isProductAuthScope(scope) ? scope : undefined;
     const workspaceId = session.workspaceId;
     const issued = await this.auth.signAndStoreRefreshToken(
       session.user.id,

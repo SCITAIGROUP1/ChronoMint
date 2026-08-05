@@ -53,6 +53,10 @@ describe("TasksService", () => {
     notify: AnyMock;
     notifyWorkspaceAdmins: AnyMock;
   };
+  let authorization: {
+    evaluate: AnyMock;
+    assertAllowed: AnyMock;
+  };
 
   beforeEach(() => {
     prisma = makePrisma();
@@ -61,7 +65,16 @@ describe("TasksService", () => {
       notify: vi.fn().mockResolvedValue(undefined),
       notifyWorkspaceAdmins: vi.fn().mockResolvedValue(undefined)
     };
-    service = new TasksService(prisma as any, access as any, notificationsDispatch as never);
+    authorization = {
+      evaluate: vi.fn().mockResolvedValue({ allowed: true }),
+      assertAllowed: vi.fn().mockResolvedValue({ allowed: true })
+    };
+    service = new TasksService(
+      prisma as any,
+      access as any,
+      notificationsDispatch as never,
+      authorization as never
+    );
   });
 
   describe("list", () => {
@@ -81,6 +94,45 @@ describe("TasksService", () => {
       });
       expect(result).toEqual({ items: [], page: 1, limit: 20, total: 0, totalPages: 0 });
       expect(prisma.task.findMany).not.toHaveBeenCalled();
+    });
+
+    it("filters a managed project when canonical read permission is denied", async () => {
+      access.accessibleProjectIds.mockResolvedValue(["p1"]);
+      authorization.evaluate.mockResolvedValue({ allowed: false });
+
+      const result = await service.list(
+        "w1",
+        "member-1",
+        "MEMBER",
+        {
+          page: 1,
+          limit: 20
+        },
+        ["p1"]
+      );
+
+      expect(result.items).toEqual([]);
+      expect(authorization.evaluate).toHaveBeenCalledWith({
+        principalId: "member-1",
+        permission: "project:Read",
+        resource: {
+          scope: "project",
+          projectId: "p1",
+          expectedWorkspaceId: "w1"
+        }
+      });
+      expect(prisma.task.findMany).not.toHaveBeenCalled();
+    });
+
+    it("does not require project:Read for ordinary team members", async () => {
+      access.accessibleProjectIds.mockResolvedValue(["p1"]);
+      prisma.task.count.mockResolvedValue(0);
+      prisma.task.findMany.mockResolvedValue([]);
+
+      await service.list("w1", "member-1", "MEMBER", { page: 1, limit: 20 });
+
+      expect(authorization.evaluate).not.toHaveBeenCalled();
+      expect(prisma.task.findMany).toHaveBeenCalled();
     });
 
     it("returns tasks with categoryName flattened from the joined relation", async () => {
@@ -186,6 +238,33 @@ describe("TasksService", () => {
   });
 
   describe("create", () => {
+    it("denies a cross-workspace project before reading task dependencies", async () => {
+      authorization.assertAllowed.mockRejectedValue(new Error("Insufficient permissions"));
+
+      await expect(
+        service.create("workspace-a", "member-1", "MEMBER", {
+          projectId: "project-in-workspace-b",
+          categoryId: "category-1",
+          taskName: "Cross scope",
+          billableDefault: true,
+          isCommon: true,
+          assigneeUserIds: []
+        })
+      ).rejects.toThrow(/insufficient permissions/i);
+
+      expect(authorization.assertAllowed).toHaveBeenCalledWith({
+        principalId: "member-1",
+        permission: "project:ManageTasks",
+        resource: {
+          scope: "project",
+          projectId: "project-in-workspace-b",
+          expectedWorkspaceId: "workspace-a"
+        }
+      });
+      expect(prisma.project.findFirst).not.toHaveBeenCalled();
+      expect(prisma.task.create).not.toHaveBeenCalled();
+    });
+
     it("rejects when the project is not in the workspace", async () => {
       prisma.project.findFirst.mockResolvedValue(null);
       await expect(
@@ -257,6 +336,15 @@ describe("TasksService", () => {
         assigneeUserIds: ["u1"]
       });
       expect(prisma.taskAssignee.createMany).toHaveBeenCalled();
+      expect(authorization.assertAllowed).toHaveBeenCalledWith({
+        principalId: "u1",
+        permission: "project:ManageTasks",
+        resource: {
+          scope: "project",
+          projectId: "p1",
+          expectedWorkspaceId: "w1"
+        }
+      });
       expect(result.categoryName).toBe("Software Development");
       expect(result.assignees).toEqual([{ userId: "u1", userName: "Sam" }]);
     });

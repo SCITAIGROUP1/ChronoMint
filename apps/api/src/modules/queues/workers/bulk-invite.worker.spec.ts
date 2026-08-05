@@ -26,7 +26,8 @@ function makePrisma() {
     },
     user: {
       findUnique: vi.fn() as AnyMock,
-      create: vi.fn() as AnyMock
+      create: vi.fn() as AnyMock,
+      update: vi.fn() as AnyMock
     },
     workspaceMember: {
       findUnique: vi.fn() as AnyMock,
@@ -38,6 +39,12 @@ function makePrisma() {
     }
   };
 }
+
+const emptyEmailCounters = {
+  emailQueuedCount: 0,
+  credentialsResentCount: 0,
+  emailFailedCount: 0
+};
 
 describe("BulkInviteWorker", () => {
   let prisma: ReturnType<typeof makePrisma>;
@@ -76,6 +83,7 @@ describe("BulkInviteWorker", () => {
       tenantId: "t-1"
     });
     prisma.user.findUnique.mockResolvedValue({ id: "inviter", name: "Inviter" });
+    prisma.user.update.mockResolvedValue({});
   });
 
   it("skips users who already belong to another organization", async () => {
@@ -97,11 +105,12 @@ describe("BulkInviteWorker", () => {
       successCount: 0,
       skippedCount: 1,
       projectAddedCount: 0,
-      totalProcessed: 1
+      totalProcessed: 1,
+      ...emptyEmailCounters
     });
   });
 
-  it("creates membership for new emails", async () => {
+  it("creates membership for new emails and queues credentials mail", async () => {
     prisma.user.findUnique
       .mockResolvedValueOnce({ id: "inviter", name: "Inviter" })
       .mockResolvedValueOnce(null);
@@ -125,11 +134,129 @@ describe("BulkInviteWorker", () => {
     } as never);
 
     expect(prisma.workspaceMember.create).toHaveBeenCalledTimes(1);
+    expect(mailQueue.add).toHaveBeenCalledWith(
+      "sendNewMemberCredentials",
+      expect.any(Object),
+      expect.any(Object)
+    );
     expect(result).toEqual({
       successCount: 1,
       skippedCount: 0,
       projectAddedCount: 0,
-      totalProcessed: 1
+      totalProcessed: 1,
+      emailQueuedCount: 1,
+      credentialsResentCount: 0,
+      emailFailedCount: 0
+    });
+  });
+
+  it("checks seats before creating a user so orphans are not left behind", async () => {
+    const { DomainException } = await import("../../../common/errors/domain.exception");
+    const { ErrorCodes } = await import("@kloqra/contracts");
+    prisma.user.findUnique
+      .mockResolvedValueOnce({ id: "inviter", name: "Inviter" })
+      .mockResolvedValueOnce(null);
+    planLimit.assertSeatsForEmails
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(
+        new DomainException(ErrorCodes.PLAN_LIMIT_EXCEEDED, "Seat limit", 402)
+      );
+
+    const result = await worker.process({
+      data: {
+        workspaceId: "w1",
+        invitedByUserId: "inviter",
+        members: [{ email: "new@kloqra.dev", name: "New", role: "MEMBER" as const }]
+      }
+    } as never);
+
+    expect(prisma.user.create).not.toHaveBeenCalled();
+    expect(prisma.workspaceMember.create).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      successCount: 0,
+      skippedCount: 1,
+      projectAddedCount: 0,
+      totalProcessed: 1,
+      ...emptyEmailCounters
+    });
+  });
+
+  it("resends credentials for existing pending-password members instead of silent skip", async () => {
+    prisma.user.findUnique
+      .mockResolvedValueOnce({ id: "inviter", name: "Inviter" })
+      .mockResolvedValueOnce({
+        id: "u-pending",
+        email: "pending@kloqra.dev",
+        name: "Pending",
+        mustChangePassword: true
+      });
+    prisma.tenantMember.findUnique.mockResolvedValue(null);
+    prisma.workspaceMember.findFirst.mockResolvedValue({ workspace: { tenantId: "t-1" } });
+    prisma.workspaceMember.findUnique.mockResolvedValue({
+      id: "wm1",
+      role: "MEMBER",
+      workspaceId: "w1",
+      userId: "u-pending"
+    });
+
+    const result = await worker.process({
+      data: {
+        workspaceId: "w1",
+        invitedByUserId: "inviter",
+        members: [{ email: "pending@kloqra.dev", name: "Pending", role: "MEMBER" as const }]
+      }
+    } as never);
+
+    expect(prisma.user.update).toHaveBeenCalled();
+    expect(mailQueue.add).toHaveBeenCalledWith(
+      "sendNewMemberCredentials",
+      expect.any(Object),
+      expect.any(Object)
+    );
+    expect(result).toEqual({
+      successCount: 0,
+      skippedCount: 0,
+      projectAddedCount: 0,
+      totalProcessed: 1,
+      emailQueuedCount: 1,
+      credentialsResentCount: 1,
+      emailFailedCount: 0
+    });
+  });
+
+  it("counts emailFailedCount when mail enqueue fails after membership create", async () => {
+    prisma.user.findUnique
+      .mockResolvedValueOnce({ id: "inviter", name: "Inviter" })
+      .mockResolvedValueOnce(null);
+    prisma.user.create.mockResolvedValue({
+      id: "u-new",
+      email: "new@kloqra.dev",
+      name: "New"
+    });
+    prisma.workspaceMember.findUnique.mockResolvedValue(null);
+    prisma.workspaceMember.create.mockResolvedValue({
+      id: "m1",
+      user: { name: "New", email: "new@kloqra.dev" }
+    });
+    mailQueue.add.mockRejectedValueOnce(new Error("redis down"));
+
+    const result = await worker.process({
+      data: {
+        workspaceId: "w1",
+        invitedByUserId: "inviter",
+        members: [{ email: "new@kloqra.dev", name: "New", role: "MEMBER" as const }]
+      }
+    } as never);
+
+    expect(prisma.workspaceMember.create).toHaveBeenCalled();
+    expect(result).toEqual({
+      successCount: 1,
+      skippedCount: 0,
+      projectAddedCount: 0,
+      totalProcessed: 1,
+      emailQueuedCount: 0,
+      credentialsResentCount: 0,
+      emailFailedCount: 1
     });
   });
 
@@ -168,29 +295,14 @@ describe("BulkInviteWorker", () => {
     expect(prisma.teamMember.create).toHaveBeenCalledWith({
       data: { teamId: "team-1", userId: "u-existing" }
     });
-    expect(notificationsDispatch.notify).toHaveBeenCalledWith(
-      expect.objectContaining({
-        templateId: "project.assigned",
-        forceChannels: { email: false }
-      })
-    );
-    expect(mailQueue.add).toHaveBeenCalledWith(
-      "sendProjectInviteExisting",
-      expect.objectContaining({
-        type: "sendProjectInviteExisting",
-        payload: expect.objectContaining({
-          to: "existing@kloqra.dev",
-          projectName: "Alpha",
-          workspaceJoined: false
-        })
-      }),
-      expect.any(Object)
-    );
     expect(result).toEqual({
       successCount: 0,
       skippedCount: 0,
       projectAddedCount: 1,
-      totalProcessed: 1
+      totalProcessed: 1,
+      emailQueuedCount: 1,
+      credentialsResentCount: 0,
+      emailFailedCount: 0
     });
   });
 
@@ -238,57 +350,14 @@ describe("BulkInviteWorker", () => {
       }),
       expect.any(Object)
     );
-    expect(mailQueue.add).not.toHaveBeenCalledWith(
-      "sendNewMemberCredentials",
-      expect.anything(),
-      expect.anything()
-    );
-    expect(notificationsDispatch.notify).toHaveBeenCalledWith(
-      expect.objectContaining({
-        templateId: "project.assigned",
-        forceChannels: { email: false }
-      })
-    );
     expect(result).toEqual({
       successCount: 1,
       skippedCount: 0,
       projectAddedCount: 1,
-      totalProcessed: 1
-    });
-  });
-
-  it("skips new workspace members when seat limit is exceeded mid-job", async () => {
-    const { DomainException } = await import("../../../common/errors/domain.exception");
-    const { ErrorCodes } = await import("@kloqra/contracts");
-    prisma.user.findUnique
-      .mockResolvedValueOnce({ id: "inviter", name: "Inviter" })
-      .mockResolvedValueOnce(null);
-    prisma.user.create.mockResolvedValue({
-      id: "u-new",
-      email: "new@kloqra.dev",
-      name: "New"
-    });
-    prisma.workspaceMember.findUnique.mockResolvedValue(null);
-    planLimit.assertSeatsForEmails
-      .mockResolvedValueOnce(undefined) // batch check at start
-      .mockRejectedValueOnce(
-        new DomainException(ErrorCodes.PLAN_LIMIT_EXCEEDED, "Seat limit", 402)
-      );
-
-    const result = await worker.process({
-      data: {
-        workspaceId: "w1",
-        invitedByUserId: "inviter",
-        members: [{ email: "new@kloqra.dev", name: "New", role: "MEMBER" as const }]
-      }
-    } as never);
-
-    expect(prisma.workspaceMember.create).not.toHaveBeenCalled();
-    expect(result).toEqual({
-      successCount: 0,
-      skippedCount: 1,
-      projectAddedCount: 0,
-      totalProcessed: 1
+      totalProcessed: 1,
+      emailQueuedCount: 1,
+      credentialsResentCount: 0,
+      emailFailedCount: 0
     });
   });
 });

@@ -2,7 +2,7 @@ import { ErrorCodes, type CreateCheckoutSessionDto } from "@kloqra/contracts";
 import { HttpStatus, Injectable } from "@nestjs/common";
 import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
-import { resolvePublicAdminUrl } from "../admin-app-url.util";
+import { resolvePublicAppUrl } from "../app-url.util";
 import { StripeClient } from "../stripe/stripe.client";
 
 @Injectable()
@@ -13,15 +13,15 @@ export class SubscriptionBillingService {
   ) {}
 
   private defaultSuccessUrl(): string {
-    return `${resolvePublicAdminUrl()}/account/billing?checkout=success`;
+    return `${resolvePublicAppUrl()}/account/billing?checkout=success`;
   }
 
   private defaultCancelUrl(): string {
-    return `${resolvePublicAdminUrl()}/account/billing?checkout=cancel`;
+    return `${resolvePublicAppUrl()}/account/billing?checkout=cancel`;
   }
 
   private defaultPortalReturnUrl(): string {
-    return `${resolvePublicAdminUrl()}/account/billing`;
+    return `${resolvePublicAppUrl()}/account/billing`;
   }
 
   async createCheckoutSession(

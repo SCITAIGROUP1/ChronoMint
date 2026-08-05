@@ -78,18 +78,17 @@ style: |
 ## Architecture
 
 ```
-apps/client (:3000)  ─┐
-apps/admin  (:3002)  ─┼─►  apps/api (:3001)  ──►  PostgreSQL
+apps/app (:3000)  ─────►  apps/api (:3001)  ──►  PostgreSQL
                       │         │
                       │         └──► Redis (timer, queues, pub/sub)
 packages/contracts · ui · web-shared
 ```
 
-| Layer     | Stack                                        |
-| --------- | -------------------------------------------- |
-| API       | NestJS, Prisma, PostgreSQL 16, Redis, BullMQ |
-| Frontends | Next.js 15 App Router × 2                    |
-| Shared    | Zod contracts, UI kit, auth + realtime hooks |
+| Layer   | Stack                                        |
+| ------- | -------------------------------------------- |
+| API     | NestJS, Prisma, PostgreSQL 16, Redis, BullMQ |
+| Product | Next.js 15 App Router                        |
+| Shared  | Zod contracts, UI kit, auth + realtime hooks |
 
 ---
 
@@ -137,7 +136,7 @@ Members see **assigned projects only** — project team ≠ workspace membership
 
 ---
 
-## Admin app — operate the org
+## Product app — operate the org
 
 **Demo path:** `/projects` → `/approvals` → `/dashboard` → `/exports`
 
@@ -155,7 +154,7 @@ Members see **assigned projects only** — project team ≠ workspace membership
 
 ## Hero moment — realtime live sync ⭐
 
-**Two browsers:** member on Submissions · admin approves OR assigns task
+**Two browsers:** member on Submissions · product approves OR assigns task
 
 **Member sees (no refresh):**
 
@@ -251,7 +250,7 @@ REST stays source of truth — socket sends hints only
 
 | Step      | Deliverable                                           |
 | --------- | ----------------------------------------------------- |
-| Problem   | Admin approves; member stale up to 60s                |
+| Problem   | Product approves; member stale up to 60s              |
 | Contracts | `notification-realtime.ts`, scopes, templates         |
 | API       | Gateway + Redis publisher on `createInApp`            |
 | FE        | `notification-socket-manager` + `workspace-data-sync` |
@@ -392,7 +391,7 @@ H4 Platform & AI    ←  H3 Scale & external users
 | 0–3   | Hook & positioning             |
 | 3–8   | Architecture + completeness    |
 | 8–16  | Member app + **realtime hero** |
-| 16–24 | Admin app                      |
+| 16–24 | Product app                    |
 | 24–30 | Technical deep dive (IDE)      |
 | 30–35 | CI + tests + docs              |
 | 35–40 | Agentic development + close    |

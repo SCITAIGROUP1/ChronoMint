@@ -33,7 +33,7 @@ describe("createWidgetLayoutStore", () => {
     });
 
     const store = createWidgetLayoutStore({
-      app: "client",
+      app: "app",
       widgetRegistry: registry,
       defaultLayout,
       legacyStorage: {
@@ -47,6 +47,35 @@ describe("createWidgetLayoutStore", () => {
     expect(store.getState().layoutsByWorkspace[workspaceId]).toEqual(remoteLayout);
   });
 
+  it("places newly registered visible widgets after occupied saved rows", async () => {
+    vi.mocked(fetchDashboardLayout).mockResolvedValue({
+      layout: defaultLayout,
+      defaultLayout: null
+    });
+    const expandedRegistry = [
+      ...registry,
+      { id: "personal_weekly_progress", defaultVisible: true, defaultSize: { w: 8, h: 4 } }
+    ];
+    const expandedDefaults = [
+      ...defaultLayout,
+      { i: "personal_weekly_progress", x: 0, y: 0, w: 8, h: 4, visible: true }
+    ];
+    const store = createWidgetLayoutStore({
+      app: "app",
+      widgetRegistry: expandedRegistry,
+      defaultLayout: expandedDefaults,
+      legacyStorage: { layoutKey: () => "layout", defaultKey: () => "default" }
+    });
+
+    await store.getState().initialize(workspaceId);
+
+    expect(
+      store
+        .getState()
+        .layoutsByWorkspace[workspaceId]?.find((item) => item.i === "personal_weekly_progress")
+    ).toMatchObject({ y: 2, visible: true });
+  });
+
   it("dedupes concurrent initialize calls for the same workspace", async () => {
     vi.mocked(fetchDashboardLayout).mockResolvedValue({
       layout: defaultLayout,
@@ -54,7 +83,7 @@ describe("createWidgetLayoutStore", () => {
     });
 
     const store = createWidgetLayoutStore({
-      app: "admin",
+      app: "app",
       widgetRegistry: registry,
       defaultLayout,
       legacyStorage: {
@@ -82,7 +111,7 @@ describe("createWidgetLayoutStore", () => {
     });
 
     const store = createWidgetLayoutStore({
-      app: "admin",
+      app: "app",
       widgetRegistry: registry,
       defaultLayout,
       legacyStorage: {
@@ -95,7 +124,7 @@ describe("createWidgetLayoutStore", () => {
     await store.getState().persistLayout(workspaceId);
 
     expect(saveDashboardLayout).toHaveBeenCalledWith(workspaceId, {
-      app: "admin",
+      app: "app",
       layout: defaultLayout
     });
   });
@@ -108,7 +137,7 @@ describe("createWidgetLayoutStore", () => {
     vi.mocked(saveDashboardLayout).mockRejectedValue(new Error("Network error"));
 
     const store = createWidgetLayoutStore({
-      app: "client",
+      app: "app",
       widgetRegistry: registry,
       defaultLayout,
       legacyStorage: {
@@ -133,7 +162,7 @@ describe("createWidgetLayoutStore", () => {
     vi.mocked(fetchDashboardLayout).mockRejectedValue(new Error("API unavailable"));
 
     const store = createWidgetLayoutStore({
-      app: "client",
+      app: "app",
       widgetRegistry: registry,
       defaultLayout,
       legacyStorage: {
@@ -154,7 +183,7 @@ describe("createWidgetLayoutStore", () => {
     });
 
     const store = createWidgetLayoutStore({
-      app: "admin",
+      app: "app",
       widgetRegistry: registry,
       defaultLayout,
       legacyStorage: {

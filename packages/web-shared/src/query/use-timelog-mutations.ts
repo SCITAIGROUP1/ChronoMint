@@ -8,7 +8,7 @@ import {
   type TimeLogDto,
   type UpdateTimeLogDto
 } from "@kloqra/contracts";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { api } from "../api/client";
 import { commitTimelogMutation } from "../realtime/timelog-data-sync";
 
@@ -37,22 +37,31 @@ export function useTimelogMutations(
   options: UseTimelogMutationsOptions = {}
 ): TimelogMutations {
   const { onLocalRefresh, projectId, listPaths } = options;
+  const createInFlightRef = useRef(false);
 
   const patchOptions = useMemo(() => ({ projectId, listPaths }), [projectId, listPaths]);
 
   const create = useCallback(
     async (body: CreateTimeLogDto) => {
-      const created = await api<TimeLogDto>(ROUTES.TIMELOGS.CREATE, {
-        method: "POST",
-        workspaceId,
-        body: JSON.stringify(body)
-      });
-      await commitTimelogMutation(workspaceId, onLocalRefresh, {
-        type: "upsert",
-        log: created,
-        ...patchOptions
-      });
-      return created;
+      if (createInFlightRef.current) {
+        throw new Error("A time entry is already being saved. Please wait.");
+      }
+      createInFlightRef.current = true;
+      try {
+        const created = await api<TimeLogDto>(ROUTES.TIMELOGS.CREATE, {
+          method: "POST",
+          workspaceId,
+          body: JSON.stringify(body)
+        });
+        await commitTimelogMutation(workspaceId, onLocalRefresh, {
+          type: "upsert",
+          log: created,
+          ...patchOptions
+        });
+        return created;
+      } finally {
+        createInFlightRef.current = false;
+      }
     },
     [workspaceId, onLocalRefresh, patchOptions]
   );
@@ -88,17 +97,25 @@ export function useTimelogMutations(
 
   const createBatch = useCallback(
     async (body: CreateBatchTimeLogsDto) => {
-      const res = await api<BatchTimeLogsResponseDto>(ROUTES.TIMELOGS.CREATE_BATCH, {
-        method: "POST",
-        workspaceId,
-        body: JSON.stringify(body)
-      });
-      await commitTimelogMutation(workspaceId, onLocalRefresh, {
-        type: "upsertMany",
-        logs: res.items,
-        ...patchOptions
-      });
-      return res;
+      if (createInFlightRef.current) {
+        throw new Error("A time entry is already being saved. Please wait.");
+      }
+      createInFlightRef.current = true;
+      try {
+        const res = await api<BatchTimeLogsResponseDto>(ROUTES.TIMELOGS.CREATE_BATCH, {
+          method: "POST",
+          workspaceId,
+          body: JSON.stringify(body)
+        });
+        await commitTimelogMutation(workspaceId, onLocalRefresh, {
+          type: "upsertMany",
+          logs: res.items,
+          ...patchOptions
+        });
+        return res;
+      } finally {
+        createInFlightRef.current = false;
+      }
     },
     [workspaceId, onLocalRefresh, patchOptions]
   );

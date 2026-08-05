@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { adminClientOrigin } from "./admin-origin.util";
+import { appOrigin } from "./app-origin.util";
 import {
   renderBrandedEmailHtml,
   renderBrandedEmailText,
@@ -40,13 +40,13 @@ export class TenantOwnerProvisioningMailer {
   }
 
   async sendOwnerCredentials(input: TenantOwnerCredentialsMailInput): Promise<SendMailResult> {
-    const loginUrl = buildInviteLoginUrl(adminClientOrigin(), input.inviteHandoffToken);
+    const loginUrl = buildInviteLoginUrl(appOrigin(), input.inviteHandoffToken);
     const layout = {
       title: `Welcome to ${input.organizationName}`,
       preheader: "Your organization owner sign-in details are inside.",
       body: `Your organization ${input.organizationName} has been provisioned on Kloqra.\n\nSign in with the credentials below. You will be asked to set a new password on first login, then complete your organization profile.`,
       ctaHref: loginUrl,
-      ctaLabel: "Sign in to Kloqra Admin",
+      ctaLabel: "Sign in to Kloqra",
       variant: "success" as const,
       details: [
         { label: "Email", value: input.to },
@@ -76,17 +76,17 @@ export class TenantOwnerProvisioningMailer {
   async sendTenantAdminCredentials(
     input: TenantAdminCredentialsMailInput
   ): Promise<SendMailResult> {
-    const loginUrl = buildInviteLoginUrl(adminClientOrigin(), input.inviteHandoffToken);
+    const loginUrl = buildInviteLoginUrl(appOrigin(), input.inviteHandoffToken);
     const intro = input.inviterName
       ? `${input.inviterName} added you as an organization administrator for ${input.organizationName}.`
       : `You've been added as an organization administrator for ${input.organizationName} on Kloqra.`;
 
     const layout = {
       title: `Organization admin access — ${input.organizationName}`,
-      preheader: "Your Kloqra Admin sign-in details are inside.",
+      preheader: "Your Kloqra sign-in details are inside.",
       body: `${intro}\n\nSign in with the credentials below. You will be asked to set a new password on first login.`,
       ctaHref: loginUrl,
-      ctaLabel: "Sign in to Kloqra Admin",
+      ctaLabel: "Sign in to Kloqra",
       variant: "success" as const,
       details: [
         { label: "Email", value: input.to },
@@ -114,17 +114,17 @@ export class TenantOwnerProvisioningMailer {
   }
 
   async sendTenantAdminAdded(input: TenantAdminAddedMailInput): Promise<SendMailResult> {
-    const loginUrl = `${adminClientOrigin()}/login`;
+    const loginUrl = `${appOrigin()}/login`;
     const intro = input.inviterName
       ? `${input.inviterName} added you as an organization administrator for ${input.organizationName}.`
       : `You've been added as an organization administrator for ${input.organizationName}.`;
 
     const layout = {
       title: `Organization admin access — ${input.organizationName}`,
-      preheader: "Sign in to Kloqra Admin with your existing account.",
+      preheader: "Sign in to Kloqra with your existing account.",
       body: `${intro}\n\nSign in with your existing Kloqra account to manage workspaces and organization settings.`,
       ctaHref: loginUrl,
-      ctaLabel: "Sign in to Kloqra Admin",
+      ctaLabel: "Sign in to Kloqra",
       variant: "success" as const,
       footer: "If you did not expect this email, contact Kloqra support."
     };
