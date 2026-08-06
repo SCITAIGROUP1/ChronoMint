@@ -77,7 +77,8 @@ import {
   TIMELOG_IMPORT_COLUMN_LABELS,
   updateUserPreferencesSchema,
   userProfileSchema,
-  importEntryFavoritesSchema
+  importEntryFavoritesSchema,
+  MAX_FAVORITE_TASKS
 } from "./index";
 
 const UUID = "550e8400-e29b-41d4-a716-446655440000";
@@ -685,6 +686,7 @@ describe("contracts", () => {
     expect(ROUTES.FAVORITES.PROJECT(UUID)).toBe(`/favorites/projects/${UUID}`);
     expect(ROUTES.FAVORITES.TASK(UUID)).toBe(`/favorites/tasks/${UUID}`);
     expect(ROUTES.FAVORITES.IMPORT).toBe("/favorites/import");
+    expect(MAX_FAVORITE_TASKS).toBe(10);
 
     const ok = importEntryFavoritesSchema.safeParse({
       projects: [UUID],
@@ -692,10 +694,26 @@ describe("contracts", () => {
     });
     expect(ok.success).toBe(true);
 
-    const tooMany = importEntryFavoritesSchema.safeParse({
+    const tooManyProjects = importEntryFavoritesSchema.safeParse({
       projects: Array.from({ length: 6 }, () => UUID)
     });
-    expect(tooMany.success).toBe(false);
+    expect(tooManyProjects.success).toBe(false);
+
+    const atTaskCap = importEntryFavoritesSchema.safeParse({
+      tasks: Array.from({ length: MAX_FAVORITE_TASKS }, (_, i) => ({
+        projectId: UUID,
+        taskId: `550e8400-e29b-41d4-a716-44665544${String(i).padStart(4, "0")}`
+      }))
+    });
+    expect(atTaskCap.success).toBe(true);
+
+    const tooManyTasks = importEntryFavoritesSchema.safeParse({
+      tasks: Array.from({ length: MAX_FAVORITE_TASKS + 1 }, (_, i) => ({
+        projectId: UUID,
+        taskId: `550e8400-e29b-41d4-a716-44665544${String(i).padStart(4, "0")}`
+      }))
+    });
+    expect(tooManyTasks.success).toBe(false);
   });
 
   it("exposes widget share routes", () => {

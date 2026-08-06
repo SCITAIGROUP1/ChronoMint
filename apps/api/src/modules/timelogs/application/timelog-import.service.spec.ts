@@ -6,6 +6,10 @@ import { DomainException } from "../../../common/errors/domain.exception";
 import {
   canonicalizeImportHeader,
   combineDayAndTimeInZone,
+  excelDateToClock,
+  excelDateToDateKey,
+  excelSerialToClock,
+  excelSerialToDateKey,
   TimelogImportService
 } from "./timelog-import.service";
 
@@ -13,6 +17,39 @@ describe("combineDayAndTimeInZone", () => {
   it("keeps UTC wall times as UTC", () => {
     const d = combineDayAndTimeInZone("2026-07-01", "09:30", "UTC");
     expect(d.toISOString()).toBe("2026-07-01T09:30:00.000Z");
+  });
+});
+
+describe("excelDateToDateKey / excelDateToClock", () => {
+  it("keeps UTC-midnight Excel serial dates on the same calendar day", () => {
+    expect(excelDateToDateKey(new Date(Date.UTC(2026, 6, 1)))).toBe("2026-07-01");
+  });
+
+  it("uses local Y-M-D for local-midnight Dates (avoids UTC day rollback)", () => {
+    const localMidnight = new Date(2026, 6, 1, 0, 0, 0, 0);
+    expect(excelDateToDateKey(localMidnight)).toBe("2026-07-01");
+    // East of UTC, the old toISOString().slice(0,10) path rolled the day back.
+    if (localMidnight.getTimezoneOffset() < 0) {
+      expect(localMidnight.toISOString().slice(0, 10)).toBe("2026-06-30");
+    }
+  });
+
+  it("reads Excel epoch time-only Dates via UTC clock components", () => {
+    expect(excelDateToClock(new Date(Date.UTC(1899, 11, 30, 9, 30)))).toBe("09:30");
+    expect(excelDateToClock(new Date(Date.UTC(1900, 0, 1, 17, 5)))).toBe("17:05");
+  });
+
+  it("reads ordinary datetime clocks via local wall time", () => {
+    const local = new Date(2026, 6, 1, 14, 45, 0, 0);
+    expect(excelDateToClock(local)).toBe("14:45");
+  });
+
+  it("converts Excel day/time serials", () => {
+    const serialDay = 45_000;
+    const expected = excelDateToDateKey(new Date(Date.UTC(1899, 11, 30) + serialDay * 86_400_000));
+    expect(excelSerialToDateKey(serialDay)).toBe(expected);
+    expect(excelSerialToClock(0.3958333333)).toBe("09:30");
+    expect(excelSerialToClock(9 + 0.5)).toBe("12:00");
   });
 });
 
@@ -261,6 +298,71 @@ describe("TimelogImportService", () => {
 
     expect(result.created).toBe(1);
     expect(result.failed).toEqual([]);
+  });
+
+  it("imports Excel rows with native Date / time-serial cells without day or clock skew", async () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Time entries");
+    sheet.addRow(["Project", "Task", "Date", "Start", "End", "Description", "Billable"]);
+    const row = sheet.addRow(["Acme", "Build", null, null, null, "Typed cells", "yes"]);
+    // UTC midnight date serial (ExcelJS typical) + fractional time serials.
+    row.getCell(3).value = new Date(Date.UTC(2026, 6, 1));
+    row.getCell(4).value = 9 / 24; // 09:00
+    row.getCell(5).value = 10.5 / 24; // 10:30
+    const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
+
+    const result = await service.importFile({
+      workspaceId: "ws-1",
+      userId: "u-1",
+      role: "MEMBER",
+      buffer,
+      filename: "typed.xlsx",
+      timezone: "UTC"
+    });
+
+    expect(result.created).toBe(1);
+    expect(result.failed).toEqual([]);
+    expect(createMock).toHaveBeenCalledWith(
+      "ws-1",
+      "u-1",
+      "MEMBER",
+      expect.objectContaining({
+        taskId: "task-1",
+        startTime: "2026-07-01T09:00:00.000Z",
+        endTime: "2026-07-01T10:30:00.000Z",
+        description: "Typed cells"
+      })
+    );
+  });
+
+  it("imports Excel local-midnight date cells as the local calendar day", async () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Time entries");
+    sheet.addRow(["Project", "Task", "Date", "Start", "End"]);
+    const row = sheet.addRow(["Acme", "Build", null, "11:00", "12:00"]);
+    row.getCell(3).value = new Date(2026, 6, 1, 0, 0, 0, 0);
+    const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
+
+    const result = await service.importFile({
+      workspaceId: "ws-1",
+      userId: "u-1",
+      role: "MEMBER",
+      buffer,
+      filename: "local-date.xlsx",
+      timezone: "UTC"
+    });
+
+    expect(result.created).toBe(1);
+    expect(result.failed).toEqual([]);
+    expect(createMock).toHaveBeenCalledWith(
+      "ws-1",
+      "u-1",
+      "MEMBER",
+      expect.objectContaining({
+        startTime: "2026-07-01T11:00:00.000Z",
+        endTime: "2026-07-01T12:00:00.000Z"
+      })
+    );
   });
 
   it("skips rows that already exist instead of recreating them", async () => {

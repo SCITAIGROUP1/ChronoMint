@@ -479,26 +479,108 @@ function cellText(cell: ExcelJS.Cell): string {
   return String(cell.text ?? "").trim();
 }
 
-function normalizeExcelDate(cell: ExcelJS.Cell): string {
-  if (cell.value instanceof Date) {
-    return cell.value.toISOString().slice(0, 10);
+function cellRawValue(cell: ExcelJS.Cell): unknown {
+  const value = cell.value;
+  if (value && typeof value === "object" && "result" in value) {
+    return (value as { result?: unknown }).result;
   }
-  return cellText(cell);
+  if (value && typeof value === "object" && "richText" in value) {
+    return cellText(cell);
+  }
+  return value;
+}
+
+/**
+ * Calendar day from an Excel Date without UTC day-shift.
+ * ExcelJS date-serials are usually UTC midnight; in-process / local-midnight
+ * Dates must use local Y-M-D so Asia/Europe offsets don't roll back a day.
+ */
+export function excelDateToDateKey(value: Date): string {
+  const utcMidnight =
+    value.getUTCHours() === 0 && value.getUTCMinutes() === 0 && value.getUTCSeconds() === 0;
+  const localMidnight =
+    value.getHours() === 0 && value.getMinutes() === 0 && value.getSeconds() === 0;
+
+  if (localMidnight && !utcMidnight) {
+    const y = value.getFullYear();
+    const m = String(value.getMonth() + 1).padStart(2, "0");
+    const d = String(value.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+
+  const y = value.getUTCFullYear();
+  const m = String(value.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(value.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+/**
+ * Wall-clock HH:mm from an Excel time/datetime cell.
+ * Time-only serials land on the Excel epoch (≤1900) as UTC components;
+ * ordinary datetimes use local hours so the sheet's displayed clock wins.
+ */
+export function excelDateToClock(value: Date): string {
+  const useUtc = value.getUTCFullYear() < 1901;
+  const h = useUtc ? value.getUTCHours() : value.getHours();
+  const m = useUtc ? value.getUTCMinutes() : value.getMinutes();
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+/** Excel day serial (optionally with time fraction) → YYYY-MM-DD via UTC calendar day. */
+export function excelSerialToDateKey(serial: number): string {
+  const epoch = Date.UTC(1899, 11, 30);
+  const days = Math.floor(serial);
+  return excelDateToDateKey(new Date(epoch + days * 86_400_000));
+}
+
+export function excelSerialToClock(serial: number): string {
+  const totalMinutes = Math.round((serial % 1) * 24 * 60);
+  const h = Math.floor(totalMinutes / 60) % 24;
+  const m = ((totalMinutes % 60) + 60) % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+function normalizeExcelDate(cell: ExcelJS.Cell): string {
+  const text = cellText(cell);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+
+  const raw = cellRawValue(cell);
+  if (raw instanceof Date) return excelDateToDateKey(raw);
+  if (typeof raw === "number" && Number.isFinite(raw)) return excelSerialToDateKey(raw);
+  return text;
 }
 
 function normalizeExcelClock(cell: ExcelJS.Cell): string {
-  if (cell.value instanceof Date) {
-    const h = String(cell.value.getUTCHours()).padStart(2, "0");
-    const m = String(cell.value.getUTCMinutes()).padStart(2, "0");
-    return `${h}:${m}`;
+  const text = cellText(cell);
+  const fromText = parseClockText(text);
+  if (fromText) return fromText;
+
+  const raw = cellRawValue(cell);
+  if (raw instanceof Date) return excelDateToClock(raw);
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    // Whole-day serials are dates; fractional / time-of-day serials carry the clock.
+    if (raw >= 0 && raw < 1) return excelSerialToClock(raw);
+    if (raw % 1 !== 0) return excelSerialToClock(raw);
   }
-  if (typeof cell.value === "number") {
-    const totalMinutes = Math.round(cell.value * 24 * 60);
-    const h = Math.floor(totalMinutes / 60) % 24;
-    const m = totalMinutes % 60;
-    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  return text;
+}
+
+function parseClockText(text: string): string | null {
+  const trimmed = text.trim();
+  const match = trimmed.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*([AaPp][Mm])?$/);
+  if (!match) return null;
+  let h = Number(match[1]);
+  const m = Number(match[2]);
+  if (!Number.isInteger(h) || !Number.isInteger(m) || m > 59) return null;
+  const ampm = match[3]?.toLowerCase();
+  if (ampm) {
+    if (h < 1 || h > 12) return null;
+    if (ampm === "pm" && h < 12) h += 12;
+    if (ampm === "am" && h === 12) h = 0;
+  } else if (h > 23) {
+    return null;
   }
-  return cellText(cell);
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
 function toParsedRow(

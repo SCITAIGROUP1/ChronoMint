@@ -184,7 +184,8 @@ export function SearchableSelect({
       </PopoverTrigger>
       <PopoverContent
         className={cn(
-          "w-[var(--radix-popover-trigger-width)] overscroll-contain p-0",
+          // Keep at least 16rem so narrow toolbar triggers don't truncate search/options.
+          "w-[max(16rem,var(--radix-popover-trigger-width))] overscroll-contain p-0",
           contentClassName
         )}
         align="start"

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { uuidSchema } from "./common.dto";
 
 export const MAX_FAVORITE_PROJECTS = 5;
-export const MAX_FAVORITE_TASKS = 5;
+export const MAX_FAVORITE_TASKS = 10;
 
 export const favoriteTaskItemSchema = z.object({
   projectId: uuidSchema,

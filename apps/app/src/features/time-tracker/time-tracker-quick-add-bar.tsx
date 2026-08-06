@@ -190,7 +190,7 @@ export function TimeTrackerQuickAddBar({
         searchPlaceholder="Search projects…"
         disabled={busy}
         aria-label="Project"
-        triggerClassName={cn(controlClass, "w-[8.5rem]")}
+        triggerClassName={cn(controlClass, "min-w-[9.5rem] w-[11rem] sm:w-[12rem]")}
         contentClassName="z-[100]"
         favoritedValues={favoriteProjectIds}
         onToggleFavorite={busy ? undefined : toggleProject}
@@ -252,7 +252,7 @@ export function TimeTrackerQuickAddBar({
         searchPlaceholder="Search tasks…"
         disabled={busy || !draft.projectId || projectTasks.length === 0}
         aria-label="Task"
-        triggerClassName={cn(controlClass, "w-[8.5rem]")}
+        triggerClassName={cn(controlClass, "min-w-[9.5rem] w-[11rem] sm:w-[12rem]")}
         contentClassName="z-[100]"
       />
       <DatePicker

@@ -119,6 +119,28 @@ describe("SearchableSelect", () => {
     expect(screen.getByPlaceholderText("Search by name or email…")).toBeVisible();
   });
 
+  it("keeps the open panel at least 16rem wide for narrow triggers", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <SearchableSelect
+        value=""
+        onValueChange={() => {}}
+        options={OPTIONS}
+        searchPlaceholder="Search projects…"
+        aria-label="Project"
+        triggerClassName="w-[8.5rem]"
+      />
+    );
+
+    await user.click(screen.getByRole("combobox", { name: "Project" }));
+    const popover = screen
+      .getByPlaceholderText("Search projects…")
+      .closest("div[class*='overscroll-contain']");
+    expect(popover?.className).toContain("w-[max(16rem,var(--radix-popover-trigger-width))]");
+    expect(screen.getByPlaceholderText("Search projects…")).toBeVisible();
+  });
+
   it("toggles favorite without selecting the option", async () => {
     const user = userEvent.setup();
     const onValueChange = vi.fn();

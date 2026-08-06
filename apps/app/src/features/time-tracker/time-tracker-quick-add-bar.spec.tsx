@@ -178,4 +178,19 @@ describe("TimeTrackerQuickAddBar favorites", () => {
     expect(options[0]?.textContent).toContain("Favorite Task");
     expect(screen.getByLabelText(/unfavorite favorite task/i)).toBeTruthy();
   });
+
+  it("uses wider project and task triggers so compact toolbars stay usable", () => {
+    render(
+      <TimeTrackerQuickAddBar
+        projects={projects}
+        tasks={tasks}
+        categories={categories}
+        timezone="UTC"
+        onSubmit={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole("combobox", { name: "Project" }).className).toContain("w-[11rem]");
+    expect(screen.getByRole("combobox", { name: "Task" }).className).toContain("w-[11rem]");
+  });
 });

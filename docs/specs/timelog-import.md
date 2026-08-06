@@ -42,6 +42,8 @@ workspace timezone.
 - Partial success: `{ created, skipped, failed[] }` — existing/overlapping rows count as skipped
   (not errors). Only hard failures (unknown project/task, locked period, invalid times) appear in
   `failed`.
+- Excel **typed** Date / time cells and time serials are normalized to calendar day + `HH:mm`
+  without UTC day-shift (local-midnight dates and Excel epoch time cells are handled).
 
 ## UI
 
