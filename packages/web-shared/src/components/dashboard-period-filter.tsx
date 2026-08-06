@@ -1,7 +1,6 @@
 "use client";
 
 import { DateRangePicker, SegmentedControl, cn } from "@kloqra/ui";
-import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import type { DashboardPeriodPreset } from "../utils/dashboard-period-presets.js";
 
@@ -24,16 +23,8 @@ export type DashboardPeriodFilterProps = {
   className?: string;
 };
 
-/** Two-month picker needs this filter container width (compact laptops stack earlier). */
-const WIDE_FILTER_MIN_PX = 900;
-
-function FilterFieldLabel({ children }: { children: ReactNode }) {
-  return (
-    <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-      {children}
-    </span>
-  );
-}
+/** Two-month picker needs enough width; otherwise use a single month. */
+const WIDE_FILTER_MIN_PX = 640;
 
 export function DashboardPeriodFilter({
   range,
@@ -67,45 +58,25 @@ export function DashboardPeriodFilter({
     <div
       ref={rootRef}
       className={cn(
-        "@container rounded-xl border border-border/70 bg-muted/20 p-3 sm:p-4",
+        "@container flex min-w-0 flex-wrap items-center gap-2 sm:flex-nowrap",
         className
       )}
+      role="group"
+      aria-label="Period"
     >
-      <div
-        className={cn(
-          "grid grid-cols-1 gap-4",
-          wideLayout && "grid-cols-[minmax(0,1fr)_auto_minmax(220px,320px)] items-end gap-5"
-        )}
-      >
-        <div className="flex min-w-0 flex-col gap-2">
-          <FilterFieldLabel>Period</FilterFieldLabel>
-          <SegmentedControl
-            value={range}
-            onChange={onPresetChange}
-            options={presets}
-            size="sm"
-            fullWidth
-          />
-        </div>
-
-        {wideLayout ? (
-          <div className="hidden w-px self-stretch bg-border/60 sm:block" aria-hidden />
-        ) : null}
-
-        <div className="flex min-w-0 flex-col gap-2">
-          <FilterFieldLabel>Range</FilterFieldLabel>
-          <DateRangePicker
-            from={startDate}
-            to={endDate}
-            onChange={onDateRangeChange}
-            weekStartsOn={weekStartsOn}
-            ariaLabel={dateRangeAriaLabel}
-            className="w-full min-w-0"
-            numberOfMonths={wideLayout ? 2 : 1}
-            popoverAlign="end"
-          />
-        </div>
+      <div className="min-w-0 shrink">
+        <SegmentedControl value={range} onChange={onPresetChange} options={presets} size="sm" />
       </div>
+      <DateRangePicker
+        from={startDate}
+        to={endDate}
+        onChange={onDateRangeChange}
+        weekStartsOn={weekStartsOn}
+        ariaLabel={dateRangeAriaLabel}
+        className="h-9 w-auto min-w-[12.5rem] max-w-[16.5rem] shrink-0"
+        numberOfMonths={wideLayout ? 2 : 1}
+        popoverAlign="end"
+      />
     </div>
   );
 }

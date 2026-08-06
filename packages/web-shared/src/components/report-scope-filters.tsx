@@ -5,13 +5,16 @@ import {
   Badge,
   Button,
   Label,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
   ProjectColorDot,
   SearchableSelect,
   SearchableMultiSelect,
   cn
 } from "@kloqra/ui";
-import { ChevronDown, Filter, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Filter, X } from "lucide-react";
+import { useMemo, useState } from "react";
 
 export type ScopeMember = { userId: string; userName: string };
 
@@ -82,11 +85,7 @@ export function ReportScopeFilters({
   footer
 }: ReportScopeFiltersProps) {
   const activeCount = activeFilterCount(values, !hideMemberFilter);
-  const [open, setOpen] = useState(activeCount > 0);
-
-  useEffect(() => {
-    if (activeCount > 0) setOpen(true);
-  }, [activeCount]);
+  const [open, setOpen] = useState(false);
 
   const hasSelectedProject = hasIdFilter(values.projectId);
 
@@ -194,55 +193,231 @@ export function ReportScopeFilters({
     ? "flex h-9 items-center rounded-md border border-dashed border-border px-3 text-xs text-muted-foreground"
     : "flex h-10 items-center rounded-md border border-dashed border-border px-3 text-xs text-muted-foreground";
 
-  const gridCols = hideMemberFilter
-    ? "grid-cols-1 sm:grid-cols-3"
-    : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4";
+  const gridCols = hideMemberFilter ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 sm:grid-cols-2";
 
   return (
-    <div className={cn("w-full min-w-0 space-y-3", className)}>
-      <div className="flex flex-wrap items-center gap-2">
-        <Button
-          type="button"
-          variant={open ? "secondary" : "outline"}
-          size="sm"
-          className={cn("gap-1.5", compact && "h-9")}
-          onClick={() => setOpen((v) => !v)}
-          aria-expanded={open}
-        >
-          <Filter className="h-3.5 w-3.5" aria-hidden />
-          Scope filters
-          {activeCount > 0 ? (
-            <Badge variant="default" className="ml-0.5 h-5 min-w-5 px-1.5 text-[10px]">
-              {activeCount}
-            </Badge>
-          ) : null}
-          <ChevronDown
-            className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")}
-            aria-hidden
-          />
-        </Button>
-        {activeCount > 0 ? (
+    <div className={cn("flex min-w-0 flex-wrap items-center gap-2", className)}>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
           <Button
             type="button"
-            variant="ghost"
+            variant={open || activeCount > 0 ? "secondary" : "outline"}
             size="sm"
-            className="h-8 text-xs"
-            onClick={onClearAll}
+            className={cn("h-9 gap-1.5 shrink-0", compact && "h-9")}
+            aria-expanded={open}
+            aria-label={activeCount > 0 ? `Scope filters, ${activeCount} active` : "Scope filters"}
           >
-            Clear all
+            <Filter className="h-3.5 w-3.5" aria-hidden />
+            Filters
+            {activeCount > 0 ? (
+              <Badge variant="default" className="ml-0.5 h-5 min-w-5 px-1.5 text-[10px]">
+                {activeCount}
+              </Badge>
+            ) : null}
           </Button>
-        ) : (
-          <span className="text-xs text-muted-foreground">{hintText}</span>
-        )}
-      </div>
+        </PopoverTrigger>
+        <PopoverContent
+          align="start"
+          className="w-[min(calc(100vw-2rem),28rem)] p-4"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          onInteractOutside={(e) => {
+            // Nested searchable selects also use popovers; keep the panel open while picking.
+            const target = e.target as HTMLElement | null;
+            if (target?.closest("[data-radix-popper-content-wrapper]")) {
+              e.preventDefault();
+            }
+          }}
+        >
+          <div className="mb-3 flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground">Scope filters</p>
+              <p className="text-xs text-muted-foreground">{hintText}</p>
+            </div>
+            {activeCount > 0 ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 shrink-0 text-xs"
+                onClick={onClearAll}
+              >
+                Clear all
+              </Button>
+            ) : null}
+          </div>
+
+          <div className={cn("grid gap-3", gridCols)}>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-muted-foreground">Project</Label>
+              {Array.isArray(values.projectId) ? (
+                <SearchableMultiSelect
+                  value={values.projectId}
+                  onChange={onProjectChange}
+                  options={projects.map((p) => ({ value: p.id, label: p.name, color: p.color }))}
+                  placeholder="All projects"
+                  searchPlaceholder="Search projects…"
+                  selectAllLabel="All projects"
+                  triggerClassName={triggerClass}
+                  renderOption={(option) => (
+                    <span className="flex items-center gap-2">
+                      {"color" in option && option.color ? (
+                        <ProjectColorDot color={option.color as string} />
+                      ) : null}
+                      {option.label}
+                    </span>
+                  )}
+                  aria-label="Project"
+                />
+              ) : (
+                <SearchableSelect
+                  value={values.projectId || "__all__"}
+                  onValueChange={(v) => onProjectChange(v === "__all__" ? "" : v)}
+                  options={[
+                    { value: "__all__", label: "All projects" },
+                    ...projects.map((p) => ({ value: p.id, label: p.name }))
+                  ]}
+                  placeholder="All projects"
+                  searchPlaceholder="Search projects…"
+                  triggerClassName={triggerClass}
+                  renderOption={(option) =>
+                    option.value === "__all__" ? (
+                      option.label
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        <ProjectColorDot
+                          color={projects.find((p) => p.id === option.value)?.color ?? "#236bfe"}
+                        />
+                        {option.label}
+                      </span>
+                    )
+                  }
+                  renderValue={(option) =>
+                    option && option.value !== "__all__" ? (
+                      <span className="flex items-center gap-2">
+                        <ProjectColorDot
+                          color={projects.find((p) => p.id === option.value)?.color ?? "#236bfe"}
+                        />
+                        {option.label}
+                      </span>
+                    ) : (
+                      (option?.label ?? "All projects")
+                    )
+                  }
+                  aria-label="Project"
+                />
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-muted-foreground">Category</Label>
+              {Array.isArray(values.categoryId) ? (
+                <SearchableMultiSelect
+                  value={values.categoryId}
+                  onChange={onCategoryChange}
+                  options={categories.map((c) => ({ value: c.id, label: c.name }))}
+                  placeholder="All categories"
+                  searchPlaceholder="Search categories…"
+                  selectAllLabel="All categories"
+                  triggerClassName={triggerClass}
+                  aria-label="Category"
+                />
+              ) : (
+                <SearchableSelect
+                  value={values.categoryId || "__all__"}
+                  onValueChange={(v) => onCategoryChange(v === "__all__" ? "" : v)}
+                  options={[
+                    { value: "__all__", label: "All categories" },
+                    ...categories.map((c) => ({ value: c.id, label: c.name }))
+                  ]}
+                  placeholder="All categories"
+                  searchPlaceholder="Search categories…"
+                  triggerClassName={triggerClass}
+                  aria-label="Category"
+                />
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-muted-foreground">Task</Label>
+              {!taskRequiresProject || hasSelectedProject ? (
+                <SearchableSelect
+                  value={values.taskId || "__all__"}
+                  onValueChange={(v) => onTaskChange(v === "__all__" ? "" : v)}
+                  options={[
+                    { value: "__all__", label: "All tasks" },
+                    ...tasks.map((t) => ({ value: t.id, label: t.taskName }))
+                  ]}
+                  placeholder="All tasks"
+                  searchPlaceholder="Search tasks…"
+                  disabled={taskRequiresProject && !hasSelectedProject}
+                  triggerClassName={triggerClass}
+                  aria-label="Task"
+                />
+              ) : (
+                <p className={placeholderClass}>Select a project first</p>
+              )}
+            </div>
+
+            {!hideMemberFilter ? (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">Member</Label>
+                {!memberRequiresProject || hasSelectedProject ? (
+                  Array.isArray(values.userId) ? (
+                    <SearchableMultiSelect
+                      value={values.userId}
+                      onChange={onUserChange}
+                      options={members.map((m) => ({ value: m.userId, label: m.userName }))}
+                      placeholder={memberPlaceholder}
+                      searchPlaceholder="Search members…"
+                      selectAllLabel={memberAllLabel}
+                      triggerClassName={triggerClass}
+                      aria-label="Member"
+                    />
+                  ) : (
+                    <SearchableSelect
+                      value={values.userId || "__all__"}
+                      onValueChange={(v) => onUserChange(v === "__all__" ? "" : v)}
+                      options={[
+                        { value: "__all__", label: memberAllLabel },
+                        ...members.map((m) => ({ value: m.userId, label: m.userName }))
+                      ]}
+                      placeholder={memberPlaceholder}
+                      searchPlaceholder="Search members…"
+                      disabled={memberRequiresProject && !values.projectId}
+                      triggerClassName={triggerClass}
+                      aria-label="Member"
+                    />
+                  )
+                ) : (
+                  <p className={placeholderClass}>Select a project first</p>
+                )}
+              </div>
+            ) : null}
+          </div>
+
+          {footer ? <div className="mt-3 border-t border-border/60 pt-3">{footer}</div> : null}
+        </PopoverContent>
+      </Popover>
+
+      {activeCount > 0 ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-8 shrink-0 text-xs"
+          onClick={onClearAll}
+        >
+          Clear
+        </Button>
+      ) : null}
 
       {chips.length > 0 ? (
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
           {chips.map((chip) => (
             <Badge
               key={chip.key}
               variant="secondary"
-              className="gap-1 pl-2 pr-1 py-1 font-normal text-xs max-w-full"
+              className="max-w-full gap-1 py-1 pl-2 pr-1 text-xs font-normal"
             >
               <span className="truncate">{chip.label}</span>
               <button
@@ -255,165 +430,6 @@ export function ReportScopeFilters({
               </button>
             </Badge>
           ))}
-        </div>
-      ) : null}
-
-      {open ? (
-        <div
-          className={cn("grid gap-4 rounded-lg border border-border/60 bg-muted/15 p-4", gridCols)}
-        >
-          <div className="space-y-2">
-            <Label className="text-xs font-medium text-muted-foreground">Project</Label>
-            {Array.isArray(values.projectId) ? (
-              <SearchableMultiSelect
-                value={values.projectId}
-                onChange={onProjectChange}
-                options={projects.map((p) => ({ value: p.id, label: p.name, color: p.color }))}
-                placeholder="All projects"
-                searchPlaceholder="Search projects…"
-                selectAllLabel="All projects"
-                triggerClassName={triggerClass}
-                renderOption={(option) => (
-                  <span className="flex items-center gap-2">
-                    {"color" in option && option.color ? (
-                      <ProjectColorDot color={option.color as string} />
-                    ) : null}
-                    {option.label}
-                  </span>
-                )}
-                aria-label="Project"
-              />
-            ) : (
-              <SearchableSelect
-                value={values.projectId || "__all__"}
-                onValueChange={(v) => onProjectChange(v === "__all__" ? "" : v)}
-                options={[
-                  { value: "__all__", label: "All projects" },
-                  ...projects.map((p) => ({ value: p.id, label: p.name }))
-                ]}
-                placeholder="All projects"
-                searchPlaceholder="Search projects…"
-                triggerClassName={triggerClass}
-                renderOption={(option) =>
-                  option.value === "__all__" ? (
-                    option.label
-                  ) : (
-                    <span className="flex items-center gap-2">
-                      <ProjectColorDot
-                        color={projects.find((p) => p.id === option.value)?.color ?? "#236bfe"}
-                      />
-                      {option.label}
-                    </span>
-                  )
-                }
-                renderValue={(option) =>
-                  option && option.value !== "__all__" ? (
-                    <span className="flex items-center gap-2">
-                      <ProjectColorDot
-                        color={projects.find((p) => p.id === option.value)?.color ?? "#236bfe"}
-                      />
-                      {option.label}
-                    </span>
-                  ) : (
-                    (option?.label ?? "All projects")
-                  )
-                }
-                aria-label="Project"
-              />
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-xs font-medium text-muted-foreground">Category</Label>
-            {Array.isArray(values.categoryId) ? (
-              <SearchableMultiSelect
-                value={values.categoryId}
-                onChange={onCategoryChange}
-                options={categories.map((c) => ({ value: c.id, label: c.name }))}
-                placeholder="All categories"
-                searchPlaceholder="Search categories…"
-                selectAllLabel="All categories"
-                triggerClassName={triggerClass}
-                aria-label="Category"
-              />
-            ) : (
-              <SearchableSelect
-                value={values.categoryId || "__all__"}
-                onValueChange={(v) => onCategoryChange(v === "__all__" ? "" : v)}
-                options={[
-                  { value: "__all__", label: "All categories" },
-                  ...categories.map((c) => ({ value: c.id, label: c.name }))
-                ]}
-                placeholder="All categories"
-                searchPlaceholder="Search categories…"
-                triggerClassName={triggerClass}
-                aria-label="Category"
-              />
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-xs font-medium text-muted-foreground">Task</Label>
-            {!taskRequiresProject || hasSelectedProject ? (
-              <SearchableSelect
-                value={values.taskId || "__all__"}
-                onValueChange={(v) => onTaskChange(v === "__all__" ? "" : v)}
-                options={[
-                  { value: "__all__", label: "All tasks" },
-                  ...tasks.map((t) => ({ value: t.id, label: t.taskName }))
-                ]}
-                placeholder="All tasks"
-                searchPlaceholder="Search tasks…"
-                disabled={taskRequiresProject && !hasSelectedProject}
-                triggerClassName={triggerClass}
-                aria-label="Task"
-              />
-            ) : (
-              <p className={placeholderClass}>Select a project first</p>
-            )}
-          </div>
-
-          {!hideMemberFilter ? (
-            <div className="space-y-2">
-              <Label className="text-xs font-medium text-muted-foreground">Member</Label>
-              {!memberRequiresProject || hasSelectedProject ? (
-                Array.isArray(values.userId) ? (
-                  <SearchableMultiSelect
-                    value={values.userId}
-                    onChange={onUserChange}
-                    options={members.map((m) => ({ value: m.userId, label: m.userName }))}
-                    placeholder={memberPlaceholder}
-                    searchPlaceholder="Search members…"
-                    selectAllLabel={memberAllLabel}
-                    triggerClassName={triggerClass}
-                    aria-label="Member"
-                  />
-                ) : (
-                  <SearchableSelect
-                    value={values.userId || "__all__"}
-                    onValueChange={(v) => onUserChange(v === "__all__" ? "" : v)}
-                    options={[
-                      { value: "__all__", label: memberAllLabel },
-                      ...members.map((m) => ({ value: m.userId, label: m.userName }))
-                    ]}
-                    placeholder={memberPlaceholder}
-                    searchPlaceholder="Search members…"
-                    disabled={memberRequiresProject && !values.projectId}
-                    triggerClassName={triggerClass}
-                    aria-label="Member"
-                  />
-                )
-              ) : (
-                <p className={placeholderClass}>Select a project first</p>
-              )}
-            </div>
-          ) : null}
-
-          {footer ? (
-            <div className={cn(hideMemberFilter ? "sm:col-span-3" : "sm:col-span-2 lg:col-span-4")}>
-              {footer}
-            </div>
-          ) : null}
         </div>
       ) : null}
     </div>

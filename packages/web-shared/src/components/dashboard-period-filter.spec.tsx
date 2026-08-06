@@ -9,7 +9,7 @@ const PRESETS = [
 ];
 
 describe("DashboardPeriodFilter", () => {
-  it("renders presets and the selected date range", () => {
+  it("renders presets and the selected date range in a compact toolbar", () => {
     render(
       <DashboardPeriodFilter
         range="week"
@@ -22,8 +22,8 @@ describe("DashboardPeriodFilter", () => {
       />
     );
 
-    expect(screen.getByText("Period")).toBeTruthy();
-    expect(screen.getByText("Range")).toBeTruthy();
+    expect(screen.getByRole("group", { name: "Period" })).toBeTruthy();
+    expect(screen.queryByText("Range")).toBeNull();
     expect(screen.getByRole("button", { name: "This week" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Dashboard date range" }).textContent).toContain(
       "Jun 8"
@@ -48,7 +48,7 @@ describe("DashboardPeriodFilter", () => {
     expect(onPresetChange).toHaveBeenCalledWith("today");
   });
 
-  it("uses container queries so period and range stack until the filter is wide enough", () => {
+  it("keeps period controls in a flexible container for responsive width", () => {
     const { container } = render(
       <DashboardPeriodFilter
         range="week"
@@ -62,6 +62,6 @@ describe("DashboardPeriodFilter", () => {
 
     const root = container.firstElementChild as HTMLElement | null;
     expect(root?.className).toContain("@container");
-    expect(root?.querySelector(".grid")?.className).toContain("grid-cols-1");
+    expect(root?.className).toContain("flex");
   });
 });

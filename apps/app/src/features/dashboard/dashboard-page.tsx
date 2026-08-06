@@ -4,8 +4,6 @@ import { isShareableWidgetId, ROUTES } from "@kloqra/contracts";
 import type { DashboardReportDto, Permission, TeamMemberDto } from "@kloqra/contracts";
 import {
   Button,
-  Card,
-  CardContent,
   Select,
   SelectContent,
   SelectItem,
@@ -41,6 +39,7 @@ import { WidthProvider, Responsive } from "react-grid-layout";
 import { toast } from "sonner";
 import { DashboardAppBarActions } from "./dashboard-app-bar-actions";
 import { filterWidgetsForDashboardMode } from "./dashboard-composition";
+import { DashboardFiltersToolbar } from "./dashboard-filters-toolbar";
 import {
   PersonalDashboardWidget,
   usePersonalDashboardData,
@@ -1055,9 +1054,10 @@ export function ManagementDashboardPage({
       )}
 
       {showPersonal || showManagement ? (
-        <Card>
-          <CardContent className="flex flex-col gap-4 py-4">
+        <DashboardFiltersToolbar
+          period={
             <DashboardPeriodFilter
+              className="min-w-0 flex-1"
               range={range}
               onPresetChange={handleRangePresetChange}
               startDate={startDate}
@@ -1066,9 +1066,11 @@ export function ManagementDashboardPage({
               presets={ADMIN_PERIOD_PRESETS}
               dateRangeAriaLabel="Dashboard date range"
             />
-
+          }
+          scope={
             <ReportScopeFilters
               compact
+              className="shrink-0 sm:justify-end"
               taskRequiresProject
               memberRequiresProject={showManagement}
               hideMemberFilter={!showManagement}
@@ -1094,8 +1096,8 @@ export function ManagementDashboardPage({
               onUserChange={setUserId}
               onClearAll={clearScopeFilters}
             />
-          </CardContent>
-        </Card>
+          }
+        />
       ) : null}
 
       {showManagement && !loading && !error && !hasData ? (
