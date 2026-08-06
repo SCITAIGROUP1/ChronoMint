@@ -18,6 +18,7 @@ import { BillingModule } from "./modules/billing/billing.module";
 import { CategoriesModule } from "./modules/categories/categories.module";
 import { ComplianceModule } from "./modules/compliance/compliance.module";
 import { ExportModule } from "./modules/export/export.module";
+import { FavoritesModule } from "./modules/favorites/favorites.module";
 import { HealthModule } from "./modules/health/health.module";
 import { HelpDeskModule } from "./modules/helpdesk/helpdesk.module";
 import { JiraModule } from "./modules/jira/jira.module";
@@ -75,6 +76,7 @@ import { WorkspaceModule } from "./modules/workspace/workspace.module";
     ReportingModule,
     PublicReportingModule,
     PresenceModule,
+    FavoritesModule,
     ExportModule,
     NotificationsModule,
     JiraModule,

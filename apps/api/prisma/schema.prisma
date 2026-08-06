@@ -53,6 +53,8 @@ model User {
   timesheetAmendments   TimesheetAmendmentRequest[]
   taskAssignees         TaskAssignee[]
   projectColors         UserProjectColor[]
+  favoriteProjects      UserFavoriteProject[]
+  favoriteTasks         UserFavoriteTask[]
   notifications         Notification[]
   exportJobs            ExportJob[]
   tenantDataExportJobs  TenantDataExportJob[]
@@ -330,6 +332,8 @@ model Workspace {
   reportingApiCredentials ReportingApiCredential[]
   widgetShares    WidgetShare[]
   notifications   Notification[]
+  favoriteProjects UserFavoriteProject[]
+  favoriteTasks    UserFavoriteTask[]
 
   @@index([tenantId])
   @@map("workspaces")
@@ -409,6 +413,7 @@ model Project {
   invites                  ProjectInvite[]
   timesheetPeriods         TimesheetPeriod[]
   userColors               UserProjectColor[]
+  favoriteMarkers          UserFavoriteProject[]
 
   @@unique([workspaceId, name])
   @@index([workspaceId])
@@ -472,6 +477,7 @@ model Task {
   category        Category  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   timeLogs        TimeLog[]
   assignees       TaskAssignee[]
+  favoriteMarkers UserFavoriteTask[]
 
   @@index([projectId])
   @@index([categoryId])
@@ -504,6 +510,36 @@ model UserProjectColor {
 
   @@unique([userId, projectId])
   @@map("user_project_colors")
+}
+
+model UserFavoriteProject {
+  id          String    @id @default(uuid())
+  userId      String    @map("user_id")
+  workspaceId String    @map("workspace_id")
+  projectId   String    @map("project_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, projectId])
+  @@index([userId, workspaceId, createdAt])
+  @@map("user_favorite_projects")
+}
+
+model UserFavoriteTask {
+  id          String    @id @default(uuid())
+  userId      String    @map("user_id")
+  workspaceId String    @map("workspace_id")
+  taskId      String    @map("task_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  task        Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, taskId])
+  @@index([userId, workspaceId, createdAt])
+  @@map("user_favorite_tasks")
 }
 
 model TimeLog {

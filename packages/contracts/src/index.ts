@@ -10,6 +10,7 @@ export * from "./dto/team.dto";
 export * from "./dto/category.dto";
 export * from "./dto/task.dto";
 export * from "./dto/user-project-color.dto";
+export * from "./dto/favorites.dto";
 export * from "./dto/timelog.dto";
 export * from "./dto/timelog-occupancy.dto";
 export * from "./dto/timesheet.dto";

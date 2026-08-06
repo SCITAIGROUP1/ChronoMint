@@ -16,8 +16,11 @@ import {
   EmptyState
 } from "@kloqra/ui";
 import {
+  buildTaskSelectGroups,
+  prioritizeByFavoriteIds,
   useDisplayPreferences,
   useEntryCatalogQueries,
+  useEntryFavorites,
   useRefetchOnWindowFocus,
   useTimelogListQuery,
   todayInZone,
@@ -140,9 +143,14 @@ function TimerRing({
 export function TimerPage() {
   const session = useSessionStore((s) => s.session);
   const ws = session?.workspaceId ?? getWorkspaceId() ?? "";
+  const userId = session?.user?.id;
   const { active, elapsedSec, isPaused, setActive, tick } = useTimerStore();
   const catalog = useEntryCatalogQueries(ws, { enabled: Boolean(ws) });
   const { projects, tasks, refetch: refetchCatalog } = catalog;
+  const { favoriteProjectIds, favoriteTaskIds, toggleProject, toggleTask } = useEntryFavorites(
+    userId,
+    ws
+  );
   const workspaces = useWorkspacesStore((s) => s.workspaces);
   const workspaceNamesById = useMemo(
     () => Object.fromEntries(workspaces.map((workspace) => [workspace.id, workspace.name])),
@@ -235,21 +243,20 @@ export function TimerPage() {
     return () => clearInterval(id);
   }, [tick]);
 
+  const orderedProjects = useMemo(
+    () => prioritizeByFavoriteIds(projects, favoriteProjectIds),
+    [projects, favoriteProjectIds]
+  );
+
   const projectTasks = useMemo(
     () => tasks.filter((t) => t.projectId === projectId),
     [tasks, projectId]
   );
 
-  const projectTasksByCategory = useMemo(() => {
-    const groups = new Map<string, typeof projectTasks>();
-    for (const t of projectTasks) {
-      const key = t.categoryName ?? "Other";
-      const list = groups.get(key) ?? [];
-      list.push(t);
-      groups.set(key, list);
-    }
-    return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b));
-  }, [projectTasks]);
+  const projectTaskGroups = useMemo(
+    () => buildTaskSelectGroups(projectTasks, favoriteTaskIds),
+    [projectTasks, favoriteTaskIds]
+  );
 
   const activeTask = active ? tasks.find((t) => t.id === active.taskId) : null;
   const activeProject = activeTask ? projects.find((p) => p.id === activeTask.projectId) : null;
@@ -584,12 +591,14 @@ export function TimerPage() {
                           <SearchableSelect
                             value={projectId}
                             onValueChange={onProjectChange}
-                            options={projects.map((p) => ({
+                            options={orderedProjects.map((p) => ({
                               value: p.id,
                               label: formatProjectLabel(p, workspaceNamesById)
                             }))}
                             placeholder="Select project"
                             searchPlaceholder="Search projects…"
+                            favoritedValues={favoriteProjectIds}
+                            onToggleFavorite={toggleProject}
                             renderOption={(option) => (
                               <span className="flex items-center gap-2">
                                 <ProjectColorDot
@@ -627,10 +636,20 @@ export function TimerPage() {
                               setTaskChoice(v);
                               setError(null);
                             }}
-                            groups={projectTasksByCategory.map(([categoryName, list]) => ({
-                              label: categoryName,
-                              options: list.map((t) => ({ value: t.id, label: t.taskName }))
-                            }))}
+                            groups={projectTaskGroups}
+                            favoritedValues={favoriteTaskIds}
+                            onToggleFavorite={(taskId) => {
+                              const task = projectTasks.find((t) => t.id === taskId);
+                              const project = projects.find((p) => p.id === projectId);
+                              if (!task || !project) return;
+                              toggleTask({
+                                projectId: project.id,
+                                taskId: task.id,
+                                projectName: project.name,
+                                taskName: task.taskName,
+                                projectColor: project.color
+                              });
+                            }}
                             placeholder={
                               !projectId
                                 ? "Select a project first"

@@ -102,7 +102,7 @@ function rangeQuery(
   filters?: {
     projectId?: string | string[];
     userId?: string | string[];
-    categoryId?: string;
+    categoryId?: string | string[];
     taskId?: string;
   },
   timezone?: string
@@ -136,7 +136,15 @@ function rangeQuery(
       params.set("userId", filters.userId);
     }
   }
-  if (filters?.categoryId) params.set("categoryId", filters.categoryId);
+  if (filters?.categoryId) {
+    if (Array.isArray(filters.categoryId)) {
+      if (filters.categoryId.length > 0) {
+        params.set("categoryId", filters.categoryId.join(","));
+      }
+    } else {
+      params.set("categoryId", filters.categoryId);
+    }
+  }
   if (filters?.taskId) params.set("taskId", filters.taskId);
   return params;
 }
@@ -193,7 +201,7 @@ export function ManagementDashboardPage({
     showManagement && !workspaceWide ? [...scopedProjectIds] : []
   );
   const [userId, setUserId] = useState<string[]>([]);
-  const [categoryId, setCategoryId] = useState("");
+  const [categoryId, setCategoryId] = useState<string[]>([]);
   const [taskId, setTaskId] = useState("");
   const catalog = useEntryCatalogQueries(ws, { enabled: Boolean(ws) });
   const projects =
@@ -206,16 +214,18 @@ export function ManagementDashboardPage({
 
   const taskFilters = useMemo(() => {
     if (projectId.length === 0) return undefined;
-    const filters: Record<string, string | string[]> = { projectId };
-    if (categoryId) filters.categoryId = categoryId;
-    return filters;
-  }, [projectId, categoryId]);
+    return { projectId } as Record<string, string | string[]>;
+  }, [projectId]);
 
-  const { data: tasks = [] } = useTasksListQuery(
+  const { data: tasksRaw = [] } = useTasksListQuery(
     ws,
     taskFilters,
     Boolean(ws && projectId.length > 0)
   );
+  const tasks = useMemo(() => {
+    if (categoryId.length === 0) return tasksRaw;
+    return tasksRaw.filter((task) => categoryId.includes(task.categoryId));
+  }, [tasksRaw, categoryId]);
   const [teamMembers, setTeamMembers] = useState<TeamMemberDto[]>([]);
   const [report, setReport] = useState<DashboardReportDto | null>(null);
   const [loading, setLoading] = useState(showManagement);
@@ -309,8 +319,8 @@ export function ManagementDashboardPage({
     if (userId && userId.length > 0) {
       params.set("userId", userId.join(","));
     }
-    if (categoryId) {
-      params.set("categoryId", categoryId);
+    if (categoryId && categoryId.length > 0) {
+      params.set("categoryId", categoryId.join(","));
     }
     if (taskId) {
       params.set("taskId", taskId);
@@ -438,7 +448,7 @@ export function ManagementDashboardPage({
     setTaskId("");
   }
 
-  function onCategoryChange(nextId: string) {
+  function onCategoryChange(nextId: string[]) {
     setCategoryId(nextId);
     setTaskId("");
   }
@@ -447,13 +457,13 @@ export function ManagementDashboardPage({
     if (showPersonal && !showManagement) {
       setProjectId([]);
       setUserId([]);
-      setCategoryId("");
+      setCategoryId([]);
       setTaskId("");
       return;
     }
     setProjectId(workspaceWide ? [] : [...scopedProjectIds]);
     setUserId([]);
-    setCategoryId("");
+    setCategoryId([]);
     setTaskId("");
   }
 
@@ -477,7 +487,7 @@ export function ManagementDashboardPage({
         {
           projectId: projectId,
           userId: userId,
-          categoryId: categoryId || undefined,
+          categoryId: categoryId.length > 0 ? categoryId : undefined,
           taskId: taskId || undefined
         },
         timezone
@@ -764,7 +774,7 @@ export function ManagementDashboardPage({
             to={report!.period.to}
             userId={userId || undefined}
             projectId={projectId || undefined}
-            categoryId={categoryId || undefined}
+            categoryId={categoryId.length > 0 ? categoryId : undefined}
             taskId={taskId || undefined}
             cardless
             onHeaderActions={handleTeamUtilizationActions}
@@ -835,7 +845,7 @@ export function ManagementDashboardPage({
             to={endDate}
             projectId={projectId || undefined}
             userId={userId || undefined}
-            categoryId={categoryId || undefined}
+            categoryId={categoryId.length > 0 ? categoryId : undefined}
             taskId={taskId || undefined}
           />
         );
@@ -858,7 +868,7 @@ export function ManagementDashboardPage({
             to={endDate}
             projectId={projectId || undefined}
             userId={userId || undefined}
-            categoryId={categoryId || undefined}
+            categoryId={categoryId.length > 0 ? categoryId : undefined}
             taskId={taskId || undefined}
           />
         );
@@ -869,7 +879,7 @@ export function ManagementDashboardPage({
             to={endDate}
             projectId={projectId || undefined}
             userId={userId || undefined}
-            categoryId={categoryId || undefined}
+            categoryId={categoryId.length > 0 ? categoryId : undefined}
             taskId={taskId || undefined}
           />
         );
@@ -914,7 +924,7 @@ export function ManagementDashboardPage({
         endDate={endDate}
         projectId={projectId || undefined}
         userId={userId || undefined}
-        categoryId={categoryId || undefined}
+        categoryId={categoryId.length > 0 ? categoryId : undefined}
         taskId={taskId || undefined}
         options={widgetShareOptionsForId(id, {
           dailyChartBy,

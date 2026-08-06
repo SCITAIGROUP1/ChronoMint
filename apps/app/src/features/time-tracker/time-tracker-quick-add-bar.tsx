@@ -2,6 +2,12 @@
 
 import type { CategoryDto, ProjectDto, TaskDto } from "@kloqra/contracts";
 import { Button, DatePicker, Input, ProjectColorDot, SearchableSelect, cn } from "@kloqra/ui";
+import {
+  buildTaskSelectGroups,
+  prioritizeByFavoriteIds,
+  useEntryFavorites,
+  useSessionStore
+} from "@kloqra/web-shared";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { todayInZone, toTimeValueInZone } from "@/features/timesheet/calendar-utils";
 import {
@@ -54,12 +60,22 @@ export function TimeTrackerQuickAddBar({
   onSubmit,
   onClearError
 }: TimeTrackerQuickAddBarProps) {
+  const userId = useSessionStore((s) => s.session?.user?.id);
+  const workspaceId = useSessionStore((s) => s.session?.workspaceId);
+  const { favoriteProjectIds, favoriteTaskIds, toggleProject, toggleTask } = useEntryFavorites(
+    userId,
+    workspaceId
+  );
   const [draft, setDraft] = useState<TimeEntryDraft>(() => defaultDraft(timezone));
   const [durationText, setDurationText] = useState("0:30");
   const [durationError, setDurationError] = useState<string | null>(null);
   const durationFocusedRef = useRef(false);
 
   const selectableProjects = useMemo(() => filterLoggingProjects(projects), [projects]);
+  const orderedProjects = useMemo(
+    () => prioritizeByFavoriteIds(selectableProjects, favoriteProjectIds),
+    [selectableProjects, favoriteProjectIds]
+  );
   const selectableTasks = useMemo(
     () => filterLoggingTasks(tasks, projects, categories),
     [tasks, projects, categories]
@@ -68,16 +84,10 @@ export function TimeTrackerQuickAddBar({
     () => selectableTasks.filter((task) => task.projectId === draft.projectId),
     [selectableTasks, draft.projectId]
   );
-  const projectTasksByCategory = useMemo(() => {
-    const groups = new Map<string, TaskDto[]>();
-    for (const task of projectTasks) {
-      const key = task.categoryName ?? "Other";
-      const list = groups.get(key) ?? [];
-      list.push(task);
-      groups.set(key, list);
-    }
-    return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b));
-  }, [projectTasks]);
+  const projectTaskGroups = useMemo(
+    () => buildTaskSelectGroups(projectTasks, favoriteTaskIds),
+    [projectTasks, favoriteTaskIds]
+  );
 
   useEffect(() => {
     const next = defaultDraft(timezone);
@@ -172,7 +182,7 @@ export function TimeTrackerQuickAddBar({
             isBillable: true
           })
         }
-        options={selectableProjects.map((project) => ({
+        options={orderedProjects.map((project) => ({
           value: project.id,
           label: formatProjectLabel(project)
         }))}
@@ -182,6 +192,8 @@ export function TimeTrackerQuickAddBar({
         aria-label="Project"
         triggerClassName={cn(controlClass, "w-[8.5rem]")}
         contentClassName="z-[100]"
+        favoritedValues={favoriteProjectIds}
+        onToggleFavorite={busy ? undefined : toggleProject}
         renderOption={(option) => (
           <span className="flex items-center gap-2">
             <ProjectColorDot
@@ -218,10 +230,24 @@ export function TimeTrackerQuickAddBar({
             isBillable: suggestBillableFromTask(selectableTasks, taskSelection)
           })
         }
-        groups={projectTasksByCategory.map(([categoryName, list]) => ({
-          label: categoryName,
-          options: list.map((task) => ({ value: task.id, label: task.taskName }))
-        }))}
+        groups={projectTaskGroups}
+        favoritedValues={favoriteTaskIds}
+        onToggleFavorite={
+          busy
+            ? undefined
+            : (taskId) => {
+                const task = projectTasks.find((t) => t.id === taskId);
+                const project = selectableProjects.find((p) => p.id === draft.projectId);
+                if (!task || !project) return;
+                toggleTask({
+                  projectId: project.id,
+                  taskId: task.id,
+                  projectName: project.name,
+                  taskName: task.taskName,
+                  projectColor: project.color
+                });
+              }
+        }
         placeholder={!draft.projectId ? "Task" : projectTasks.length === 0 ? "No tasks" : "Task"}
         searchPlaceholder="Search tasks…"
         disabled={busy || !draft.projectId || projectTasks.length === 0}

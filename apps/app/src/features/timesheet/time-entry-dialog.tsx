@@ -21,7 +21,14 @@ import {
   DatePicker,
   cn
 } from "@kloqra/ui";
-import { extractFieldErrorsFromMessage, useCategoriesListQuery } from "@kloqra/web-shared";
+import {
+  buildTaskSelectGroups,
+  extractFieldErrorsFromMessage,
+  prioritizeByFavoriteIds,
+  useCategoriesListQuery,
+  useEntryFavorites,
+  useSessionStore
+} from "@kloqra/web-shared";
 import { ChevronDown, Clock } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -105,6 +112,13 @@ export function TimeEntryDialog({
   timezone: _timezone = "UTC",
   jiraSuggestions = []
 }: TimeEntryDialogProps) {
+  const userId = useSessionStore((s) => s.session?.user?.id);
+  const sessionWorkspaceId = useSessionStore((s) => s.session?.workspaceId);
+  const favoritesWorkspaceId = workspaceId ?? sessionWorkspaceId;
+  const { favoriteProjectIds, favoriteTaskIds, toggleProject, toggleTask } = useEntryFavorites(
+    userId,
+    favoritesWorkspaceId
+  );
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<"details" | "history">("details");
   const [repeatOpen, setRepeatOpen] = useState(false);
@@ -207,6 +221,10 @@ export function TimeEntryDialog({
   }, [draft?.startTime, draft?.endTime, draft]);
 
   const selectableProjects = useMemo(() => filterLoggingProjects(projects), [projects]);
+  const orderedProjects = useMemo(
+    () => prioritizeByFavoriteIds(selectableProjects, favoriteProjectIds),
+    [selectableProjects, favoriteProjectIds]
+  );
   const selectableTasks = useMemo(
     () => filterLoggingTasks(tasks, projects, selectorCategories),
     [tasks, projects, selectorCategories]
@@ -241,16 +259,10 @@ export function TimeEntryDialog({
     [selectableTasks, draft]
   );
 
-  const projectTasksByCategory = useMemo(() => {
-    const groups = new Map<string, TaskDto[]>();
-    for (const t of projectTasks) {
-      const key = t.categoryName ?? "Other";
-      const list = groups.get(key) ?? [];
-      list.push(t);
-      groups.set(key, list);
-    }
-    return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b));
-  }, [projectTasks]);
+  const projectTaskGroups = useMemo(
+    () => buildTaskSelectGroups(projectTasks, favoriteTaskIds),
+    [projectTasks, favoriteTaskIds]
+  );
 
   if (!mounted) return null;
 
@@ -465,7 +477,7 @@ export function TimeEntryDialog({
                     isBillable: true
                   })
                 }
-                options={selectableProjects.map((p) => ({
+                options={orderedProjects.map((p) => ({
                   value: p.id,
                   label: formatProjectLabel(p, workspaceNames)
                 }))}
@@ -473,6 +485,8 @@ export function TimeEntryDialog({
                 searchPlaceholder="Search projects…"
                 disabled={!canEdit}
                 contentClassName="z-[100]"
+                favoritedValues={favoriteProjectIds}
+                onToggleFavorite={canEdit ? toggleProject : undefined}
                 renderOption={(option) => (
                   <span className="flex items-center gap-2">
                     <ProjectColorDot
@@ -518,10 +532,24 @@ export function TimeEntryDialog({
                     isBillable: suggestBillableFromTask(selectableTasks, taskSelection)
                   })
                 }
-                groups={projectTasksByCategory.map(([categoryName, list]) => ({
-                  label: categoryName,
-                  options: list.map((t) => ({ value: t.id, label: t.taskName }))
-                }))}
+                groups={projectTaskGroups}
+                favoritedValues={favoriteTaskIds}
+                onToggleFavorite={
+                  canEdit
+                    ? (taskId) => {
+                        const task = projectTasks.find((t) => t.id === taskId);
+                        const project = selectableProjects.find((p) => p.id === draft.projectId);
+                        if (!task || !project) return;
+                        toggleTask({
+                          projectId: project.id,
+                          taskId: task.id,
+                          projectName: project.name,
+                          taskName: task.taskName,
+                          projectColor: project.color
+                        });
+                      }
+                    : undefined
+                }
                 placeholder={
                   !draft.projectId
                     ? "Select a project first"

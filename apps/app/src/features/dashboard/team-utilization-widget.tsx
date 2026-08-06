@@ -26,7 +26,7 @@ export function TeamUtilizationWidget({
   to: string;
   userId?: string | string[];
   projectId?: string | string[];
-  categoryId?: string;
+  categoryId?: string | string[];
   taskId?: string;
   cardless?: boolean;
   onHeaderActions?: (actions: React.ReactNode) => void;
@@ -48,9 +48,13 @@ export function TeamUtilizationWidget({
         filters: {
           from,
           to,
-          ...(userId ? { userId } : {}),
-          ...(projectId ? { projectId } : {}),
-          ...(categoryId ? { categoryId } : {}),
+          ...(userId && (!Array.isArray(userId) || userId.length > 0) ? { userId } : {}),
+          ...(projectId && (!Array.isArray(projectId) || projectId.length > 0)
+            ? { projectId }
+            : {}),
+          ...(categoryId && (!Array.isArray(categoryId) || categoryId.length > 0)
+            ? { categoryId }
+            : {}),
           ...(taskId ? { taskId } : {})
         }
       });

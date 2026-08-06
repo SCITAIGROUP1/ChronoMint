@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
+import { DEFAULT_TIMESHEET_SLOT_PX } from "./timesheet-zoom";
 
-/** Calendar slots are `h-10` (40px) per 30 minutes — used to estimate description lines. */
-const SLOT_PX = 40;
+/** Calendar slots default to `h-10` (40px) per 30 minutes — used to estimate description lines. */
 const SLOT_SEC = 30 * 60;
 export const SHORT_ENTRY_SEC = 15 * 60;
 
@@ -10,6 +10,8 @@ export type DescriptionLineClampOptions = {
   hasProject?: boolean;
   /** Category meta row under task when project is shown */
   hasCategoryRow?: boolean;
+  /** Pixels per 30-minute slot (follows timesheet zoom). */
+  slotPx?: number;
 };
 
 /**
@@ -23,7 +25,8 @@ export function estimateDescriptionLineClamp(
   if (!Number.isFinite(durationSec) || durationSec <= 0) return 1;
   if (durationSec < SHORT_ENTRY_SEC) return 1;
 
-  const heightPx = (durationSec / SLOT_SEC) * SLOT_PX;
+  const slotPx = options.slotPx ?? DEFAULT_TIMESHEET_SLOT_PX;
+  const heightPx = (durationSec / SLOT_SEC) * slotPx;
 
   // Header chrome inside the colored block (project, task, category, gaps)
   let chromePx = 30;

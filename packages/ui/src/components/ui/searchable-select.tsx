@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronDown } from "lucide-react";
+import { Check, ChevronDown, Star } from "lucide-react";
 import * as React from "react";
 import { getOptionSearchText, type FilterableOption } from "../../lib/filter-options.js";
 import { useLockDialogBodyScroll } from "../../lib/use-lock-dialog-body-scroll.js";
@@ -41,6 +41,10 @@ export type SearchableSelectProps = {
   contentClassName?: string;
   renderOption?: (option: SearchableSelectOption) => React.ReactNode;
   renderValue?: (option: SearchableSelectOption | undefined) => React.ReactNode;
+  /** Values currently marked as favorites (shows filled star). */
+  favoritedValues?: readonly string[];
+  /** When set, each option shows a star that toggles favorite without selecting. */
+  onToggleFavorite?: (value: string) => void;
 };
 
 function flattenOptions(
@@ -58,12 +62,18 @@ function commandItemValue(option: SearchableSelectOption): string {
 function SearchableSelectOptionRow({
   option,
   selected,
+  favorited,
+  showFavorite,
   onSelect,
+  onToggleFavorite,
   renderOption
 }: {
   option: SearchableSelectOption;
   selected: boolean;
+  favorited: boolean;
+  showFavorite: boolean;
   onSelect: (value: string) => void;
+  onToggleFavorite?: (value: string) => void;
   renderOption?: (option: SearchableSelectOption) => React.ReactNode;
 }) {
   return (
@@ -72,11 +82,43 @@ function SearchableSelectOptionRow({
       value={commandItemValue(option)}
       disabled={option.disabled}
       onSelect={() => onSelect(option.value)}
-      className="pr-8"
+      className={cn(showFavorite ? "pr-14" : "pr-8")}
     >
       {renderOption ? renderOption(option) : option.label}
-      <span className="absolute right-2 flex h-3.5 w-3.5 items-center justify-center">
-        <Check className={cn("h-4 w-4", selected ? "opacity-100" : "opacity-0")} aria-hidden />
+      <span
+        className={cn(
+          "absolute right-2 flex items-center justify-center gap-1",
+          showFavorite ? "h-6" : "h-3.5 w-3.5"
+        )}
+      >
+        {showFavorite && onToggleFavorite ? (
+          <button
+            type="button"
+            className="inline-flex size-6 items-center justify-center rounded-sm text-muted-foreground hover:text-amber-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            aria-label={favorited ? `Unfavorite ${option.label}` : `Favorite ${option.label}`}
+            aria-pressed={favorited}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onToggleFavorite(option.value);
+            }}
+            onPointerDown={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+            }}
+          >
+            <Star
+              className={cn(
+                "size-3.5",
+                favorited ? "fill-amber-400 text-amber-500" : "text-muted-foreground"
+              )}
+              aria-hidden
+            />
+          </button>
+        ) : null}
+        <span className="flex h-3.5 w-3.5 items-center justify-center">
+          <Check className={cn("h-4 w-4", selected ? "opacity-100" : "opacity-0")} aria-hidden />
+        </span>
       </span>
     </CommandItem>
   );
@@ -97,13 +139,16 @@ export function SearchableSelect({
   triggerClassName,
   contentClassName,
   renderOption,
-  renderValue
+  renderValue,
+  favoritedValues,
+  onToggleFavorite
 }: SearchableSelectProps) {
   const [open, setOpen] = React.useState(false);
   const triggerRef = React.useRef<HTMLButtonElement>(null);
   useLockDialogBodyScroll(open, triggerRef);
   const allOptions = React.useMemo(() => flattenOptions(options, groups), [options, groups]);
   const selectedOption = allOptions.find((option) => option.value === value);
+  const showFavorite = Boolean(onToggleFavorite);
 
   function handleSelect(nextValue: string) {
     onValueChange(nextValue);
@@ -158,7 +203,10 @@ export function SearchableSelect({
                         key={option.value}
                         option={option}
                         selected={value === option.value}
+                        favorited={Boolean(favoritedValues?.includes(option.value))}
+                        showFavorite={showFavorite}
                         onSelect={handleSelect}
+                        onToggleFavorite={onToggleFavorite}
                         renderOption={renderOption}
                       />
                     ))}
@@ -169,7 +217,10 @@ export function SearchableSelect({
                     key={option.value}
                     option={option}
                     selected={value === option.value}
+                    favorited={Boolean(favoritedValues?.includes(option.value))}
+                    showFavorite={showFavorite}
                     onSelect={handleSelect}
+                    onToggleFavorite={onToggleFavorite}
                     renderOption={renderOption}
                   />
                 ))}

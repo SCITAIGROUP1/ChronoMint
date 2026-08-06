@@ -17,7 +17,7 @@ export type ScopeMember = { userId: string; userName: string };
 
 export type ReportScopeFilterValues = {
   projectId: string | string[];
-  categoryId: string;
+  categoryId: string | string[];
   taskId: string;
   userId: string | string[];
 };
@@ -30,7 +30,8 @@ type ReportScopeFiltersProps = {
   members: ScopeMember[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onProjectChange: (projectId: any) => void;
-  onCategoryChange: (categoryId: string) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onCategoryChange: (categoryId: any) => void;
   onTaskChange: (taskId: string) => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onUserChange: (userId: any) => void;
@@ -46,17 +47,17 @@ type ReportScopeFiltersProps = {
   footer?: React.ReactNode;
 };
 
+function hasIdFilter(value: string | string[]): boolean {
+  return Array.isArray(value) ? value.length > 0 : Boolean(value);
+}
+
 function activeFilterCount(values: ReportScopeFilterValues, includeMember: boolean) {
-  const hasProject = Array.isArray(values.projectId)
-    ? values.projectId.length > 0
-    : Boolean(values.projectId);
-  const hasMember = Array.isArray(values.userId)
-    ? values.userId.length > 0
-    : Boolean(values.userId);
-  const parts = [values.categoryId, values.taskId];
-  if (hasProject) parts.push("project");
-  if (includeMember && hasMember) parts.push("member");
-  return parts.filter(Boolean).length;
+  const parts: string[] = [];
+  if (hasIdFilter(values.projectId)) parts.push("project");
+  if (hasIdFilter(values.categoryId)) parts.push("category");
+  if (values.taskId) parts.push("task");
+  if (includeMember && hasIdFilter(values.userId)) parts.push("member");
+  return parts.length;
 }
 
 export function ReportScopeFilters({
@@ -87,16 +88,11 @@ export function ReportScopeFilters({
     if (activeCount > 0) setOpen(true);
   }, [activeCount]);
 
-  const hasSelectedProject = Array.isArray(values.projectId)
-    ? values.projectId.length > 0
-    : Boolean(values.projectId);
+  const hasSelectedProject = hasIdFilter(values.projectId);
 
   const chips = useMemo(() => {
     const out: { key: string; label: string; onClear: () => void }[] = [];
-    if (
-      values.projectId &&
-      (Array.isArray(values.projectId) ? values.projectId.length > 0 : true)
-    ) {
+    if (hasIdFilter(values.projectId)) {
       if (Array.isArray(values.projectId)) {
         if (values.projectId.length === 1) {
           const p = projects.find((x) => x.id === values.projectId[0]);
@@ -121,13 +117,30 @@ export function ReportScopeFilters({
         });
       }
     }
-    if (values.categoryId) {
-      const c = categories.find((x) => x.id === values.categoryId);
-      out.push({
-        key: "category",
-        label: c ? `Category: ${c.name}` : "Category",
-        onClear: () => onCategoryChange("")
-      });
+    if (hasIdFilter(values.categoryId)) {
+      if (Array.isArray(values.categoryId)) {
+        if (values.categoryId.length === 1) {
+          const c = categories.find((x) => x.id === values.categoryId[0]);
+          out.push({
+            key: "category",
+            label: c ? `Category: ${c.name}` : "1 category",
+            onClear: () => onCategoryChange([])
+          });
+        } else {
+          out.push({
+            key: "categories",
+            label: `${values.categoryId.length} categories`,
+            onClear: () => onCategoryChange([])
+          });
+        }
+      } else {
+        const c = categories.find((x) => x.id === values.categoryId);
+        out.push({
+          key: "category",
+          label: c ? `Category: ${c.name}` : "Category",
+          onClear: () => onCategoryChange("")
+        });
+      }
     }
     if (values.taskId) {
       const t = tasks.find((x) => x.id === values.taskId);
@@ -137,11 +150,7 @@ export function ReportScopeFilters({
         onClear: () => onTaskChange("")
       });
     }
-    if (
-      !hideMemberFilter &&
-      values.userId &&
-      (Array.isArray(values.userId) ? values.userId.length > 0 : true)
-    ) {
+    if (!hideMemberFilter && hasIdFilter(values.userId)) {
       if (Array.isArray(values.userId)) {
         if (values.userId.length === 1) {
           const m = members.find((x) => x.userId === values.userId[0]);
@@ -316,18 +325,31 @@ export function ReportScopeFilters({
 
           <div className="space-y-2">
             <Label className="text-xs font-medium text-muted-foreground">Category</Label>
-            <SearchableSelect
-              value={values.categoryId || "__all__"}
-              onValueChange={(v) => onCategoryChange(v === "__all__" ? "" : v)}
-              options={[
-                { value: "__all__", label: "All categories" },
-                ...categories.map((c) => ({ value: c.id, label: c.name }))
-              ]}
-              placeholder="All categories"
-              searchPlaceholder="Search categories…"
-              triggerClassName={triggerClass}
-              aria-label="Category"
-            />
+            {Array.isArray(values.categoryId) ? (
+              <SearchableMultiSelect
+                value={values.categoryId}
+                onChange={onCategoryChange}
+                options={categories.map((c) => ({ value: c.id, label: c.name }))}
+                placeholder="All categories"
+                searchPlaceholder="Search categories…"
+                selectAllLabel="All categories"
+                triggerClassName={triggerClass}
+                aria-label="Category"
+              />
+            ) : (
+              <SearchableSelect
+                value={values.categoryId || "__all__"}
+                onValueChange={(v) => onCategoryChange(v === "__all__" ? "" : v)}
+                options={[
+                  { value: "__all__", label: "All categories" },
+                  ...categories.map((c) => ({ value: c.id, label: c.name }))
+                ]}
+                placeholder="All categories"
+                searchPlaceholder="Search categories…"
+                triggerClassName={triggerClass}
+                aria-label="Category"
+              />
+            )}
           </div>
 
           <div className="space-y-2">

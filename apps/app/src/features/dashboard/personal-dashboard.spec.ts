@@ -76,4 +76,11 @@ describe("filterPersonalDashboardData", () => {
     });
     expect(filtered.logs.map((item) => item.id)).toEqual(["log-2"]);
   });
+
+  it("filters logs by multiple categories", () => {
+    const filtered = filterPersonalDashboardData(baseData(), {
+      categoryId: ["category-1", "category-2"]
+    });
+    expect(filtered.logs.map((item) => item.id)).toEqual(["log-1", "log-2"]);
+  });
 });

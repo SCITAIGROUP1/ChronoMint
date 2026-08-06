@@ -107,23 +107,28 @@ export function filterPersonalDashboardData(
   data: PersonalDashboardData,
   filters: {
     projectIds?: readonly string[];
-    categoryId?: string;
+    categoryId?: string | readonly string[];
     taskId?: string;
   }
 ): PersonalDashboardData {
   const projectIds = filters.projectIds ?? [];
   const hasProjectFilter = projectIds.length > 0;
-  const categoryId = filters.categoryId ?? "";
+  const categoryIds = Array.isArray(filters.categoryId)
+    ? filters.categoryId
+    : filters.categoryId
+      ? [filters.categoryId]
+      : [];
+  const hasCategoryFilter = categoryIds.length > 0;
   const taskId = filters.taskId ?? "";
 
-  if (!hasProjectFilter && !categoryId && !taskId) return data;
+  if (!hasProjectFilter && !hasCategoryFilter && !taskId) return data;
 
   const taskById = new Map(data.tasks.map((task) => [task.id, task]));
   const logs = data.logs.filter((log) => {
     const task = taskById.get(log.taskId);
     if (!task) return false;
     if (taskId && task.id !== taskId) return false;
-    if (categoryId && task.categoryId !== categoryId) return false;
+    if (hasCategoryFilter && !categoryIds.includes(task.categoryId)) return false;
     if (hasProjectFilter && !projectIds.includes(task.projectId)) return false;
     return true;
   });

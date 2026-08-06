@@ -76,7 +76,8 @@ import {
   timelogImportResponseSchema,
   TIMELOG_IMPORT_COLUMN_LABELS,
   updateUserPreferencesSchema,
-  userProfileSchema
+  userProfileSchema,
+  importEntryFavoritesSchema
 } from "./index";
 
 const UUID = "550e8400-e29b-41d4-a716-446655440000";
@@ -552,6 +553,21 @@ describe("contracts", () => {
       categoryId: UUID_2
     });
     expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.categoryId).toEqual([UUID_2]);
+    }
+  });
+
+  it("accepts multiple categoryId values on report query", () => {
+    const r = reportQuerySchema.safeParse({
+      from: "2025-01-01T00:00:00.000Z",
+      to: "2025-01-31T23:59:59.000Z",
+      categoryId: `${UUID},${UUID_2}`
+    });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.categoryId).toEqual([UUID, UUID_2]);
+    }
   });
 
   it("accepts taskId on report query", () => {
@@ -662,6 +678,24 @@ describe("contracts", () => {
   it("exposes project summary and user project color routes", () => {
     expect(ROUTES.REPORTING.PROJECT_SUMMARY(UUID)).toBe(`/reporting/projects/${UUID}/summary`);
     expect(ROUTES.USERS.PROJECT_COLOR(UUID)).toBe(`/users/me/projects/${UUID}/color`);
+  });
+
+  it("exposes entry favorites routes and validates import body", () => {
+    expect(ROUTES.FAVORITES.LIST).toBe("/favorites");
+    expect(ROUTES.FAVORITES.PROJECT(UUID)).toBe(`/favorites/projects/${UUID}`);
+    expect(ROUTES.FAVORITES.TASK(UUID)).toBe(`/favorites/tasks/${UUID}`);
+    expect(ROUTES.FAVORITES.IMPORT).toBe("/favorites/import");
+
+    const ok = importEntryFavoritesSchema.safeParse({
+      projects: [UUID],
+      tasks: [{ projectId: UUID, taskId: UUID }]
+    });
+    expect(ok.success).toBe(true);
+
+    const tooMany = importEntryFavoritesSchema.safeParse({
+      projects: Array.from({ length: 6 }, () => UUID)
+    });
+    expect(tooMany.success).toBe(false);
   });
 
   it("exposes widget share routes", () => {

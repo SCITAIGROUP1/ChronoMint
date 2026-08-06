@@ -9,6 +9,7 @@ import {
   Badge,
   LoadingCrossfade,
   WeekDatePicker,
+  cn,
   dateFromKey,
   dateKeyFromDate
 } from "@kloqra/ui";
@@ -33,6 +34,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { entryTimesChanged } from "./calendar-entry-chrome";
 import type { CalendarTaskInfo } from "./calendar-entry-content";
 import {
   addDays,
@@ -69,6 +71,26 @@ import {
 } from "./time-entry-draft";
 import { clearTimeEntryDraftStorageFor } from "./time-entry-draft-storage";
 import { TimeEntryDialog, TimesheetCalendar, TimesheetMonth } from "./timesheet-lazy";
+import {
+  ALL_WEEKDAY_INDEXES,
+  filterDaysByVisibleWeekdays,
+  parseVisibleWeekdays,
+  sameWeekdays,
+  serializeVisibleWeekdays,
+  toggleVisibleWeekday,
+  WEEKDAY_SHORT_LABELS,
+  weekdayCheckboxOrder,
+  WORK_WEEKDAY_INDEXES,
+  type WeekdayIndex
+} from "./timesheet-visible-days";
+import {
+  DEFAULT_TIMESHEET_SLOT_PX,
+  parseTimesheetSlotPx,
+  zoomInSlotPx,
+  zoomOutSlotPx,
+  type TimesheetSlotPx
+} from "./timesheet-zoom";
+import { TimesheetZoomControls } from "./timesheet-zoom-controls";
 import { validateTimeEntryOverlap } from "./validate-time-entry-overlap";
 import { countActionableSubmissions } from "@/features/submissions/use-my-submissions";
 import {
@@ -201,6 +223,10 @@ export function TimesheetPage() {
   const [confirmDeleteLog, setConfirmDeleteLog] = useState<TimeLogDto | null>(null);
 
   const [showOccupancyOverlay, setShowOccupancyOverlay] = useState(true);
+  const [visibleWeekdays, setVisibleWeekdays] = useState<WeekdayIndex[]>(() => [
+    ...ALL_WEEKDAY_INDEXES
+  ]);
+  const [slotPx, setSlotPx] = useState<TimesheetSlotPx>(DEFAULT_TIMESHEET_SLOT_PX);
   const { active: activeTimer, elapsedSec: liveElapsedSec, tick } = useTimerStore();
 
   useEffect(() => {
@@ -219,6 +245,22 @@ export function TimesheetPage() {
       const overlaySaved = localStorage.getItem(overlayKey) ?? legacyOverlay;
       if (overlaySaved === "false") {
         setShowOccupancyOverlay(false);
+      }
+
+      const daysKey = scopedStorageKey(
+        "timesheet_visible_weekdays",
+        { userId, workspaceId: ws },
+        true
+      );
+      const savedDays = parseVisibleWeekdays(localStorage.getItem(daysKey));
+      if (savedDays) {
+        setVisibleWeekdays(savedDays);
+      }
+
+      const zoomKey = scopedStorageKey("timesheet_slot_px", { userId, workspaceId: ws }, true);
+      const savedZoom = parseTimesheetSlotPx(localStorage.getItem(zoomKey));
+      if (savedZoom) {
+        setSlotPx(savedZoom);
       }
     }
     const bannerKey = timesheetSessionKey(userId, "timesheet_mobile_banner_dismissed");
@@ -265,6 +307,62 @@ export function TimesheetPage() {
     });
   }, [userId, ws]);
 
+  const onVisibleWeekdayChange = useCallback(
+    (day: WeekdayIndex, checked: boolean) => {
+      setVisibleWeekdays((prev) => {
+        const next = toggleVisibleWeekday(prev, day, checked);
+        if (userId && ws) {
+          const daysKey = scopedStorageKey(
+            "timesheet_visible_weekdays",
+            { userId, workspaceId: ws },
+            true
+          );
+          localStorage.setItem(daysKey, serializeVisibleWeekdays(next));
+        }
+        return next;
+      });
+    },
+    [userId, ws]
+  );
+
+  const setVisibleWeekdaysPreset = useCallback(
+    (next: WeekdayIndex[]) => {
+      setVisibleWeekdays(next);
+      if (userId && ws) {
+        const daysKey = scopedStorageKey(
+          "timesheet_visible_weekdays",
+          { userId, workspaceId: ws },
+          true
+        );
+        localStorage.setItem(daysKey, serializeVisibleWeekdays(next));
+      }
+    },
+    [userId, ws]
+  );
+
+  const persistSlotPx = useCallback(
+    (next: TimesheetSlotPx) => {
+      setSlotPx(next);
+      if (userId && ws) {
+        const zoomKey = scopedStorageKey("timesheet_slot_px", { userId, workspaceId: ws }, true);
+        localStorage.setItem(zoomKey, String(next));
+      }
+    },
+    [userId, ws]
+  );
+
+  const onZoomIn = useCallback(() => {
+    persistSlotPx(zoomInSlotPx(slotPx));
+  }, [persistSlotPx, slotPx]);
+
+  const onZoomOut = useCallback(() => {
+    persistSlotPx(zoomOutSlotPx(slotPx));
+  }, [persistSlotPx, slotPx]);
+
+  const onZoomReset = useCallback(() => {
+    persistSlotPx(DEFAULT_TIMESHEET_SLOT_PX);
+  }, [persistSlotPx]);
+
   const weekStart = useMemo(
     () => startOfWeekWithPreference(anchor, weekStartPref),
     [anchor, weekStartPref]
@@ -295,9 +393,13 @@ export function TimesheetPage() {
 
   const calendarDays = useMemo(() => {
     if (view === "day") return [startOfDay(anchor)];
-    if (view === "week") return getWeekDays(weekStart);
+    if (view === "week") {
+      return filterDaysByVisibleWeekdays(getWeekDays(weekStart), visibleWeekdays);
+    }
     return [];
-  }, [view, anchor, weekStart]);
+  }, [view, anchor, weekStart, visibleWeekdays]);
+
+  const weekdayOrder = useMemo(() => weekdayCheckboxOrder(weekStartPref), [weekStartPref]);
 
   const visibleRange = useMemo(() => {
     if (view === "day") {
@@ -710,6 +812,7 @@ export function TimesheetPage() {
   async function updateEntryTimes(log: TimeLogDto, start: Date, end: Date, errorLabel: string) {
     if (isImpersonating || isEntryReadOnly(log)) return;
     if (end <= start) return;
+    if (!entryTimesChanged(log, start, end)) return;
 
     const conflict = findOccupancyConflict(occupancy, start, end, log.id);
     if (conflict) {
@@ -862,27 +965,90 @@ export function TimesheetPage() {
           />
         </div>
 
-        {(view === "day" || view === "week") && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={toggleOccupancyOverlay}
-            className="text-muted-foreground hover:text-foreground text-xs flex items-center gap-1.5 h-8"
-          >
-            {showOccupancyOverlay ? (
-              <>
-                <EyeOff className="h-3.5 w-3.5" />
-                Hide occupied slots
-              </>
-            ) : (
-              <>
-                <Eye className="h-3.5 w-3.5" />
-                Show occupied slots
-              </>
-            )}
-          </Button>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {view === "week" ? (
+            <div
+              className="flex flex-wrap items-center gap-1"
+              role="group"
+              aria-label="Visible weekdays"
+            >
+              <Button
+                type="button"
+                size="sm"
+                variant={
+                  sameWeekdays(visibleWeekdays, WORK_WEEKDAY_INDEXES) ? "secondary" : "ghost"
+                }
+                className="h-7 px-2 text-[11px]"
+                onClick={() => setVisibleWeekdaysPreset([...WORK_WEEKDAY_INDEXES])}
+              >
+                Weekdays
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={sameWeekdays(visibleWeekdays, ALL_WEEKDAY_INDEXES) ? "secondary" : "ghost"}
+                className="h-7 px-2 text-[11px]"
+                onClick={() => setVisibleWeekdaysPreset([...ALL_WEEKDAY_INDEXES])}
+              >
+                All
+              </Button>
+              <span className="mx-0.5 h-4 w-px bg-border" aria-hidden />
+              {weekdayOrder.map((day) => {
+                const checked = visibleWeekdays.includes(day);
+                const onlyOneLeft = checked && visibleWeekdays.length === 1;
+                return (
+                  <button
+                    key={day}
+                    type="button"
+                    disabled={onlyOneLeft}
+                    aria-pressed={checked}
+                    aria-label={`${WEEKDAY_SHORT_LABELS[day]}${checked ? ", shown" : ", hidden"}`}
+                    onClick={() => onVisibleWeekdayChange(day, !checked)}
+                    className={cn(
+                      "inline-flex h-7 min-w-8 items-center justify-center rounded-md px-1.5 text-[11px] font-medium transition-colors",
+                      checked
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                      onlyOneLeft && "opacity-60"
+                    )}
+                  >
+                    {WEEKDAY_SHORT_LABELS[day]}
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+          {(view === "day" || view === "week") && (
+            <>
+              <TimesheetZoomControls
+                compact
+                slotPx={slotPx}
+                onZoomIn={onZoomIn}
+                onZoomOut={onZoomOut}
+                onReset={onZoomReset}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={toggleOccupancyOverlay}
+                className="text-muted-foreground hover:text-foreground text-xs flex items-center gap-1.5 h-8"
+              >
+                {showOccupancyOverlay ? (
+                  <>
+                    <EyeOff className="h-3.5 w-3.5" />
+                    Hide occupied
+                  </>
+                ) : (
+                  <>
+                    <Eye className="h-3.5 w-3.5" />
+                    Show occupied
+                  </>
+                )}
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       {showOccupancyOverlay && (view === "day" || view === "week") && (
@@ -945,6 +1111,10 @@ export function TimesheetPage() {
             readOnly={isImpersonating}
             timezone={timezone}
             displayFormat={displayFormat ?? undefined}
+            slotPx={slotPx}
+            onZoomIn={onZoomIn}
+            onZoomOut={onZoomOut}
+            onZoomReset={onZoomReset}
           />
         )}
       </LoadingCrossfade>

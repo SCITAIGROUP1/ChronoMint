@@ -118,3 +118,39 @@ describe("TimeAggregationService.teamMembersUserIds", () => {
     expect(userIds).toEqual(["user-1", "user-3", "user-4"]);
   });
 });
+
+describe("TimeAggregationService.fetchLogs category filter", () => {
+  it("filters by a single categoryId", async () => {
+    const findMany = vi.fn().mockResolvedValue([]);
+    const service = new TimeAggregationService({ timeLog: { findMany } } as any);
+    await service.fetchLogs("ws-1", {
+      from: new Date("2026-01-01T00:00:00.000Z"),
+      to: new Date("2026-01-31T23:59:59.000Z"),
+      categoryId: "c1"
+    });
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          task: expect.objectContaining({ categoryId: "c1" })
+        })
+      })
+    );
+  });
+
+  it("filters by multiple categoryIds with in", async () => {
+    const findMany = vi.fn().mockResolvedValue([]);
+    const service = new TimeAggregationService({ timeLog: { findMany } } as any);
+    await service.fetchLogs("ws-1", {
+      from: new Date("2026-01-01T00:00:00.000Z"),
+      to: new Date("2026-01-31T23:59:59.000Z"),
+      categoryId: ["c1", "c2"]
+    });
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          task: expect.objectContaining({ categoryId: { in: ["c1", "c2"] } })
+        })
+      })
+    );
+  });
+});

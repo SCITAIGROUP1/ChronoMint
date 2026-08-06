@@ -160,8 +160,21 @@ Controller: [timesheets.controller.ts](../../apps/api/src/modules/timelogs/inter
 
 | Method | Path                 | Roles | DTO | Controller                                                                                          |
 | ------ | -------------------- | ----- | --- | --------------------------------------------------------------------------------------------------- |
-| GET    | `/presence/snapshot` | ADMIN | —   | [presence.controller.ts](../../apps/api/src/modules/presence/interface/http/presence.controller.ts) |
-| GET    | `/presence/stream`   | ADMIN | —   | presence.controller (SSE)                                                                           |
+| GET    | `/presence/snapshot` | Auth  | —   | [presence.controller.ts](../../apps/api/src/modules/presence/interface/http/presence.controller.ts) |
+| GET    | `/presence/stream`   | Auth  | —   | presence.controller                                                                                 |
+
+## Favorites (time-entry pins)
+
+Per-member project/task favorites for the current workspace. Cap: 5 projects + 5 tasks (FIFO).
+
+| Method | Path                             | Roles | DTO                                                                   | Controller                                                                                             |
+| ------ | -------------------------------- | ----- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| GET    | `/favorites`                     | Auth  | [favorites.dto.ts](../../packages/contracts/src/dto/favorites.dto.ts) | [favorites.controller.ts](../../apps/api/src/modules/favorites/interface/http/favorites.controller.ts) |
+| PUT    | `/favorites/projects/:projectId` | Auth  | —                                                                     | favorites.controller                                                                                   |
+| DELETE | `/favorites/projects/:projectId` | Auth  | —                                                                     | favorites.controller                                                                                   |
+| PUT    | `/favorites/tasks/:taskId`       | Auth  | —                                                                     | favorites.controller                                                                                   |
+| DELETE | `/favorites/tasks/:taskId`       | Auth  | —                                                                     | favorites.controller                                                                                   |
+| POST   | `/favorites/import`              | Auth  | favorites.dto (`importEntryFavoritesSchema`)                          | favorites.controller                                                                                   |
 
 ## Export
 

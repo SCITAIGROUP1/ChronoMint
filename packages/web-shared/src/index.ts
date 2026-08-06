@@ -74,6 +74,32 @@ export {
   writeScopedJSON,
   type ScopedStorageIdentity
 } from "./storage/scoped-storage";
+export {
+  ENTRY_FAVORITES_VERSION,
+  LEGACY_FAVORITES_KEY,
+  MAX_FAVORITE_PROJECTS,
+  MAX_FAVORITE_TASKS,
+  buildTaskSelectGroups,
+  emptyEntryFavorites,
+  entryFavoritesMigratedKey,
+  entryFavoritesStorageKey,
+  fromApiFavoritesResponse,
+  hasMigratedEntryFavorites,
+  isFavoritesUuid,
+  markEntryFavoritesMigrated,
+  normalizeEntryFavorites,
+  prioritizeByFavoriteIds,
+  readEntryFavorites,
+  toImportFavoritesPayload,
+  toggleFavoriteProject,
+  toggleFavoriteTask,
+  writeEntryFavorites,
+  type EntryFavorites,
+  type FavoriteTaskItem,
+  type TaskSelectGroup,
+  type TaskSelectGroupOption
+} from "./favorites/entry-favorites";
+export { useEntryFavorites } from "./favorites/use-entry-favorites";
 export { tryRefreshSession } from "./auth/refresh-session";
 export { isAccessTokenExpired, readUserIdFromToken } from "./auth/jwt-payload";
 export {

@@ -12,7 +12,7 @@ export type CategoryProjectHeatmapWidgetProps = {
   to: string;
   projectId?: string | string[];
   userId?: string | string[];
-  categoryId?: string;
+  categoryId?: string | string[];
   taskId?: string;
 };
 
@@ -22,7 +22,7 @@ function rangeQuery(
   filters?: {
     projectId?: string | string[];
     userId?: string | string[];
-    categoryId?: string;
+    categoryId?: string | string[];
     taskId?: string;
   }
 ) {
@@ -40,7 +40,11 @@ function rangeQuery(
     const val = filters.userId;
     params.set("userId", Array.isArray(val) ? val.join(",") : val);
   }
-  if (filters?.categoryId) params.set("categoryId", filters.categoryId);
+  if (filters?.categoryId) {
+    const val = filters.categoryId;
+    const joined = Array.isArray(val) ? val.join(",") : val;
+    if (joined) params.set("categoryId", joined);
+  }
   if (filters?.taskId) params.set("taskId", filters.taskId);
   return params;
 }

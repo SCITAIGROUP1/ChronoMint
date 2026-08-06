@@ -4,6 +4,12 @@ import type { ActiveTimerDto, TimeLogDto, TimeLogOccupancyItemDto } from "@kloqr
 import { cn } from "@kloqra/ui";
 import { Building2 } from "lucide-react";
 import { memo, startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  calendarEntryChromeClass,
+  calendarEntryContentPaddingClass,
+  CALENDAR_ENTRY_INSET_X,
+  shouldCommitResize
+} from "./calendar-entry-chrome";
 import { CalendarEntryContent, type CalendarTaskInfo } from "./calendar-entry-content";
 import {
   buildDayOccupancySegments,
@@ -35,6 +41,8 @@ import {
   formatDayHeaderShort,
   type TimesheetDisplayFormat
 } from "./display-format";
+import { DEFAULT_TIMESHEET_SLOT_PX, type TimesheetSlotPx } from "./timesheet-zoom";
+import { TimesheetZoomControls } from "./timesheet-zoom-controls";
 import { entryColorsFromProject, inactiveEntryColors } from "@/lib/project-color-styles";
 
 export type SlotSelect = {
@@ -89,6 +97,10 @@ export type TimesheetCalendarProps = {
   readOnly?: boolean;
   timezone?: string;
   displayFormat?: TimesheetDisplayFormat;
+  slotPx?: TimesheetSlotPx;
+  onZoomIn?: () => void;
+  onZoomOut?: () => void;
+  onZoomReset?: () => void;
 };
 
 function findDayColumnAt(
@@ -133,9 +145,14 @@ export function TimesheetCalendar({
   onEntryDuplicate,
   readOnly = false,
   timezone = "UTC",
-  displayFormat
+  displayFormat,
+  slotPx = DEFAULT_TIMESHEET_SLOT_PX,
+  onZoomIn,
+  onZoomOut,
+  onZoomReset
 }: TimesheetCalendarProps) {
   const slotRows = buildSlotRows();
+  const hourPx = slotPx * 2;
   const today = todayInZone(timezone);
   const useCompactDayHeaders = days.length > 1;
   const gridTemplateColumns = useCompactDayHeaders
@@ -215,8 +232,12 @@ export function TimesheetCalendar({
     log: TimeLogDto;
     day: Date;
     edge: "start" | "end";
+    originStart: Date;
+    originEnd: Date;
     previewStart: Date;
     previewEnd: Date;
+    originClientY: number;
+    moved: boolean;
   } | null>(null);
 
   const [duplicate, setDuplicate] = useState<{
@@ -273,23 +294,35 @@ export function TimesheetCalendar({
     const onMove = (e: PointerEvent) => {
       const rect = columnRect(resize.day, timezone);
       if (!rect) return;
-      const t = pointerYToTime(resize.day, e.clientY, rect.top, rect.height, timezone);
       setResize((r) => {
         if (!r) return r;
+        const moved = r.moved || Math.abs(e.clientY - r.originClientY) >= MOVE_THRESHOLD_PX;
+        if (!moved) return r;
+        const t = pointerYToTime(r.day, e.clientY, rect.top, rect.height, timezone);
         if (r.edge === "start") {
           const nextStart =
             t < r.previewEnd ? t : new Date(r.previewEnd.getTime() - SLOT_MINUTES * 60_000);
-          return { ...r, previewStart: nextStart };
+          return { ...r, moved: true, previewStart: nextStart };
         }
         const nextEnd =
           t > r.previewStart ? t : new Date(r.previewStart.getTime() + SLOT_MINUTES * 60_000);
-        return { ...r, previewEnd: nextEnd };
+        return { ...r, moved: true, previewEnd: nextEnd };
       });
     };
     const onUp = () => {
       setResize((r) => {
-        if (r) {
+        if (
+          r &&
+          shouldCommitResize({
+            moved: r.moved,
+            originStart: r.originStart,
+            originEnd: r.originEnd,
+            previewStart: r.previewStart,
+            previewEnd: r.previewEnd
+          })
+        ) {
           const { log, previewStart, previewEnd } = r;
+          suppressClick.current = true;
           deferToParent(() => onEntryResize(log, previewStart, previewEnd));
         }
         return null;
@@ -480,23 +513,21 @@ export function TimesheetCalendar({
       const hasToday = days.some((d) => isSameDayInZone(d, new Date(), timezone));
       if (hasToday) {
         const { hour, minute } = getZoneHourAndMinute(new Date(), timezone);
-        // Center the current hour/minute in the container (each hour is 80px high, 2 slots of 40px)
-        const currentPos = hour * 80 + (minute / 60) * 80;
+        const currentPos = hour * hourPx + (minute / 60) * hourPx;
         const containerHeight = container.clientHeight || 500;
         container.scrollTop = Math.max(0, currentPos - containerHeight / 2);
       } else {
-        // Default scroll position: 7:30 AM (7.5 * 80px = 600px) so 8 AM to 8 PM is centered/visible
-        container.scrollTop = 7.5 * 80;
+        container.scrollTop = 7.5 * hourPx;
       }
     };
 
     const handle = setTimeout(performScroll, 50);
     return () => clearTimeout(handle);
-  }, [view, days, timezone]);
+  }, [view, days, timezone, hourPx]);
 
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-card">
-      <p className="border-b border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+      <p className="border-b border-border/60 px-3 py-1.5 text-[11px] text-muted-foreground/80">
         <span className="hidden md:inline">
           Drag slots to log · Drag block to move · Resize edges · Click to edit ·{" "}
           <kbd className="rounded border border-border bg-muted px-1 font-sans text-[10px]">
@@ -512,7 +543,7 @@ export function TimesheetCalendar({
         ref={scrollContainerRef}
         className="max-h-[calc(100dvh-12rem)] overflow-x-auto overflow-y-auto select-none md:max-h-[calc(100dvh-13rem)]"
       >
-        <div style={gridMinWidth ? { minWidth: gridMinWidth } : undefined}>
+        <div className="w-full" style={gridMinWidth ? { minWidth: gridMinWidth } : undefined}>
           <div
             className="sticky top-0 z-40 grid border-b border-border bg-card"
             style={{ gridTemplateColumns }}
@@ -578,7 +609,8 @@ export function TimesheetCalendar({
               {slotRows.map(({ hour, minute }) => (
                 <div
                   key={`${hour}-${minute}`}
-                  className="flex h-10 items-start justify-end border-b border-border/60 pr-2 pt-0.5 text-[10px] text-muted-foreground"
+                  className="flex items-start justify-end border-b border-border/60 pr-2 pt-0.5 text-[10px] text-muted-foreground"
+                  style={{ height: slotPx }}
                 >
                   {minute === 0 ? labelTime(hour, minute) : null}
                 </div>
@@ -593,6 +625,7 @@ export function TimesheetCalendar({
                 elsewhereSegments={occupancyByDay.get(calendarDateKey(day, timezone)) ?? []}
                 showOccupancyOverlay={showOccupancyOverlay}
                 slotRows={slotRows}
+                slotPx={slotPx}
                 taskName={taskName}
                 taskInfo={taskInfo}
                 entryColor={entryColor}
@@ -648,14 +681,18 @@ export function TimesheetCalendar({
                   }
                   deferToParent(() => onEntryClick(log));
                 }}
-                onResizeStart={(log, clip, edge) => {
+                onResizeStart={(log, clip, edge, clientY) => {
                   if (readOnly || isEntryLocked(log) || isEntryInactive(log)) return;
                   setResize({
                     log,
                     day,
                     edge,
+                    originStart: clip.start,
+                    originEnd: clip.end,
                     previewStart: clip.start,
-                    previewEnd: clip.end
+                    previewEnd: clip.end,
+                    originClientY: clientY,
+                    moved: false
                   });
                 }}
                 onDuplicateDragStart={startDuplicateDrag}
@@ -666,6 +703,20 @@ export function TimesheetCalendar({
           </div>
         </div>
       </div>
+      {onZoomIn && onZoomOut && onZoomReset ? (
+        <div className="flex items-center justify-between gap-3 border-t border-border bg-muted/20 px-3 py-2">
+          <p className="hidden text-[11px] text-muted-foreground sm:block">
+            Zoom the time grid for denser or taller slots
+          </p>
+          <TimesheetZoomControls
+            slotPx={slotPx}
+            onZoomIn={onZoomIn}
+            onZoomOut={onZoomOut}
+            onReset={onZoomReset}
+            className="ml-auto"
+          />
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -677,6 +728,7 @@ const DayColumn = memo(function DayColumn({
   elsewhereSegments,
   showOccupancyOverlay,
   slotRows,
+  slotPx,
   taskName,
   taskInfo,
   entryColor,
@@ -709,6 +761,7 @@ const DayColumn = memo(function DayColumn({
   elsewhereSegments: ReturnType<typeof buildDayOccupancySegments>;
   showOccupancyOverlay: boolean;
   slotRows: { hour: number; minute: number }[];
+  slotPx: number;
   taskName: (taskId: string) => string;
   taskInfo: (taskId: string) => CalendarTaskInfo;
   entryColor: (taskId: string) => string;
@@ -738,7 +791,12 @@ const DayColumn = memo(function DayColumn({
   onSlotPointerEnter: (index: number) => void;
   onSlotClick: (hour: number, minute: number) => void;
   onEntryClick: (log: TimeLogDto) => void;
-  onResizeStart: (log: TimeLogDto, clip: { start: Date; end: Date }, edge: "start" | "end") => void;
+  onResizeStart: (
+    log: TimeLogDto,
+    clip: { start: Date; end: Date },
+    edge: "start" | "end",
+    clientY: number
+  ) => void;
   onDuplicateDragStart: (
     log: TimeLogDto,
     clip: { start: Date; end: Date },
@@ -789,11 +847,12 @@ const DayColumn = memo(function DayColumn({
             key={`${hour}-${minute}`}
             type="button"
             className={cn(
-              "block h-10 w-full touch-manipulation border-b border-border/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+              "block w-full touch-manipulation border-b border-border/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
               !readOnly && !slotBlocked && "hover:bg-primary/10",
               isSlotSelected(index) && "bg-primary/25",
               slotBlocked && "cursor-not-allowed"
             )}
+            style={{ height: slotPx }}
             aria-label={formatSlotLabel(hour, minute)}
             aria-disabled={slotBlocked || undefined}
             title={
@@ -880,7 +939,10 @@ const DayColumn = memo(function DayColumn({
             );
             return (
               <div
-                className="absolute left-0.5 right-0.5 z-20 rounded border border-destructive/70 ring-1 ring-destructive/25"
+                className={cn(
+                  "absolute z-20 rounded border border-destructive/70",
+                  CALENDAR_ENTRY_INSET_X
+                )}
                 style={{
                   top: style.top,
                   height: style.height,
@@ -912,7 +974,10 @@ const DayColumn = memo(function DayColumn({
             return (
               <div
                 key="active-timer-live"
-                className="pointer-events-none absolute left-0.5 right-0.5 z-20 overflow-hidden rounded-md border-2 border-emerald-500/80 bg-emerald-500/15 shadow-md ring-2 ring-emerald-500/20"
+                className={cn(
+                  "pointer-events-none absolute z-20 overflow-hidden rounded-[3px] border border-emerald-500/70 bg-emerald-500/15",
+                  CALENDAR_ENTRY_INSET_X
+                )}
                 style={{
                   top: style.top,
                   height: style.height,
@@ -926,6 +991,7 @@ const DayColumn = memo(function DayColumn({
                     task={info}
                     durationSec={liveElapsedSec ?? activeTimer.elapsedSec}
                     compact={compact}
+                    slotPx={slotPx}
                     variant="live"
                     liveElapsedSec={liveElapsedSec ?? activeTimer.elapsedSec}
                   />
@@ -949,18 +1015,26 @@ const DayColumn = memo(function DayColumn({
           const colors = inactive
             ? inactiveEntryColors()
             : entryColorsFromProject(entryColor(log.taskId));
+          const durationSec = Math.max(
+            0,
+            Math.round((display.end.getTime() - display.start.getTime()) / 1000)
+          );
+          const chromeClass = calendarEntryChromeClass(durationSec, {
+            dashed: submissionLocked && !inactive,
+            dotted: timer && !locked
+          });
+          const contentPad = calendarEntryContentPaddingClass(durationSec);
 
           return (
             <div
               key={`${log.id}-${clip.start.toISOString()}`}
               className={cn(
-                "pointer-events-auto absolute left-0.5 right-0.5 overflow-hidden rounded-md border shadow-sm",
+                "group/entry pointer-events-auto absolute overflow-hidden",
+                CALENDAR_ENTRY_INSET_X,
+                chromeClass,
                 (isDraggingCopy || isDraggingMove) && "opacity-40",
                 inactive && "opacity-90",
-                submissionLocked &&
-                  !inactive &&
-                  "border-dashed border-muted-foreground/40 opacity-95",
-                timer && !locked && "border-dotted border-muted-foreground/35"
+                submissionLocked && !inactive && "opacity-95"
               )}
               style={{
                 top: style.top,
@@ -972,17 +1046,18 @@ const DayColumn = memo(function DayColumn({
             >
               {!entryReadOnly && (
                 <div
-                  className="absolute inset-x-0 top-0 z-10 h-1.5 max-md:h-3 cursor-ns-resize bg-black/15"
+                  className="absolute inset-x-0 top-0 z-10 h-1 max-md:h-2.5 cursor-ns-resize opacity-40 transition-opacity md:opacity-0 md:group-hover/entry:opacity-100 hover:!opacity-100 bg-black/20"
                   onPointerDown={(e) => {
                     e.stopPropagation();
-                    onResizeStart(log, clip, "start");
+                    onResizeStart(log, clip, "start", e.clientY);
                   }}
                 />
               )}
               <button
                 type="button"
                 className={cn(
-                  "relative z-10 h-full w-full px-1.5 py-0.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  "relative z-10 h-full w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  contentPad,
                   !isDraggingCopy &&
                     !isDraggingMove &&
                     !entryReadOnly &&
@@ -1034,6 +1109,7 @@ const DayColumn = memo(function DayColumn({
                   description={log.description}
                   durationSec={log.durationSec}
                   compact={compact}
+                  slotPx={slotPx}
                   variant={
                     inactive
                       ? "inactive"
@@ -1047,10 +1123,10 @@ const DayColumn = memo(function DayColumn({
               </button>
               {!entryReadOnly && (
                 <div
-                  className="absolute inset-x-0 bottom-0 z-10 h-1.5 max-md:h-3 cursor-ns-resize bg-black/15"
+                  className="absolute inset-x-0 bottom-0 z-10 h-1 max-md:h-2.5 cursor-ns-resize opacity-40 transition-opacity md:opacity-0 md:group-hover/entry:opacity-100 hover:!opacity-100 bg-black/20"
                   onPointerDown={(e) => {
                     e.stopPropagation();
-                    onResizeStart(log, clip, "end");
+                    onResizeStart(log, clip, "end", e.clientY);
                   }}
                 />
               )}
@@ -1192,9 +1268,10 @@ function EntryGhost({
   return (
     <div
       className={cn(
-        "absolute left-0.5 right-0.5 z-20 overflow-hidden rounded border-2 px-1 py-0.5 shadow-md",
+        "absolute z-20 overflow-hidden rounded-[3px] border px-1 py-0.5 shadow-sm",
+        CALENDAR_ENTRY_INSET_X,
         variant === "duplicate" && !invalid && "border-dashed opacity-70",
-        invalid && "border-destructive/70 ring-1 ring-destructive/25"
+        invalid && "border-destructive/70"
       )}
       style={{
         top: style.top,

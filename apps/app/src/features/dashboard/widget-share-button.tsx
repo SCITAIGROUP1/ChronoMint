@@ -30,7 +30,7 @@ export type WidgetShareButtonProps = {
   endDate: string;
   projectId?: string | string[];
   userId?: string | string[];
-  categoryId?: string;
+  categoryId?: string | string[];
   taskId?: string;
   options?: Record<string, unknown>;
   timezone?: string;
@@ -71,9 +71,13 @@ export function WidgetShareButton({
             widgetId: widgetId as WidgetShareTier1Id,
             from,
             to,
-            ...(projectId ? { projectId } : {}),
-            ...(userId ? { userId } : {}),
-            ...(categoryId ? { categoryId } : {}),
+            ...(projectId && (!Array.isArray(projectId) || projectId.length > 0)
+              ? { projectId }
+              : {}),
+            ...(userId && (!Array.isArray(userId) || userId.length > 0) ? { userId } : {}),
+            ...(categoryId && (!Array.isArray(categoryId) || categoryId.length > 0)
+              ? { categoryId }
+              : {}),
             ...(taskId ? { taskId } : {}),
             ...(options ? { options } : {})
           },

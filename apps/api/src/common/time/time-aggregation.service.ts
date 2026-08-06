@@ -12,12 +12,18 @@ export type ExportFilters = {
   projectIds?: string[];
   userId?: string | string[];
   userIds?: string[];
-  categoryId?: string;
+  categoryId?: string | string[];
   taskId?: string;
   billable?: ExportBillableFilter;
 };
 
 const UNCATEGORIZED_LABEL = "Uncategorized";
+
+function normalizeIdList(value?: string | string[]): string[] {
+  if (!value) return [];
+  const list = Array.isArray(value) ? value : [value];
+  return [...new Set(list.filter(Boolean))];
+}
 
 function categoryMeta(log: {
   task: { categoryId: string; category: { id: string; name: string } | null };
@@ -84,11 +90,19 @@ export class TimeAggregationService {
       projectWhere.id = uniquePIds.length === 1 ? uniquePIds[0] : { in: uniquePIds };
     }
 
+    const categoryIds = normalizeIdList(filters.categoryId);
+    const categoryWhere =
+      categoryIds.length === 0
+        ? {}
+        : categoryIds.length === 1
+          ? { categoryId: categoryIds[0] }
+          : { categoryId: { in: categoryIds } };
+
     return this.prisma.timeLog.findMany({
       where: {
         ...(filters.taskId ? { taskId: filters.taskId } : {}),
         task: {
-          ...(filters.categoryId ? { categoryId: filters.categoryId } : {}),
+          ...categoryWhere,
           project: projectWhere
         },
         startTime: { gte: filters.from, lte: filters.to },

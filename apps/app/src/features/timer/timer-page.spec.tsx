@@ -35,6 +35,9 @@ const stop = vi.fn().mockResolvedValue({
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
+const toggleProject = vi.fn();
+const toggleTask = vi.fn();
+
 vi.mock("@kloqra/web-shared", async (importOriginal) => {
   const actual = await importOriginal<typeof WebSharedModule>();
   return {
@@ -45,13 +48,37 @@ vi.mock("@kloqra/web-shared", async (importOriginal) => {
       dateFormat: "MM/dd/yyyy",
       timeFormat: "24h"
     }),
+    useEntryFavorites: () => ({
+      favorites: {
+        version: 2,
+        projects: ["project-fav"],
+        tasks: [{ projectId: "project-1", taskId: "task-fav", taskName: "Favorite Build" }]
+      },
+      favoriteProjectIds: ["project-fav"],
+      favoriteTaskIds: ["task-fav"],
+      toggleProject,
+      toggleTask,
+      loading: false
+    }),
     useEntryCatalogQueries: () => ({
-      projects: [{ id: "project-1", name: "Platform API", color: "#7c3aed", isActive: true }],
+      projects: [
+        { id: "project-1", name: "Platform API", color: "#7c3aed", isActive: true },
+        { id: "project-fav", name: "Favorite Project", color: "#111111", isActive: true }
+      ],
       tasks: [
         {
           id: "task-1",
           projectId: "project-1",
           taskName: "Build",
+          categoryName: "Dev",
+          isActive: true,
+          billableDefault: true
+        },
+        {
+          id: "task-fav",
+          projectId: "project-1",
+          taskName: "Favorite Build",
+          categoryName: "Dev",
           isActive: true,
           billableDefault: true
         }
@@ -177,7 +204,7 @@ vi.mock("@kloqra/ui", async (importOriginal) => {
   };
 });
 
-describe("TimerPage description field", () => {
+describe("TimerPage", () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
@@ -203,5 +230,38 @@ describe("TimerPage description field", () => {
     expect(screen.getByPlaceholderText("What are you working on?")).toBeTruthy();
     fireEvent.change(description, { target: { value: "Platform work" } });
     expect(description).toHaveProperty("value", "Platform work");
+  });
+
+  it("lists favorite projects first in the project dropdown", async () => {
+    render(<TimerPage />);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Project")).toBeTruthy();
+    });
+
+    const projectSelect = screen.getByLabelText("Project");
+    const options = [...projectSelect.querySelectorAll("option")].filter((o) => o.value);
+    expect(options.map((o) => o.value)).toEqual(["project-fav", "project-1"]);
+    expect(options[0]?.textContent).toContain("Favorite Project");
+  });
+
+  it("lists favorite tasks first after selecting a project", async () => {
+    render(<TimerPage />);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Project")).toBeTruthy();
+    });
+
+    fireEvent.change(screen.getByLabelText("Project"), { target: { value: "project-1" } });
+
+    await waitFor(() => {
+      const taskSelect = screen.getByLabelText("Task");
+      expect(taskSelect).not.toHaveProperty("disabled", true);
+    });
+
+    const taskSelect = screen.getByLabelText("Task");
+    const options = [...taskSelect.querySelectorAll("option")].filter((o) => o.value);
+    expect(options.map((o) => o.value)).toEqual(["task-fav", "task-1"]);
+    expect(options[0]?.textContent).toContain("Favorite Build");
   });
 });

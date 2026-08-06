@@ -118,4 +118,31 @@ describe("SearchableSelect", () => {
     await user.click(screen.getByRole("combobox", { name: "Workspace member" }));
     expect(screen.getByPlaceholderText("Search by name or email…")).toBeVisible();
   });
+
+  it("toggles favorite without selecting the option", async () => {
+    const user = userEvent.setup();
+    const onValueChange = vi.fn();
+    const onToggleFavorite = vi.fn();
+
+    render(
+      <SearchableSelect
+        value="all"
+        onValueChange={onValueChange}
+        options={OPTIONS}
+        favoritedValues={["u1"]}
+        onToggleFavorite={onToggleFavorite}
+        aria-label="Member"
+      />
+    );
+
+    await user.click(screen.getByRole("combobox", { name: "Member" }));
+    expect(screen.getByRole("button", { name: "Unfavorite Alex Chen" })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+
+    await user.click(screen.getByRole("button", { name: "Favorite Sam Rivera" }));
+    expect(onToggleFavorite).toHaveBeenCalledWith("u2");
+    expect(onValueChange).not.toHaveBeenCalled();
+  });
 });

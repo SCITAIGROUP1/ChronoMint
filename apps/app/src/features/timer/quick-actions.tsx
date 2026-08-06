@@ -3,18 +3,15 @@
 import { ROUTES } from "@kloqra/contracts";
 import { Card, CardContent, CardHeader, CardTitle, Button, ProjectColorDot } from "@kloqra/ui";
 import {
-  readScopedJSON,
-  scopedStorageKey,
+  MAX_FAVORITE_TASKS,
   useEntryCatalogQueries,
-  useTimelogListQuery,
-  writeScopedJSON
+  useEntryFavorites,
+  useTimelogListQuery
 } from "@kloqra/web-shared";
 import { Star, History, Pin, PinOff, Clock, TrendingUp } from "lucide-react";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { api } from "@/lib/api";
 import { useSessionStore } from "@/stores/session.store";
-
-const LEGACY_FAVORITES_KEY = "kloqra_favorites";
 
 export type QuickActionsProps = {
   onSelect: (projectId: string, taskId: string) => void;
@@ -23,14 +20,6 @@ export type QuickActionsProps = {
   filterProjectId?: string;
   mode?: "favorites" | "recents" | "all";
 };
-
-interface FavoriteItem {
-  projectId: string;
-  taskId: string;
-  projectName: string;
-  taskName: string;
-  projectColor: string;
-}
 
 interface RecentItem {
   projectId: string;
@@ -50,10 +39,11 @@ export function QuickActions({
 }: QuickActionsProps) {
   const session = useSessionStore((s) => s.session);
   const ws = session?.workspaceId ?? "";
+  const userId = session?.user?.id;
   const catalog = useEntryCatalogQueries(ws, { enabled: Boolean(ws) });
   const { projects, tasks } = catalog;
+  const { favorites, toggleTask } = useEntryFavorites(userId, ws);
 
-  const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
   const [recents, setRecents] = useState<RecentItem[]>([]);
   const [yesterday, setYesterday] = useState<{
     totalSec: number;
@@ -63,9 +53,9 @@ export function QuickActions({
   } | null>(null);
 
   const filteredFavorites = useMemo(() => {
-    if (!filterProjectId) return favorites;
-    return favorites.filter((f) => f.projectId === filterProjectId);
-  }, [favorites, filterProjectId]);
+    if (!filterProjectId) return favorites.tasks;
+    return favorites.tasks.filter((f) => f.projectId === filterProjectId);
+  }, [favorites.tasks, filterProjectId]);
 
   const filteredRecents = useMemo(() => {
     if (!filterProjectId) return recents;
@@ -87,36 +77,6 @@ export function QuickActions({
     recentsPath,
     Boolean(ws && projects.length > 0 && tasks.length > 0)
   );
-
-  // Load favorites from scoped localStorage
-  useEffect(() => {
-    const userId = session?.user?.id;
-    if (!userId) return;
-    try {
-      const key = scopedStorageKey("favorites", { userId });
-      const legacy = localStorage.getItem(LEGACY_FAVORITES_KEY);
-      if (legacy && !localStorage.getItem(key)) {
-        localStorage.setItem(key, legacy);
-        localStorage.removeItem(LEGACY_FAVORITES_KEY);
-      }
-      const stored = readScopedJSON<FavoriteItem[]>(key);
-      if (stored) setFavorites(stored);
-    } catch {
-      // ignore
-    }
-  }, [session?.user?.id]);
-
-  const saveFavorites = (items: FavoriteItem[]) => {
-    setFavorites(items);
-    const userId = session?.user?.id;
-    if (!userId) return;
-    try {
-      writeScopedJSON(scopedStorageKey("favorites", { userId }), items);
-      localStorage.removeItem(LEGACY_FAVORITES_KEY);
-    } catch {
-      // ignore
-    }
-  };
 
   // Build recents list from shared timelog query cache
   useEffect(() => {
@@ -170,53 +130,33 @@ export function QuickActions({
 
   const toggleFavorite = () => {
     if (!currentProjectId || !currentTaskId) return;
-
-    const existingIndex = favorites.findIndex((f) => f.taskId === currentTaskId);
-    if (existingIndex > -1) {
-      // Remove it
-      const updated = favorites.filter((_, i) => i !== existingIndex);
-      saveFavorites(updated);
-    } else {
-      // Add it
-      const task = tasks.find((t) => t.id === currentTaskId);
-      const project = projects.find((p) => p.id === currentProjectId);
-
-      if (task && project) {
-        if (favorites.length >= 3) {
-          // Keep max 3 favorites
-          saveFavorites([
-            ...favorites.slice(1),
-            {
-              projectId: project.id,
-              taskId: task.id,
-              projectName: project.name,
-              taskName: task.taskName,
-              projectColor: project.color
-            }
-          ]);
-        } else {
-          saveFavorites([
-            ...favorites,
-            {
-              projectId: project.id,
-              taskId: task.id,
-              projectName: project.name,
-              taskName: task.taskName,
-              projectColor: project.color
-            }
-          ]);
-        }
-      }
-    }
+    const task = tasks.find((t) => t.id === currentTaskId);
+    const project = projects.find((p) => p.id === currentProjectId);
+    if (!task || !project) return;
+    toggleTask({
+      projectId: project.id,
+      taskId: task.id,
+      projectName: project.name,
+      taskName: task.taskName,
+      projectColor: project.color
+    });
   };
 
-  const isCurrentFavorite = favorites.some((f) => f.taskId === currentTaskId);
+  const isCurrentFavorite = favorites.tasks.some((f) => f.taskId === currentTaskId);
 
   function formatHours(sec: number) {
     const h = Math.floor(sec / 3600);
     const m = Math.floor((sec % 3600) / 60);
     if (h === 0) return `${m}m`;
     return m === 0 ? `${h}h` : `${h}h ${m}m`;
+  }
+
+  function favoriteLabel(f: (typeof favorites.tasks)[number]) {
+    return {
+      projectName: f.projectName ?? projects.find((p) => p.id === f.projectId)?.name ?? "Project",
+      taskName: f.taskName ?? tasks.find((t) => t.id === f.taskId)?.taskName ?? "Task",
+      projectColor: f.projectColor ?? projects.find((p) => p.id === f.projectId)?.color ?? "#236bfe"
+    };
   }
 
   if (mode === "favorites") {
@@ -228,23 +168,28 @@ export function QuickActions({
           </p>
         ) : (
           <div className="flex flex-col gap-2">
-            {filteredFavorites.map((f) => (
-              <Button
-                key={f.taskId}
-                variant="outline"
-                size="sm"
-                className="w-full py-2 h-auto hover:bg-muted flex items-center justify-between text-xs px-3"
-                onClick={() => onSelect(f.projectId, f.taskId)}
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <ProjectColorDot color={f.projectColor} size="sm" className="shrink-0" />
-                  <span className="font-semibold text-foreground truncate">{f.projectName}</span>
-                </div>
-                <span className="text-muted-foreground truncate ml-4 text-xs font-normal">
-                  {f.taskName}
-                </span>
-              </Button>
-            ))}
+            {filteredFavorites.map((f) => {
+              const labels = favoriteLabel(f);
+              return (
+                <Button
+                  key={f.taskId}
+                  variant="outline"
+                  size="sm"
+                  className="w-full py-2 h-auto hover:bg-muted flex items-center justify-between text-xs px-3"
+                  onClick={() => onSelect(f.projectId, f.taskId)}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <ProjectColorDot color={labels.projectColor} size="sm" className="shrink-0" />
+                    <span className="font-semibold text-foreground truncate">
+                      {labels.projectName}
+                    </span>
+                  </div>
+                  <span className="text-muted-foreground truncate ml-4 text-xs font-normal">
+                    {labels.taskName}
+                  </span>
+                </Button>
+              );
+            })}
           </div>
         )}
       </div>
@@ -325,7 +270,7 @@ export function QuickActions({
           <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <Star className="size-4 text-yellow-500 fill-yellow-500" />
-              <span>Pinned Favorites (Max 3)</span>
+              <span>Pinned Favorites (Max {MAX_FAVORITE_TASKS})</span>
             </CardTitle>
             {currentProjectId && currentTaskId && (
               <Button
@@ -350,25 +295,32 @@ export function QuickActions({
               </p>
             ) : (
               <div className="flex flex-col gap-2">
-                {filteredFavorites.map((f) => (
-                  <Button
-                    key={f.taskId}
-                    variant="outline"
-                    size="sm"
-                    className="w-full py-2 h-auto hover:bg-muted flex items-center justify-between text-xs px-3"
-                    onClick={() => onSelect(f.projectId, f.taskId)}
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <ProjectColorDot color={f.projectColor} size="sm" className="shrink-0" />
-                      <span className="font-semibold text-foreground truncate">
-                        {f.projectName}
+                {filteredFavorites.map((f) => {
+                  const labels = favoriteLabel(f);
+                  return (
+                    <Button
+                      key={f.taskId}
+                      variant="outline"
+                      size="sm"
+                      className="w-full py-2 h-auto hover:bg-muted flex items-center justify-between text-xs px-3"
+                      onClick={() => onSelect(f.projectId, f.taskId)}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <ProjectColorDot
+                          color={labels.projectColor}
+                          size="sm"
+                          className="shrink-0"
+                        />
+                        <span className="font-semibold text-foreground truncate">
+                          {labels.projectName}
+                        </span>
+                      </div>
+                      <span className="text-muted-foreground truncate ml-4 text-xs font-normal">
+                        {labels.taskName}
                       </span>
-                    </div>
-                    <span className="text-muted-foreground truncate ml-4 text-xs font-normal">
-                      {f.taskName}
-                    </span>
-                  </Button>
-                ))}
+                    </Button>
+                  );
+                })}
               </div>
             )}
           </CardContent>

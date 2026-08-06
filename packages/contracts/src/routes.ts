@@ -155,6 +155,12 @@ export const ROUTES = {
     STREAM: "/presence/stream",
     SNAPSHOT: "/presence/snapshot"
   },
+  FAVORITES: {
+    LIST: "/favorites",
+    PROJECT: (projectId: string) => `/favorites/projects/${projectId}`,
+    TASK: (taskId: string) => `/favorites/tasks/${taskId}`,
+    IMPORT: "/favorites/import"
+  },
   EXPORT: {
     GENERATE: "/export",
     PREVIEW: "/export/preview",

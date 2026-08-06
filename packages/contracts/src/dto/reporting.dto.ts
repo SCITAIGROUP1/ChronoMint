@@ -15,7 +15,7 @@ export const reportQuerySchema = z
     to: isoDatetimeSchema,
     projectId: queryUuidArraySchema,
     userId: queryUuidArraySchema,
-    categoryId: uuidSchema.optional(),
+    categoryId: queryUuidArraySchema,
     taskId: uuidSchema.optional()
   })
   .superRefine((v, ctx) => assertMaxDateRange(v.from, v.to, ctx));
@@ -150,7 +150,7 @@ export const taskBreakdownResponseSchema = z.object({
 export type TaskBreakdownResponseDto = z.infer<typeof taskBreakdownResponseSchema>;
 
 export const myWeekQuerySchema = z.object({
-  categoryId: uuidSchema.optional()
+  categoryId: queryUuidArraySchema
 });
 
 export type MyWeekQueryDto = z.infer<typeof myWeekQuerySchema>;
@@ -189,7 +189,7 @@ export const utilizationQuerySchema = z
     to: isoDatetimeSchema,
     userId: queryUuidArraySchema,
     projectId: queryUuidArraySchema,
-    categoryId: uuidSchema.optional(),
+    categoryId: queryUuidArraySchema,
     taskId: uuidSchema.optional()
   })
   .merge(listPaginationQuerySchema)

@@ -24,6 +24,8 @@ type CalendarEntryContentProps = {
   compact: boolean;
   variant?: "default" | "timer" | "live" | "locked" | "inactive";
   liveElapsedSec?: number;
+  /** Pixels per 30-minute slot (timesheet zoom). */
+  slotPx?: number;
 };
 
 export function CalendarEntryContent({
@@ -32,7 +34,8 @@ export function CalendarEntryContent({
   durationSec,
   compact,
   variant = "default",
-  liveElapsedSec
+  liveElapsedSec,
+  slotPx
 }: CalendarEntryContentProps) {
   const elapsedLabel =
     variant === "live" && liveElapsedSec !== undefined
@@ -51,7 +54,8 @@ export function CalendarEntryContent({
   const estimatedLines = estimateDescriptionLineClamp(durationSec, {
     compact,
     hasProject,
-    hasCategoryRow
+    hasCategoryRow,
+    slotPx
   });
   const descriptionWrapRef = useRef<HTMLDivElement>(null);
   const [lineClamp, setLineClamp] = useState(estimatedLines);

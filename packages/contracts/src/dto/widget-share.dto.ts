@@ -85,7 +85,7 @@ export const widgetShareBodySchema = z
     to: isoDatetimeSchema,
     projectId: queryUuidArraySchema,
     userId: queryUuidArraySchema,
-    categoryId: uuidSchema.optional(),
+    categoryId: queryUuidArraySchema,
     taskId: uuidSchema.optional(),
     options: z.record(z.union([z.string(), z.number(), z.boolean()])).optional()
   })
@@ -98,7 +98,7 @@ export const widgetShareStoredBodySchema = z
     to: isoDatetimeSchema,
     projectId: queryUuidArraySchema,
     userId: queryUuidArraySchema,
-    categoryId: uuidSchema.optional(),
+    categoryId: queryUuidArraySchema,
     taskId: uuidSchema.optional(),
     options: z.record(z.union([z.string(), z.number(), z.boolean()])).optional()
   })
