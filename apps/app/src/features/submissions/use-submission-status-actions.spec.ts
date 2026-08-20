@@ -49,6 +49,12 @@ describe("submitButtonLabel", () => {
     expect(submitButtonLabel("monthly")).toBe("Submit month");
     expect(submitButtonLabel("weekly")).toBe("Submit");
   });
+
+  it("maps approval period to early-submit copy", () => {
+    expect(submitButtonLabel("daily", { early: true })).toBe("Submit day early");
+    expect(submitButtonLabel("monthly", { early: true })).toBe("Submit month early");
+    expect(submitButtonLabel("weekly", { early: true })).toBe("Submit early");
+  });
 });
 
 describe("useSubmissionStatusActions", () => {

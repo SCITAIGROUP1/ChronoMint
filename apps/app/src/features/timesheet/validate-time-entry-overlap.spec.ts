@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { OccupancyItem } from "./validate-time-entry-overlap";
-import { overlapMessageFromItems } from "./validate-time-entry-overlap";
+import { overlapMessageFromItems, timeEntryOverlapNotice } from "./validate-time-entry-overlap";
 
 const sampleItem: OccupancyItem = {
   id: "other",
@@ -57,5 +57,25 @@ describe("overlapMessageFromItems", () => {
       "log-1"
     );
     expect(msg).toBeNull();
+  });
+});
+
+describe("timeEntryOverlapNotice", () => {
+  it("explains the overlapping slot in the dialog", () => {
+    const msg = timeEntryOverlapNotice(
+      [
+        {
+          ...sampleItem,
+          startTime: "2026-06-09T09:00:00.000Z",
+          endTime: "2026-06-09T11:00:00.000Z"
+        }
+      ],
+      new Date("2026-06-09T09:00:00.000Z"),
+      new Date("2026-06-09T11:00:00.000Z"),
+      "UTC"
+    );
+    expect(msg).toMatch(/This time overlaps an existing entry/i);
+    expect(msg).toMatch(/Acme: Design/i);
+    expect(msg).toMatch(/Change the date or time to save/i);
   });
 });

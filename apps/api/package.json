@@ -23,6 +23,7 @@
     "preprisma:seed": "corepack pnpm -C ../../packages/contracts run build",
     "prisma:seed": "prisma generate && tsx --tsconfig tsconfig.seed.json prisma/seed.ts",
     "prisma:seed:minimal": "prisma generate && SEED_MODE=minimal tsx --tsconfig tsconfig.seed.json prisma/seed.ts",
+    "prisma:seed:member-rich": "prisma generate && tsx --tsconfig tsconfig.seed.json prisma/seed-member-rich-timelogs.ts",
     "prisma:validate": "prisma validate"
   },
   "prisma": {

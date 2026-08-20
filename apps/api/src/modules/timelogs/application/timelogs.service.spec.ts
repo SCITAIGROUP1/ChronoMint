@@ -175,6 +175,36 @@ describe("TimelogsService list", () => {
     );
   });
 
+  it("lists only the requested member when a workspace admin passes userId", async () => {
+    const adminAuth = mockAuthorization();
+    adminAuth.evaluate.mockResolvedValue({ allowed: true });
+    service = new TimelogsService(
+      mockPrisma as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      adminAuth as never,
+      mockSubscriptions() as never,
+      mockWorkspaceDataRealtime() as never
+    );
+
+    await service.list("ws-1", "admin-1", "ADMIN", {
+      from: "2026-08-17T00:00:00.000Z",
+      to: "2026-08-24T00:00:00.000Z",
+      userId: "admin-1",
+      limit: 10
+    });
+
+    expect(mockPrisma.timeLog.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          userId: "admin-1"
+        })
+      })
+    );
+  });
+
   it("applies search and billableOnly filters", async () => {
     await service.list("ws-1", "user-1", "MEMBER", {
       from: "2026-06-01T00:00:00.000Z",

@@ -18,15 +18,22 @@ type TimeTrackerEntryActionsProps = {
   locked: boolean;
   onEdit: (log: TimeLogDto) => void;
   onDelete: (log: TimeLogDto) => void;
+  onDuplicate?: (log: TimeLogDto) => void;
 };
 
 export function TimeTrackerEntryActions({
   log,
   locked,
   onEdit,
-  onDelete
+  onDelete,
+  onDuplicate
 }: TimeTrackerEntryActionsProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+
+  function run(action: (next: TimeLogDto) => void) {
+    setMenuOpen(false);
+    action(log);
+  }
 
   return (
     <Popover open={menuOpen} onOpenChange={setMenuOpen}>
@@ -50,34 +57,17 @@ export function TimeTrackerEntryActions({
           )}
         >
           {locked ? (
-            <ShellMenuItem
-              onClick={() => {
-                setMenuOpen(false);
-                onEdit(log);
-              }}
-            >
-              View
-            </ShellMenuItem>
+            <ShellMenuItem onClick={() => run(onEdit)}>View</ShellMenuItem>
           ) : (
-            <>
-              <ShellMenuItem
-                onClick={() => {
-                  setMenuOpen(false);
-                  onEdit(log);
-                }}
-              >
-                Edit
-              </ShellMenuItem>
-              <ShellMenuItem
-                tone="destructive"
-                onClick={() => {
-                  setMenuOpen(false);
-                  onDelete(log);
-                }}
-              >
-                Delete
-              </ShellMenuItem>
-            </>
+            <ShellMenuItem onClick={() => run(onEdit)}>Edit</ShellMenuItem>
+          )}
+          {onDuplicate ? (
+            <ShellMenuItem onClick={() => run(onDuplicate)}>Duplicate</ShellMenuItem>
+          ) : null}
+          {locked ? null : (
+            <ShellMenuItem tone="destructive" onClick={() => run(onDelete)}>
+              Delete
+            </ShellMenuItem>
           )}
         </ShellMenuPanel>
       </PopoverContent>

@@ -67,16 +67,18 @@ export function DashboardPeriodFilter({
       <div className="min-w-0 shrink">
         <SegmentedControl value={range} onChange={onPresetChange} options={presets} size="sm" />
       </div>
-      <DateRangePicker
-        from={startDate}
-        to={endDate}
-        onChange={onDateRangeChange}
-        weekStartsOn={weekStartsOn}
-        ariaLabel={dateRangeAriaLabel}
-        className="h-9 w-auto min-w-[12.5rem] max-w-[16.5rem] shrink-0"
-        numberOfMonths={wideLayout ? 2 : 1}
-        popoverAlign="end"
-      />
+      {range === "all" ? null : (
+        <DateRangePicker
+          from={startDate}
+          to={endDate}
+          onChange={onDateRangeChange}
+          weekStartsOn={weekStartsOn}
+          ariaLabel={dateRangeAriaLabel}
+          className="h-9 w-auto min-w-[12.5rem] max-w-[16.5rem] shrink-0"
+          numberOfMonths={wideLayout ? 2 : 1}
+          popoverAlign="end"
+        />
+      )}
     </div>
   );
 }

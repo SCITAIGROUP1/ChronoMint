@@ -13,11 +13,23 @@ class ResizeObserverStub {
 vi.stubGlobal("ResizeObserver", ResizeObserverStub);
 HTMLElement.prototype.scrollIntoView = () => {};
 
+let occupancyItems: {
+  id: string;
+  startTime: string;
+  endTime: string;
+  source: "manual";
+  workspaceId: string;
+  workspaceName: string;
+  label: string;
+  isLocked: boolean;
+}[] = [];
+
 vi.mock("@kloqra/web-shared", async (importOriginal) => {
   const actual = await importOriginal();
   return {
     ...(actual as Record<string, unknown>),
     useCategoriesListQuery: () => ({ data: [] }),
+    useTimelogOccupancyQuery: () => ({ data: occupancyItems, isLoading: false }),
     useEntryFavorites: () => ({
       favorites: {
         version: 2,
@@ -104,6 +116,7 @@ const tasks: TaskDto[] = [
 ];
 
 afterEach(() => {
+  occupancyItems = [];
   cleanup();
   window.sessionStorage.clear();
 });
@@ -527,5 +540,43 @@ describe("TimeEntryDialog", () => {
       );
     });
     expect(screen.getByText(/restored your unsaved draft/i)).toBeTruthy();
+  });
+
+  it("shows an overlap alert in the modal and disables save", async () => {
+    occupancyItems = [
+      {
+        id: "existing-log",
+        startTime: "2026-06-09T13:04:00.000Z",
+        endTime: "2026-06-09T14:04:00.000Z",
+        source: "manual",
+        workspaceId: "ws-1",
+        workspaceName: "Acme",
+        label: "Client presentation",
+        isLocked: false
+      }
+    ];
+
+    render(
+      <TimeEntryDialog
+        open
+        title="Duplicate time entry"
+        draft={draft}
+        projects={[]}
+        tasks={[]}
+        taskLabel={() => "Task"}
+        workspaceId="ws-1"
+        timezone="UTC"
+        onClose={vi.fn()}
+        onDraftChange={vi.fn()}
+        onSave={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toBeTruthy();
+    });
+    expect(screen.getByRole("alert").textContent).toMatch(/This time overlaps an existing entry/i);
+    expect(screen.getByRole("alert").textContent).toMatch(/Client presentation/i);
+    expect(screen.getByRole("button", { name: "Log time" })).toHaveProperty("disabled", true);
   });
 });

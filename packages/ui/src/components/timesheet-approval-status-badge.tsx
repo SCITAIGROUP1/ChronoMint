@@ -29,10 +29,12 @@ const STATUS_CONFIG: Record<TimesheetApprovalStatus, { label: string; className:
 export function TimesheetApprovalStatusBadge({
   status,
   amendmentPending = false,
+  inProgress = false,
   className
 }: {
   status: TimesheetApprovalStatus;
   amendmentPending?: boolean;
+  inProgress?: boolean;
   className?: string;
 }) {
   if (amendmentPending) {
@@ -47,6 +49,22 @@ export function TimesheetApprovalStatusBadge({
         )}
       >
         Edit pending
+      </Badge>
+    );
+  }
+
+  if (inProgress && status === "DRAFT") {
+    return (
+      <Badge
+        variant="outline"
+        className={cn(
+          "font-medium text-[10px] uppercase tracking-wider py-0.5 px-2",
+          "bg-status-info-bg text-status-info-fg border-status-info-border",
+          "transition-[background-color,border-color,color] duration-[var(--motion-base)] ease-[var(--motion-ease-out)]",
+          className
+        )}
+      >
+        In progress
       </Badge>
     );
   }

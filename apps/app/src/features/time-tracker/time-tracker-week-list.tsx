@@ -54,6 +54,7 @@ export type TimeTrackerWeekListProps = {
   isEntryInactive?: (log: TimeLogDto) => boolean;
   onEdit: (log: TimeLogDto) => void;
   onDelete: (log: TimeLogDto) => void;
+  onDuplicate?: (log: TimeLogDto) => void;
   timezone: string;
   weekStartPref: "monday" | "sunday";
   rangeFrom: string;
@@ -239,6 +240,7 @@ type PersonalWeekSectionProps = {
   isEntryInactive?: (log: TimeLogDto) => boolean;
   onEdit: (log: TimeLogDto) => void;
   onDelete: (log: TimeLogDto) => void;
+  onDuplicate?: (log: TimeLogDto) => void;
   timezone: string;
   weekStartPref: "monday" | "sunday";
   rangeFrom: string;
@@ -258,6 +260,7 @@ function TimeTrackerWeekSection({
   isEntryInactive = () => false,
   onEdit,
   onDelete,
+  onDuplicate,
   timezone,
   weekStartPref,
   rangeFrom,
@@ -320,6 +323,7 @@ function TimeTrackerWeekSection({
                     inactive={isEntryInactive(log)}
                     onEdit={onEdit}
                     onDelete={onDelete}
+                    onDuplicate={onDuplicate}
                     readOnly={readOnly}
                     timezone={timezone}
                   />
@@ -431,6 +435,7 @@ export function TimeTrackerWeekList({
   isEntryInactive = () => false,
   onEdit,
   onDelete,
+  onDuplicate,
   timezone,
   weekStartPref,
   rangeFrom,
@@ -488,6 +493,7 @@ export function TimeTrackerWeekList({
           isEntryInactive={isEntryInactive}
           onEdit={onEdit}
           onDelete={onDelete}
+          onDuplicate={onDuplicate}
           timezone={timezone}
           weekStartPref={weekStartPref}
           rangeFrom={rangeFrom}

@@ -44,6 +44,7 @@
     "prisma:migrate": "pnpm --filter @kloqra/api prisma:migrate",
     "prisma:seed": "pnpm --filter @kloqra/api prisma:seed",
     "prisma:seed:minimal": "pnpm --filter @kloqra/api prisma:seed:minimal",
+    "prisma:seed:member-rich": "pnpm --filter @kloqra/api prisma:seed:member-rich",
     "prisma:validate": "pnpm --filter @kloqra/api prisma:validate",
     "deploy:migrate": "bash scripts/deploy/migrate.sh",
     "deploy:seed": "bash scripts/deploy/seed.sh",

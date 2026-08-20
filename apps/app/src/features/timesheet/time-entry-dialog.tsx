@@ -27,9 +27,10 @@ import {
   prioritizeByFavoriteIds,
   useCategoriesListQuery,
   useEntryFavorites,
-  useSessionStore
+  useSessionStore,
+  useTimelogOccupancyQuery
 } from "@kloqra/web-shared";
-import { ChevronDown, Clock } from "lucide-react";
+import { AlertTriangle, ChevronDown, Clock } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   addDurationToStartTime,
@@ -42,6 +43,7 @@ import { RepeatEntryPanel } from "./repeat-entry-panel";
 import {
   type TimeEntryDraft,
   canSaveTaskDraft,
+  draftToIsoRange,
   suggestBillableFromTask,
   taskSaveHint
 } from "./time-entry-draft";
@@ -52,6 +54,7 @@ import {
   timeEntryDraftStorageKey,
   writeTimeEntryDraftStorage
 } from "./time-entry-draft-storage";
+import { timeEntryOverlapNotice } from "./validate-time-entry-overlap";
 import { JiraIssuePicker } from "@/components/jira-issue-picker";
 import { api } from "@/lib/api";
 import { filterLoggingProjects, filterLoggingTasks } from "@/lib/logging-catalog-filters";
@@ -109,7 +112,7 @@ export function TimeEntryDialog({
   onDelete,
   readOnly = false,
   workspaceId,
-  timezone: _timezone = "UTC",
+  timezone = "UTC",
   jiraSuggestions = []
 }: TimeEntryDialogProps) {
   const userId = useSessionStore((s) => s.session?.user?.id);
@@ -264,6 +267,33 @@ export function TimeEntryDialog({
     [projectTasks, favoriteTaskIds]
   );
 
+  const occupancyRange = useMemo(() => {
+    if (!open || !draft || readOnly) return null;
+    const { startTime, endTime } = draftToIsoRange(draft, timezone);
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    if (!(end > start)) return null;
+    return { start, end, from: startTime, to: endTime };
+  }, [open, draft, readOnly, timezone]);
+
+  const { data: occupancyItems = [] } = useTimelogOccupancyQuery(
+    workspaceId ?? "",
+    occupancyRange?.from,
+    occupancyRange?.to,
+    Boolean(open && workspaceId && occupancyRange)
+  );
+
+  const overlapNotice =
+    occupancyRange && !readOnly
+      ? timeEntryOverlapNotice(
+          occupancyItems,
+          occupancyRange.start,
+          occupancyRange.end,
+          timezone,
+          editingLog?.id
+        )
+      : null;
+
   if (!mounted) return null;
 
   const canDelete = Boolean(editingLog && onDelete && !readOnly);
@@ -363,8 +393,8 @@ export function TimeEntryDialog({
           <Button
             type="submit"
             form="time-entry-form"
-            disabled={saving || !canSave}
-            title={saveHint ?? undefined}
+            disabled={saving || !canSave || Boolean(overlapNotice)}
+            title={overlapNotice ?? saveHint ?? undefined}
           >
             {saving ? "Saving…" : editingLog ? "Save changes" : "Log time"}
           </Button>
@@ -628,7 +658,8 @@ export function TimeEntryDialog({
                     onChange={(e) => handleStartChange(e.target.value)}
                     required
                     aria-label="Start time"
-                    aria-invalid={Boolean(parsedValidation.fieldErrors.start)}
+                    aria-invalid={Boolean(parsedValidation.fieldErrors.start || overlapNotice)}
+                    className={overlapNotice ? "border-destructive" : undefined}
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -643,7 +674,8 @@ export function TimeEntryDialog({
                     onChange={(e) => handleEndChange(e.target.value)}
                     required
                     aria-label="End time"
-                    aria-invalid={Boolean(parsedValidation.fieldErrors.end)}
+                    aria-invalid={Boolean(parsedValidation.fieldErrors.end || overlapNotice)}
+                    className={overlapNotice ? "border-destructive" : undefined}
                   />
                 </div>
               </div>
@@ -657,6 +689,15 @@ export function TimeEntryDialog({
               ) : null}
               {parsedValidation.fieldErrors.end ? (
                 <p className="text-xs text-destructive">{parsedValidation.fieldErrors.end}</p>
+              ) : null}
+              {overlapNotice ? (
+                <div
+                  role="alert"
+                  className="flex items-start gap-2 rounded-lg border border-status-danger-border bg-status-danger-bg px-3 py-2 text-sm text-status-danger-fg"
+                >
+                  <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
+                  <p>{overlapNotice}</p>
+                </div>
               ) : null}
             </div>
 
@@ -727,9 +768,11 @@ export function TimeEntryDialog({
                 deleted.
               </p>
             ) : null}
-            {parsedValidation.formError ? (
+            {!overlapNotice && parsedValidation.formError ? (
               <p className="text-sm text-destructive">{parsedValidation.formError}</p>
-            ) : error && Object.keys(parsedValidation.fieldErrors).length === 0 ? (
+            ) : !overlapNotice &&
+              error &&
+              Object.keys(parsedValidation.fieldErrors).length === 0 ? (
               <p className="text-sm text-destructive">{error}</p>
             ) : null}
           </form>

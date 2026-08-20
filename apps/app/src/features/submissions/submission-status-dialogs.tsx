@@ -16,6 +16,7 @@ export type SubmissionStatusDialogsProps = {
   periodLabel: string;
   amendmentSubmitting: boolean;
   onRequestAmendment: (reason: string) => void;
+  timezone?: string;
 };
 
 export function SubmissionStatusDialogs({
@@ -30,7 +31,8 @@ export function SubmissionStatusDialogs({
   projectName,
   periodLabel,
   amendmentSubmitting,
-  onRequestAmendment
+  onRequestAmendment,
+  timezone
 }: SubmissionStatusDialogsProps) {
   return (
     <>
@@ -41,6 +43,7 @@ export function SubmissionStatusDialogs({
         loading={previewLoading}
         submitting={submitting}
         onConfirm={onConfirmSubmit}
+        timezone={timezone}
       />
 
       <AmendmentRequestDialog

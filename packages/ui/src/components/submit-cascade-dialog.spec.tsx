@@ -66,4 +66,98 @@ describe("SubmitCascadeDialog", () => {
     expect(screen.getByText("Website")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Submit for review" })).toBeEnabled();
   });
+
+  it("warns when submitting a week that has not ended", () => {
+    const futureEnd = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
+    render(
+      <SubmitCascadeDialog
+        open
+        onOpenChange={() => {}}
+        preview={{
+          targetPeriod: {
+            id: "p1",
+            userId: "u1",
+            workspaceId: "w1",
+            projectId: "proj1",
+            projectName: "Brand Campaign Q2",
+            periodStart: "2026-08-16T18:30:00.000Z",
+            periodEnd: futureEnd,
+            approvalPeriod: "weekly",
+            status: "DRAFT",
+            note: null,
+            reviewNote: null,
+            reviewedBy: null,
+            submittedAt: null,
+            reviewedAt: null
+          },
+          cascadedPeriods: []
+        }}
+        timezone="Asia/Colombo"
+        onConfirm={() => {}}
+      />
+    );
+
+    expect(screen.getByText("Submit this week early?")).toBeInTheDocument();
+    expect(screen.getByText(/has not ended yet/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Submit early" })).toBeEnabled();
+  });
+
+  it("warns when submitting a day or month that has not ended", () => {
+    const futureEnd = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString();
+    const { rerender } = render(
+      <SubmitCascadeDialog
+        open
+        onOpenChange={() => {}}
+        preview={{
+          targetPeriod: {
+            id: "p1",
+            userId: "u1",
+            workspaceId: "w1",
+            projectId: "proj1",
+            projectName: "Daily Project",
+            periodStart: new Date().toISOString(),
+            periodEnd: futureEnd,
+            approvalPeriod: "daily",
+            status: "DRAFT",
+            note: null,
+            reviewNote: null,
+            reviewedBy: null,
+            submittedAt: null,
+            reviewedAt: null
+          },
+          cascadedPeriods: []
+        }}
+        onConfirm={() => {}}
+      />
+    );
+    expect(screen.getByText("Submit this day early?")).toBeInTheDocument();
+
+    rerender(
+      <SubmitCascadeDialog
+        open
+        onOpenChange={() => {}}
+        preview={{
+          targetPeriod: {
+            id: "p1",
+            userId: "u1",
+            workspaceId: "w1",
+            projectId: "proj1",
+            projectName: "Monthly Project",
+            periodStart: new Date().toISOString(),
+            periodEnd: futureEnd,
+            approvalPeriod: "monthly",
+            status: "DRAFT",
+            note: null,
+            reviewNote: null,
+            reviewedBy: null,
+            submittedAt: null,
+            reviewedAt: null
+          },
+          cascadedPeriods: []
+        }}
+        onConfirm={() => {}}
+      />
+    );
+    expect(screen.getByText("Submit this month early?")).toBeInTheDocument();
+  });
 });

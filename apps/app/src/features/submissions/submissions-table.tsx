@@ -15,7 +15,9 @@ import {
   TableRow,
   TimesheetApprovalStatusBadge,
   ConfirmDialog,
-  cn
+  cn,
+  openTimesheetPeriodCaption,
+  openTimesheetPeriodHint
 } from "@kloqra/ui";
 import {
   buildMemberTimesheetHrefFromSubmission,
@@ -321,7 +323,8 @@ function SubmissionTableRow({
   const [expanded, setExpanded] = useState(false);
   const isImpersonating = useIsImpersonating();
 
-  const actions = useSubmissionStatusActions(statusInfo, onSubmitted);
+  const actions = useSubmissionStatusActions(statusInfo, onSubmitted, timezone);
+  const periodOpen = actions.periodOpen;
 
   const isPeriodLocked =
     isImpersonating ||
@@ -339,7 +342,8 @@ function SubmissionTableRow({
       <TableRow
         id={`submission-row-${statusInfo.projectId}`}
         className={cn(
-          highlighted && "bg-primary/5 ring-1 ring-inset ring-primary/30 animate-highlight-pulse"
+          highlighted && "bg-primary/5 ring-1 ring-inset ring-primary/30 animate-highlight-pulse",
+          periodOpen && !highlighted && "bg-status-info-bg/50"
         )}
       >
         <DataTableCell className="w-8">
@@ -358,7 +362,14 @@ function SubmissionTableRow({
           </Button>
         </DataTableCell>
         <DataTableCell className="whitespace-nowrap font-medium">
-          {actions.periodLabel}
+          <div className="flex flex-col gap-0.5">
+            <span>{actions.periodLabel}</span>
+            {periodOpen ? (
+              <span className="text-[11px] font-normal text-status-info-fg">
+                {openTimesheetPeriodCaption(statusInfo.periodEnd, timezone)}
+              </span>
+            ) : null}
+          </div>
         </DataTableCell>
         <DataTableCell>
           <div className="flex max-w-[220px] items-center gap-1.5 truncate">
@@ -372,7 +383,7 @@ function SubmissionTableRow({
         </DataTableCell>
         <DataTableCell>
           <div className="flex flex-wrap items-center gap-1.5">
-            <TimesheetApprovalStatusBadge status={actions.status} />
+            <TimesheetApprovalStatusBadge status={actions.status} inProgress={periodOpen} />
             {actions.amendmentPending ? (
               <span className="text-[10px] px-2 py-0.5 rounded-full border font-medium bg-status-info-bg text-status-info-fg border-status-info-border">
                 Edit pending
@@ -386,13 +397,24 @@ function SubmissionTableRow({
               &quot;{actions.reviewNote}&quot;
             </p>
           ) : actions.canSubmit ? (
-            <Input
-              value={actions.note}
-              onChange={(e) => actions.setNote(e.target.value)}
-              placeholder="Optional note for approver"
-              disabled={actions.previewLoading || actions.submitting}
-              className="h-8 text-xs"
-            />
+            <div className="space-y-1.5">
+              {periodOpen ? (
+                <p className="text-[11px] leading-snug text-status-info-fg">
+                  {openTimesheetPeriodHint(
+                    statusInfo.approvalPeriod,
+                    statusInfo.periodEnd,
+                    timezone
+                  )}
+                </p>
+              ) : null}
+              <Input
+                value={actions.note}
+                onChange={(e) => actions.setNote(e.target.value)}
+                placeholder="Optional note for approver"
+                disabled={actions.previewLoading || actions.submitting}
+                className="h-8 text-xs"
+              />
+            </div>
           ) : (
             <span className="text-xs text-muted-foreground">—</span>
           )}
@@ -403,11 +425,14 @@ function SubmissionTableRow({
               <Button
                 type="button"
                 size="sm"
+                variant={periodOpen ? "outline" : "default"}
                 className="h-7 text-xs"
                 disabled={actions.previewLoading || actions.submitting}
                 onClick={() => void actions.loadPreview()}
               >
-                {actions.previewLoading ? "Loading…" : submitButtonLabel(statusInfo.approvalPeriod)}
+                {actions.previewLoading
+                  ? "Loading…"
+                  : submitButtonLabel(statusInfo.approvalPeriod, { early: periodOpen })}
               </Button>
             ) : null}
             {actions.canRequestEdit ? (
@@ -458,6 +483,7 @@ function SubmissionTableRow({
         periodLabel={actions.periodLabel}
         amendmentSubmitting={actions.amendmentSubmitting}
         onRequestAmendment={(reason) => void actions.requestAmendment(reason)}
+        timezone={timezone}
       />
     </>
   );

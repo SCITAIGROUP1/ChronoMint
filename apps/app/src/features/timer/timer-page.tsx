@@ -188,8 +188,9 @@ export function TimerPage() {
       from: startOfRecent.toISOString(),
       to: todayEnd.toISOString()
     });
+    if (userId) params.set("userId", userId);
     return `${ROUTES.TIMELOGS.LIST}?${params}`;
-  }, [ws, timezone]);
+  }, [ws, timezone, userId]);
 
   const { data: recentLogsData, refetch: refetchRecentLogs } = useTimelogListQuery(
     ws,

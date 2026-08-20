@@ -9,6 +9,13 @@ describe("TimesheetApprovalStatusBadge", () => {
     expect(html).toContain("Draft");
   });
 
+  it("renders in-progress draft distinctly from a due draft", () => {
+    const html = renderToStaticMarkup(<TimesheetApprovalStatusBadge status="DRAFT" inProgress />);
+    expect(html).toContain("In progress");
+    expect(html).toContain("status-info-bg");
+    expect(html).not.toContain("Draft");
+  });
+
   it("renders submitted status as Pending", () => {
     const html = renderToStaticMarkup(<TimesheetApprovalStatusBadge status="SUBMITTED" />);
     expect(html).toContain("Pending");

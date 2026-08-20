@@ -48,6 +48,24 @@ describe("DashboardPeriodFilter", () => {
     expect(onPresetChange).toHaveBeenCalledWith("today");
   });
 
+  it("hides the date range picker for all-time because that preset is unbounded", () => {
+    render(
+      <DashboardPeriodFilter
+        range="all"
+        onPresetChange={vi.fn()}
+        startDate="2000-01-01"
+        endDate="2026-08-20"
+        onDateRangeChange={vi.fn()}
+        presets={[...PRESETS, { value: "all", label: "All time" }]}
+        dateRangeAriaLabel="Project overview period"
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "All time" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Project overview period" })).toBeNull();
+    expect(screen.queryByText(/Jan 1, 2000/)).toBeNull();
+  });
+
   it("keeps period controls in a flexible container for responsive width", () => {
     const { container } = render(
       <DashboardPeriodFilter

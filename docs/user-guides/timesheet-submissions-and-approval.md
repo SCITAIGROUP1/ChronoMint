@@ -127,6 +127,8 @@ Use **Action needed** for day-to-day work; the badge on the menu counts items th
 4. Click **Submit** (or **Submit day** / **Submit month** depending on the period type).
 5. Confirm — the status becomes **Pending review** and that period’s entries lock.
 
+If the period is **still in progress** (today, this week, or this month has not ended yet), the row looks different: status is **In progress**, the action is **Submit early**, and a note explains that remaining hours in that period will lock if you submit now. You can wait until the period ends, or submit early if you are done.
+
 From a row you can **View timesheet** to jump to the calendar for that project and period.
 
 ### If admin rejects your submission

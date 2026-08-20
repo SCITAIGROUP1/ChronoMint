@@ -73,4 +73,81 @@ describe("SubmissionsTable", () => {
     expect(html).toContain("Submit");
     expect(html).toContain("date=2025-06-02");
   });
+
+  it("marks an in-progress week as early submit, not a due draft", () => {
+    const html = renderToStaticMarkup(
+      <SubmissionsTable
+        submissions={[
+          {
+            ...draftSubmission,
+            periodStart: "2026-08-16T18:30:00.000Z",
+            periodEnd: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString()
+          }
+        ]}
+        projects={[
+          {
+            id: "proj-1",
+            name: "Support Retainer",
+            workspaceId: "ws-1",
+            color: "#236bfe",
+            clientName: null,
+            budgetHours: null,
+            isActive: true,
+            timesheetApprovalEnabled: true,
+            timesheetApprovalPeriod: "weekly"
+          } satisfies ProjectDto
+        ]}
+        tasks={[]}
+        onSubmitted={() => {}}
+        workspaceId="ws-1"
+        timezone="Asia/Colombo"
+      />
+    );
+
+    expect(html).toContain("In progress");
+    expect(html).toContain("Submit early");
+    expect(html).toContain("This week is still in progress");
+    expect(html).not.toContain(">Submit<");
+  });
+
+  it("uses day and month early-submit copy for open daily and monthly drafts", () => {
+    const futureEnd = new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString();
+    const dailyHtml = renderToStaticMarkup(
+      <SubmissionsTable
+        submissions={[
+          {
+            ...draftSubmission,
+            approvalPeriod: "daily",
+            periodEnd: futureEnd
+          }
+        ]}
+        projects={[]}
+        tasks={[]}
+        onSubmitted={() => {}}
+        workspaceId="ws-1"
+        timezone="UTC"
+      />
+    );
+    expect(dailyHtml).toContain("Submit day early");
+    expect(dailyHtml).toContain("This day is still in progress");
+
+    const monthlyHtml = renderToStaticMarkup(
+      <SubmissionsTable
+        submissions={[
+          {
+            ...draftSubmission,
+            approvalPeriod: "monthly",
+            periodEnd: futureEnd
+          }
+        ]}
+        projects={[]}
+        tasks={[]}
+        onSubmitted={() => {}}
+        workspaceId="ws-1"
+        timezone="UTC"
+      />
+    );
+    expect(monthlyHtml).toContain("Submit month early");
+    expect(monthlyHtml).toContain("This month is still in progress");
+  });
 });

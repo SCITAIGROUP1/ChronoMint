@@ -18,7 +18,7 @@ import {
   EmptyState,
   Input,
   Label,
-  SearchableSelect,
+  SearchableMultiSelect,
   SegmentedControl,
   Select,
   SelectContent,
@@ -116,7 +116,7 @@ export function ProjectTeamTab() {
   const [bulkUploading, setBulkUploading] = useState(false);
   const [workspaceMembers, setWorkspaceMembers] = useState<WorkspaceMemberDto[]>([]);
   const [loadingWorkspaceMembers, setLoadingWorkspaceMembers] = useState(false);
-  const [selectedUserId, setSelectedUserId] = useState("");
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [addingMember, setAddingMember] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<TeamMemberDto | null>(null);
 
@@ -172,9 +172,9 @@ export function ProjectTeamTab() {
     return workspaceMembers.filter((m) => !onTeam.has(m.userId));
   }, [workspaceMembers, members]);
 
-  const selectedMember = useMemo(
-    () => availableWorkspaceMembers.find((member) => member.userId === selectedUserId),
-    [availableWorkspaceMembers, selectedUserId]
+  const selectedMembers = useMemo(
+    () => availableWorkspaceMembers.filter((member) => selectedUserIds.includes(member.userId)),
+    [availableWorkspaceMembers, selectedUserIds]
   );
 
   function resetInviteDraft() {
@@ -211,7 +211,7 @@ export function ProjectTeamTab() {
   async function openAddModal() {
     setAddOpen(true);
     setAddMode("workspace");
-    setSelectedUserId("");
+    setSelectedUserIds([]);
     resetInviteDraft();
     setLoadingWorkspaceMembers(true);
     try {
@@ -227,24 +227,32 @@ export function ProjectTeamTab() {
     }
   }
 
-  async function addMember() {
-    if (!selectedUserId) return;
+  async function addMembers() {
+    if (selectedUserIds.length === 0) return;
     setAddingMember(true);
     setError(null);
+    const ids = [...selectedUserIds];
+    let added = 0;
     try {
-      await api(ROUTES.PROJECTS.TEAM_MEMBERS(projectId), {
-        method: "POST",
-        workspaceId,
-        body: JSON.stringify({ userId: selectedUserId })
-      });
+      for (const userId of ids) {
+        await api(ROUTES.PROJECTS.TEAM_MEMBERS(projectId), {
+          method: "POST",
+          workspaceId,
+          body: JSON.stringify({ userId })
+        });
+        added += 1;
+      }
       setAddOpen(false);
-      setSelectedUserId("");
+      setSelectedUserIds([]);
       await loadTeam();
-      toast.success("Member added to project team.");
+      toast.success(
+        added === 1 ? "Member added to project team." : `${added} members added to project team.`
+      );
     } catch (e) {
       const message = e instanceof Error ? e.message : "Could not add team member.";
       setError(message);
-      toast.error(message);
+      toast.error(added > 0 ? `Added ${added} of ${ids.length} members. ${message}` : message);
+      await loadTeam();
     } finally {
       setAddingMember(false);
     }
@@ -575,7 +583,7 @@ export function ProjectTeamTab() {
         onOpenChange={(open) => {
           setAddOpen(open);
           if (!open) {
-            setSelectedUserId("");
+            setSelectedUserIds([]);
             resetInviteDraft();
             setAddMode("workspace");
             setError(null);
@@ -585,7 +593,7 @@ export function ProjectTeamTab() {
         description={
           addMode === "invite"
             ? "They join this workspace and project, then get one welcome email."
-            : "Pick someone already in this workspace to assign to the project."
+            : "Pick people already in this workspace to assign to the project."
         }
         icon={<UserPlus className="size-5" />}
         size="lg"
@@ -609,10 +617,14 @@ export function ProjectTeamTab() {
             ) : (
               <Button
                 type="button"
-                disabled={!selectedUserId || addingMember || loadingWorkspaceMembers}
-                onClick={() => void addMember()}
+                disabled={selectedUserIds.length === 0 || addingMember || loadingWorkspaceMembers}
+                onClick={() => void addMembers()}
               >
-                {addingMember ? "Adding…" : "Add member"}
+                {addingMember
+                  ? "Adding…"
+                  : selectedUserIds.length > 1
+                    ? `Add ${selectedUserIds.length}`
+                    : "Add member"}
               </Button>
             )}
           </>
@@ -803,7 +815,7 @@ export function ProjectTeamTab() {
             </div>
           ) : (
             <div className="space-y-3">
-              <Label htmlFor="member-search">Workspace member</Label>
+              <Label htmlFor="member-search">Workspace members</Label>
               {loadingWorkspaceMembers ? (
                 <p className="text-sm text-muted-foreground">Loading members…</p>
               ) : availableWorkspaceMembers.length === 0 ? (
@@ -828,10 +840,10 @@ export function ProjectTeamTab() {
                 </div>
               ) : (
                 <>
-                  <SearchableSelect
+                  <SearchableMultiSelect
                     id="member-search"
-                    value={selectedUserId}
-                    onValueChange={setSelectedUserId}
+                    value={selectedUserIds}
+                    onChange={setSelectedUserIds}
                     options={availableWorkspaceMembers.map((member) => ({
                       value: member.userId,
                       label: member.userName,
@@ -840,7 +852,7 @@ export function ProjectTeamTab() {
                     placeholder="Search by name or email…"
                     searchPlaceholder="Search by name or email…"
                     emptyMessage="No members match your search."
-                    aria-label="Workspace member"
+                    aria-label="Workspace members"
                     contentClassName="z-[100]"
                     renderOption={(option) => {
                       const member = availableWorkspaceMembers.find(
@@ -858,11 +870,19 @@ export function ProjectTeamTab() {
                       );
                     }}
                   />
-                  {selectedMember ? (
+                  {selectedMembers.length === 1 ? (
                     <p className="rounded-md bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
                       Adding{" "}
-                      <span className="font-medium text-foreground">{selectedMember.userName}</span>{" "}
-                      ({selectedMember.userEmail}) to this project only.
+                      <span className="font-medium text-foreground">
+                        {selectedMembers[0]?.userName}
+                      </span>{" "}
+                      ({selectedMembers[0]?.userEmail}) to this project only.
+                    </p>
+                  ) : selectedMembers.length > 1 ? (
+                    <p className="rounded-md bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+                      Adding{" "}
+                      <span className="font-medium text-foreground">{selectedMembers.length}</span>{" "}
+                      people to this project only.
                     </p>
                   ) : null}
                 </>

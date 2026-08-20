@@ -48,6 +48,7 @@ import {
   TIME_TRACKER_PERIOD_PRESETS,
   type TimeTrackerPeriodSelection
 } from "./time-tracker-period";
+import { persistErrorSurface, type TimeTrackerPersistSurface } from "./time-tracker-persist-error";
 import { TimeTrackerQuickAddBar } from "./time-tracker-quick-add-bar";
 import { TimeTrackerStatCards } from "./time-tracker-stat-cards";
 import { computeTimeTrackerStats } from "./time-tracker-stats";
@@ -73,6 +74,7 @@ function browserTimezone() {
 
 export function PersonalTimeTrackerPage() {
   const workspaceId = useSessionStore((state) => state.session?.workspaceId ?? "");
+  const sessionUserId = useSessionStore((state) => state.session?.user?.id);
   const isImpersonating = useIsImpersonating();
   const { timezone, weekStart } = useDisplayPreferences();
   const { projects, tasks, categories } = useEntryCatalogQueries(workspaceId, {
@@ -102,6 +104,7 @@ export function PersonalTimeTrackerPage() {
   const [entrySaving, setEntrySaving] = useState(false);
   const entrySavingRef = useRef(false);
   const [entryError, setEntryError] = useState<string | null>(null);
+  const [duplicatingEntry, setDuplicatingEntry] = useState(false);
   const [quickAddError, setQuickAddError] = useState<string | null>(null);
   const [quickAddResetKey, setQuickAddResetKey] = useState(0);
   const [analyticsVisible, setAnalyticsVisible] = useState(false);
@@ -136,9 +139,10 @@ export function PersonalTimeTrackerPage() {
       categoryId: categoryId || undefined,
       taskId: taskId || undefined,
       search: debouncedSearch || undefined,
-      billableOnly: billability === "billable" || undefined
+      billableOnly: billability === "billable" || undefined,
+      userId: sessionUserId ? [sessionUserId] : undefined
     }),
-    [visibleRange, projectId, categoryId, taskId, debouncedSearch, billability]
+    [visibleRange, projectId, categoryId, taskId, debouncedSearch, billability, sessionUserId]
   );
   const { logs, listPath, loading, error, refresh } = useTimeTrackerLogs(workspaceId, filters);
   const timelogMutations = useTimelogMutations(workspaceId, {
@@ -241,11 +245,19 @@ export function PersonalTimeTrackerPage() {
     setEditingLog(log);
     setEntryDraft(next);
     setEntryError(null);
+    setQuickAddError(null);
     setEntryDialogOpen(true);
   }
 
   function openEditEntry(log: TimeLogDto) {
+    setDuplicatingEntry(false);
     openDraft(draftFromLog(log, tasks, timezone), log);
+  }
+
+  function openDuplicateEntry(log: TimeLogDto) {
+    if (isImpersonating) return;
+    setDuplicatingEntry(true);
+    openDraft(draftFromLog(log, tasks, timezone), null);
   }
 
   function closeEntryDialog() {
@@ -254,6 +266,7 @@ export function PersonalTimeTrackerPage() {
     setEditingLog(null);
     setEntryDraft(null);
     setEntryError(null);
+    setDuplicatingEntry(false);
   }
 
   function toggleAnalyticsVisible() {
@@ -264,21 +277,27 @@ export function PersonalTimeTrackerPage() {
     });
   }
 
-  async function persistEntry(draft: TimeEntryDraft, editing: TimeLogDto | null): Promise<boolean> {
+  async function persistEntry(
+    draft: TimeEntryDraft,
+    editing: TimeLogDto | null,
+    surface: TimeTrackerPersistSurface
+  ): Promise<boolean> {
     if (isImpersonating) return false;
     if (entrySavingRef.current) return false;
     if (editing && isEntryReadOnly(editing)) return false;
+    const setSurfaceError = (message: string) => {
+      if (persistErrorSurface(surface) === "entryError") setEntryError(message);
+      else setQuickAddError(message);
+    };
     if (!canSaveTaskDraft(draft)) {
       const message = "Select a project and a task.";
-      if (editing) setEntryError(message);
-      else setQuickAddError(message);
+      setSurfaceError(message);
       return false;
     }
     const { startTime, endTime } = draftToIsoRange(draft, timezone);
     if (new Date(endTime) <= new Date(startTime)) {
       const message = "End time must be after start time.";
-      if (editing) setEntryError(message);
-      else setQuickAddError(message);
+      setSurfaceError(message);
       return false;
     }
 
@@ -295,13 +314,12 @@ export function PersonalTimeTrackerPage() {
         editing?.id
       );
       if (overlap) {
-        if (editing) setEntryError(overlap);
-        else setQuickAddError(overlap);
+        setSurfaceError(overlap);
         return false;
       }
       if (!editing && draft.recurrence && draft.recurrence !== "none") {
         if (!draft.repeatUntil) {
-          setEntryError("Please select an end date for the recurrence.");
+          setSurfaceError("Please select an end date for the recurrence.");
           return false;
         }
         await timelogMutations.createBatch({
@@ -329,12 +347,17 @@ export function PersonalTimeTrackerPage() {
           await timelogMutations.create(body);
         }
       }
-      toast.success(editing ? "Time entry updated!" : "Time entry created!");
+      toast.success(
+        editing
+          ? "Time entry updated!"
+          : duplicatingEntry
+            ? "Time entry duplicated!"
+            : "Time entry created!"
+      );
       return true;
     } catch (saveError) {
       const message = saveError instanceof Error ? saveError.message : "Could not save entry";
-      if (editing) setEntryError(message);
-      else setQuickAddError(message);
+      setSurfaceError(message);
       toast.error(message);
       return false;
     } finally {
@@ -345,12 +368,12 @@ export function PersonalTimeTrackerPage() {
 
   async function saveEntry() {
     if (!entryDraft) return;
-    const ok = await persistEntry(entryDraft, editingLog);
+    const ok = await persistEntry(entryDraft, editingLog, "dialog");
     if (ok) closeEntryDialog();
   }
 
   async function createFromQuickAdd(draft: TimeEntryDraft) {
-    const ok = await persistEntry(draft, null);
+    const ok = await persistEntry(draft, null, "quickadd");
     if (ok) setQuickAddResetKey((key) => key + 1);
   }
 
@@ -518,7 +541,9 @@ export function PersonalTimeTrackerPage() {
       />
       <TimeEntryDialog
         open={entryDialogOpen}
-        title={editingLog ? "Edit time entry" : "Log time"}
+        title={
+          editingLog ? "Edit time entry" : duplicatingEntry ? "Duplicate time entry" : "Log time"
+        }
         draft={entryDraft}
         projects={projects}
         tasks={tasks}
@@ -578,6 +603,7 @@ export function PersonalTimeTrackerPage() {
         }}
         onEdit={openEditEntry}
         onDelete={deleteEntry}
+        onDuplicate={openDuplicateEntry}
         timezone={timezone}
         weekStartPref={weekStart}
         rangeFrom={from}

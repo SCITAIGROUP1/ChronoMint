@@ -24,7 +24,7 @@ import {
   WeeklyProgressWidget
 } from "./widgets/personal-data-widgets";
 import { QuickTimerWidget } from "./widgets/quick-timer-widget";
-import { countActionableSubmissions } from "@/features/submissions/use-my-submissions";
+import { countDueSubmissions } from "@/features/submissions/use-my-submissions";
 import {
   buildSubmissionByKey,
   isTimeEntryLocked
@@ -59,9 +59,10 @@ export function usePersonalDashboardData(
     );
     return `${ROUTES.TIMELOGS.LIST}?${new URLSearchParams({
       from: from.toISOString(),
-      to: to.toISOString()
+      to: to.toISOString(),
+      ...(session?.user?.id ? { userId: session.user.id } : {})
     })}`;
-  }, [range.endDate, range.startDate, timezone]);
+  }, [range.endDate, range.startDate, timezone, session?.user?.id]);
 
   const queryEnabled = Boolean(enabled && workspaceId);
   const catalog = useEntryCatalogQueries(workspaceId, { enabled: queryEnabled });
@@ -80,7 +81,7 @@ export function usePersonalDashboardData(
   const todayLogs = logs.filter((log) => logStartDateKey(log, timezone) === todayKey);
   const todaySeconds = sumDuration(todayLogs);
   const recentSeconds = sumDuration(logs);
-  const actionableSubmissions = countActionableSubmissions(submissions);
+  const actionableSubmissions = countDueSubmissions(submissions);
   const assignedProjects = catalog.projects.filter((project) => project.isActive).length;
 
   return {

@@ -50,6 +50,7 @@ DTOs: [timesheet.dto.ts](../../packages/contracts/src/dto/timesheet.dto.ts)
 5. **Ordered submit:** a rejected earlier period must be resubmitted before later periods on the same project.
 6. **Reject requires review note** (`reviewNote` in `rejectTimesheetSchema`).
 7. Notifications fire on submit, approve, reject, and approval-settings change — see [notifications-realtime.md](./notifications-realtime.md).
+8. **Open (in-progress) periods:** the current day, week, or month may appear as a draft as soon as hours are logged. The UI must label it **In progress**, offer **Submit early**, and warn that remaining entries in that period will lock. Dashboard / timesheet “ready to submit” counts exclude these until the period ends.
 
 ## Realtime invalidation scopes
 

@@ -30,6 +30,7 @@ type TimeTrackerEntryListItemProps = {
   inactive?: boolean;
   onEdit: (log: TimeLogDto) => void;
   onDelete: (log: TimeLogDto) => void;
+  onDuplicate?: (log: TimeLogDto) => void;
   readOnly?: boolean;
   timezone: string;
 };
@@ -116,6 +117,7 @@ export function TimeTrackerEntryListItem({
   inactive = false,
   onEdit,
   onDelete,
+  onDuplicate,
   readOnly = false,
   timezone
 }: TimeTrackerEntryListItemProps) {
@@ -158,7 +160,13 @@ export function TimeTrackerEntryListItem({
       <TimeTrackerEntryStatus approval={approval} isBillable={log.isBillable} />
       <EntryTimeMeta log={log} timezone={timezone} inactive={inactive} />
       {!readOnly && !inactive ? (
-        <TimeTrackerEntryActions log={log} locked={locked} onEdit={onEdit} onDelete={onDelete} />
+        <TimeTrackerEntryActions
+          log={log}
+          locked={locked}
+          onEdit={onEdit}
+          onDelete={onDelete}
+          onDuplicate={onDuplicate}
+        />
       ) : null}
     </div>
   );

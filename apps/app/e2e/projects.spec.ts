@@ -122,7 +122,7 @@ test.describe("App projects", () => {
     await expect(page.getByRole("button", { name: "Add or invite" }).first()).toBeVisible();
   });
 
-  test("add team member modal has searchable workspace member field", async ({ page }) => {
+  test("add team member modal has searchable multi-select workspace members", async ({ page }) => {
     await page.locator("table tbody tr").first().click();
     await page
       .getByRole("navigation", { name: "Project sections" })
@@ -131,8 +131,21 @@ test.describe("App projects", () => {
     await page.getByRole("button", { name: "Add or invite" }).first().click();
     await expect(page.getByRole("heading", { name: "Add team member" })).toBeVisible();
     await expect(page.getByRole("group")).toBeVisible();
-    await page.getByRole("combobox", { name: "Workspace member" }).click();
+    const picker = page.getByRole("combobox", { name: "Workspace members" });
+    await picker.click();
     await expect(page.getByPlaceholder("Search by name or email…")).toBeVisible();
+    await expect(page.getByRole("option", { name: "Select all" })).toBeVisible();
+    const memberOptions = page.getByRole("option").filter({ hasNotText: /^Select all$/ });
+    await expect(memberOptions.first()).toBeVisible();
+    const optionCount = await memberOptions.count();
+    await memberOptions.nth(0).click();
+    if (optionCount > 1) {
+      await memberOptions.nth(1).click();
+      await expect(picker).toHaveText("2 selected");
+      await expect(page.getByRole("button", { name: "Add 2" })).toBeEnabled();
+    } else {
+      await expect(page.getByRole("button", { name: "Add member" })).toBeEnabled();
+    }
   });
 
   test("invite by email mode adds removable people chips", async ({ page }) => {

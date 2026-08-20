@@ -34,6 +34,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { buildPersonalTimelogsQuery } from "./build-personal-timelogs-query";
 import { entryTimesChanged } from "./calendar-entry-chrome";
 import type { CalendarTaskInfo } from "./calendar-entry-content";
 import {
@@ -92,7 +93,7 @@ import {
 } from "./timesheet-zoom";
 import { TimesheetZoomControls } from "./timesheet-zoom-controls";
 import { validateTimeEntryOverlap } from "./validate-time-entry-overlap";
-import { countActionableSubmissions } from "@/features/submissions/use-my-submissions";
+import { countDueSubmissions } from "@/features/submissions/use-my-submissions";
 import {
   isTimeEntryInactive,
   isTimeEntryLocked,
@@ -131,14 +132,6 @@ function migrateLegacySessionFlag(legacyKey: string, scopedKey: string): boolean
     return true;
   }
   return false;
-}
-
-function buildLogsQuery(from: Date, to: Date): string {
-  const params = new URLSearchParams({
-    from: from.toISOString(),
-    to: to.toISOString()
-  });
-  return `${ROUTES.TIMELOGS.LIST}?${params}`;
 }
 
 export function TimesheetPage() {
@@ -209,7 +202,7 @@ export function TimesheetPage() {
     Boolean(ws)
   );
   const actionableSubmissionCount = useMemo(
-    () => countActionableSubmissions(lookbackSubmissions),
+    () => countDueSubmissions(lookbackSubmissions),
     [lookbackSubmissions]
   );
   const { issues: jiraIssues } = useJiraIssues(jiraConnected);
@@ -433,8 +426,10 @@ export function TimesheetPage() {
 
   const logsPath = useMemo(
     () =>
-      visibleRange ? buildLogsQuery(visibleRange.from, visibleRange.to) : ROUTES.TIMELOGS.LIST,
-    [visibleRange]
+      visibleRange && userId
+        ? buildPersonalTimelogsQuery(visibleRange.from, visibleRange.to, userId)
+        : ROUTES.TIMELOGS.LIST,
+    [visibleRange, userId]
   );
 
   const {
@@ -442,7 +437,7 @@ export function TimesheetPage() {
     isLoading: logsQueryLoading,
     error: logsQueryError,
     refetch: refetchLogs
-  } = useTimelogListQuery(ws, logsPath, Boolean(ws && visibleRange));
+  } = useTimelogListQuery(ws, logsPath, Boolean(ws && visibleRange && userId));
 
   const { data: occupancy = [] } = useTimelogOccupancyQuery(
     ws,
@@ -451,7 +446,10 @@ export function TimesheetPage() {
     Boolean(ws && visibleRange)
   );
 
-  const logs = useMemo(() => logsData?.items ?? [], [logsData?.items]);
+  const logs = useMemo(
+    () => (logsData?.items ?? []).filter((log) => !userId || log.userId === userId),
+    [logsData?.items, userId]
+  );
   // Occupancy refetches after saves — do not hide the calendar; list patch/refetch owns entries.
   const calendarLoading = logsQueryLoading || catalog.isLoading;
 
@@ -486,8 +484,9 @@ export function TimesheetPage() {
   );
 
   const isEntryReadOnly = useCallback(
-    (log: TimeLogDto) => isEntryInactive(log) || isSubmissionLocked(log),
-    [isEntryInactive, isSubmissionLocked]
+    (log: TimeLogDto) =>
+      isEntryInactive(log) || isSubmissionLocked(log) || Boolean(userId && log.userId !== userId),
+    [isEntryInactive, isSubmissionLocked, userId]
   );
 
   const rangeLabel = useMemo(() => {

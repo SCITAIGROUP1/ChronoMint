@@ -6,14 +6,22 @@ import type {
   TimesheetPeriodDto,
   TimesheetSubmitPreviewDto
 } from "@kloqra/contracts";
-import { formatSubmissionPeriodLabel } from "@kloqra/ui";
+import { formatSubmissionPeriodLabel, isOpenTimesheetPeriod } from "@kloqra/ui";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useIsImpersonating } from "@/hooks/use-is-impersonating";
 import { api } from "@/lib/api";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
 
-export function submitButtonLabel(approvalPeriod: TimesheetPeriodDto["approvalPeriod"]): string {
+export function submitButtonLabel(
+  approvalPeriod: TimesheetPeriodDto["approvalPeriod"],
+  options?: { early?: boolean }
+): string {
+  if (options?.early) {
+    if (approvalPeriod === "daily") return "Submit day early";
+    if (approvalPeriod === "monthly") return "Submit month early";
+    return "Submit early";
+  }
   if (approvalPeriod === "daily") return "Submit day";
   if (approvalPeriod === "monthly") return "Submit month";
   return "Submit";
@@ -21,7 +29,8 @@ export function submitButtonLabel(approvalPeriod: TimesheetPeriodDto["approvalPe
 
 export function useSubmissionStatusActions(
   statusInfo: TimesheetPeriodDto,
-  onSubmitted: () => void
+  onSubmitted: () => void,
+  timezone = "UTC"
 ) {
   const ws = useSessionStore((s) => s.session?.workspaceId) ?? getWorkspaceId() ?? "";
   const isImpersonating = useIsImpersonating();
@@ -100,9 +109,12 @@ export function useSubmissionStatusActions(
     }
   }
 
+  const periodOpen = isOpenTimesheetPeriod(statusInfo.periodEnd);
   const periodLabel = formatSubmissionPeriodLabel(
     statusInfo.periodStart,
-    statusInfo.approvalPeriod
+    statusInfo.approvalPeriod,
+    timezone,
+    statusInfo.periodEnd
   );
 
   return {
@@ -120,6 +132,7 @@ export function useSubmissionStatusActions(
     confirmSubmit,
     requestAmendment,
     periodLabel,
+    periodOpen: statusInfo.status === "DRAFT" && periodOpen,
     projectName: statusInfo.projectName ?? "Project",
     status: statusInfo.status,
     reviewNote: statusInfo.reviewNote,

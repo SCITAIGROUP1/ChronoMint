@@ -23,7 +23,7 @@ import {
   useMySubmissionsLookbackQuery,
   type MemberSubmissionsTab
 } from "@kloqra/web-shared";
-import { Check } from "lucide-react";
+import { Check, Clock } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { SubmissionsFiltersBar } from "./submissions-filters-bar";
@@ -33,6 +33,7 @@ import {
   countPendingReviewSubmissions,
   filterSubmissionsByPeriodRange,
   filterSubmissionsByTab,
+  openDraftsNotice,
   type MemberSubmissionsTabFilter
 } from "./use-my-submissions";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
@@ -220,6 +221,7 @@ export function SubmissionsPage() {
   const pendingCount = countPendingReviewSubmissions(periodFilteredSubmissions);
   const approvedCount = periodFilteredSubmissions.filter((s) => s.status === "APPROVED").length;
   const rejectedCount = periodFilteredSubmissions.filter((s) => s.status === "REJECTED").length;
+  const inProgressNotice = openDraftsNotice(periodFilteredSubmissions);
 
   const tabOptions = TAB_OPTIONS.map((opt) => {
     if (opt.value === "action" && actionCount > 0) {
@@ -268,6 +270,12 @@ export function SubmissionsPage() {
       </MotionReveal>
 
       <LoadingCrossfade loading={allLoading} loaderLabel="Loading submissions…">
+        {inProgressNotice ? (
+          <div className="mb-4 flex items-start gap-3 rounded-lg border border-status-info-border bg-status-info-bg px-4 py-3 text-sm text-status-info-fg">
+            <Clock className="mt-0.5 size-4 shrink-0" />
+            <p>{inProgressNotice}</p>
+          </div>
+        ) : null}
         {filteredTotal === 0 ? (
           <Card className="border-dashed py-16 flex flex-col items-center justify-center text-center">
             <Check className="size-10 text-emerald-500 bg-emerald-500/10 p-2 rounded-full mb-3" />
