@@ -7,6 +7,11 @@ import { UnifiedDashboardPage } from "./unified-dashboard-page";
 let session: AuthSessionDto;
 const managementDataCall = vi.fn();
 const managementProps = vi.fn();
+const replaceMock = vi.fn();
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: replaceMock })
+}));
 
 vi.mock("@/stores/session.store", () => ({
   useSessionStore: (selector: (state: { session: AuthSessionDto }) => unknown) =>
@@ -58,11 +63,12 @@ describe("UnifiedDashboardPage", () => {
   beforeEach(() => {
     managementDataCall.mockClear();
     managementProps.mockClear();
+    replaceMock.mockClear();
   });
 
   afterEach(cleanup);
 
-  it("shows an Overview CTA instead of personal widgets for a member", () => {
+  it("redirects a member to Overview instead of rendering an empty dashboard", () => {
     session = {
       ...BASE_SESSION,
       capabilities: [
@@ -76,10 +82,7 @@ describe("UnifiedDashboardPage", () => {
 
     render(<UnifiedDashboardPage />);
 
-    expect(screen.getByText("No workspace analytics here")).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Go to Overview" }).getAttribute("href")).toBe(
-      "/overview"
-    );
+    expect(replaceMock).toHaveBeenCalledWith("/overview");
     expect(screen.queryByText("Combined widget grid")).toBeNull();
     expect(managementDataCall).not.toHaveBeenCalled();
   });

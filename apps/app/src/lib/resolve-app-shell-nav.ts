@@ -51,6 +51,13 @@ function buildAccountNavSections(items: readonly AccountNavItem[]): SidebarNavSe
   });
 }
 
+/** Section headings only help when Workspace/My time/Support coexist. */
+function unlabeledIfSingleSection(sections: SidebarNavSection[]): SidebarNavSection[] {
+  if (sections.length !== 1) return sections;
+  const [only] = sections;
+  return only ? [{ ...only, label: "" }] : sections;
+}
+
 function buildWorkspaceNavSections(
   items: readonly AppNavItem[],
   badges: { pendingCount: number; notificationUnreadCount: number }
@@ -89,7 +96,9 @@ export function resolveAppShellNav(options: {
   if (mode === "account") {
     return {
       mode,
-      navSections: buildAccountNavSections(resolveAccountNavItems(options.session))
+      navSections: unlabeledIfSingleSection(
+        buildAccountNavSections(resolveAccountNavItems(options.session))
+      )
     };
   }
 
@@ -101,10 +110,12 @@ export function resolveAppShellNav(options: {
 
   return {
     mode,
-    navSections: buildWorkspaceNavSections(baseItems, {
-      pendingCount: options.pendingCount,
-      notificationUnreadCount: options.notificationUnreadCount
-    })
+    navSections: unlabeledIfSingleSection(
+      buildWorkspaceNavSections(baseItems, {
+        pendingCount: options.pendingCount,
+        notificationUnreadCount: options.notificationUnreadCount
+      })
+    )
   };
 }
 

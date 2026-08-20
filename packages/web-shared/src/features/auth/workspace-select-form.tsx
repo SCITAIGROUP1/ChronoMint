@@ -17,7 +17,7 @@ import { logoutSession } from "../../auth/logout";
 import { useSessionStore } from "../../stores/session.store";
 import { fetchUserProfile } from "../../stores/user-profile.store";
 import { useWorkspacesStore } from "../../stores/workspaces.store";
-import { resolveStartupPath } from "../../utils/startup-page";
+import { resolveWorkspaceHomePath } from "../../utils/startup-page";
 import { useTenantCurrent } from "../tenant/use-tenant-current";
 
 interface WorkspaceSelectFormProps {
@@ -107,11 +107,9 @@ export function WorkspaceSelectForm({
         if (memberPortal) {
           try {
             const profile = await fetchUserProfile(workspaceId);
-            if (profile?.preferences?.startupPage) {
-              return resolveStartupPath(profile.preferences.startupPage);
-            }
+            return resolveWorkspaceHomePath(activeSession, profile?.preferences?.startupPage);
           } catch {
-            // Fall through to defaultRedirect
+            return resolveWorkspaceHomePath(activeSession);
           }
         }
         return defaultRedirect;

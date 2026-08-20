@@ -3,6 +3,7 @@ import { api } from "../api/client";
 import { useWorkspacesStore } from "../stores/workspaces.store";
 import { shouldShowAdminContextPicker, filterAdminAccessibleWorkspaces } from "./admin-context";
 import { resolveAdminOnboardingPath } from "./resolve-admin-onboarding-path";
+import { resolveClientPostAuthPath } from "./resolve-client-post-auth-path";
 
 /** Resolve where to send an admin user immediately after authentication. */
 export async function resolveAdminPostAuthPath(session: AuthSessionDto): Promise<string> {
@@ -32,5 +33,5 @@ export async function resolveAdminPostAuthPath(session: AuthSessionDto): Promise
     return resolveAdminOnboardingPath(session);
   }
 
-  return "/dashboard";
+  return resolveClientPostAuthPath(session);
 }

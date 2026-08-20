@@ -54,6 +54,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   const capabilities = useMemo(() => (session ? getSessionCapabilities(session) : []), [session]);
   const canUseManagementFeatures =
     sessionCan(session, "workspace:ReadReports") || sessionCan(session, "project:ReadReports");
+  const workspaceHomeHref = canUseManagementFeatures ? "/dashboard" : "/overview";
   const projectLeadOnly = isProjectLeadOnly(
     session?.workspaceRole,
     session?.managedProjectIds,
@@ -98,7 +99,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
       }
       if (isAccountMode) {
         if (!canAccessAccountMode(session)) {
-          router.replace("/dashboard");
+          router.replace(workspaceHomeHref);
           return;
         }
         if (!canAccessAccountPath(session, pathname)) {
@@ -131,7 +132,15 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [session, setWorkspaces, router, isAccountMode, pathname, bootstrapAttempt]);
+  }, [
+    session,
+    setWorkspaces,
+    router,
+    isAccountMode,
+    pathname,
+    bootstrapAttempt,
+    workspaceHomeHref
+  ]);
 
   if (!session) {
     return (
@@ -164,7 +173,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   }
 
   const logoSubtitle = isAccountMode ? "Organization" : (session.workspaceName ?? "Workspace");
-  const logoLinkHref = isAccountMode ? defaultAccountLandingPath(session) : "/dashboard";
+  const logoLinkHref = isAccountMode ? defaultAccountLandingPath(session) : workspaceHomeHref;
   const navAriaLabel = isAccountMode ? "Organization navigation" : "Workspace navigation";
 
   const settingsHref = isAccountMode ? "/account/settings" : "/settings";
@@ -192,7 +201,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
         }
         workspaceSwitcher={(collapsed) => (
           <WorkspaceSwitcher
-            defaultRedirect="/dashboard"
+            defaultRedirect={workspaceHomeHref}
             collapsed={collapsed}
             organizationHref={canManageOrg ? defaultAccountLandingPath(session) : undefined}
             contextMode={canManageOrg ? (isAccountMode ? "account" : "workspace") : undefined}

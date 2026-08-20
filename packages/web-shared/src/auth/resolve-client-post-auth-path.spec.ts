@@ -42,8 +42,16 @@ describe("resolveClientPostAuthPath", () => {
     await expect(resolveClientPostAuthPath(memberSession)).resolves.toBe("/timer");
   });
 
-  it("falls back to dashboard when profile load fails", async () => {
+  it("maps a saved dashboard preference to overview for members", async () => {
+    hasMultipleMock.mockResolvedValue(false);
+    fetchProfileMock.mockResolvedValue({
+      preferences: { startupPage: "dashboard" }
+    });
+    await expect(resolveClientPostAuthPath(memberSession)).resolves.toBe("/overview");
+  });
+
+  it("falls back to overview when a member profile load fails", async () => {
     hasMultipleMock.mockRejectedValue(new Error("offline"));
-    await expect(resolveClientPostAuthPath(memberSession)).resolves.toBe("/dashboard");
+    await expect(resolveClientPostAuthPath(memberSession)).resolves.toBe("/overview");
   });
 });

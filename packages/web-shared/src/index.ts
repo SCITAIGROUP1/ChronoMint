@@ -181,7 +181,7 @@ export {
 export { usePlatformSessionStore, getPlatformAccessToken } from "./stores/platform-session.store";
 export { useWorkspacesStore } from "./stores/workspaces.store";
 export { toDateInputValue } from "./utils/date-input";
-export { resolveStartupPath } from "./utils/startup-page";
+export { resolveStartupPath, resolveWorkspaceHomePath } from "./utils/startup-page";
 export { useDisplayPreferences } from "./hooks/use-display-preferences";
 export { usePreferenceTodayDateKey } from "./hooks/use-preference-today-date-key";
 export { useWorkspaceOperationalSettings } from "./hooks/use-workspace-operational-settings";

@@ -331,6 +331,7 @@ describe("contracts", () => {
     expect(resolveEffectiveTheme({})).toBe("system");
     expect(resolveEffectiveLanguage({})).toBe("en");
     expect(resolveEffectiveStartupPage({})).toBe("dashboard");
+    expect(resolveEffectiveStartupPage({ startupPage: "overview" })).toBe("overview");
   });
 
   it("resolves export column defaults and overrides", () => {

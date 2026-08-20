@@ -7,6 +7,7 @@ export const dateFormatPreferenceSchema = z.enum(["MDY", "DMY", "YMD"]);
 export const timeFormatPreferenceSchema = z.enum(["12h", "24h"]);
 export const startupPagePreferenceSchema = z.enum([
   "dashboard",
+  "overview",
   "timer",
   "timesheet",
   "time-tracker"

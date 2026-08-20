@@ -3,12 +3,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useWorkspacesStore } from "../stores/workspaces.store";
 import { resolveAdminPostAuthPath } from "./resolve-admin-post-auth-path";
 
-const { apiMock } = vi.hoisted(() => ({
-  apiMock: vi.fn()
+const { apiMock, fetchProfileMock } = vi.hoisted(() => ({
+  apiMock: vi.fn(),
+  fetchProfileMock: vi.fn()
 }));
 
 vi.mock("../api/client", () => ({
   api: apiMock
+}));
+
+vi.mock("../stores/user-profile.store", () => ({
+  fetchUserProfile: (...args: unknown[]) => fetchProfileMock(...args)
 }));
 
 const ownerSession = {
@@ -25,6 +30,8 @@ const workspaces = [
 describe("resolveAdminPostAuthPath", () => {
   beforeEach(() => {
     apiMock.mockReset();
+    fetchProfileMock.mockReset();
+    fetchProfileMock.mockResolvedValue({ preferences: {} });
     useWorkspacesStore.getState().clear();
   });
 
@@ -67,5 +74,19 @@ describe("resolveAdminPostAuthPath", () => {
     ).resolves.toBe("/select-workspace");
     expect(apiMock).toHaveBeenCalledTimes(1);
     expect(useWorkspacesStore.getState().workspaces).toHaveLength(2);
+  });
+
+  it("routes a plain member to overview instead of dashboard", async () => {
+    apiMock.mockResolvedValue([
+      { id: "ws-1", name: "Acme", slug: "acme", role: "MEMBER" as const }
+    ]);
+
+    await expect(
+      resolveAdminPostAuthPath({
+        workspaceId: "ws-1",
+        workspaceRole: "MEMBER",
+        user: { id: "u-1", email: "m@example.com", name: "Member" }
+      } as AuthSessionDto)
+    ).resolves.toBe("/overview");
   });
 });

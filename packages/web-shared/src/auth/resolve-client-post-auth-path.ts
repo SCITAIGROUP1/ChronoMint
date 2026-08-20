@@ -1,6 +1,10 @@
 import type { AuthSessionDto, StartupPagePreference } from "@kloqra/contracts";
 import { fetchUserProfile } from "../stores/user-profile.store";
-import { resolveStartupPath } from "../utils/startup-page";
+import {
+  canUseManagementDashboard,
+  resolveStartupPath,
+  resolveWorkspaceHomePath
+} from "../utils/startup-page";
 import { hasMultipleWorkspaces } from "./workspace-check";
 
 /** Resolve where to send a member immediately after authentication. */
@@ -18,10 +22,11 @@ export async function resolveClientPostAuthPath(
 
     const profile = await fetchUserProfile(session.workspaceId);
     const startup = resolveStartupPath(
-      profile?.preferences.startupPage as StartupPagePreference | undefined
+      profile?.preferences.startupPage as StartupPagePreference | undefined,
+      { canUseDashboard: canUseManagementDashboard(session) }
     );
     return safeNext ?? startup;
   } catch {
-    return safeNext ?? "/dashboard";
+    return safeNext ?? resolveWorkspaceHomePath(session);
   }
 }

@@ -8,23 +8,26 @@ describe("unified capability navigation", () => {
     const hrefs = filterNavByCapabilities(APP_NAV_ITEMS, capabilities).map((item) => item.href);
 
     expect(hrefs).toEqual([
-      "/dashboard",
       "/overview",
       "/timer",
       "/timesheet",
       "/submissions",
       "/my-projects",
       "/time-tracker",
-      "/tasks",
-      "/notifications",
-      "/support"
+      "/notifications"
     ]);
+    expect(hrefs).not.toContain("/dashboard");
+    expect(hrefs).not.toContain("/tasks");
+    expect(hrefs).not.toContain("/support");
   });
 
   it("adds project-scoped operations for project managers", () => {
     const capabilities = getManagedRolePermissions(["WORKSPACE_MEMBER", "PROJECT_MANAGER"]);
     const hrefs = filterNavByCapabilities(APP_NAV_ITEMS, capabilities).map((item) => item.href);
 
+    expect(hrefs).toContain("/dashboard");
+    expect(hrefs).toContain("/tasks");
+    expect(hrefs).toContain("/support");
     expect(hrefs).toContain("/approvals");
     expect(hrefs).toContain("/team");
     expect(hrefs).toContain("/projects");
@@ -40,6 +43,9 @@ describe("unified capability navigation", () => {
     const hrefs = filterNavByCapabilities(APP_NAV_ITEMS, capabilities).map((item) => item.href);
 
     expect(hrefs).toContain("/timer");
+    expect(hrefs).toContain("/dashboard");
+    expect(hrefs).toContain("/tasks");
+    expect(hrefs).toContain("/support");
     expect(hrefs).toContain("/team-management");
     expect(hrefs).toContain("/categories");
     expect(hrefs).toContain("/billing");

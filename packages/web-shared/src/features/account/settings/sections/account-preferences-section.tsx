@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  DEFAULT_STARTUP_PAGE,
+  DEFAULT_LANGUAGE,
   type StartupPagePreference,
   type UserProfileDto
 } from "@kloqra/contracts";
@@ -16,7 +16,13 @@ import {
 import { Globe, Home, Monitor } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { useSessionStore } from "../../../../stores/session.store";
 import { useWorkspacesStore } from "../../../../stores/workspaces.store";
+import {
+  canUseManagementDashboard,
+  resolveEffectiveStartupPreference,
+  startupPageSelectOptions
+} from "../../../../utils/startup-page";
 import { SettingsCard } from "../settings-card";
 import { SettingsSaveBar } from "../settings-save-bar";
 
@@ -24,13 +30,6 @@ const LANGUAGE_OPTIONS = [
   { value: "en", label: "English" },
   { value: "es", label: "Spanish" },
   { value: "fr", label: "French" }
-];
-
-const STARTUP_OPTIONS: { value: StartupPagePreference; label: string }[] = [
-  { value: "dashboard", label: "Dashboard" },
-  { value: "timer", label: "Timer" },
-  { value: "timesheet", label: "Timesheet" },
-  { value: "time-tracker", label: "Time Tracker" }
 ];
 
 export function AccountPreferencesSection({
@@ -43,31 +42,37 @@ export function AccountPreferencesSection({
   isAdminApp?: boolean;
 }) {
   const workspaces = useWorkspacesStore((s) => s.workspaces);
-  const [language, setLanguage] = useState(profile.preferences.language ?? "en");
+  const session = useSessionStore((s) => s.session);
+  const canUseDashboard = canUseManagementDashboard(session);
+  const startupOptions = startupPageSelectOptions(canUseDashboard);
+  const [language, setLanguage] = useState(profile.preferences.language ?? DEFAULT_LANGUAGE);
   const [defaultWorkspaceId, setDefaultWorkspaceId] = useState(
     profile.preferences.defaultWorkspaceId ?? ""
   );
   const [startupPage, setStartupPage] = useState<StartupPagePreference>(
-    profile.preferences.startupPage ?? DEFAULT_STARTUP_PAGE
+    resolveEffectiveStartupPreference(profile.preferences.startupPage, canUseDashboard)
   );
   const [snapshot, setSnapshot] = useState({
-    language: profile.preferences.language ?? "en",
+    language: profile.preferences.language ?? DEFAULT_LANGUAGE,
     defaultWorkspaceId: profile.preferences.defaultWorkspaceId ?? "",
-    startupPage: profile.preferences.startupPage ?? DEFAULT_STARTUP_PAGE
+    startupPage: resolveEffectiveStartupPreference(profile.preferences.startupPage, canUseDashboard)
   });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const next = {
-      language: profile.preferences.language ?? "en",
+      language: profile.preferences.language ?? DEFAULT_LANGUAGE,
       defaultWorkspaceId: profile.preferences.defaultWorkspaceId ?? "",
-      startupPage: profile.preferences.startupPage ?? DEFAULT_STARTUP_PAGE
+      startupPage: resolveEffectiveStartupPreference(
+        profile.preferences.startupPage,
+        canUseDashboard
+      )
     };
     setLanguage(next.language);
     setDefaultWorkspaceId(next.defaultWorkspaceId);
     setStartupPage(next.startupPage);
     setSnapshot(next);
-  }, [profile]);
+  }, [profile, canUseDashboard]);
 
   const isDirty =
     language !== snapshot.language ||
@@ -137,11 +142,11 @@ export function AccountPreferencesSection({
             value={startupPage}
             onValueChange={(v) => setStartupPage(v as StartupPagePreference)}
           >
-            <SelectTrigger className="h-10 max-w-md bg-background">
+            <SelectTrigger className="h-10 max-w-md bg-background" aria-label="Startup page">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {STARTUP_OPTIONS.map((opt) => (
+              {startupOptions.map((opt) => (
                 <SelectItem key={opt.value} value={opt.value}>
                   {opt.label}
                 </SelectItem>

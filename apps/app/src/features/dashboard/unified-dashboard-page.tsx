@@ -1,14 +1,15 @@
 "use client";
 
-import { AppBar, EmptyState, Button } from "@kloqra/ui";
-import Link from "next/link";
-import { type ReactNode, useCallback, useState } from "react";
+import { AppBar } from "@kloqra/ui";
+import { useRouter } from "next/navigation";
+import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { getDashboardComposition } from "./dashboard-composition";
 import { ManagementDashboardLazy } from "./management-dashboard-lazy";
 import { useSessionStore } from "@/stores/session.store";
 
 export function UnifiedDashboardPage() {
   const session = useSessionStore((state) => state.session);
+  const router = useRouter();
   const [dashboardActions, setDashboardActions] = useState<ReactNode>(null);
   const [dashboardDescription, setDashboardDescription] = useState<string | null>(null);
   const handleDashboardActionsChange = useCallback((actions: ReactNode | null) => {
@@ -17,47 +18,36 @@ export function UnifiedDashboardPage() {
   const handleDashboardDescriptionChange = useCallback((description: string | null) => {
     setDashboardDescription(description);
   }, []);
-  if (!session) return null;
+  const composition = session ? getDashboardComposition(session) : null;
+  const showManagement = composition?.showManagement ?? false;
 
-  const composition = getDashboardComposition(session);
+  useEffect(() => {
+    if (!session || showManagement) return;
+    router.replace("/overview");
+  }, [session, showManagement, router]);
+
+  if (!session || !composition || !showManagement) return null;
 
   return (
     <div className="space-y-10">
       <AppBar
         title="Dashboard"
-        description={
-          dashboardDescription ??
-          (composition.showManagement
-            ? "Loading dashboard range…"
-            : "Workspace analytics and team management widgets.")
-        }
+        description={dashboardDescription ?? "Loading dashboard range…"}
         actions={
           dashboardActions ? (
             <div className="flex flex-wrap items-center justify-end gap-2">{dashboardActions}</div>
           ) : null
         }
       />
-      {composition.showManagement ? (
-        <ManagementDashboardLazy
-          capabilities={composition.capabilities}
-          showPersonal={false}
-          showManagement
-          workspaceWide={composition.workspaceWide}
-          projectIds={composition.projectIds}
-          onAppBarActionsChange={handleDashboardActionsChange}
-          onAppBarDescriptionChange={handleDashboardDescriptionChange}
-        />
-      ) : (
-        <EmptyState
-          title="No workspace analytics here"
-          description="Your personal time widgets live under Overview in My time."
-          action={
-            <Button asChild size="sm">
-              <Link href="/overview">Go to Overview</Link>
-            </Button>
-          }
-        />
-      )}
+      <ManagementDashboardLazy
+        capabilities={composition.capabilities}
+        showPersonal={false}
+        showManagement
+        workspaceWide={composition.workspaceWide}
+        projectIds={composition.projectIds}
+        onAppBarActionsChange={handleDashboardActionsChange}
+        onAppBarDescriptionChange={handleDashboardDescriptionChange}
+      />
     </div>
   );
 }

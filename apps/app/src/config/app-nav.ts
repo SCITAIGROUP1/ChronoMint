@@ -48,7 +48,8 @@ export const APP_NAV_ITEMS: readonly AppNavItem[] = [
     label: "Dashboard",
     Icon: LayoutDashboard,
     section: "workspace",
-    keywords: ["analytics", "home"]
+    keywords: ["analytics", "home"],
+    requiredAnyCapabilities: ["workspace:ReadReports", "project:ReadReports"]
   },
   {
     href: "/overview",
@@ -111,7 +112,7 @@ export const APP_NAV_ITEMS: readonly AppNavItem[] = [
     label: "Tasks",
     Icon: ListTodo,
     section: "workspace",
-    requiredCapability: "personal:ListProjects"
+    requiredCapability: "project:ManageTasks"
   },
   {
     href: "/team-time-tracker",
@@ -196,7 +197,12 @@ export const APP_NAV_ITEMS: readonly AppNavItem[] = [
     label: "Support",
     Icon: LifeBuoy,
     section: "support",
-    keywords: ["help", "ticket"]
+    keywords: ["help", "ticket"],
+    requiredAnyCapabilities: [
+      "workspace:ManageMembers",
+      "project:Read",
+      "tenant:ManageSalesInquiry"
+    ]
   }
 ] as const;
 
