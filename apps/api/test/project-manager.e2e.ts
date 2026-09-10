@@ -14,7 +14,7 @@ describe("Project lead E2E", () => {
   let leadSession: Awaited<ReturnType<typeof loginAs>>;
   let memberSession: Awaited<ReturnType<typeof loginAs>>;
   let otherMemberSession: Awaited<ReturnType<typeof loginAs>>;
-  const leadEmail = "member@kloqra.dev";
+  const leadEmail = "alex@kloqra.dev";
   let ledProjectId: string;
   let otherProjectId: string;
   let secondLedProjectId: string;
@@ -28,7 +28,7 @@ describe("Project lead E2E", () => {
     adminSession = await loginAs(app, "admin@kloqra.dev");
     leadSession = await loginAs(app, leadEmail);
     memberSession = await loginAs(app, "drew@kloqra.dev");
-    otherMemberSession = await loginAs(app, "alex@kloqra.dev");
+    otherMemberSession = await loginAs(app, "member@kloqra.dev");
 
     const acmeSpec = SEED_WORKSPACES.find((w) => w.slug === "acme")!;
     const ledProjectSpec = acmeSpec.projects.find((p) => p.name === "Support Retainer")!;

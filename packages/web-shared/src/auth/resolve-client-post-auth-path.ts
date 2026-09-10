@@ -16,7 +16,8 @@ export async function resolveClientPostAuthPath(
 
   try {
     const multi = await hasMultipleWorkspaces(session.workspaceId);
-    if (multi) {
+    // Prefer a saved default workspace over the multi-workspace picker.
+    if (multi && !session.defaultWorkspaceId) {
       return `/select-workspace${safeNext ? `?next=${encodeURIComponent(safeNext)}` : ""}`;
     }
 

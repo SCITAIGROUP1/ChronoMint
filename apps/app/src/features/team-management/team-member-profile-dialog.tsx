@@ -4,6 +4,7 @@ import type { TeamMemberOverviewDto } from "@kloqra/contracts";
 import { AppModal, Badge, Button } from "@kloqra/ui";
 import { User } from "lucide-react";
 import { formatLastActive, formatWeekHours } from "./format-last-active";
+import { formatMemberStatus } from "./format-member-status";
 
 function roleLabel(role: "ADMIN" | "MEMBER"): string {
   return role === "ADMIN" ? "Admin" : "Member";
@@ -50,7 +51,7 @@ export function TeamMemberProfileDialog({
           </div>
           <div className="flex items-center justify-between gap-4">
             <dt className="text-muted-foreground">Status</dt>
-            <dd className="capitalize">{member.status}</dd>
+            <dd>{formatMemberStatus(member.status)}</dd>
           </div>
           <div className="flex items-center justify-between gap-4">
             <dt className="text-muted-foreground">Projects</dt>

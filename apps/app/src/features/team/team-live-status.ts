@@ -6,6 +6,32 @@ export type TeamLiveStatusFilter = "all" | TeamLiveStatus;
 
 export const IDLE_THRESHOLD_MS = 2 * 60 * 60 * 1000;
 
+export const TEAM_LIVE_STATUS_META: Record<
+  TeamLiveStatus,
+  { label: string; description: string; dot: string }
+> = {
+  active: {
+    label: "Active",
+    description: "Timer running on a task right now",
+    dot: "bg-emerald-500"
+  },
+  idle: {
+    label: "Idle",
+    description: "Recently active, not tracking now",
+    dot: "bg-amber-400"
+  },
+  break: {
+    label: "On Break",
+    description: "Timer paused — on a break",
+    dot: "bg-orange-500"
+  },
+  offline: {
+    label: "Offline",
+    description: "No active timer in this workspace",
+    dot: "bg-muted-foreground/50"
+  }
+};
+
 export type TeamLiveMember = {
   userId: string;
   userName: string;

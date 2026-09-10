@@ -82,6 +82,9 @@ function mergeLayoutsWithRegistry(
       if (defaultItem) {
         const candidate = { ...defaultItem };
         if (overlapsVisibleItem(candidate)) {
+          // Left-align when deferring to the next free row — keep x and only bump y
+          // creates a diagonal staircase for several new widgets.
+          candidate.x = 0;
           candidate.y = nextAvailableY;
         }
         finalLayouts.push(candidate);

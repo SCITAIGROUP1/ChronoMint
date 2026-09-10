@@ -34,6 +34,19 @@ describe("resolveClientPostAuthPath", () => {
     );
   });
 
+  it("skips the picker when a default workspace is set", async () => {
+    hasMultipleMock.mockResolvedValue(true);
+    fetchProfileMock.mockResolvedValue({
+      preferences: { startupPage: "timer" }
+    });
+    await expect(
+      resolveClientPostAuthPath({
+        ...memberSession,
+        defaultWorkspaceId: "ws-1"
+      })
+    ).resolves.toBe("/timer");
+  });
+
   it("uses startup preference when a single workspace", async () => {
     hasMultipleMock.mockResolvedValue(false);
     fetchProfileMock.mockResolvedValue({

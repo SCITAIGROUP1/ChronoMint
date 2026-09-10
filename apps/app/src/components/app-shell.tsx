@@ -25,7 +25,7 @@ import {
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { ProjectManagerScopeHint } from "@/components/project-manager-scope-hint";
+import { isMemberPortalSession } from "@/app/select-workspace/is-member-portal-session";
 import { APP_NAV_ITEMS } from "@/config/app-nav";
 import { isProjectLeadOnly } from "@/config/project-manager-nav";
 import { usePendingTimesheetsBadgeCount } from "@/features/approvals/use-pending-timesheets";
@@ -33,6 +33,7 @@ import { AssistantProvider, useAssistant } from "@/features/assistant/assistant-
 import { AssistantWidget } from "@/features/assistant/assistant-widget";
 import { GlobalSearchShell } from "@/features/global-search/global-search-shell";
 import { OnboardingProvider, useOnboarding } from "@/features/onboarding/onboarding-provider";
+import { useProjectsNavBadgeCount } from "@/features/projects/use-projects-nav-badge-count";
 import { isCommercialFeaturesEnabled } from "@/lib/commercial-features";
 import { resolveAppShellMode, resolveAppShellNav } from "@/lib/resolve-app-shell-nav";
 import { useAppWorkspaceDataSync } from "@/lib/workspace-data-sync";
@@ -60,10 +61,12 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
     session?.managedProjectIds,
     session?.tenantRole
   );
-  const managedProjectCount = session?.managedProjectIds?.length ?? 0;
   const isAccountMode = resolveAppShellMode(pathname, session) === "account";
   const canUsePersonalFeatures = Boolean(wsId);
   const canUseWorkspaceOps = Boolean(wsId && sessionCan(session, "project:ReviewTimesheets"));
+  const canSeeProjectsNav =
+    Boolean(wsId) &&
+    (sessionCan(session, "project:Read") || sessionCan(session, "workspace:CreateProject"));
   const notificationsEnabled = canUsePersonalFeatures;
 
   useUserProfile();
@@ -71,6 +74,7 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   useAppWorkspaceDataSync(wsId);
   const { count: notificationUnreadCount } = useNotificationUnreadCount(wsId, notificationsEnabled);
   const pendingCount = usePendingTimesheetsBadgeCount(wsId, canUseWorkspaceOps);
+  const projectCount = useProjectsNavBadgeCount(wsId, canSeeProjectsNav && !isAccountMode);
   const { subscription } = useTenantSubscription(isOwner);
   const billingAlert = isOwner ? subscription?.billingAlert : null;
 
@@ -84,10 +88,19 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
       workspaceNavItems,
       pendingCount,
       notificationUnreadCount,
+      projectCount,
       session,
       capabilities
     });
-  }, [pathname, projectLeadOnly, pendingCount, notificationUnreadCount, session, capabilities]);
+  }, [
+    pathname,
+    projectLeadOnly,
+    pendingCount,
+    notificationUnreadCount,
+    projectCount,
+    session,
+    capabilities
+  ]);
 
   useEffect(() => {
     if (session) {
@@ -203,29 +216,20 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
           <WorkspaceSwitcher
             defaultRedirect={workspaceHomeHref}
             collapsed={collapsed}
+            memberPortal={isMemberPortalSession(session)}
             organizationHref={canManageOrg ? defaultAccountLandingPath(session) : undefined}
             contextMode={canManageOrg ? (isAccountMode ? "account" : "workspace") : undefined}
           />
         )}
         footerContent={(collapsed) => (
-          <div className={collapsed ? "flex flex-col items-center gap-2" : "space-y-3"}>
-            {!isAccountMode ? (
-              <ProjectManagerScopeHint
-                projectLeadOnly={projectLeadOnly}
-                workspaceName={session.workspaceName}
-                managedProjectCount={managedProjectCount}
-                collapsed={collapsed}
-              />
-            ) : null}
-            <SidebarUserFooter
-              collapsed={collapsed}
-              userName={session.user.name ?? "User"}
-              profileHref={isAccountMode ? "/account/profile" : "/profile"}
-              onLogout={() => {
-                void logoutSession(session.workspaceId);
-              }}
-            />
-          </div>
+          <SidebarUserFooter
+            collapsed={collapsed}
+            userName={session.user.name ?? "User"}
+            profileHref={isAccountMode ? "/account/profile" : "/profile"}
+            onLogout={() => {
+              void logoutSession(session.workspaceId);
+            }}
+          />
         )}
       >
         {billingAlert ? (

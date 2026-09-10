@@ -2,8 +2,8 @@ import { test, expect, type Page } from "@playwright/test";
 import { SEED } from "./constants/seed";
 import { clearAppBrowserSession, completePostLoginSelection, loginAsAdmin } from "./helpers/auth";
 
-const LEAD_EMAIL = SEED.personas.member.email;
-const LEAD_PASSWORD = SEED.personas.member.password;
+const LEAD_EMAIL = SEED.personas.projectManager.email;
+const LEAD_PASSWORD = SEED.personas.projectManager.password;
 
 async function loginAsProjectLead(page: Page) {
   await clearAppBrowserSession(page);
@@ -38,13 +38,19 @@ test.describe("Project lead app access", () => {
     await expect(page).toHaveURL(/dashboard/);
 
     await expect(page.getByRole("link", { name: "Dashboard" }).first()).toBeVisible();
-    await expect(page.getByRole("link", { name: "Projects" }).first()).toBeVisible();
-    await expect(page.getByRole("link", { name: "Approvals" }).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: /Projects/ }).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: /Approvals/ }).first()).toBeVisible();
     await expect(page.getByRole("link", { name: "Team Management" })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Exports" })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Billing" })).toHaveCount(0);
+    await expect(
+      page.getByText("Workspace-wide tools are managed by your workspace admin.")
+    ).toHaveCount(0);
 
-    await page.getByRole("link", { name: "Approvals" }).first().click();
+    await page
+      .getByRole("link", { name: /Approvals/ })
+      .first()
+      .click();
     await expect(page).toHaveURL(/approvals/);
     await expect(page.getByRole("heading", { name: /approvals/i })).toBeVisible();
   });

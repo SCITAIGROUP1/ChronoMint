@@ -1,10 +1,20 @@
 "use client";
 
-import { WorkspaceSelectForm } from "@kloqra/web-shared";
+import { WorkspaceSelectForm, useSessionStore } from "@kloqra/web-shared";
 import { Suspense } from "react";
+import { isMemberPortalSession } from "./is-member-portal-session";
 
 function SelectWorkspaceContent() {
-  return <WorkspaceSelectForm portalLabel="Kloqra" defaultRedirect="/dashboard" />;
+  const session = useSessionStore((s) => s.session);
+  const memberPortal = isMemberPortalSession(session);
+
+  return (
+    <WorkspaceSelectForm
+      portalLabel="Kloqra"
+      defaultRedirect={memberPortal ? "/overview" : "/dashboard"}
+      memberPortal={memberPortal}
+    />
+  );
 }
 
 export default function Page() {

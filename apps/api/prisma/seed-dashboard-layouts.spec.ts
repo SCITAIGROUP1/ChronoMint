@@ -30,19 +30,57 @@ describe("seed-dashboard-layouts", () => {
     );
   });
 
-  it("includes pending_timesheets as a visible widget in the management default layout", () => {
-    const pending = SEED_MANAGEMENT_DASHBOARD_LAYOUT.find(
-      (item) => item.i === "pending_timesheets"
+  it("uses the admin KPI strip as the management default top row", () => {
+    const visibleTop = SEED_MANAGEMENT_DASHBOARD_LAYOUT.filter(
+      (item) => item.visible && item.y === 0
+    ).sort((a, b) => a.x - b.x);
+
+    expect(visibleTop.map((item) => item.i)).toEqual([
+      "stat_total_hours",
+      "stat_projects",
+      "stat_members",
+      "stat_billable",
+      "stat_nonbillable"
+    ]);
+    expect(visibleTop.find((item) => item.i === "stat_billable")).toMatchObject({
+      x: 8,
+      w: 2,
+      visible: true
+    });
+    expect(SEED_MANAGEMENT_DASHBOARD_LAYOUT.find((item) => item.i === "daily_chart")).toMatchObject(
+      {
+        x: 0,
+        y: 2,
+        w: 7,
+        h: 5,
+        visible: true
+      }
     );
-    expect(pending?.visible).toBe(true);
-    expect(pending).toMatchObject({ x: 0, y: 17, w: 12, h: 5 });
+    expect(
+      SEED_MANAGEMENT_DASHBOARD_LAYOUT.find((item) => item.i === "team_utilization")
+    ).toMatchObject({ x: 7, y: 2, w: 5, h: 5, visible: true });
+    expect(
+      SEED_MANAGEMENT_DASHBOARD_LAYOUT.find((item) => item.i === "pending_timesheets")?.visible
+    ).toBe(false);
   });
 
-  it("includes category_split as a visible widget in the member default layout", () => {
-    const categorySplit = SEED_PERSONAL_DASHBOARD_LAYOUT.find(
-      (item) => item.i === "category_split"
-    );
-    expect(categorySplit?.visible).toBe(true);
-    expect(categorySplit).toMatchObject({ x: 8, y: 10, w: 4, h: 4 });
+  it("uses the member overview strip as the personal default top row", () => {
+    const visibleTop = SEED_PERSONAL_DASHBOARD_LAYOUT.filter(
+      (item) => item.visible && item.y === 0
+    ).sort((a, b) => a.x - b.x);
+
+    expect(visibleTop.map((item) => item.i)).toEqual([
+      "personal_today",
+      "personal_recent_hours",
+      "personal_assigned_projects",
+      "personal_timesheets_action",
+      "personal_daily_progress"
+    ]);
+    expect(
+      SEED_PERSONAL_DASHBOARD_LAYOUT.find((item) => item.i === "personal_category_split")
+    ).toMatchObject({ x: 6, y: 6, w: 6, h: 3, visible: true });
+    expect(
+      SEED_PERSONAL_DASHBOARD_LAYOUT.find((item) => item.i === "personal_today_logs")?.visible
+    ).toBe(false);
   });
 });

@@ -58,11 +58,15 @@ export function WorkspaceSelectForm({
     }
 
     const applyList = (list: WorkspaceListItemDto[], persistStore: boolean) => {
-      const filtered = roleFilter
+      let filtered = roleFilter
         ? list.filter((w) => w.role === roleFilter)
         : memberPortal
           ? list
           : filterAdminAccessibleWorkspaces(list);
+      // Plain members can land here with multiple memberships but no admin/PM access.
+      if (!roleFilter && !memberPortal && filtered.length === 0 && list.length > 0) {
+        filtered = list;
+      }
       setWorkspaces(filtered);
       if (persistStore) setWorkspacesStore(list);
       if (filtered.length === 0) {

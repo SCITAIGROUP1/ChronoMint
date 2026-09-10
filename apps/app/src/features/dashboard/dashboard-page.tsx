@@ -36,10 +36,12 @@ import {
 import { Clock, DollarSign, Folder, Users } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { WidthProvider, Responsive } from "react-grid-layout";
+import "react-grid-layout/css/styles.css";
 import { toast } from "sonner";
 import { DashboardAppBarActions } from "./dashboard-app-bar-actions";
 import { filterWidgetsForDashboardMode } from "./dashboard-composition";
 import { DashboardFiltersToolbar } from "./dashboard-filters-toolbar";
+import { renderDashboardResizeHandle } from "./dashboard-resize-handle";
 import {
   PersonalDashboardWidget,
   usePersonalDashboardData,
@@ -1121,6 +1123,7 @@ export function ManagementDashboardPage({
             isResizable={isArranging}
             draggableCancel="button, a, input, select, textarea, [role='menu'], [role='menuitem'], .widget-no-drag"
             resizeHandles={["s", "e", "se"]}
+            resizeHandle={renderDashboardResizeHandle}
             onBreakpointChange={(breakpoint) =>
               setGridBreakpoint(breakpoint as DashboardBreakpoint)
             }
@@ -1136,12 +1139,14 @@ export function ManagementDashboardPage({
               const widgetDef = WIDGET_REGISTRY.find((w) => w.id === item.i);
               const label = widgetDef?.label ?? "Widget";
               return (
-                <div key={item.i} className="min-w-0 h-full w-full">
+                <div key={item.i} className="relative min-w-0 h-full w-full overflow-visible">
                   <WidgetShell
                     id={item.i}
                     label={label}
                     isEditing={isArranging}
-                    showTitleInView={widgetDef?.group !== "kpi"}
+                    showTitleInView={
+                      widgetDef?.group !== "kpi" && item.i !== "personal_daily_progress"
+                    }
                     headerActions={renderWidgetHeaderControls(item.i)}
                   >
                     {renderWidgetContent(item.i)}

@@ -28,6 +28,15 @@ describe("WorkspaceMembersOverviewService", () => {
         isActive: true,
         createdAt: new Date("2025-02-01T00:00:00.000Z"),
         user: { name: "Member User", email: "member@kloqra.dev", mustChangePassword: false }
+      },
+      {
+        id: "m3",
+        workspaceId,
+        userId: "u3",
+        role: "MEMBER",
+        isActive: false,
+        createdAt: new Date("2025-03-01T00:00:00.000Z"),
+        user: { name: "Inactive User", email: "inactive@kloqra.dev", mustChangePassword: false }
       }
     ];
 
@@ -41,13 +50,14 @@ describe("WorkspaceMembersOverviewService", () => {
       workspaceMember: {
         count: vi.fn().mockImplementation(({ where }: { where?: { role?: string } }) => {
           if (where?.role === "ADMIN") return Promise.resolve(1);
-          return Promise.resolve(2);
+          return Promise.resolve(3);
         }),
         findMany: vi.fn().mockImplementation(({ select }) => {
           if (select) {
             return Promise.resolve([
               { userId: "u1", isActive: true },
-              { userId: "u2", isActive: true }
+              { userId: "u2", isActive: true },
+              { userId: "u3", isActive: false }
             ]);
           }
           return Promise.resolve(workspaceMembers);
@@ -112,13 +122,13 @@ describe("WorkspaceMembersOverviewService", () => {
     const result = await service.getOverview(workspaceId, { page: 1, limit: 20 });
 
     expect(result.summary).toEqual({
-      totalMembers: 2,
+      totalMembers: 3,
       activeMembers: 2,
       adminCount: 1,
       totalWeekHours: 2
     });
 
-    expect(result.members).toHaveLength(2);
+    expect(result.members).toHaveLength(3);
 
     const admin = result.members.find((m) => m.userId === "u1");
     expect(admin).toMatchObject({
@@ -140,12 +150,25 @@ describe("WorkspaceMembersOverviewService", () => {
     });
   });
 
-  it("filters members by activity status", async () => {
+  it("marks members with no time logs as Active when membership is not deactivated", async () => {
     mockPresence.snapshot.mockResolvedValue({
-      members: [{ userId: "u2", isPaused: true }],
+      members: [],
       updatedAt: new Date().toISOString()
     });
+    mockPrisma.timeLog.groupBy.mockResolvedValue([]);
 
+    const result = await service.getOverview(workspaceId, { page: 1, limit: 20 });
+    const neverLogged = result.members.find((m) => m.userId === "u2");
+
+    expect(neverLogged).toMatchObject({
+      isActive: true,
+      status: "active",
+      lastActiveAt: null,
+      weekHours: 0
+    });
+  });
+
+  it("filters members by membership status only", async () => {
     const result = await service.getOverview(workspaceId, {
       page: 1,
       limit: 20,
@@ -153,7 +176,8 @@ describe("WorkspaceMembersOverviewService", () => {
     });
 
     expect(result.members).toHaveLength(1);
-    expect(result.members[0]?.userId).toBe("u2");
+    expect(result.members[0]?.userId).toBe("u3");
+    expect(result.members[0]?.status).toBe("inactive");
     expect(result.total).toBe(1);
   });
 });

@@ -1,12 +1,5 @@
 import { cn } from "@kloqra/ui";
-import type { TeamLiveStatus } from "./team-live-status";
-
-const STATUS_META: Record<TeamLiveStatus, { label: string; dot: string; activeRing?: string }> = {
-  active: { label: "Active", dot: "bg-emerald-500" },
-  idle: { label: "Idle", dot: "bg-amber-400" },
-  break: { label: "On Break", dot: "bg-orange-500" },
-  offline: { label: "Offline", dot: "bg-muted-foreground/50" }
-};
+import { TEAM_LIVE_STATUS_META, type TeamLiveStatus } from "./team-live-status";
 
 export function TeamLiveStatusCard({
   status,
@@ -19,7 +12,7 @@ export function TeamLiveStatusCard({
   selected?: boolean;
   onSelect?: () => void;
 }) {
-  const meta = STATUS_META[status];
+  const meta = TEAM_LIVE_STATUS_META[status];
   const interactive = Boolean(onSelect);
 
   return (
@@ -34,12 +27,14 @@ export function TeamLiveStatusCard({
         !interactive && "cursor-default"
       )}
       aria-pressed={selected}
+      aria-label={`${meta.label}: ${count}. ${meta.description}`}
     >
       <div className="flex items-center gap-2">
         <span className={cn("size-2 shrink-0 rounded-full", meta.dot)} aria-hidden />
         <span className="text-sm text-muted-foreground">{meta.label}</span>
       </div>
       <p className="mt-3 text-3xl font-semibold tabular-nums tracking-tight">{count}</p>
+      <p className="mt-1.5 text-xs leading-snug text-muted-foreground">{meta.description}</p>
     </button>
   );
 }

@@ -112,6 +112,8 @@ export function generateResponsiveLayouts(
 ): DashboardGridLayouts {
   const visible = items.filter((item) => item.visible !== false);
 
+  // Desktop (lg/md) must keep author positions — reflowing on every render fights
+  // drag/resize in controlled react-grid-layout. Pack only denser breakpoints.
   return {
     lg: visible,
     /** Same coordinates as lg — only pixel column width changes when the shell resizes. */

@@ -68,9 +68,9 @@ export function DailyGoalWidget({
 
   const hoursLogged = (totalSeconds / 3600).toFixed(2);
 
-  const size = 110;
+  const ringViewBox = 110;
   const strokeWidth = 8;
-  const radius = (size - strokeWidth) / 2;
+  const radius = (ringViewBox - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference * (1 - percentage / 100);
 
@@ -134,23 +134,24 @@ export function DailyGoalWidget({
   }, [dailyTotals, resolvedTz]);
 
   const bodyContent = (
-    <div className="flex flex-row items-center gap-6 py-2 w-full h-full min-w-0">
-      <div
-        className="relative flex items-center justify-center shrink-0"
-        style={{ width: size, height: size }}
-      >
-        <svg width={size} height={size} className="-rotate-90" aria-hidden>
+    <div className="@container/daily-goal flex h-full min-h-[5.5rem] w-full min-w-0 items-center gap-3 overflow-hidden">
+      <div className="relative aspect-square h-full max-h-full min-h-[4.25rem] w-auto max-w-[42%] shrink-0">
+        <svg
+          viewBox={`0 0 ${ringViewBox} ${ringViewBox}`}
+          className="size-full -rotate-90"
+          aria-hidden
+        >
           <circle
-            cx={size / 2}
-            cy={size / 2}
+            cx={ringViewBox / 2}
+            cy={ringViewBox / 2}
             r={radius}
             fill="none"
             className="stroke-muted/40"
             strokeWidth={strokeWidth}
           />
           <circle
-            cx={size / 2}
-            cy={size / 2}
+            cx={ringViewBox / 2}
+            cy={ringViewBox / 2}
             r={radius}
             fill="none"
             className={`transition-all duration-500 ease-out ${
@@ -162,25 +163,29 @@ export function DailyGoalWidget({
             strokeDashoffset={strokeDashoffset}
           />
         </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-xl font-bold tracking-tight">{percentage}%</span>
-          <span className="text-[10px] text-muted-foreground">of target</span>
+        <div className="absolute inset-0 flex flex-col items-center justify-center px-1">
+          <span className="text-sm font-bold tracking-tight @[10rem]/daily-goal:text-xl">
+            {percentage}%
+          </span>
+          <span className="text-[9px] text-muted-foreground @[10rem]/daily-goal:text-[10px]">
+            of target
+          </span>
         </div>
       </div>
 
-      <div className="space-y-2 flex-1 min-w-0">
-        <div className="flex items-center justify-between">
-          <p className="text-2xl font-bold tracking-tight">
-            {hoursLogged}{" "}
-            <span className="text-sm font-medium text-muted-foreground">/ {targetHours} hrs</span>
-          </p>
-        </div>
-        <p className="text-xs text-muted-foreground leading-snug">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-center gap-1 overflow-hidden">
+        <p className="truncate text-lg font-bold tracking-tight @[12rem]/daily-goal:text-2xl">
+          {hoursLogged}{" "}
+          <span className="text-xs font-medium text-muted-foreground @[12rem]/daily-goal:text-sm">
+            / {targetHours} hrs
+          </span>
+        </p>
+        <p className="line-clamp-2 text-[11px] leading-snug text-muted-foreground @[12rem]/daily-goal:text-xs">
           {isGoalReached
             ? "Goal reached! Keep up the good work!"
             : `Need ${((targetSeconds - totalSeconds) / 3600).toFixed(2)} more hours today.`}
         </p>
-        <div className="w-full bg-muted/40 rounded-full h-1.5 overflow-hidden">
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/40">
           <div
             className={`h-full transition-all duration-500 ${
               isGoalReached ? "bg-green-500" : "bg-primary"
@@ -189,13 +194,12 @@ export function DailyGoalWidget({
           />
         </div>
 
-        {/* Streak Counter Badge */}
-        {streak > 0 && (
-          <div className="flex items-center gap-1.5 w-max px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-[10px] font-bold shadow-[0_0_8px_rgba(245,158,11,0.12)]">
-            <Flame className="size-3.5 fill-amber-500 text-amber-500 animate-flame-flicker" />
-            <span>{streak} Day Streak!</span>
+        {streak > 0 ? (
+          <div className="flex w-max max-w-full items-center gap-1.5 truncate rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-0.5 text-[10px] font-bold text-amber-600 shadow-[0_0_8px_rgba(245,158,11,0.12)] dark:text-amber-400">
+            <Flame className="size-3.5 shrink-0 fill-amber-500 text-amber-500 animate-flame-flicker" />
+            <span className="truncate">{streak} Day Streak!</span>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

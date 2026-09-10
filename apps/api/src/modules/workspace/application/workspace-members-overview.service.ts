@@ -13,8 +13,6 @@ import { getWeekStartDate } from "../../../common/time/week.util";
 // eslint-disable-next-line no-restricted-imports
 import { PresenceService } from "../../presence/application/presence.service";
 
-const ACTIVE_WITHIN_DAYS = 30;
-
 @Injectable()
 export class WorkspaceMembersOverviewService {
   constructor(
@@ -106,9 +104,6 @@ export class WorkspaceMembersOverviewService {
         .map((row) => [row.userId, row._max.startTime!])
     );
 
-    const activeThreshold = new Date(now);
-    activeThreshold.setUTCDate(activeThreshold.getUTCDate() - ACTIVE_WITHIN_DAYS);
-
     const overviewMembers: TeamMemberOverviewDto[] = members.map((m) => {
       const weekHours = roundExport(byUser.get(m.userId)?.totalHours ?? 0);
       const lastLogAt = lastActiveByUser.get(m.userId) ?? null;
@@ -118,11 +113,8 @@ export class WorkspaceMembersOverviewService {
         : lastLogAt
           ? lastLogAt.toISOString()
           : null;
-      const activityStatus =
-        isTrackingNow || (lastLogAt !== null && lastLogAt >= activeThreshold)
-          ? ("active" as const)
-          : ("inactive" as const);
-      const status = m.isActive ? activityStatus : ("inactive" as const);
+      // Membership only: Active = not deactivated, even with no time logged.
+      const status = m.isActive ? ("active" as const) : ("inactive" as const);
 
       return {
         id: m.id,
@@ -147,22 +139,10 @@ export class WorkspaceMembersOverviewService {
     const skip = (query.page - 1) * query.limit;
     const pagedMembers = statusFiltered.slice(skip, skip + query.limit);
 
-    const summaryUserIds = allMembersForSummary.map((m) => m.userId);
-    const membershipActiveByUser = new Map(allMembersForSummary.map((m) => [m.userId, m.isActive]));
-    let activeMembers = 0;
+    const activeMembers = allMembersForSummary.filter((m) => m.isActive).length;
     let totalWeekHours = 0;
-    for (const userId of summaryUserIds) {
-      const weekHours = roundExport(byUser.get(userId)?.totalHours ?? 0);
-      totalWeekHours += weekHours;
-      const lastLogAt = lastActiveByUser.get(userId) ?? null;
-      const isTrackingNow = trackingUserIds.has(userId);
-      const membershipActive = membershipActiveByUser.get(userId) ?? true;
-      if (
-        membershipActive &&
-        (isTrackingNow || (lastLogAt !== null && lastLogAt >= activeThreshold))
-      ) {
-        activeMembers += 1;
-      }
+    for (const row of allMembersForSummary) {
+      totalWeekHours += roundExport(byUser.get(row.userId)?.totalHours ?? 0);
     }
 
     const pagination = buildPaginationMeta(statusFiltered.length, query.page, query.limit);

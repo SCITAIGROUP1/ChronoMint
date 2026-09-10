@@ -211,6 +211,9 @@ async function main() {
   const dashboardLayoutCount = await seedDashboardLayouts(users, workspaces);
   console.log(`  dashboard layouts: ${dashboardLayoutCount} user/workspace assignments`);
 
+  const defaultWorkspaceCount = await seedMemberDefaultWorkspaces(users, workspaces);
+  console.log(`  default workspaces: ${defaultWorkspaceCount} member preference(s)`);
+
   const notificationCount = await seedNotifications(workspaces, users, allProjectCtx);
   console.log(`  notifications: ${notificationCount}`);
 
@@ -477,54 +480,64 @@ async function seedDashboardLayouts(
   for (const wsSpec of SEED_WORKSPACES) {
     const workspace = workspaceBySlug.get(wsSpec.slug);
     if (!workspace) continue;
+    const managementEmails = new Set(wsSpec.workspaceAdminEmails ?? []);
 
     for (const email of wsSpec.memberEmails) {
-      const userSpec = SEED_USERS.find((u) => u.email === email);
-      if (!userSpec) continue;
-
       const user = users.get(email);
       if (!user) continue;
 
-      if (userSpec.role === "ADMIN") {
-        const merged = buildPreferencesWithDashboardLayouts(
-          user.preferences,
-          workspace.id,
-          "app",
-          SEED_MANAGEMENT_DASHBOARD_LAYOUT,
-          SEED_MANAGEMENT_DASHBOARD_LAYOUT
-        );
+      const layout = managementEmails.has(email)
+        ? SEED_MANAGEMENT_DASHBOARD_LAYOUT
+        : SEED_PERSONAL_DASHBOARD_LAYOUT;
 
-        const saved = await prisma.user.update({
-          where: { id: user.id },
-          data: { preferences: merged as Prisma.InputJsonValue }
-        });
+      const merged = buildPreferencesWithDashboardLayouts(
+        user.preferences,
+        workspace.id,
+        "app",
+        layout,
+        layout
+      );
 
-        users.set(email, saved);
-        updated++;
-        continue;
-      }
+      const saved = await prisma.user.update({
+        where: { id: user.id },
+        data: { preferences: merged as Prisma.InputJsonValue }
+      });
 
-      if (userSpec.role === "MEMBER") {
-        const merged = buildPreferencesWithDashboardLayouts(
-          user.preferences,
-          workspace.id,
-          "app",
-          SEED_PERSONAL_DASHBOARD_LAYOUT,
-          SEED_PERSONAL_DASHBOARD_LAYOUT
-        );
-
-        const saved = await prisma.user.update({
-          where: { id: user.id },
-          data: { preferences: merged as Prisma.InputJsonValue }
-        });
-
-        users.set(email, saved);
-        updated++;
-      }
+      users.set(email, saved);
+      updated++;
     }
   }
 
   return updated;
+}
+
+/** Prefer Acme as the demo member default so login skips the multi-workspace picker. */
+async function seedMemberDefaultWorkspaces(
+  users: Map<string, User>,
+  workspaces: Workspace[]
+): Promise<number> {
+  const acme = workspaces.find((workspace) => workspace.slug === "acme");
+  const member = users.get(SEED_DEMO_PERSONAS.member);
+  if (!acme || !member) return 0;
+
+  const current =
+    member.preferences &&
+    typeof member.preferences === "object" &&
+    !Array.isArray(member.preferences)
+      ? (member.preferences as Record<string, unknown>)
+      : {};
+
+  const merged = {
+    ...current,
+    defaultWorkspaceId: acme.id
+  };
+
+  const saved = await prisma.user.update({
+    where: { id: member.id },
+    data: { preferences: merged as Prisma.InputJsonValue }
+  });
+  users.set(SEED_DEMO_PERSONAS.member, saved);
+  return 1;
 }
 
 async function seedUsers(passwordHash: string): Promise<Map<string, User>> {

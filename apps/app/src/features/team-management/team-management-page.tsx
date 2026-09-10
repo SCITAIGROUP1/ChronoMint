@@ -54,6 +54,7 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 import { formatLastActive, formatWeekHours } from "./format-last-active";
+import { formatMemberStatus } from "./format-member-status";
 import { inviteMemberSuccessMessage } from "./invite-member-messages";
 import { validateInviteMemberForm } from "./invite-member-validation";
 import { TeamMemberActions } from "./team-member-actions";
@@ -492,22 +493,14 @@ export function TeamManagementPage() {
                     </DataTableCell>
                     <DataTableCell>
                       <Badge
-                        variant={
-                          !member.isActive
-                            ? "secondary"
-                            : member.status === "active"
-                              ? "outline"
-                              : "secondary"
-                        }
+                        variant="outline"
                         className={
-                          !member.isActive
-                            ? undefined
-                            : member.status === "active"
-                              ? "border-success/30 bg-success/10 text-success"
-                              : undefined
+                          member.status === "active"
+                            ? "border-success/30 bg-success/10 text-success"
+                            : "border-destructive/30 bg-destructive/10 text-destructive"
                         }
                       >
-                        {!member.isActive ? "deactivated" : member.status}
+                        {formatMemberStatus(member.status)}
                       </Badge>
                     </DataTableCell>
                     <DataTableCell className="text-right tabular-nums">

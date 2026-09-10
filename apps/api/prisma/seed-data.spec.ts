@@ -89,6 +89,14 @@ describe("seed-data", () => {
     }
   });
 
+  it("keeps the member persona off project-manager roles", () => {
+    for (const workspace of SEED_WORKSPACES) {
+      for (const project of workspace.projects) {
+        expect(project.leadEmails ?? []).not.toContain(SEED_DEMO_PERSONAS.member);
+      }
+    }
+  });
+
   it("gives every tenant user ninety days of history", () => {
     for (const user of SEED_USERS) {
       expect(user.historyDays).toBe(90);
