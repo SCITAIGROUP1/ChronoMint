@@ -8,7 +8,9 @@ const ACME_WORKSPACE_ADMIN_EMAIL = SEED.personas.acmeAdmin.email;
 const ORG_ADMIN_EMAIL = SEED.personas.tenantAdmin.email;
 const MEMBER_EMAIL = SEED.personas.individualContributor.email;
 
-const POST_AUTH_URL = /\/(select-context|select-workspace|dashboard|account)(\/|\?|$)/;
+/** Members land on /overview; managers/admins on /dashboard or /account. */
+const POST_AUTH_URL = /\/(select-context|select-workspace|overview|dashboard|account)(\/|\?|$)/;
+const POST_WORKSPACE_URL = /\/(overview|dashboard|account)(\/|\?|$)/;
 
 export async function completePostLoginSelection(
   page: Page,
@@ -21,13 +23,15 @@ export async function completePostLoginSelection(
 
   if (page.url().includes("select-context")) {
     await page.getByRole("button", { name: new RegExp(workspaceName, "i") }).click({ force: true });
-    await page.waitForURL(/\/(select-workspace|dashboard|account)(\/|\?|$)/, { timeout: 30_000 });
+    await page.waitForURL(/\/(select-workspace|overview|dashboard|account)(\/|\?|$)/, {
+      timeout: 30_000
+    });
   }
 
   if (page.url().includes("select-workspace")) {
     await dismissNextDevToolsIfOpen(page);
     await page.locator("button").filter({ hasText: workspaceName }).first().click({ force: true });
-    await page.waitForURL(/\/(dashboard|account)(\/|\?|$)/, { timeout: 30_000 });
+    await page.waitForURL(POST_WORKSPACE_URL, { timeout: 30_000 });
   }
 
   await dismissOnboardingIfOpen(page);
@@ -75,7 +79,9 @@ export async function loginAsAdmin(page: Page) {
   await page.waitForFunction(
     () =>
       document.querySelector("input[type='email']") !== null ||
-      /^\/(select-context|select-workspace|dashboard|account)(\/|$)/.test(location.pathname),
+      /^\/(select-context|select-workspace|overview|dashboard|account)(\/|$)/.test(
+        location.pathname
+      ),
     undefined,
     { timeout: 30_000 }
   );
