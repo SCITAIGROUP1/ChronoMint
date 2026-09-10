@@ -14,15 +14,16 @@ test.describe("restored personal dashboard widgets", () => {
   });
 
   test("shows the restored personal widgets without horizontal overflow", async ({ page }) => {
+    // personal_today_logs is restored in the registry but hidden by default.
     for (const name of [
       "My Weekly Progress",
       "My Project Distribution",
       "My Quick Timer",
-      "My Category Split",
-      "My Today’s Logs"
+      "My Category Split"
     ]) {
       await expect(page.getByText(name, { exact: true })).toBeVisible({ timeout: 15_000 });
     }
+    await expect(page.getByText("My Today’s Logs", { exact: true })).toHaveCount(0);
 
     await page.setViewportSize({ width: 375, height: 812 });
     const hasOverflow = await page.evaluate(
