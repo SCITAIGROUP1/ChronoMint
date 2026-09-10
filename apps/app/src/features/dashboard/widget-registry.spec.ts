@@ -10,12 +10,19 @@ const RESTORED_PERSONAL_IDS = [
 ];
 
 describe("personal dashboard registry", () => {
-  it("registers the restored widgets once with visible defaults", () => {
+  it("registers personal widgets with default visibility from the member overview", () => {
     for (const id of RESTORED_PERSONAL_IDS) {
       const definitions = WIDGET_REGISTRY.filter((widget) => widget.id === id);
       expect(definitions).toHaveLength(1);
-      expect(definitions[0]).toMatchObject({ scope: "personal", defaultVisible: true });
-      expect(DEFAULT_LAYOUT.find((item) => item.i === id)?.visible).toBe(true);
+      expect(definitions[0]?.scope).toBe("personal");
     }
+    expect(DEFAULT_LAYOUT.find((item) => item.i === "personal_today_logs")?.visible).toBe(false);
+    expect(DEFAULT_LAYOUT.find((item) => item.i === "personal_category_split")).toMatchObject({
+      x: 6,
+      y: 6,
+      w: 6,
+      h: 3,
+      visible: true
+    });
   });
 });

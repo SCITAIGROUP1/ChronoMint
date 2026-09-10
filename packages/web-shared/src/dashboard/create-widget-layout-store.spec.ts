@@ -47,18 +47,21 @@ describe("createWidgetLayoutStore", () => {
     expect(store.getState().layoutsByWorkspace[workspaceId]).toEqual(remoteLayout);
   });
 
-  it("places newly registered visible widgets after occupied saved rows", async () => {
+  it("places newly registered visible widgets after occupied saved rows without staircase x", async () => {
     vi.mocked(fetchDashboardLayout).mockResolvedValue({
       layout: defaultLayout,
       defaultLayout: null
     });
     const expandedRegistry = [
       ...registry,
-      { id: "personal_weekly_progress", defaultVisible: true, defaultSize: { w: 8, h: 4 } }
+      { id: "personal_weekly_progress", defaultVisible: true, defaultSize: { w: 8, h: 4 } },
+      { id: "stat_projects", defaultVisible: true, defaultSize: { w: 2, h: 2 } }
     ];
     const expandedDefaults = [
       ...defaultLayout,
-      { i: "personal_weekly_progress", x: 0, y: 0, w: 8, h: 4, visible: true }
+      { i: "personal_weekly_progress", x: 0, y: 0, w: 8, h: 4, visible: true },
+      // Overlaps saved total hours at x:0..3 — should defer to next row at x:0 (not keep x:8).
+      { i: "stat_projects", x: 2, y: 0, w: 2, h: 2, visible: true }
     ];
     const store = createWidgetLayoutStore({
       app: "app",
@@ -69,11 +72,17 @@ describe("createWidgetLayoutStore", () => {
 
     await store.getState().initialize(workspaceId);
 
-    expect(
-      store
-        .getState()
-        .layoutsByWorkspace[workspaceId]?.find((item) => item.i === "personal_weekly_progress")
-    ).toMatchObject({ y: 2, visible: true });
+    const layout = store.getState().layoutsByWorkspace[workspaceId] ?? [];
+    expect(layout.find((item) => item.i === "personal_weekly_progress")).toMatchObject({
+      x: 0,
+      y: 2,
+      visible: true
+    });
+    expect(layout.find((item) => item.i === "stat_projects")).toMatchObject({
+      x: 0,
+      y: 6,
+      visible: true
+    });
   });
 
   it("dedupes concurrent initialize calls for the same workspace", async () => {

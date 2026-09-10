@@ -60,7 +60,7 @@ function unlabeledIfSingleSection(sections: SidebarNavSection[]): SidebarNavSect
 
 function buildWorkspaceNavSections(
   items: readonly AppNavItem[],
-  badges: { pendingCount: number; notificationUnreadCount: number }
+  badges: { pendingCount: number; notificationUnreadCount: number; projectCount: number }
 ): SidebarNavSection[] {
   return APP_NAV_SECTION_ORDER.flatMap((sectionId) => {
     const sectionItems = items.filter((item) => item.section === sectionId);
@@ -71,6 +71,7 @@ function buildWorkspaceNavSections(
         label: APP_NAV_SECTION_LABELS[sectionId],
         items: sectionItems.map((item) => {
           const mapped = mapNavItem(item);
+          if (item.href === "/projects") return { ...mapped, badge: badges.projectCount };
           if (item.href === "/approvals") return { ...mapped, badge: badges.pendingCount };
           if (item.href === "/notifications") {
             return { ...mapped, badge: badges.notificationUnreadCount };
@@ -88,6 +89,8 @@ export function resolveAppShellNav(options: {
   workspaceNavItems: readonly AppNavItem[];
   pendingCount: number;
   notificationUnreadCount: number;
+  /** Projects visible to the user in the active workspace (admins: all; PMs: managed). */
+  projectCount?: number;
   session: Pick<AuthSessionDto, "tenantRole"> | null | undefined;
   capabilities?: readonly Permission[];
 }): { mode: AppShellMode; navSections: SidebarNavSection[] } {
@@ -113,7 +116,8 @@ export function resolveAppShellNav(options: {
     navSections: unlabeledIfSingleSection(
       buildWorkspaceNavSections(baseItems, {
         pendingCount: options.pendingCount,
-        notificationUnreadCount: options.notificationUnreadCount
+        notificationUnreadCount: options.notificationUnreadCount,
+        projectCount: options.projectCount ?? 0
       })
     )
   };

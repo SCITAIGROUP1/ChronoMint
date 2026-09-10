@@ -1,7 +1,7 @@
 "use client";
 
 import { ROUTES } from "@kloqra/contracts";
-import type { WorkspaceMemberDto } from "@kloqra/contracts";
+import type { WorkspaceMemberPickerDto } from "@kloqra/contracts";
 import {
   AppModal,
   Button,
@@ -17,6 +17,7 @@ import { useProjectsListQuery } from "@kloqra/web-shared";
 import { UserPlus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { assignableWorkspaceMembers } from "./assignable-workspace-members";
 import { api } from "@/lib/api";
 
 type AssignProjectManagerDialogProps = {
@@ -34,7 +35,7 @@ export function AssignProjectManagerDialog({
   onClose,
   onAssigned
 }: AssignProjectManagerDialogProps) {
-  const [members, setMembers] = useState<WorkspaceMemberDto[]>([]);
+  const [members, setMembers] = useState<WorkspaceMemberPickerDto[]>([]);
   const { data: projectRows = [], isLoading: projectsLoading } = useProjectsListQuery(
     workspaceId,
     open && Boolean(workspaceId)
@@ -57,11 +58,12 @@ export function AssignProjectManagerDialog({
     setLoadingOptions(true);
     void (async () => {
       try {
-        const memberRows = await api<WorkspaceMemberDto[]>(ROUTES.WORKSPACES.MEMBERS(workspaceId), {
-          workspaceId
-        });
+        const memberRows = await api<WorkspaceMemberPickerDto[]>(
+          ROUTES.WORKSPACES.MEMBERS(workspaceId),
+          { workspaceId }
+        );
         if (!cancelled) {
-          setMembers(memberRows.filter((member) => member.role === "MEMBER" && member.isActive));
+          setMembers(assignableWorkspaceMembers(Array.isArray(memberRows) ? memberRows : []));
         }
       } catch {
         if (!cancelled) {

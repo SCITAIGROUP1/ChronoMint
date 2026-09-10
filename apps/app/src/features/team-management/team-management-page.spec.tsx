@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { formatLastActive, formatWeekHours } from "./format-last-active";
+import { formatMemberStatus } from "./format-member-status";
 
 describe("formatLastActive", () => {
   it("returns Now when tracking", () => {
@@ -20,6 +21,13 @@ describe("formatWeekHours", () => {
   it("formats zero and fractional hours", () => {
     expect(formatWeekHours(0)).toBe("0h");
     expect(formatWeekHours(32.5)).toBe("32.5h");
+  });
+});
+
+describe("formatMemberStatus", () => {
+  it("capitalizes the only two membership statuses", () => {
+    expect(formatMemberStatus("active")).toBe("Active");
+    expect(formatMemberStatus("inactive")).toBe("Inactive");
   });
 });
 

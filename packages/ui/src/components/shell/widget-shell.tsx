@@ -35,13 +35,23 @@ export const WidgetShell = forwardRef<HTMLDivElement, WidgetShellProps>(
         style={style}
         className={cn(widgetShellVariants({ editing: isEditing }), className)}
       >
-        <CardContent className="relative min-h-0 min-w-0 flex-1 overflow-auto p-4">
+        <CardContent className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-4">
           {isEditing ? (
-            <div className="absolute inset-0 z-20 cursor-grab active:cursor-grabbing" aria-hidden />
+            // Keep bottom/right edges free so react-grid-layout resize handles receive events.
+            <div
+              className="absolute top-0 left-0 z-20 cursor-grab active:cursor-grabbing bottom-3 right-3"
+              aria-hidden
+            />
           ) : null}
 
           {!isEditing && (showViewTitle || showViewToolbar) ? (
-            <div className={cn(widgetShellViewToolbarClass, !showViewTitle && "justify-end")}>
+            <div
+              className={cn(
+                widgetShellViewToolbarClass,
+                "shrink-0",
+                !showViewTitle && "justify-end"
+              )}
+            >
               {showViewTitle ? <h3 className={widgetShellTitleClass}>{label}</h3> : null}
               {showViewToolbar ? (
                 <div className="widget-no-drag ml-auto flex shrink-0 items-center gap-2">
@@ -51,7 +61,12 @@ export const WidgetShell = forwardRef<HTMLDivElement, WidgetShellProps>(
             </div>
           ) : null}
 
-          <div className={isEditing ? "pointer-events-none select-none" : undefined}>
+          <div
+            className={cn(
+              "min-h-0 min-w-0 flex-1 overflow-hidden",
+              isEditing && "pointer-events-none select-none"
+            )}
+          >
             {children}
           </div>
         </CardContent>

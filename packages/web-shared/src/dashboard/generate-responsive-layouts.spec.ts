@@ -22,14 +22,24 @@ const MIN_SIZES: Record<string, WidgetMinSize> = {
 };
 
 describe("generateResponsiveLayouts", () => {
-  it("returns lg layout for visible items only", () => {
-    const visible = SAMPLE_LAYOUT.filter((item) => item.visible);
+  it("returns visible items for lg without reflowing desktop positions", () => {
     const layouts = generateResponsiveLayouts(SAMPLE_LAYOUT, DASHBOARD_GRID_COLS, MIN_SIZES);
-    expect(layouts.lg).toEqual(visible);
-    expect(layouts.md).toEqual(visible);
+    expect(layouts.lg.map((item) => item.i)).toEqual([
+      "stat_total_hours",
+      "stat_billable",
+      "stat_projects",
+      "quick_timer",
+      "weekly_progress"
+    ]);
+    expect(layouts.lg.every((item) => item.visible !== false)).toBe(true);
+    expect(layouts.lg.find((item) => item.i === "stat_billable")).toMatchObject({
+      x: 4,
+      y: 0,
+      w: 4
+    });
   });
 
-  it("uses the same stored coordinates for md and lg (stable when shell width changes)", () => {
+  it("packs lg and md the same way when column counts match", () => {
     const layouts = generateResponsiveLayouts(SAMPLE_LAYOUT, DASHBOARD_GRID_COLS, MIN_SIZES);
     expect(layouts.md).toEqual(layouts.lg);
     expect(DASHBOARD_GRID_COLS.md).toBe(DASHBOARD_GRID_COLS.lg);
@@ -52,6 +62,24 @@ describe("generateResponsiveLayouts", () => {
         expect(item.w).toBeGreaterThan(0);
       }
     }
+  });
+
+  it("closes horizontal gaps on sm when a middle KPI is hidden", () => {
+    const gappy: WidgetLayoutItemDto[] = [
+      { i: "stat_nonbillable", x: 2, y: 0, w: 2, h: 2, visible: true },
+      { i: "stat_total_hours", x: 4, y: 0, w: 4, h: 2, visible: true },
+      { i: "stat_projects", x: 8, y: 0, w: 2, h: 2, visible: true },
+      { i: "stat_members", x: 10, y: 0, w: 2, h: 2, visible: true }
+    ];
+
+    const layouts = generateResponsiveLayouts(gappy, DASHBOARD_GRID_COLS);
+    expect(layouts.lg).toEqual(gappy);
+    expect(layouts.sm.map((item) => ({ i: item.i, x: item.x, w: item.w }))).toEqual([
+      { i: "stat_nonbillable", x: 0, w: 2 },
+      { i: "stat_total_hours", x: 2, w: 4 },
+      { i: "stat_projects", x: 0, w: 2 },
+      { i: "stat_members", x: 2, w: 2 }
+    ]);
   });
 
   it("stacks items full-width on xxs", () => {

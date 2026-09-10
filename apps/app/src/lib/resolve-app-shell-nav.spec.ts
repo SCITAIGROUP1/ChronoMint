@@ -118,6 +118,7 @@ describe("resolveAppShellNav", () => {
       workspaceNavItems: APP_NAV_ITEMS,
       pendingCount: 2,
       notificationUnreadCount: 1,
+      projectCount: 4,
       session: { tenantRole: "OWNER" }
     });
 
@@ -127,6 +128,9 @@ describe("resolveAppShellNav", () => {
     expect(sectionLabels("/dashboard")).toEqual(["Workspace", "My time", "Support"]);
     expect(flattenNavSections(navSections).some((item) => item.href.startsWith("/account"))).toBe(
       false
+    );
+    expect(flattenNavSections(navSections).find((item) => item.href === "/projects")?.badge).toBe(
+      4
     );
     expect(flattenNavSections(navSections).find((item) => item.href === "/approvals")?.badge).toBe(
       2
@@ -157,6 +161,25 @@ describe("resolveAppShellNav", () => {
       "Workspace",
       "My time"
     ]);
+  });
+
+  it("badges Projects with assigned project count for project managers", () => {
+    const { navSections } = resolveAppShellNav({
+      pathname: "/projects",
+      projectLeadOnly: true,
+      workspaceNavItems: APP_NAV_ITEMS,
+      pendingCount: 8,
+      notificationUnreadCount: 0,
+      projectCount: 1,
+      session: undefined
+    });
+
+    expect(flattenNavSections(navSections).find((item) => item.href === "/projects")?.badge).toBe(
+      1
+    );
+    expect(flattenNavSections(navSections).find((item) => item.href === "/approvals")?.badge).toBe(
+      8
+    );
   });
 
   it("uses capability navigation for a plain workspace member", () => {

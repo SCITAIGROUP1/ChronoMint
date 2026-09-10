@@ -588,8 +588,8 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
         budgetHours: 160,
         budgetBurnPct: 1.08,
         ...projectTeam(
-          ["member@kloqra.dev", "drew@kloqra.dev"],
-          ["alex@kloqra.dev", "jordan@kloqra.dev", "riley@kloqra.dev"]
+          ["alex@kloqra.dev", "drew@kloqra.dev"],
+          ["member@kloqra.dev", "jordan@kloqra.dev", "riley@kloqra.dev"]
         ),
         tasks: [
           {
@@ -755,8 +755,8 @@ export const SEED_WORKSPACES: SeedWorkspaceSpec[] = [
         budgetHours: 200,
         budgetBurnPct: 0.91,
         ...projectTeam(
-          ["alex@kloqra.dev", "member@kloqra.dev"],
-          ["casey@kloqra.dev", "riley@kloqra.dev", "blake@kloqra.dev"]
+          ["alex@kloqra.dev", "casey@kloqra.dev"],
+          ["member@kloqra.dev", "riley@kloqra.dev", "blake@kloqra.dev"]
         ),
         tasks: [
           {

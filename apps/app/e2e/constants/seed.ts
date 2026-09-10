@@ -21,6 +21,7 @@ export const SEED = {
       password: "password123"
     },
     member: { email: "member@kloqra.dev", name: "Sam Rivera", password: "password123" },
+    projectManager: { email: "alex@kloqra.dev", name: "Alex Chen", password: "password123" },
     individualContributor: {
       email: "taylor@kloqra.dev",
       name: "Taylor Brooks",

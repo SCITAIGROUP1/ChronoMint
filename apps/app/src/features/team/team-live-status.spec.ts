@@ -5,7 +5,8 @@ import {
   deriveTeamLiveStatus,
   filterTeamLiveMembers,
   formatElapsedTimer,
-  memberInitials
+  memberInitials,
+  TEAM_LIVE_STATUS_META
 } from "./team-live-status";
 
 const baseMember = {
@@ -21,6 +22,15 @@ const baseMember = {
   lastActiveAt: "2026-06-10T10:00:00.000Z",
   isTrackingNow: false
 };
+
+describe("TEAM_LIVE_STATUS_META", () => {
+  it("includes a short description for each status count card", () => {
+    expect(TEAM_LIVE_STATUS_META.active.description).toMatch(/timer running/i);
+    expect(TEAM_LIVE_STATUS_META.idle.description).toMatch(/recently active/i);
+    expect(TEAM_LIVE_STATUS_META.break.description).toMatch(/paused|break/i);
+    expect(TEAM_LIVE_STATUS_META.offline.description).toMatch(/no recent activity/i);
+  });
+});
 
 describe("deriveTeamLiveStatus", () => {
   it("returns active when presence is running", () => {
