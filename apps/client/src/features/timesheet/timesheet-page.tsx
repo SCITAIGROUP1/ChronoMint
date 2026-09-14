@@ -1,6 +1,6 @@
 "use client";
 
-import { ROUTES } from "@kloqra/contracts";
+import { ROUTES, resolveEffectiveDailyTargetHours } from "@kloqra/contracts";
 import type { TimeLogDto, UserProfileDto } from "@kloqra/contracts";
 import {
   AppBar,
@@ -27,7 +27,11 @@ import {
   useTimelogMutations,
   useTimelogOccupancyQuery,
   useEntryCatalogQueries,
-  useTimesheetSubmissionStatusQuery
+  useTimesheetSubmissionStatusQuery,
+  useTenantHolidaysQuery,
+  useTenantActivityTypesQuery,
+  useUserProfile,
+  useWorkspaceOperationalSettings
 } from "@kloqra/web-shared";
 import { Clock, Eye, EyeOff, Lock, X } from "lucide-react";
 import Link from "next/link";
@@ -67,7 +71,9 @@ import {
   draftFromLog,
   draftFromSlot,
   draftFromSlotRange,
+  draftToBatchBody,
   draftToIsoRange,
+  draftToTimelogBody,
   type TimeEntryDraft
 } from "./time-entry-draft";
 import { clearTimeEntryDraftStorageFor } from "./time-entry-draft-storage";
@@ -103,6 +109,7 @@ import { useActiveTimerSession } from "@/hooks/use-active-timer-session";
 import { useIsImpersonating } from "@/hooks/use-is-impersonating";
 import { useJiraIssues } from "@/hooks/use-jira-issues";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { NON_PROJECT_ENTRY_COLORS } from "@/lib/non-project-entry-styles";
 import { colorForTask } from "@/lib/project-color-styles";
 import { formatTaskLabel } from "@/lib/project-labels";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
@@ -177,6 +184,22 @@ export function TimesheetPage() {
   const projects = catalog.projects;
   const tasks = catalog.tasks;
   const categories = catalog.categories;
+  const { data: holidaysRes } = useTenantHolidaysQuery(ws, Boolean(ws));
+  const { data: activityTypesRes } = useTenantActivityTypesQuery(ws, Boolean(ws));
+  const activityTypes = activityTypesRes?.items ?? [];
+  const holidayDates = useMemo(
+    () => new Set((holidaysRes?.items ?? []).filter((h) => h.isActive).map((h) => h.date)),
+    [holidaysRes]
+  );
+  const { profile } = useUserProfile();
+  const { dailyTargetHours: workspaceDailyHours } = useWorkspaceOperationalSettings(
+    ws,
+    Boolean(ws)
+  );
+  const dailyTargetHours = resolveEffectiveDailyTargetHours(
+    profile?.preferences ?? {},
+    workspaceDailyHours
+  );
   const workspaces = useWorkspacesStore((s) => s.workspaces);
   const workspaceNamesById = useMemo(
     () => Object.fromEntries(workspaces.map((workspace) => [workspace.id, workspace.name])),
@@ -363,7 +386,8 @@ export function TimesheetPage() {
   const monthStart = useMemo(() => startOfMonth(anchor), [anchor]);
 
   const projectForTask = useCallback(
-    (taskId: string) => {
+    (taskId: string | null | undefined) => {
+      if (!taskId) return undefined;
       const task = tasks.find((t) => t.id === taskId);
       if (!task) return undefined;
       return projects.find((p) => p.id === task.projectId);
@@ -371,10 +395,15 @@ export function TimesheetPage() {
     [tasks, projects]
   );
 
-  const taskForLog = useCallback((taskId: string) => tasks.find((t) => t.id === taskId), [tasks]);
+  const taskForLog = useCallback(
+    (taskId: string | null | undefined) =>
+      taskId ? tasks.find((t) => t.id === taskId) : undefined,
+    [tasks]
+  );
 
   const categoryForTask = useCallback(
-    (taskId: string) => {
+    (taskId: string | null | undefined) => {
+      if (!taskId) return undefined;
       const task = tasks.find((t) => t.id === taskId);
       if (!task) return undefined;
       return categories.find((c) => c.id === task.categoryId);
@@ -512,7 +541,14 @@ export function TimesheetPage() {
   );
 
   const taskInfo = useCallback(
-    (taskId: string): CalendarTaskInfo => {
+    (taskId: string, log?: TimeLogDto): CalendarTaskInfo => {
+      if (log && !log.taskId) {
+        return {
+          taskName: log.activityTypeName ?? log.holidayName ?? "Organization time",
+          categoryName: log.classification === "TENANT_ACTIVITY" ? "Activity" : "Time off",
+          projectName: log.holidayName ?? log.activityTypeName ?? undefined
+        };
+      }
       const task = tasks.find((t) => t.id === taskId);
       const project = task ? projects.find((p) => p.id === task.projectId) : undefined;
       return {
@@ -662,7 +698,7 @@ export function TimesheetPage() {
     if (savingRef.current) return;
     if (editingLog && isEntryReadOnly(editingLog)) return;
     if (!draft || !canSaveTaskDraft(draft)) {
-      setError("Select a project and a task.");
+      setError("Select a project and a task, or an organization time type.");
       return;
     }
     const { startTime, endTime } = draftToIsoRange(draft, timezone);
@@ -683,11 +719,7 @@ export function TimesheetPage() {
         toast.error(overlapMsg);
         return;
       }
-      const taskId = draft.taskSelection;
-      if (!taskId) {
-        setError("Select a task to log time.");
-        return;
-      }
+      const classification = draft.classification ?? "PROJECT";
       if (isRecurring) {
         if (!draft.repeatUntil) {
           setError("Please select an end date for the recurrence.");
@@ -697,17 +729,7 @@ export function TimesheetPage() {
           setError("Select a recurrence pattern.");
           return;
         }
-        const body = {
-          taskId,
-          localStartTime: draft.startTime,
-          localEndTime: draft.endTime,
-          startDate: draft.date,
-          endDate: draft.repeatUntil,
-          recurrence: draft.recurrence,
-          timezone,
-          description: draft.description || undefined,
-          isBillable: draft.isBillable
-        };
+        const body = draftToBatchBody(draft, timezone);
         const res = await timelogMutations.createBatch(body);
         closeDialog();
         if (res.skippedCount > 0) {
@@ -718,13 +740,11 @@ export function TimesheetPage() {
           toast.success(`Logged ${res.createdCount} recurring entries!`);
         }
       } else {
-        const body = {
-          taskId,
-          startTime,
-          endTime,
-          description: draft.description || undefined,
-          isBillable: draft.isBillable
-        };
+        const body = draftToTimelogBody(draft, timezone);
+        if (classification === "PROJECT" && !draft.taskSelection) {
+          setError("Select a task to log time.");
+          return;
+        }
         if (editingLog) {
           await timelogMutations.update(editingLog.id, body);
         } else {
@@ -790,13 +810,25 @@ export function TimesheetPage() {
     }
     setError(null);
     try {
-      const created = await timelogMutations.create({
-        taskId: log.taskId,
-        startTime: start.toISOString(),
-        endTime: end.toISOString(),
-        description: log.description ?? undefined,
-        isBillable: log.isBillable
-      });
+      const created = await timelogMutations.create(
+        log.classification && log.classification !== "PROJECT"
+          ? {
+              classification: log.classification,
+              activityTypeId: log.activityTypeId ?? undefined,
+              holidayId: log.holidayId ?? undefined,
+              startTime: start.toISOString(),
+              endTime: end.toISOString(),
+              description: log.description ?? undefined,
+              isBillable: false
+            }
+          : {
+              taskId: log.taskId ?? undefined,
+              startTime: start.toISOString(),
+              endTime: end.toISOString(),
+              description: log.description ?? undefined,
+              isBillable: log.isBillable
+            }
+      );
       toast.success("Time entry duplicated!");
       startTransition(() => {
         openDraft(draftFromLog(created, tasks, timezone), created);
@@ -1064,6 +1096,27 @@ export function TimesheetPage() {
             <Clock className="h-3 w-3" />
             Timer
           </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/30 px-2.5 py-0.5 text-[11px] text-muted-foreground">
+            <span
+              className="inline-block h-2.5 w-3 rounded-[2px]"
+              style={{ backgroundColor: NON_PROJECT_ENTRY_COLORS.PUBLIC_HOLIDAY }}
+            />
+            Holiday
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/30 px-2.5 py-0.5 text-[11px] text-muted-foreground">
+            <span
+              className="inline-block h-2.5 w-3 rounded-[2px]"
+              style={{ backgroundColor: NON_PROJECT_ENTRY_COLORS.LEAVE_FULL }}
+            />
+            Leave
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/30 px-2.5 py-0.5 text-[11px] text-muted-foreground">
+            <span
+              className="inline-block h-2.5 w-3 rounded-[2px]"
+              style={{ backgroundColor: NON_PROJECT_ENTRY_COLORS.TENANT_ACTIVITY }}
+            />
+            Org activity
+          </span>
           {isActiveTimer(activeTimer) && (
             <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] text-emerald-700 dark:text-emerald-300">
               <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
@@ -1081,6 +1134,7 @@ export function TimesheetPage() {
             month={monthStart}
             logs={logs}
             entryColor={entryColor}
+            holidayDates={holidayDates}
             onDayClick={onMonthDayClick}
             timezone={timezone}
           />
@@ -1095,6 +1149,7 @@ export function TimesheetPage() {
             taskName={(id) => taskLabel(id)}
             taskInfo={taskInfo}
             entryColor={entryColor}
+            holidayDates={holidayDates}
             activeTimer={isActiveTimer(activeTimer) ? activeTimer : null}
             liveElapsedSec={liveElapsedSec}
             isEntryLocked={isSubmissionLocked}
@@ -1140,6 +1195,8 @@ export function TimesheetPage() {
         }
         timezone={timezone}
         jiraSuggestions={jiraIssues}
+        activityTypes={activityTypes}
+        dailyTargetHours={dailyTargetHours}
       />
 
       <ConfirmDialog

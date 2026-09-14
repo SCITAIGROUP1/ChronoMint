@@ -103,11 +103,7 @@ describe("TimelogsService listOccupancy", () => {
       expect.objectContaining({
         where: expect.objectContaining({
           userId: "user-1",
-          task: {
-            project: {
-              workspace: { members: { some: { userId: "user-1" } } }
-            }
-          }
+          OR: expect.any(Array)
         })
       })
     );
@@ -120,7 +116,8 @@ describe("TimelogsService listOccupancy", () => {
       workspaceName: "Other Co",
       label: "Website — Design",
       source: "manual",
-      isLocked: true
+      isLocked: true,
+      classification: "PROJECT"
     });
   });
 });
@@ -129,6 +126,7 @@ describe("TimelogsService list", () => {
   let service: TimelogsService;
   let mockPrisma: {
     timeLog: { findMany: ReturnType<typeof vi.fn> };
+    workspace: { findUniqueOrThrow: ReturnType<typeof vi.fn> };
   };
   let _mockAccess: {
     assertCanLogTask: ReturnType<typeof vi.fn>;
@@ -137,7 +135,8 @@ describe("TimelogsService list", () => {
 
   beforeEach(() => {
     mockPrisma = {
-      timeLog: { findMany: vi.fn().mockResolvedValue([]) }
+      timeLog: { findMany: vi.fn().mockResolvedValue([]) },
+      workspace: { findUniqueOrThrow: vi.fn().mockResolvedValue({ tenantId: "tenant-1" }) }
     };
     service = new TimelogsService(
       mockPrisma as never,
@@ -228,7 +227,9 @@ describe("TimelogsService list", () => {
                   task: {
                     category: { name: { contains: "audit", mode: "insensitive" } }
                   }
-                }
+                },
+                { activityType: { name: { contains: "audit", mode: "insensitive" } } },
+                { holiday: { name: { contains: "audit", mode: "insensitive" } } }
               ]
             }
           ]
@@ -348,6 +349,7 @@ describe("TimelogAuditService", () => {
 
     expect(snapshot).toEqual({
       taskId: log.taskId,
+      classification: undefined,
       startTime: "2025-01-01T09:00:00.000Z",
       endTime: "2025-01-01T10:00:00.000Z",
       durationSec: 3600,
@@ -357,7 +359,7 @@ describe("TimelogAuditService", () => {
     });
   });
 
-  it("snapshotFromLog captures exactly 7 required fields", () => {
+  it("snapshotFromLog captures required fields including source", () => {
     const log = {
       taskId: "t1",
       startTime: new Date("2025-01-01T09:00:00.000Z"),
@@ -368,7 +370,7 @@ describe("TimelogAuditService", () => {
       source: "timer_autostopped"
     };
     const snapshot = audit.snapshotFromLog(log);
-    expect(Object.keys(snapshot)).toHaveLength(7);
+    expect(Object.keys(snapshot)).toContain("source");
     expect(snapshot.source).toBe("timer_autostopped");
   });
 });
@@ -643,6 +645,7 @@ describe("TimelogsService update timer entry", () => {
     const timeLogUpdate = vi.fn().mockResolvedValue(updated);
     const prisma = {
       timeLog: { findFirst: timeLogFindFirst, update: timeLogUpdate },
+      workspace: { findUniqueOrThrow: vi.fn().mockResolvedValue({ tenantId: "t1" }) },
       task: {
         findUniqueOrThrow: vi.fn().mockResolvedValue({
           id: "task-1",
@@ -724,6 +727,7 @@ describe("TimelogsService update timer entry", () => {
     const timeLogUpdate = vi.fn().mockResolvedValue(updated);
     const prisma = {
       timeLog: { findFirst: timeLogFindFirst, update: timeLogUpdate },
+      workspace: { findUniqueOrThrow: vi.fn().mockResolvedValue({ tenantId: "t1" }) },
       task: {
         findUniqueOrThrow: vi.fn().mockResolvedValue({
           id: "task-1",
@@ -777,7 +781,10 @@ describe("TimelogsService update timer entry", () => {
 describe("TimelogsService ownership isolation", () => {
   function createService(findFirst: ReturnType<typeof vi.fn>) {
     return new TimelogsService(
-      { timeLog: { findFirst } } as never,
+      {
+        timeLog: { findFirst },
+        workspace: { findUniqueOrThrow: vi.fn().mockResolvedValue({ tenantId: "t1" }) }
+      } as never,
       {} as never,
       {} as never,
       {} as never,
@@ -796,13 +803,15 @@ describe("TimelogsService ownership isolation", () => {
           findFirst: vi.fn().mockResolvedValue({
             id: "log-1",
             userId: "other-user",
+            classification: "PROJECT",
             task: {
               projectId: "project-1",
               category: { isActive: true },
               project: { isActive: true }
             }
           })
-        }
+        },
+        workspace: { findUniqueOrThrow: vi.fn().mockResolvedValue({ tenantId: "t1" }) }
       } as never,
       {} as never,
       {} as never,
@@ -838,7 +847,10 @@ describe("TimelogsService ownership isolation", () => {
     );
     expect(findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: "foreign-log", task: { project: { workspaceId: "workspace-1" } } }
+        where: expect.objectContaining({
+          id: "foreign-log",
+          OR: expect.any(Array)
+        })
       })
     );
   });

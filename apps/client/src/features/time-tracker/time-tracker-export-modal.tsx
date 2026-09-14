@@ -4,7 +4,8 @@ import {
   DEFAULT_MEMBER_EXPORT_COLUMNS,
   ROUTES,
   buildExportFilename,
-  type MemberExportBodyDto
+  type MemberExportBodyDto,
+  type NonProjectTimeFilter
 } from "@kloqra/contracts";
 import {
   AppModal,
@@ -24,6 +25,7 @@ import {
   useProjectsListQuery
 } from "@kloqra/web-shared";
 import { useEffect, useState } from "react";
+import { NonProjectTimeFilterSelect } from "@/components/non-project-time-filter-select";
 import { apiDownloadPost, saveDownloadResponse } from "@/lib/download";
 import { useSessionStore } from "@/stores/session.store";
 
@@ -49,6 +51,7 @@ export function TimeTrackerExportModal({
   const [projectId, setProjectId] = useState(defaultProjectId);
   const [format, setFormat] = useState<MemberExportBodyDto["format"]>("csv");
   const [billable, setBillable] = useState<MemberExportBodyDto["billable"]>("all");
+  const [nonProjectTime, setNonProjectTime] = useState<NonProjectTimeFilter>("include");
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const { data: projects = [] } = useProjectsListQuery(workspaceId, Boolean(workspaceId && open));
@@ -72,6 +75,7 @@ export function TimeTrackerExportModal({
         from: new Date(from).toISOString(),
         to: new Date(`${to}T23:59:59`).toISOString(),
         billable,
+        nonProjectTime,
         reportTypes: ["time_entries"],
         format,
         columns: { time_entries: columns },
@@ -157,6 +161,7 @@ export function TimeTrackerExportModal({
               <SelectItem value="non_billable">Non-billable</SelectItem>
             </SelectContent>
           </Select>
+          <NonProjectTimeFilterSelect value={nonProjectTime} onChange={setNonProjectTime} />
           <Select
             value={format}
             onValueChange={(v) => setFormat(v as MemberExportBodyDto["format"])}

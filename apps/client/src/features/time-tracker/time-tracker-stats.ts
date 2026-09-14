@@ -46,7 +46,7 @@ export function computeTimeTrackerStats(
     totalSec += log.durationSec;
     if (log.isBillable) billableSec += log.durationSec;
 
-    const projectId = taskProjectById.get(log.taskId);
+    const projectId = log.taskId ? taskProjectById.get(log.taskId) : undefined;
     const project = projectId ? projectById.get(projectId) : undefined;
     if (!project?.timesheetApprovalEnabled) continue;
 

@@ -16,7 +16,8 @@ const logs: TimeLogDto[] = [
     durationSec: 7200,
     description: null,
     isBillable: true,
-    source: "manual"
+    source: "manual",
+    classification: "PROJECT"
   },
   {
     id: "00000000-0000-4000-8000-000000000002",
@@ -27,7 +28,8 @@ const logs: TimeLogDto[] = [
     durationSec: 3600,
     description: null,
     isBillable: false,
-    source: "manual"
+    source: "manual",
+    classification: "PROJECT"
   }
 ];
 

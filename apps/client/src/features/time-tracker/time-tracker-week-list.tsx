@@ -200,7 +200,7 @@ function AdminTimeTrackerWeekSection({
           <div>
             {(activeDay?.logs ?? []).length > 0 ? (
               (activeDay?.logs ?? []).map((log) => {
-                const task = taskById.get(log.taskId);
+                const task = log.taskId ? taskById.get(log.taskId) : undefined;
                 const project = task ? projectById.get(task.projectId) : undefined;
                 const memberName = memberMap.get(log.userId) ?? "—";
                 return (
@@ -210,7 +210,7 @@ function AdminTimeTrackerWeekSection({
                     task={task}
                     project={project}
                     projectName={project ? formatProjectLabel(project, workspaceNamesById) : "—"}
-                    entryColor={entryColor(log.taskId)}
+                    entryColor={entryColor(log.taskId ?? "")}
                     memberName={memberName}
                     timezone={timezone}
                   />
@@ -308,7 +308,7 @@ function TimeTrackerWeekSection({
           <div>
             {(activeDay?.logs ?? []).length > 0 ? (
               (activeDay?.logs ?? []).map((log) => {
-                const task = taskById.get(log.taskId);
+                const task = log.taskId ? taskById.get(log.taskId) : undefined;
                 const project = task ? projectById.get(task.projectId) : undefined;
                 return (
                   <TimeTrackerEntryListItem
@@ -317,7 +317,7 @@ function TimeTrackerWeekSection({
                     task={task}
                     project={project}
                     projectName={project ? formatProjectLabel(project, workspaceNamesById) : "—"}
-                    entryColor={entryColor(log.taskId)}
+                    entryColor={entryColor(log.taskId ?? "")}
                     submissionByKey={submissionByKey}
                     locked={isEntryLocked(log)}
                     inactive={isEntryInactive(log)}

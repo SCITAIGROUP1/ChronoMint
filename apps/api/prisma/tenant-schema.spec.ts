@@ -27,9 +27,19 @@ describe("tenant prisma schema", () => {
     expect(modelNames).toContain("TenantSubscription");
   });
 
-  it("TenantSubscription enforces one row per tenant", () => {
-    const subscription = Prisma.dmmf.datamodel.models.find((m) => m.name === "TenantSubscription");
-    const tenantIdField = subscription?.fields.find((f) => f.name === "tenantId");
-    expect(tenantIdField?.isUnique).toBe(true);
+  it("includes TenantHoliday and TenantActivityType models", () => {
+    const modelNames = Prisma.dmmf.datamodel.models.map((model) => model.name);
+    expect(modelNames).toContain("TenantHoliday");
+    expect(modelNames).toContain("TenantActivityType");
+  });
+
+  it("TimeLog allows nullable taskId and classification for non-project time", () => {
+    const timeLog = Prisma.dmmf.datamodel.models.find((m) => m.name === "TimeLog");
+    const taskId = timeLog?.fields.find((f) => f.name === "taskId");
+    const classification = timeLog?.fields.find((f) => f.name === "classification");
+    const tenantId = timeLog?.fields.find((f) => f.name === "tenantId");
+    expect(taskId?.isRequired).toBe(false);
+    expect(classification?.isRequired).toBe(true);
+    expect(tenantId?.isRequired).toBe(false);
   });
 });

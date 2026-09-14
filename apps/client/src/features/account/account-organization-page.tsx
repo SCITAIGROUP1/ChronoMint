@@ -13,14 +13,22 @@ import {
   Input,
   Label
 } from "@kloqra/ui";
-import { CopyableValue, useTenantCurrent, useUpdateTenantCurrent } from "@kloqra/web-shared";
+import {
+  CopyableValue,
+  canManageOrganization,
+  useTenantCurrent,
+  useUpdateTenantCurrent
+} from "@kloqra/web-shared";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { AccountOrganizationCatalogs } from "./account-organization-catalogs";
 import { useSessionStore } from "@/stores/session.store";
 
 export function AccountOrganizationPage() {
   const router = useRouter();
-  const requiresWorkspaceSetup = useSessionStore((s) => s.session?.requiresWorkspaceSetup);
+  const session = useSessionStore((s) => s.session);
+  const requiresWorkspaceSetup = session?.requiresWorkspaceSetup;
+  const canManage = canManageOrganization(session);
   const { tenant, loading, error, reload } = useTenantCurrent();
   const { updateTenantCurrent, saving, error: saveError } = useUpdateTenantCurrent();
   const [name, setName] = useState("");
@@ -154,6 +162,7 @@ export function AccountOrganizationPage() {
           )}
         </CardContent>
       </Card>
+      {!pendingSetup ? <AccountOrganizationCatalogs canManage={canManage} /> : null}
     </div>
   );
 }

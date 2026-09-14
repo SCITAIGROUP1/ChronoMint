@@ -65,7 +65,7 @@ export function buildCategorySplitData(logs: TimeLogDto[], tasks: DashboardTask[
   const taskById = new Map(tasks.map((task) => [task.id, task]));
   const values = new Map<string, { name: string; seconds: number }>();
   for (const log of logs) {
-    const task = taskById.get(log.taskId);
+    const task = taskById.get(log.taskId ?? "");
     const id = task?.categoryId ?? "uncategorized";
     const current = values.get(id) ?? {
       name: task?.categoryName ?? "Uncategorized",
@@ -89,7 +89,7 @@ export function buildProjectSplitData(
     { name: string; clientName?: string | null; seconds: number; color?: string }
   >();
   for (const log of logs) {
-    const projectId = taskById.get(log.taskId)?.projectId ?? "unknown";
+    const projectId = taskById.get(log.taskId ?? "")?.projectId ?? "unknown";
     const project = projectById.get(projectId);
     const current = values.get(projectId) ?? {
       name: project?.name ?? "No Project",

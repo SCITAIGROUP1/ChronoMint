@@ -52,6 +52,7 @@ describe("calendarEntryChromeClass", () => {
     expect(calendarEntryChromeClass(HAIRLINE_ENTRY_SEC, { dotted: true })).toContain(
       "border-dotted"
     );
+    expect(calendarEntryChromeClass(3600, { hatched: true })).toContain("border-l-2");
   });
 });
 

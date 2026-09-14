@@ -175,6 +175,7 @@ export function ExportCustomFlow({
   }, [commercialEnabled]);
 
   const [billable, setBillable] = useState<ExportBodyDto["billable"]>("all");
+  const [nonProjectTime, setNonProjectTime] = useState<ExportBodyDto["nonProjectTime"]>("include");
   const [format, setFormat] = useState<ExportBodyDto["format"]>("xlsx");
   const [sheetLayout, setSheetLayout] = useState<ExportBodyDto["sheetLayout"]>("standard");
   const [groupBy, setGroupBy] = useState<ExportGroupByDimension[]>([]);
@@ -214,6 +215,7 @@ export function ExportCustomFlow({
       from: new Date(from).toISOString(),
       to: new Date(to + "T23:59:59").toISOString(),
       billable,
+      nonProjectTime: safeReportTypes.includes("invoice") ? "exclude" : nonProjectTime,
       reportTypes: safeReportTypes,
       format,
       groupBy: safeGroupBy,
@@ -231,6 +233,7 @@ export function ExportCustomFlow({
     from,
     to,
     billable,
+    nonProjectTime,
     safeReportTypes,
     format,
     safeGroupBy,
@@ -438,6 +441,12 @@ export function ExportCustomFlow({
                 onToChange={onToChange}
                 billable={billable}
                 onBillableChange={setBillable}
+                nonProjectTime={
+                  safeReportTypes.includes("invoice") ? undefined : (nonProjectTime ?? "include")
+                }
+                onNonProjectTimeChange={
+                  safeReportTypes.includes("invoice") ? undefined : setNonProjectTime
+                }
                 previewLoading={previewLoading}
                 dateRangeAriaLabel="Custom export date range"
               />

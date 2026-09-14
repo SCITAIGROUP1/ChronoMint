@@ -20,6 +20,7 @@ const logA: TimeLogDto = {
   id: "log-a",
   userId: "user-1",
   taskId: "task-1",
+  classification: "PROJECT",
   startTime: "2026-07-08T02:00:00.000Z",
   endTime: "2026-07-08T03:00:00.000Z",
   durationSec: 3600,

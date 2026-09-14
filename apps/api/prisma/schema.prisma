@@ -88,6 +88,9 @@ model Tenant {
   permissionPolicyState TenantPermissionPolicyState?
   permissionPolicyIdempotency PermissionPolicyIdempotencyRecord[]
   churnedAt    DateTime? @map("churned_at")
+  holidays     TenantHoliday[]
+  activityTypes TenantActivityType[]
+  timeLogs     TimeLog[]
 
   @@map("tenants")
 }
@@ -334,6 +337,7 @@ model Workspace {
   notifications   Notification[]
   favoriteProjects UserFavoriteProject[]
   favoriteTasks    UserFavoriteTask[]
+  timeLogs         TimeLog[]
 
   @@index([tenantId])
   @@map("workspaces")
@@ -542,25 +546,71 @@ model UserFavoriteTask {
   @@map("user_favorite_tasks")
 }
 
+model TenantHoliday {
+  id        String   @id @default(uuid())
+  tenantId  String   @map("tenant_id")
+  date      DateTime @db.Date
+  name      String
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  timeLogs  TimeLog[]
+
+  @@unique([tenantId, date])
+  @@index([tenantId, date])
+  @@map("tenant_holidays")
+}
+
+model TenantActivityType {
+  id        String   @id @default(uuid())
+  tenantId  String   @map("tenant_id")
+  name      String
+  slug      String?
+  color     String   @default("#0d9488")
+  isSystem  Boolean  @default(false) @map("is_system")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  timeLogs  TimeLog[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId, isActive])
+  @@map("tenant_activity_types")
+}
+
 model TimeLog {
-  id          String   @default(uuid())
-  userId      String   @map("user_id")
-  taskId      String   @map("task_id")
-  startTime   DateTime @map("start_time")
-  endTime     DateTime @map("end_time")
-  durationSec Int      @map("duration_sec")
-  description String?
-  isBillable  Boolean  @default(true) @map("is_billable")
-  source      String
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  id             String   @default(uuid())
+  userId         String   @map("user_id")
+  taskId         String?  @map("task_id")
+  classification String   @default("PROJECT")
+  tenantId       String?  @map("tenant_id")
+  workspaceId    String?  @map("workspace_id")
+  activityTypeId String?  @map("activity_type_id")
+  holidayId      String?  @map("holiday_id")
+  startTime      DateTime @map("start_time")
+  endTime        DateTime @map("end_time")
+  durationSec    Int      @map("duration_sec")
+  description    String?
+  isBillable     Boolean  @default(true) @map("is_billable")
+  source         String
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task           Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  tenant         Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  workspace      Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  activityType   TenantActivityType? @relation(fields: [activityTypeId], references: [id], onDelete: Restrict)
+  holiday        TenantHoliday? @relation(fields: [holidayId], references: [id], onDelete: SetNull)
 
   @@id([id, startTime])
   @@index([userId, startTime])
   @@index([taskId, startTime])
   @@index([startTime])
+  @@index([tenantId, startTime])
+  @@index([workspaceId, startTime])
+  @@index([classification, startTime])
   @@map("time_logs")
 }
 

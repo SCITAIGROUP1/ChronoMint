@@ -18,7 +18,8 @@ describe("period-entry-activity.utils", () => {
         durationSec: 3600,
         description: null,
         isBillable: true,
-        source: "manual" as const
+        source: "manual" as const,
+        classification: "PROJECT" as const
       },
       {
         id: "log-2",
@@ -29,7 +30,8 @@ describe("period-entry-activity.utils", () => {
         durationSec: 3600,
         description: null,
         isBillable: true,
-        source: "manual" as const
+        source: "manual" as const,
+        classification: "PROJECT" as const
       }
     ];
 
@@ -118,7 +120,8 @@ describe("period-entry-activity.utils", () => {
         durationSec: 3600,
         description: null,
         isBillable: true,
-        source: "manual"
+        source: "manual" as const,
+        classification: "PROJECT" as const
       },
       {
         id: "log-2",
@@ -129,7 +132,8 @@ describe("period-entry-activity.utils", () => {
         durationSec: 3600,
         description: null,
         isBillable: true,
-        source: "manual"
+        source: "manual" as const,
+        classification: "PROJECT" as const
       }
     ]);
 

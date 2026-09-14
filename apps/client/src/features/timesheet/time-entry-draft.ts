@@ -1,4 +1,9 @@
-import type { TaskDto, TimeLogDto } from "@kloqra/contracts";
+import type { TaskDto, TimeLogClassification, TimeLogDto, HalfDaySlot } from "@kloqra/contracts";
+import {
+  isDayBlockClassification,
+  nonProjectDurationSec,
+  TIME_LOG_CLASSIFICATION_LABELS
+} from "@kloqra/contracts";
 import {
   combineDayAndTimeInZone,
   timeFromSlotIndex,
@@ -6,10 +11,15 @@ import {
   toDateKeyInZone,
   toTimeValueInZone
 } from "./calendar-utils";
+import { addDurationToStartTime } from "./parse-duration-input";
 
 export type TimeEntryDraft = {
+  classification?: TimeLogClassification;
   projectId: string;
   taskSelection: string;
+  activityTypeId?: string;
+  holidayId?: string;
+  halfDaySlot?: HalfDaySlot;
   date: string;
   startTime: string;
   endTime: string;
@@ -19,23 +29,82 @@ export type TimeEntryDraft = {
   repeatUntil?: string;
 };
 
+export function draftClassification(draft: TimeEntryDraft): TimeLogClassification {
+  return draft.classification ?? "PROJECT";
+}
+
 export function suggestBillableFromTask(tasks: TaskDto[], taskSelection: string): boolean {
   if (!taskSelection) return true;
   return tasks.find((t) => t.id === taskSelection)?.billableDefault ?? true;
 }
 
 export function canSaveTaskDraft(draft: TimeEntryDraft): boolean {
+  const classification = draftClassification(draft);
+  if (isDayBlockClassification(classification)) return true;
+  if (classification === "TENANT_ACTIVITY") return Boolean(draft.activityTypeId);
   if (!draft.projectId) return false;
   return Boolean(draft.taskSelection);
 }
 
 export function taskSaveHint(draft: TimeEntryDraft): string | null {
+  const classification = draftClassification(draft);
+  if (classification === "TENANT_ACTIVITY" && !draft.activityTypeId) {
+    return "Select an organization activity type to enable Save.";
+  }
+  if (classification !== "PROJECT") return null;
   if (!draft.projectId) return null;
   if (!draft.taskSelection) {
     return "Select a task for this project to enable Save.";
   }
   return null;
 }
+
+export function applyClassificationToDraft(
+  draft: TimeEntryDraft,
+  classification: TimeLogClassification,
+  dayHours: number,
+  activityTypeId?: string
+): TimeEntryDraft {
+  const next: TimeEntryDraft = {
+    ...draft,
+    classification,
+    isBillable: classification === "PROJECT" ? draft.isBillable : false
+  };
+  if (classification === "PROJECT") {
+    return { ...next, halfDaySlot: undefined, activityTypeId: "", holidayId: "" };
+  }
+  if (classification === "TENANT_ACTIVITY") {
+    return {
+      ...next,
+      halfDaySlot: undefined,
+      projectId: "",
+      taskSelection: "",
+      activityTypeId: activityTypeId ?? draft.activityTypeId ?? "",
+      holidayId: ""
+    };
+  }
+  const slot = classification === "LEAVE_HALF" ? (draft.halfDaySlot ?? "AM") : undefined;
+  const durationSec = nonProjectDurationSec(classification, dayHours);
+  const startTime = slot === "PM" ? addDurationToStartTime("09:00", durationSec) : "09:00";
+  return {
+    ...next,
+    halfDaySlot: slot,
+    projectId: "",
+    taskSelection: "",
+    activityTypeId: "",
+    holidayId: classification === "PUBLIC_HOLIDAY" ? (draft.holidayId ?? "") : "",
+    startTime,
+    endTime: addDurationToStartTime(startTime, durationSec)
+  };
+}
+
+export const ENTRY_TYPE_OPTIONS: { value: TimeLogClassification; label: string }[] = (
+  Object.keys(TIME_LOG_CLASSIFICATION_LABELS) as TimeLogClassification[]
+).map((value) => ({ value, label: TIME_LOG_CLASSIFICATION_LABELS[value] }));
+
+export const NON_PROJECT_ENTRY_TYPE_OPTIONS = ENTRY_TYPE_OPTIONS.filter(
+  (option) => option.value !== "PROJECT"
+);
 
 export function draftToIsoRange(
   draft: TimeEntryDraft,
@@ -44,10 +113,6 @@ export function draftToIsoRange(
   const start = combineDayAndTimeInZone(draft.date, draft.startTime, timezone);
   const end = combineDayAndTimeInZone(draft.date, draft.endTime, timezone);
   return { startTime: start.toISOString(), endTime: end.toISOString() };
-}
-
-function emptyTaskFields(): Pick<TimeEntryDraft, "projectId" | "taskSelection"> {
-  return { projectId: "", taskSelection: "" };
 }
 
 export function draftFromSlot(
@@ -71,7 +136,12 @@ export function draftFromSlot(
     }
   }
   return {
-    ...emptyTaskFields(),
+    projectId: "",
+    taskSelection: "",
+    classification: "PROJECT",
+    activityTypeId: "",
+    holidayId: "",
+    halfDaySlot: "AM",
     date: toDateKey(day),
     startTime: `${pad(hour)}:${pad(minute)}`,
     endTime: `${pad(endH)}:${pad(endM)}`,
@@ -134,10 +204,15 @@ export function draftFromLog(
 ): TimeEntryDraft {
   const start = new Date(log.startTime);
   const end = new Date(log.endTime);
-  const task = tasks.find((t) => t.id === log.taskId);
+  const task = log.taskId ? tasks.find((t) => t.id === log.taskId) : undefined;
+  const classification = log.classification ?? "PROJECT";
   return {
+    classification,
     projectId: task?.projectId ?? "",
-    taskSelection: log.taskId,
+    taskSelection: log.taskId ?? "",
+    activityTypeId: log.activityTypeId ?? "",
+    holidayId: log.holidayId ?? "",
+    halfDaySlot: classification === "LEAVE_HALF" ? "AM" : undefined,
     date: toDateKeyInZone(start, timezone),
     startTime: toTimeValueInZone(start, timezone),
     endTime: toTimeValueInZone(end, timezone),
@@ -145,5 +220,52 @@ export function draftFromLog(
     isBillable: log.isBillable,
     recurrence: "none",
     repeatUntil: toDateKeyInZone(start, timezone)
+  };
+}
+
+export function draftToTimelogBody(draft: TimeEntryDraft, timezone: string) {
+  const classification = draftClassification(draft);
+  const { startTime, endTime } = draftToIsoRange(draft, timezone);
+  if (classification === "PROJECT") {
+    return {
+      classification,
+      taskId: draft.taskSelection,
+      activityTypeId: null,
+      holidayId: null,
+      startTime,
+      endTime,
+      description: draft.description || undefined,
+      isBillable: draft.isBillable
+    };
+  }
+  return {
+    classification,
+    taskId: null,
+    activityTypeId: classification === "TENANT_ACTIVITY" ? draft.activityTypeId || null : null,
+    holidayId: classification === "PUBLIC_HOLIDAY" ? draft.holidayId || null : null,
+    halfDaySlot: draft.halfDaySlot,
+    startTime,
+    endTime,
+    description: draft.description || undefined,
+    isBillable: false as const
+  };
+}
+
+export function draftToBatchBody(draft: TimeEntryDraft, timezone: string) {
+  const classification = draftClassification(draft);
+  return {
+    classification,
+    taskId: classification === "PROJECT" ? draft.taskSelection : undefined,
+    activityTypeId: draft.activityTypeId || undefined,
+    holidayId: draft.holidayId || undefined,
+    halfDaySlot: draft.halfDaySlot,
+    localStartTime: draft.startTime,
+    localEndTime: draft.endTime,
+    startDate: draft.date,
+    endDate: draft.repeatUntil ?? draft.date,
+    recurrence: draft.recurrence as "daily" | "weekdays" | "weekly",
+    timezone,
+    description: draft.description || undefined,
+    isBillable: classification === "PROJECT" ? draft.isBillable : false
   };
 }

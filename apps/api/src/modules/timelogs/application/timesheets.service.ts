@@ -273,7 +273,7 @@ export class TimesheetsService {
       select: { task: { select: { projectId: true } } },
       distinct: ["taskId"]
     });
-    return [...new Set(projectIds.map((row) => row.task.projectId))];
+    return [...new Set(projectIds.flatMap((row) => (row.task ? [row.task.projectId] : [])))];
   }
 
   async listSubmissions(
@@ -739,7 +739,7 @@ export class TimesheetsService {
         .filter(
           (l) =>
             l.userId === p.userId &&
-            l.task.projectId === p.projectId &&
+            l.task?.projectId === p.projectId &&
             l.startTime >= p.periodStart &&
             l.startTime <= p.periodEnd
         )

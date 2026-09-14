@@ -3,7 +3,7 @@ import type {
   TimelogAuditAction,
   TimelogAuditSnapshot
 } from "@kloqra/contracts";
-import { ErrorCodes } from "@kloqra/contracts";
+import { ErrorCodes, isNonProjectClassification } from "@kloqra/contracts";
 import { Injectable, HttpStatus } from "@nestjs/common";
 import type { Prisma } from "@prisma/client";
 import { AuthorizationEnforcementService } from "../../../common/access/authorization-enforcement.service";
@@ -18,7 +18,8 @@ export class TimelogAuditService {
   ) {}
 
   snapshotFromLog(log: {
-    taskId: string;
+    taskId: string | null;
+    classification?: string | null;
     startTime: Date;
     endTime: Date;
     durationSec: number;
@@ -28,6 +29,10 @@ export class TimelogAuditService {
   }): TimelogAuditSnapshot {
     return {
       taskId: log.taskId,
+      classification:
+        log.classification === "PROJECT" || isNonProjectClassification(log.classification)
+          ? log.classification
+          : undefined,
       startTime: log.startTime.toISOString(),
       endTime: log.endTime.toISOString(),
       durationSec: log.durationSec,

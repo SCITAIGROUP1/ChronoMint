@@ -43,7 +43,8 @@ import {
 } from "./display-format";
 import { DEFAULT_TIMESHEET_SLOT_PX, type TimesheetSlotPx } from "./timesheet-zoom";
 import { TimesheetZoomControls } from "./timesheet-zoom-controls";
-import { entryColorsFromProject, inactiveEntryColors } from "@/lib/project-color-styles";
+import { calendarLogLabel, entryColorsForLog } from "@/lib/non-project-entry-styles";
+import { inactiveEntryColors } from "@/lib/project-color-styles";
 
 export type SlotSelect = {
   dayKey: string;
@@ -77,6 +78,7 @@ export type TimesheetCalendarProps = {
   taskName: (taskId: string) => string;
   taskInfo: (taskId: string) => CalendarTaskInfo;
   entryColor: (taskId: string) => string;
+  holidayDates?: Set<string>;
   activeTimer?: ActiveTimerDto | null;
   liveElapsedSec?: number;
   isEntryLocked: (log: TimeLogDto) => boolean;
@@ -131,6 +133,7 @@ export function TimesheetCalendar({
   taskName,
   taskInfo,
   entryColor,
+  holidayDates,
   activeTimer,
   liveElapsedSec = 0,
   isEntryLocked,
@@ -578,6 +581,16 @@ export function TimesheetCalendar({
                     )}
                   >
                     {labelDay(day)}
+                    {holidayDates?.has(dateKey) ? (
+                      <span
+                        className={cn(
+                          "ml-1 inline-block size-1.5 rounded-full align-middle",
+                          isToday ? "bg-primary-foreground" : "bg-amber-500"
+                        )}
+                        title="Public holiday"
+                        data-testid="holiday-day-badge"
+                      />
+                    ) : null}
                   </span>
                   {totalLabel ? (
                     <span
@@ -1014,14 +1027,15 @@ const DayColumn = memo(function DayColumn({
           const style = blockStyle(display.start, display.end, timezone);
           const colors = inactive
             ? inactiveEntryColors()
-            : entryColorsFromProject(entryColor(log.taskId));
+            : entryColorsForLog(log, entryColor(log.taskId ?? ""));
           const durationSec = Math.max(
             0,
             Math.round((display.end.getTime() - display.start.getTime()) / 1000)
           );
           const chromeClass = calendarEntryChromeClass(durationSec, {
             dashed: submissionLocked && !inactive,
-            dotted: timer && !locked
+            dotted: timer && !locked,
+            hatched: log.classification === "LEAVE_HALF"
           });
           const contentPad = calendarEntryContentPaddingClass(durationSec);
 
@@ -1094,18 +1108,26 @@ const DayColumn = memo(function DayColumn({
                 }}
                 title={
                   inactive
-                    ? `${taskName(log.taskId)} — read-only (inactive project, category, or task)`
+                    ? `${calendarLogLabel(log, taskName)} — read-only (inactive project, category, or task)`
                     : submissionLocked
-                      ? `${taskName(log.taskId)} — locked (submitted or approved)`
+                      ? `${calendarLogLabel(log, taskName)} — locked (submitted or approved)`
                       : timer
-                        ? `${taskName(log.taskId)}${log.description?.trim() ? ` · ${log.description.trim()}` : ""} — timer entry; drag to move, Ctrl+drag to duplicate`
+                        ? `${calendarLogLabel(log, taskName)}${log.description?.trim() ? ` · ${log.description.trim()}` : ""} — timer entry; drag to move, Ctrl+drag to duplicate`
                         : readOnly
-                          ? `${taskName(log.taskId)}${log.description?.trim() ? ` · ${log.description.trim()}` : ""}`
-                          : `${taskName(log.taskId)}${log.description?.trim() ? ` · ${log.description.trim()}` : ""} — drag to move, Ctrl+drag to duplicate`
+                          ? `${calendarLogLabel(log, taskName)}${log.description?.trim() ? ` · ${log.description.trim()}` : ""}`
+                          : `${calendarLogLabel(log, taskName)}${log.description?.trim() ? ` · ${log.description.trim()}` : ""} — drag to move, Ctrl+drag to duplicate`
                 }
               >
                 <CalendarEntryContent
-                  task={taskInfo(log.taskId)}
+                  task={
+                    log.taskId
+                      ? taskInfo(log.taskId)
+                      : {
+                          taskName: calendarLogLabel(log, taskName),
+                          categoryName: log.classification ?? "Time off",
+                          projectName: log.holidayName ?? log.activityTypeName ?? undefined
+                        }
+                  }
                   description={log.description}
                   durationSec={log.durationSec}
                   compact={compact}
@@ -1185,7 +1207,7 @@ function LiveIndicatorLine({
   const activeTaskName = timerOnDay
     ? taskName(activeTimer.taskId)
     : activeLog
-      ? taskName(activeLog.taskId)
+      ? calendarLogLabel(activeLog, taskName)
       : null;
 
   return (
@@ -1264,7 +1286,7 @@ function EntryGhost({
   invalidMessage?: string;
 }) {
   const style = blockStyle(preview.start, preview.end, timezone);
-  const colors = entryColorsFromProject(entryColor(preview.log.taskId));
+  const colors = entryColorsForLog(preview.log, entryColor(preview.log.taskId ?? ""));
   return (
     <div
       className={cn(
@@ -1285,7 +1307,7 @@ function EntryGhost({
       title={invalid ? invalidMessage : undefined}
     >
       <span className={cn("block truncate font-medium", compact ? "text-[10px]" : "text-xs")}>
-        {taskName(preview.log.taskId)}
+        {calendarLogLabel(preview.log, taskName)}
       </span>
     </div>
   );

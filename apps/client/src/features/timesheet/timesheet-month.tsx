@@ -12,6 +12,7 @@ import {
   isSameDayInZone,
   todayInZone
 } from "./calendar-utils";
+import { entryColorsForLog } from "@/lib/non-project-entry-styles";
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -19,6 +20,7 @@ export type TimesheetMonthProps = {
   month: Date;
   logs: TimeLogDto[];
   entryColor: (taskId: string) => string;
+  holidayDates?: Set<string>;
   onDayClick: (day: Date) => void;
   timezone?: string;
 };
@@ -27,6 +29,7 @@ export function TimesheetMonth({
   month,
   logs,
   entryColor,
+  holidayDates,
   onDayClick,
   timezone = "UTC"
 }: TimesheetMonthProps) {
@@ -78,6 +81,12 @@ export function TimesheetMonth({
                     >
                       {day.getDate()}
                     </span>
+                    {holidayDates?.has(toDateKey(day)) ? (
+                      <span
+                        className="ml-1 inline-block size-1.5 rounded-full bg-amber-500 align-middle"
+                        title="Public holiday"
+                      />
+                    ) : null}
                     {totalSec > 0 && (
                       <p
                         className="mt-1 text-xs font-medium text-primary"
@@ -95,7 +104,11 @@ export function TimesheetMonth({
                           <span
                             key={l.id}
                             className="h-2 w-2 rounded-full ring-1 ring-black/10"
-                            style={{ backgroundColor: entryColor(l.taskId) }}
+                            style={{
+                              backgroundColor: l.taskId
+                                ? entryColor(l.taskId)
+                                : entryColorsForLog(l, "#0d9488").backgroundColor
+                            }}
                             title={l.description ?? undefined}
                           />
                         ))}

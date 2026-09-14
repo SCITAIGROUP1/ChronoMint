@@ -6,7 +6,8 @@ import type {
   ProjectDto,
   CategoryDto,
   ListTimelogAuditEventsResponseDto,
-  JiraIssueDto
+  JiraIssueDto,
+  TenantActivityTypeDto
 } from "@kloqra/contracts";
 import { ROUTES } from "@kloqra/contracts";
 import {
@@ -17,6 +18,11 @@ import {
   Label,
   ProjectColorDot,
   SearchableSelect,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   TimeEntryAuditTrail,
   DatePicker,
   cn
@@ -32,6 +38,7 @@ import {
 } from "@kloqra/web-shared";
 import { AlertTriangle, ChevronDown, Clock } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { EntryTypeAltMenu } from "./entry-type-alt-menu";
 import {
   addDurationToStartTime,
   applyDurationToDraft,
@@ -42,7 +49,9 @@ import {
 import { RepeatEntryPanel } from "./repeat-entry-panel";
 import {
   type TimeEntryDraft,
+  applyClassificationToDraft,
   canSaveTaskDraft,
+  draftClassification,
   draftToIsoRange,
   suggestBillableFromTask,
   taskSaveHint
@@ -93,6 +102,8 @@ type TimeEntryDialogProps = {
   workspaceId?: string;
   timezone?: string;
   jiraSuggestions?: JiraIssueDto[];
+  activityTypes?: TenantActivityTypeDto[];
+  dailyTargetHours?: number;
 };
 
 export function TimeEntryDialog({
@@ -113,7 +124,9 @@ export function TimeEntryDialog({
   readOnly = false,
   workspaceId,
   timezone = "UTC",
-  jiraSuggestions = []
+  jiraSuggestions = [],
+  activityTypes = [],
+  dailyTargetHours = 8
 }: TimeEntryDialogProps) {
   const userId = useSessionStore((s) => s.session?.user?.id);
   const sessionWorkspaceId = useSessionStore((s) => s.session?.workspaceId);
@@ -126,6 +139,7 @@ export function TimeEntryDialog({
   const [activeTab, setActiveTab] = useState<"details" | "history">("details");
   const [repeatOpen, setRepeatOpen] = useState(false);
   const [moreOptionsOpen, setMoreOptionsOpen] = useState(false);
+  const [leavePickerOpen, setLeavePickerOpen] = useState(false);
   const [durationText, setDurationText] = useState("0:00");
   const [durationError, setDurationError] = useState<string | null>(null);
   const [discardOpen, setDiscardOpen] = useState(false);
@@ -211,6 +225,7 @@ export function TimeEntryDialog({
     } else {
       setRepeatOpen(false);
       setMoreOptionsOpen(false);
+      setLeavePickerOpen(false);
       durationFocusedRef.current = false;
       setDurationError(null);
     }
@@ -235,6 +250,10 @@ export function TimeEntryDialog({
 
   useEffect(() => {
     if (!open || !draft || readOnly) {
+      clearedInvalidSelectionRef.current = null;
+      return;
+    }
+    if (draftClassification(draft) !== "PROJECT") {
       clearedInvalidSelectionRef.current = null;
       return;
     }
@@ -302,6 +321,8 @@ export function TimeEntryDialog({
   const showJiraMoreOptions = canEdit && jiraSuggestions.length > 0;
   const canSave = draft ? canSaveTaskDraft(draft) : false;
   const saveHint = draft ? taskSaveHint(draft) : null;
+  const isProjectDraft = draft ? draftClassification(draft) === "PROJECT" : true;
+  const showProjectFields = isProjectDraft && !leavePickerOpen;
   const recurrenceActive = draft ? (draft.recurrence ?? "none") !== "none" : false;
   const showRepeatAffordance = canRepeat && !repeatOpen && !recurrenceActive;
 
@@ -388,7 +409,23 @@ export function TimeEntryDialog({
 
   const footer =
     activeTab === "details" ? (
-      <div className="flex w-full flex-wrap items-center gap-2">
+      <div className="flex w-full flex-wrap items-center justify-end gap-2">
+        {canDelete && (
+          <Button
+            type="button"
+            variant="destructive"
+            className="sm:mr-auto"
+            disabled={saving}
+            onClick={() => {
+              if (onDelete) onDelete();
+            }}
+          >
+            Delete entry
+          </Button>
+        )}
+        <Button type="button" variant="outline" onClick={requestClose}>
+          {readOnly ? "Close" : "Cancel"}
+        </Button>
         {canEdit && (
           <Button
             type="submit"
@@ -397,22 +434,6 @@ export function TimeEntryDialog({
             title={overlapNotice ?? saveHint ?? undefined}
           >
             {saving ? "Saving…" : editingLog ? "Save changes" : "Log time"}
-          </Button>
-        )}
-        <Button type="button" variant="outline" onClick={requestClose}>
-          {readOnly ? "Close" : "Cancel"}
-        </Button>
-        {canDelete && (
-          <Button
-            type="button"
-            variant="destructive"
-            className="sm:ml-auto"
-            disabled={saving}
-            onClick={() => {
-              if (onDelete) onDelete();
-            }}
-          >
-            Delete entry
           </Button>
         )}
       </div>
@@ -439,7 +460,7 @@ export function TimeEntryDialog({
         title={title}
         description={description}
         icon={<Clock className="size-5" />}
-        size="md"
+        size="lg"
         bodyClassName="space-y-4"
         footer={footer}
       >
@@ -490,127 +511,188 @@ export function TimeEntryDialog({
         {draft && activeTab === "details" ? (
           <form
             id="time-entry-form"
-            className="space-y-3"
+            className="space-y-4"
             onSubmit={(e) => {
               e.preventDefault();
               onSave();
             }}
           >
-            <div className="space-y-2">
-              <Label>Project</Label>
-              <SearchableSelect
-                value={draft.projectId}
-                onValueChange={(projectId) =>
-                  patch({
-                    projectId,
-                    taskSelection: "",
-                    isBillable: true
-                  })
-                }
-                options={orderedProjects.map((p) => ({
-                  value: p.id,
-                  label: formatProjectLabel(p, workspaceNames)
-                }))}
-                placeholder="Select project"
-                searchPlaceholder="Search projects…"
-                disabled={!canEdit}
-                contentClassName="z-[100]"
-                favoritedValues={favoriteProjectIds}
-                onToggleFavorite={canEdit ? toggleProject : undefined}
-                renderOption={(option) => (
-                  <span className="flex items-center gap-2">
-                    <ProjectColorDot
-                      color={
-                        selectableProjects.find((p) => p.id === option.value)?.color ?? "#236bfe"
-                      }
-                    />
-                    {option.label}
-                  </span>
-                )}
-                renderValue={(option) =>
-                  option ? (
-                    <span className="flex items-center gap-2">
-                      <ProjectColorDot
-                        color={
-                          selectableProjects.find((p) => p.id === option.value)?.color ?? "#236bfe"
-                        }
-                      />
-                      {option.label}
-                    </span>
-                  ) : (
-                    "Select project"
-                  )
-                }
-                aria-label="Project"
-                triggerClassName={
-                  parsedValidation.fieldErrors.project ? "border-destructive" : undefined
-                }
-              />
-              {parsedValidation.fieldErrors.project ? (
-                <p className="text-xs text-destructive">{parsedValidation.fieldErrors.project}</p>
-              ) : null}
-            </div>
+            {showProjectFields ? (
+              <>
+                <div className="space-y-2">
+                  <Label>Project</Label>
+                  <SearchableSelect
+                    value={draft.projectId}
+                    onValueChange={(projectId) =>
+                      patch({
+                        projectId,
+                        taskSelection: "",
+                        isBillable: true
+                      })
+                    }
+                    options={orderedProjects.map((p) => ({
+                      value: p.id,
+                      label: formatProjectLabel(p, workspaceNames)
+                    }))}
+                    placeholder="Select project"
+                    searchPlaceholder="Search projects…"
+                    disabled={!canEdit}
+                    contentClassName="z-[100]"
+                    favoritedValues={favoriteProjectIds}
+                    onToggleFavorite={canEdit ? toggleProject : undefined}
+                    renderOption={(option) => (
+                      <span className="flex items-center gap-2">
+                        <ProjectColorDot
+                          color={
+                            selectableProjects.find((p) => p.id === option.value)?.color ??
+                            "#236bfe"
+                          }
+                        />
+                        {option.label}
+                      </span>
+                    )}
+                    renderValue={(option) =>
+                      option ? (
+                        <span className="flex items-center gap-2">
+                          <ProjectColorDot
+                            color={
+                              selectableProjects.find((p) => p.id === option.value)?.color ??
+                              "#236bfe"
+                            }
+                          />
+                          {option.label}
+                        </span>
+                      ) : (
+                        "Select project"
+                      )
+                    }
+                    aria-label="Project"
+                    triggerClassName={
+                      parsedValidation.fieldErrors.project ? "border-destructive" : undefined
+                    }
+                  />
+                  {parsedValidation.fieldErrors.project ? (
+                    <p className="text-xs text-destructive">
+                      {parsedValidation.fieldErrors.project}
+                    </p>
+                  ) : null}
+                </div>
 
-            <div className="space-y-2">
-              <Label>Task</Label>
-              <SearchableSelect
-                key={draft.projectId}
-                value={draft.taskSelection || ""}
-                onValueChange={(taskSelection) =>
-                  patch({
-                    taskSelection,
-                    isBillable: suggestBillableFromTask(selectableTasks, taskSelection)
-                  })
-                }
-                groups={projectTaskGroups}
-                favoritedValues={favoriteTaskIds}
-                onToggleFavorite={
-                  canEdit
-                    ? (taskId) => {
-                        const task = projectTasks.find((t) => t.id === taskId);
-                        const project = selectableProjects.find((p) => p.id === draft.projectId);
-                        if (!task || !project) return;
-                        toggleTask({
-                          projectId: project.id,
-                          taskId: task.id,
-                          projectName: project.name,
-                          taskName: task.taskName,
-                          projectColor: project.color
-                        });
-                      }
-                    : undefined
-                }
-                placeholder={
-                  !draft.projectId
-                    ? "Select a project first"
-                    : projectTasks.length === 0
-                      ? "No tasks for this project"
-                      : "Select a task"
-                }
-                searchPlaceholder="Search tasks…"
-                disabled={!canEdit || !draft.projectId || projectTasks.length === 0}
-                contentClassName="z-[100]"
-                triggerClassName={
-                  parsedValidation.fieldErrors.task || (draft.projectId && !draft.taskSelection)
-                    ? "border-destructive"
-                    : undefined
-                }
-                aria-label="Task"
+                <div className="space-y-2">
+                  <Label>Task</Label>
+                  <SearchableSelect
+                    key={draft.projectId}
+                    value={draft.taskSelection || ""}
+                    onValueChange={(taskSelection) =>
+                      patch({
+                        taskSelection,
+                        isBillable: suggestBillableFromTask(selectableTasks, taskSelection)
+                      })
+                    }
+                    groups={projectTaskGroups}
+                    favoritedValues={favoriteTaskIds}
+                    onToggleFavorite={
+                      canEdit
+                        ? (taskId) => {
+                            const task = projectTasks.find((t) => t.id === taskId);
+                            const project = selectableProjects.find(
+                              (p) => p.id === draft.projectId
+                            );
+                            if (!task || !project) return;
+                            toggleTask({
+                              projectId: project.id,
+                              taskId: task.id,
+                              projectName: project.name,
+                              taskName: task.taskName,
+                              projectColor: project.color
+                            });
+                          }
+                        : undefined
+                    }
+                    placeholder={
+                      !draft.projectId
+                        ? "Select a project first"
+                        : projectTasks.length === 0
+                          ? "No tasks for this project"
+                          : "Select a task"
+                    }
+                    searchPlaceholder="Search tasks…"
+                    disabled={!canEdit || !draft.projectId || projectTasks.length === 0}
+                    contentClassName="z-[100]"
+                    triggerClassName={
+                      parsedValidation.fieldErrors.task || (draft.projectId && !draft.taskSelection)
+                        ? "border-destructive"
+                        : undefined
+                    }
+                    aria-label="Task"
+                  />
+                  {parsedValidation.fieldErrors.task ? (
+                    <p className="text-xs text-destructive">{parsedValidation.fieldErrors.task}</p>
+                  ) : null}
+                  {draft.projectId && projectTasks.length === 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      No tasks yet on this project. Ask your admin to add tasks before logging time.
+                    </p>
+                  )}
+                  {saveHint && (
+                    <p className="text-xs text-amber-600 dark:text-amber-500" role="status">
+                      {saveHint}
+                    </p>
+                  )}
+                </div>
+              </>
+            ) : null}
+
+            {(canEdit || !isProjectDraft) && (
+              <EntryTypeAltMenu
+                value={draftClassification(draft)}
+                activityTypeId={draft.activityTypeId}
+                activityTypes={activityTypes}
+                disabled={!canEdit}
+                expanded={!isProjectDraft || leavePickerOpen}
+                onExpandedChange={setLeavePickerOpen}
+                onSelect={(selection) => {
+                  setLeavePickerOpen(false);
+                  onDraftChange(
+                    applyClassificationToDraft(
+                      draft,
+                      selection.classification,
+                      dailyTargetHours,
+                      selection.activityTypeId
+                    )
+                  );
+                }}
               />
-              {parsedValidation.fieldErrors.task ? (
-                <p className="text-xs text-destructive">{parsedValidation.fieldErrors.task}</p>
-              ) : null}
-              {draft.projectId && projectTasks.length === 0 && (
-                <p className="text-xs text-muted-foreground">
-                  No tasks yet on this project. Ask your admin to add tasks before logging time.
-                </p>
-              )}
-              {saveHint && (
-                <p className="text-xs text-amber-600 dark:text-amber-500" role="status">
-                  {saveHint}
-                </p>
-              )}
-            </div>
+            )}
+
+            {draftClassification(draft) === "TENANT_ACTIVITY" && !draft.activityTypeId ? (
+              <div className="space-y-2">
+                <Label>Activity type</Label>
+                <Select
+                  value={draft.activityTypeId || ""}
+                  onValueChange={(activityTypeId) => patch({ activityTypeId })}
+                  disabled={!canEdit}
+                >
+                  <SelectTrigger aria-label="Activity type" data-testid="activity-type-select">
+                    <SelectValue placeholder="Select activity" />
+                  </SelectTrigger>
+                  <SelectContent className="z-[100]">
+                    {activityTypes
+                      .filter((type) => type.isActive)
+                      .map((type) => (
+                        <SelectItem key={type.id} value={type.id}>
+                          {type.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                {saveHint ? (
+                  <p className="text-xs text-amber-600 dark:text-amber-500" role="status">
+                    {saveHint}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
 
             <div className="space-y-2">
               <Label>When</Label>
@@ -623,30 +705,8 @@ export function TimeEntryDialog({
                 className="h-10 w-full justify-start bg-background"
                 popoverAlign="start"
               />
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-2">
-                <div className="space-y-1.5">
-                  <Label htmlFor="entry-duration" className="text-xs text-muted-foreground">
-                    Duration
-                  </Label>
-                  <Input
-                    id="entry-duration"
-                    type="text"
-                    inputMode="decimal"
-                    placeholder="0:00"
-                    value={durationText}
-                    disabled={!canEdit}
-                    className="font-mono tabular-nums"
-                    onFocus={() => {
-                      durationFocusedRef.current = true;
-                    }}
-                    onChange={(e) => handleDurationChange(e.target.value)}
-                    onBlur={handleDurationBlur}
-                    aria-label="Duration"
-                    aria-invalid={Boolean(durationError)}
-                    aria-describedby={durationError ? "entry-duration-error" : undefined}
-                  />
-                </div>
-                <div className="space-y-1.5">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="min-w-0 space-y-1.5">
                   <Label htmlFor="entry-start" className="text-xs text-muted-foreground">
                     Start
                   </Label>
@@ -659,10 +719,10 @@ export function TimeEntryDialog({
                     required
                     aria-label="Start time"
                     aria-invalid={Boolean(parsedValidation.fieldErrors.start || overlapNotice)}
-                    className={overlapNotice ? "border-destructive" : undefined}
+                    className={cn("min-w-0", overlapNotice ? "border-destructive" : undefined)}
                   />
                 </div>
-                <div className="space-y-1.5">
+                <div className="min-w-0 space-y-1.5">
                   <Label htmlFor="entry-end" className="text-xs text-muted-foreground">
                     End
                   </Label>
@@ -675,9 +735,31 @@ export function TimeEntryDialog({
                     required
                     aria-label="End time"
                     aria-invalid={Boolean(parsedValidation.fieldErrors.end || overlapNotice)}
-                    className={overlapNotice ? "border-destructive" : undefined}
+                    className={cn("min-w-0", overlapNotice ? "border-destructive" : undefined)}
                   />
                 </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="entry-duration" className="text-xs text-muted-foreground">
+                  Duration
+                </Label>
+                <Input
+                  id="entry-duration"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="0:00"
+                  value={durationText}
+                  disabled={!canEdit}
+                  className="font-mono tabular-nums"
+                  onFocus={() => {
+                    durationFocusedRef.current = true;
+                  }}
+                  onChange={(e) => handleDurationChange(e.target.value)}
+                  onBlur={handleDurationBlur}
+                  aria-label="Duration"
+                  aria-invalid={Boolean(durationError)}
+                  aria-describedby={durationError ? "entry-duration-error" : undefined}
+                />
               </div>
               {durationError ? (
                 <p id="entry-duration-error" className="text-xs text-destructive">
@@ -719,7 +801,11 @@ export function TimeEntryDialog({
                 value={draft.description}
                 disabled={!canEdit}
                 onChange={(e) => patch({ description: e.target.value })}
-                placeholder="What did you work on?"
+                placeholder={
+                  draftClassification(draft) === "PROJECT"
+                    ? "What did you work on?"
+                    : "Add a note (optional)"
+                }
                 aria-invalid={Boolean(parsedValidation.fieldErrors.description)}
               />
               {parsedValidation.fieldErrors.description ? (

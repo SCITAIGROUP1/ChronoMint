@@ -24,7 +24,10 @@ import { DomainException } from "../../../common/errors/domain.exception";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { parseWorkspaceSettingsFromRaw } from "../../../common/time/approval-period.util";
 import { roundExport } from "../../../common/time/round.util";
-import { TimeAggregationService } from "../../../common/time/time-aggregation.service";
+import {
+  resolveLogTaskView,
+  TimeAggregationService
+} from "../../../common/time/time-aggregation.service";
 import {
   getWeekStartDate,
   getWeekStartUtc,
@@ -164,12 +167,13 @@ export class ReportingService implements OnModuleInit, OnModuleDestroy {
       if (log.isBillable) memberEntry.billableHours += hours;
       byMember.set(log.userId, memberEntry);
 
-      const taskKey = log.taskId;
+      const taskView = resolveLogTaskView(log);
+      const taskKey = taskView.taskId ?? taskView.taskName;
       const taskEntry = byTask.get(taskKey) ?? {
-        taskId: log.taskId,
-        taskName: log.task.taskName || "General Work",
-        categoryId: log.task.category?.id ?? log.task.categoryId,
-        categoryName: log.task.category?.name ?? "Uncategorized",
+        taskId: taskView.taskId,
+        taskName: taskView.taskName,
+        categoryId: taskView.categoryId,
+        categoryName: taskView.categoryName,
         totalHours: 0,
         billableHours: 0
       };
@@ -177,8 +181,8 @@ export class ReportingService implements OnModuleInit, OnModuleDestroy {
       if (log.isBillable) taskEntry.billableHours += hours;
       byTask.set(taskKey, taskEntry);
 
-      const categoryId = log.task.category?.id ?? log.task.categoryId;
-      const categoryName = log.task.category?.name ?? "Uncategorized";
+      const categoryId = taskView.categoryId;
+      const categoryName = taskView.categoryName;
       const catEntry = byCategory.get(categoryId) ?? {
         categoryId,
         categoryName,
@@ -254,7 +258,8 @@ export class ReportingService implements OnModuleInit, OnModuleDestroy {
       from: weekStart,
       to: weekEnd,
       userId,
-      categoryId: query?.categoryId
+      categoryId: query?.categoryId,
+      nonProjectTime: "include"
     });
 
     const todayHours = roundExport(
@@ -365,7 +370,8 @@ export class ReportingService implements OnModuleInit, OnModuleDestroy {
       userIds: query.userId,
       projectIds: finalProjectIds,
       categoryId: query.categoryId,
-      taskId: query.taskId
+      taskId: query.taskId,
+      nonProjectTime: query.nonProjectTime ?? "exclude"
     });
     const commercialEnabled = isClientCommercialFeaturesEnabled();
     const { resolveRate } = await this.aggregation.resolveRateMaps(workspaceId);
@@ -374,7 +380,9 @@ export class ReportingService implements OnModuleInit, OnModuleDestroy {
       resolveRate
     );
 
-    const activeProjects = new Set(logs.map((l) => l.task.projectId));
+    const activeProjects = new Set(
+      logs.map((l) => l.task?.projectId).filter((id): id is string => Boolean(id))
+    );
     const activeMembers = new Set(logs.map((l) => l.userId));
 
     const weekly = new Map<string, HoursAgg>();
@@ -401,7 +409,7 @@ export class ReportingService implements OnModuleInit, OnModuleDestroy {
           ? hours *
             resolveRate(
               log.userId,
-              log.task.projectId,
+              log.task?.projectId ?? "",
               log.user.defaultHourlyRate?.toNumber() ?? null,
               log.startTime
             )
@@ -428,10 +436,14 @@ export class ReportingService implements OnModuleInit, OnModuleDestroy {
     }
 
     const wsTotal = workspaceAgg.totalHours;
+    const projectHours = logs
+      .filter((l) => !l.classification || l.classification === "PROJECT")
+      .reduce((sum, l) => sum + l.durationSec / 3600, 0);
+    const nonProjectHours = wsTotal - projectHours;
     const billablePercent =
       wsTotal > 0 ? roundExport((workspaceAgg.billableHours / wsTotal) * 100) : 0;
 
-    const projectIds = [...byProject.keys()];
+    const projectIds = [...byProject.keys()].filter((id) => id !== "__non_project__");
     // Perf: skip budgetHours + cumulative hours queries when commercial features are off.
     const [budgetRows, cumulativeHoursByProject] = commercialEnabled
       ? await Promise.all([
@@ -462,12 +474,12 @@ export class ReportingService implements OnModuleInit, OnModuleDestroy {
       Map<string, { projectName: string; hours: number }>
     >();
     for (const log of logs) {
-      const pid = log.task.projectId;
-      if (!topProjectSet.has(pid)) continue;
+      const pid = log.task?.projectId;
+      if (!pid || !topProjectSet.has(pid)) continue;
       const dayKey = log.startTime.toISOString().slice(0, 10);
       const dayMap = dailyProjectStacks.get(dayKey) ?? new Map();
       const entry = dayMap.get(pid) ?? {
-        projectName: log.task.project.name,
+        projectName: log.task?.project.name ?? "Project",
         hours: 0
       };
       entry.hours += log.durationSec / 3600;
@@ -503,9 +515,12 @@ export class ReportingService implements OnModuleInit, OnModuleDestroy {
         currency,
         activeProjects: activeProjects.size,
         activeMembers: activeMembers.size,
-        billablePercent
+        billablePercent,
+        projectHours: roundExport(projectHours),
+        nonProjectHours: roundExport(nonProjectHours)
       },
       timeByProject: [...byProject.entries()]
+        .filter(([projectId]) => projectId !== "__non_project__")
         .map(([projectId, v]) => {
           const budgetHours = budgetByProject.get(projectId) ?? null;
           const totalLogged = cumulativeHoursByProject.get(projectId) ?? 0;
@@ -566,6 +581,7 @@ export class ReportingService implements OnModuleInit, OnModuleDestroy {
     });
 
     for (const row of grouped) {
+      if (!row.taskId) continue;
       const projectId = taskToProject.get(row.taskId);
       if (!projectId) continue;
       totals.set(projectId, (totals.get(projectId) ?? 0) + (row._sum.durationSec ?? 0) / 3600);
@@ -881,10 +897,9 @@ export class ReportingService implements OnModuleInit, OnModuleDestroy {
     >();
 
     for (const log of logs) {
-      const name = log.task.taskName || "General Work";
+      const name = resolveLogTaskView(log).taskName;
       const key = name.toLowerCase().trim();
-      const categoryId = log.task.category?.id ?? log.task.categoryId;
-      const categoryName = log.task.category?.name ?? "Uncategorized";
+      const { categoryId, categoryName } = resolveLogTaskView(log);
       const entry = tasksMap.get(key) ?? {
         taskId: log.taskId,
         taskName: name,
@@ -979,10 +994,7 @@ export class ReportingService implements OnModuleInit, OnModuleDestroy {
 
     for (const log of logs) {
       const hours = log.durationSec / 3600;
-      const categoryId = log.task.category?.id ?? log.task.categoryId;
-      const categoryName = log.task.category?.name ?? "Uncategorized";
-      const projectId = log.task.projectId;
-      const projectName = log.task.project.name;
+      const { categoryId, categoryName, projectId, projectName } = resolveLogTaskView(log);
 
       const cat = categoryTotals.get(categoryId) ?? { categoryId, categoryName, hours: 0 };
       cat.hours += hours;

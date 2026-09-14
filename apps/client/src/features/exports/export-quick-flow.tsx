@@ -37,6 +37,7 @@ import {
   type ExportScenarioId
 } from "./export-scenarios";
 import { ExportScopeFilters } from "./export-scope-filters";
+import { NonProjectTimeFilterSelect } from "@/components/non-project-time-filter-select";
 import { isCommercialFeaturesEnabled } from "@/lib/commercial-features";
 import { toDateInputValue, formatExportPeriodLabel } from "@/lib/export-date-presets";
 import { describeOrganize, type ExportOrganizePreset } from "@/lib/export-organize";
@@ -127,6 +128,7 @@ export function ExportQuickFlow({
   const [showOrganize, setShowOrganize] = useState(false);
   const [format, setFormat] = useState<ExportBodyDto["format"]>("xlsx");
   const [billable, setBillable] = useState<ExportBodyDto["billable"]>("all");
+  const [nonProjectTime, setNonProjectTime] = useState<ExportBodyDto["nonProjectTime"]>("include");
 
   const scenario = useMemo(() => (scenarioId ? getExportScenario(scenarioId) : null), [scenarioId]);
 
@@ -150,6 +152,7 @@ export function ExportQuickFlow({
     onToChange(toDateInputValue(new Date()));
     onClearScope();
     setBillable("all");
+    setNonProjectTime("include");
     toast.success("Filters reset to defaults");
   }
 
@@ -161,6 +164,7 @@ export function ExportQuickFlow({
       from: new Date(from).toISOString(),
       to: new Date(to + "T23:59:59").toISOString(),
       billable,
+      nonProjectTime,
       reportTypes: scenario.reportTypes,
       format,
       groupBy: organize.groupBy,
@@ -178,6 +182,7 @@ export function ExportQuickFlow({
     from,
     to,
     billable,
+    nonProjectTime,
     scenario,
     format,
     organize,
@@ -412,6 +417,10 @@ export function ExportQuickFlow({
                       </SelectContent>
                     </Select>
                   </div>
+                  <NonProjectTimeFilterSelect
+                    value={nonProjectTime ?? "include"}
+                    onChange={setNonProjectTime}
+                  />
                 </div>
 
                 <div>

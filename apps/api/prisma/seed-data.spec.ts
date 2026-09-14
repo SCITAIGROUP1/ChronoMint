@@ -1,8 +1,12 @@
+import { SYSTEM_TENANT_ACTIVITY_TYPES } from "@kloqra/contracts";
 import { describe, expect, it } from "vitest";
 import {
+  SEED_CUSTOM_ACTIVITY_TYPES,
   SEED_DEMO_HIERARCHY,
   SEED_DEMO_PERSONAS,
   SEED_EMAIL_DOMAIN,
+  SEED_HOLIDAY_SPECS,
+  SEED_NON_PROJECT_LOG_SPECS,
   SEED_PLANS,
   SEED_PLATFORM_SUPERADMIN,
   SEED_TENANT,
@@ -112,5 +116,44 @@ describe("seed-data", () => {
     expect(SEED_PLANS.map((p) => p.slug)).toEqual(["pilot", "starter", "pro"]);
     expect(SEED_TENANT_SUBSCRIPTION.planSlug).toBe("pilot");
     expect(SEED_TENANT_SUBSCRIPTION.status).toBe("active");
+  });
+
+  it("seeds custom activity types that do not collide with system types", () => {
+    const systemNames = new Set<string>(SYSTEM_TENANT_ACTIVITY_TYPES.map((t) => t.name));
+    const systemSlugs = new Set<string>(SYSTEM_TENANT_ACTIVITY_TYPES.map((t) => t.slug));
+    const names = SEED_CUSTOM_ACTIVITY_TYPES.map((t) => t.name);
+    const slugs = SEED_CUSTOM_ACTIVITY_TYPES.map((t) => t.slug);
+    expect(new Set(names).size).toBe(names.length);
+    expect(new Set(slugs).size).toBe(slugs.length);
+    for (const type of SEED_CUSTOM_ACTIVITY_TYPES) {
+      expect(systemNames.has(type.name)).toBe(false);
+      expect(systemSlugs.has(type.slug)).toBe(false);
+    }
+  });
+
+  it("seeds a past applied holiday and an upcoming catalog-only holiday", () => {
+    expect(SEED_HOLIDAY_SPECS.some((h) => h.daysFromToday < 0 && h.applyLogs)).toBe(true);
+    expect(SEED_HOLIDAY_SPECS.some((h) => h.daysFromToday > 0 && !h.applyLogs)).toBe(true);
+  });
+
+  it("seeds leave and activity logs for known demo users", () => {
+    const emails = new Set(SEED_USERS.map((u) => u.email));
+    const activitySlugs = new Set<string>([
+      ...SYSTEM_TENANT_ACTIVITY_TYPES.map((t) => t.slug),
+      ...SEED_CUSTOM_ACTIVITY_TYPES.map((t) => t.slug)
+    ]);
+    expect(SEED_NON_PROJECT_LOG_SPECS.length).toBeGreaterThanOrEqual(4);
+    expect(SEED_NON_PROJECT_LOG_SPECS.some((s) => s.classification === "LEAVE_FULL")).toBe(true);
+    expect(SEED_NON_PROJECT_LOG_SPECS.some((s) => s.classification === "LEAVE_HALF")).toBe(true);
+    expect(SEED_NON_PROJECT_LOG_SPECS.some((s) => s.classification === "TENANT_ACTIVITY")).toBe(
+      true
+    );
+    for (const spec of SEED_NON_PROJECT_LOG_SPECS) {
+      expect(emails.has(spec.email)).toBe(true);
+      expect(spec.daysFromToday).toBeLessThan(0);
+      if (spec.classification === "TENANT_ACTIVITY") {
+        expect(activitySlugs.has(spec.activitySlug)).toBe(true);
+      }
+    }
   });
 });

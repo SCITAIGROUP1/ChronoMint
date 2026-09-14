@@ -13,6 +13,8 @@ export * from "./dto/user-project-color.dto";
 export * from "./dto/favorites.dto";
 export * from "./dto/timelog.dto";
 export * from "./dto/timelog-occupancy.dto";
+export * from "./dto/non-project-time.dto";
+export * from "./non-project-time";
 export * from "./dto/timesheet.dto";
 export * from "./dto/timelog-audit.dto";
 export * from "./dto/timer.dto";

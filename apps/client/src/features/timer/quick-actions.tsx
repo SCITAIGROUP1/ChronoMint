@@ -85,6 +85,7 @@ export function QuickActions({
     const counts: Record<string, number> = {};
 
     for (const log of items) {
+      if (!log.taskId) continue;
       counts[log.taskId] = (counts[log.taskId] ?? 0) + 1;
     }
 

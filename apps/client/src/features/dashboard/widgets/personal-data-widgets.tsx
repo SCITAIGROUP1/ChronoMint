@@ -219,7 +219,7 @@ export function TodayLogsWidget({
   return (
     <div className="flex min-h-48 flex-col gap-2 overflow-auto">
       {todayLogs.map((log) => {
-        const task = taskById.get(log.taskId);
+        const task = taskById.get(log.taskId ?? "");
         const project = task ? projectById.get(task.projectId) : undefined;
         const locked = isLocked(log);
         return (
@@ -246,15 +246,17 @@ export function TodayLogsWidget({
               ) : null}
             </div>
             <span className="font-mono font-semibold">{(log.durationSec / 3600).toFixed(2)}h</span>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-8"
-              aria-label="Restart timer"
-              onClick={() => void onRestart(log.taskId)}
-            >
-              <Play className="size-3.5" />
-            </Button>
+            {log.taskId ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8"
+                aria-label="Restart timer"
+                onClick={() => void onRestart(log.taskId!)}
+              >
+                <Play className="size-3.5" />
+              </Button>
+            ) : null}
             {!locked ? (
               <Button
                 variant="ghost"

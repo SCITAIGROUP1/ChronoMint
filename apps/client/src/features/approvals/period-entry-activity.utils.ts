@@ -9,7 +9,7 @@ export function filterLogsForProject(
   const projectTaskIds = new Set(
     tasks.filter((task) => task.projectId === projectId).map((task) => task.id)
   );
-  return logs.filter((log) => projectTaskIds.has(log.taskId));
+  return logs.filter((log) => log.taskId != null && projectTaskIds.has(log.taskId));
 }
 
 export function mergeAuditEvents(items: TimeEntryAuditEvent[][]): TimeEntryAuditEvent[] {

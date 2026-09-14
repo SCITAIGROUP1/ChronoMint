@@ -11,13 +11,16 @@ export const HAIRLINE_ENTRY_SEC = 10 * 60;
  */
 export function calendarEntryChromeClass(
   durationSec: number,
-  opts?: { dashed?: boolean; dotted?: boolean }
+  opts?: { dashed?: boolean; dotted?: boolean; hatched?: boolean }
 ): string {
   if (opts?.dashed) {
     return "rounded-[3px] border border-dashed border-muted-foreground/40";
   }
   if (opts?.dotted) {
     return "rounded-[3px] border border-dotted border-muted-foreground/35";
+  }
+  if (opts?.hatched) {
+    return "rounded-[3px] border-l-2 border-l-black/25 dark:border-l-white/30";
   }
   if (durationSec < HAIRLINE_ENTRY_SEC) {
     return "rounded-[2px] border-l border-l-black/30 dark:border-l-white/35";

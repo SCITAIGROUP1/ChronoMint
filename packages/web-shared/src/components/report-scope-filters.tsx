@@ -1,6 +1,6 @@
 "use client";
 
-import type { CategoryDto, ProjectDto, TaskDto } from "@kloqra/contracts";
+import type { CategoryDto, NonProjectTimeFilter, ProjectDto, TaskDto } from "@kloqra/contracts";
 import {
   Badge,
   Button,
@@ -15,6 +15,16 @@ import {
 } from "@kloqra/ui";
 import { Filter, X } from "lucide-react";
 import { useMemo, useState } from "react";
+
+const NON_PROJECT_TIME_OPTIONS: {
+  value: NonProjectTimeFilter;
+  label: string;
+  keywords: string;
+}[] = [
+  { value: "include", label: "Include", keywords: "all holidays leave activities" },
+  { value: "exclude", label: "Exclude", keywords: "project work only hide leave holiday" },
+  { value: "only", label: "Only non-project", keywords: "holidays leave activities" }
+];
 
 export type ScopeMember = { userId: string; userName: string };
 
@@ -48,19 +58,31 @@ type ReportScopeFiltersProps = {
   compact?: boolean;
   className?: string;
   footer?: React.ReactNode;
+  nonProjectTime?: NonProjectTimeFilter;
+  onNonProjectTimeChange?: (value: NonProjectTimeFilter) => void;
+  defaultNonProjectTime?: NonProjectTimeFilter;
 };
 
 function hasIdFilter(value: string | string[]): boolean {
   return Array.isArray(value) ? value.length > 0 : Boolean(value);
 }
 
-function activeFilterCount(values: ReportScopeFilterValues, includeMember: boolean) {
+function activeFilterCount(
+  values: ReportScopeFilterValues,
+  includeMember: boolean,
+  nonProjectActive: boolean
+) {
   const parts: string[] = [];
   if (hasIdFilter(values.projectId)) parts.push("project");
   if (hasIdFilter(values.categoryId)) parts.push("category");
   if (values.taskId) parts.push("task");
   if (includeMember && hasIdFilter(values.userId)) parts.push("member");
+  if (nonProjectActive) parts.push("nonProject");
   return parts.length;
+}
+
+function nonProjectTimeLabel(value: NonProjectTimeFilter) {
+  return NON_PROJECT_TIME_OPTIONS.find((option) => option.value === value)?.label ?? value;
 }
 
 export function ReportScopeFilters({
@@ -82,16 +104,32 @@ export function ReportScopeFilters({
   hintText = "Optional — narrow charts and exports",
   compact = false,
   className,
-  footer
+  footer,
+  nonProjectTime,
+  onNonProjectTimeChange,
+  defaultNonProjectTime = "include"
 }: ReportScopeFiltersProps) {
-  const activeCount = activeFilterCount(values, !hideMemberFilter);
+  const showNonProjectTime = Boolean(nonProjectTime && onNonProjectTimeChange);
+  const nonProjectOnly = nonProjectTime === "only";
+  const nonProjectActive =
+    showNonProjectTime && nonProjectTime !== undefined && nonProjectTime !== defaultNonProjectTime;
+  const scopedValues = nonProjectOnly
+    ? {
+        ...values,
+        projectId: Array.isArray(values.projectId) ? [] : "",
+        categoryId: Array.isArray(values.categoryId) ? [] : "",
+        taskId: ""
+      }
+    : values;
+  const activeCount = activeFilterCount(scopedValues, !hideMemberFilter, nonProjectActive);
   const [open, setOpen] = useState(false);
 
   const hasSelectedProject = hasIdFilter(values.projectId);
+  const showProjectScopeFields = !nonProjectOnly;
 
   const chips = useMemo(() => {
     const out: { key: string; label: string; onClear: () => void }[] = [];
-    if (hasIdFilter(values.projectId)) {
+    if (hasIdFilter(scopedValues.projectId)) {
       if (Array.isArray(values.projectId)) {
         if (values.projectId.length === 1) {
           const p = projects.find((x) => x.id === values.projectId[0]);
@@ -116,7 +154,7 @@ export function ReportScopeFilters({
         });
       }
     }
-    if (hasIdFilter(values.categoryId)) {
+    if (hasIdFilter(scopedValues.categoryId)) {
       if (Array.isArray(values.categoryId)) {
         if (values.categoryId.length === 1) {
           const c = categories.find((x) => x.id === values.categoryId[0]);
@@ -141,7 +179,7 @@ export function ReportScopeFilters({
         });
       }
     }
-    if (values.taskId) {
+    if (scopedValues.taskId) {
       const t = tasks.find((x) => x.id === values.taskId);
       out.push({
         key: "task",
@@ -174,9 +212,17 @@ export function ReportScopeFilters({
         });
       }
     }
+    if (nonProjectActive && nonProjectTime && onNonProjectTimeChange) {
+      out.push({
+        key: "nonProject",
+        label: `Non-project: ${nonProjectTimeLabel(nonProjectTime)}`,
+        onClear: () => onNonProjectTimeChange(defaultNonProjectTime)
+      });
+    }
     return out;
   }, [
     values,
+    scopedValues,
     projects,
     categories,
     tasks,
@@ -185,7 +231,11 @@ export function ReportScopeFilters({
     onProjectChange,
     onCategoryChange,
     onTaskChange,
-    onUserChange
+    onUserChange,
+    nonProjectActive,
+    nonProjectTime,
+    onNonProjectTimeChange,
+    defaultNonProjectTime
   ]);
 
   const triggerClass = compact ? "h-9 bg-background" : undefined;
@@ -231,7 +281,11 @@ export function ReportScopeFilters({
           <div className="mb-3 flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-sm font-medium text-foreground">Scope filters</p>
-              <p className="text-xs text-muted-foreground">{hintText}</p>
+              <p className="text-xs text-muted-foreground">
+                {nonProjectOnly
+                  ? "Leave, holidays, and organization time — project filters don’t apply"
+                  : hintText}
+              </p>
             </div>
             {activeCount > 0 ? (
               <Button
@@ -247,121 +301,138 @@ export function ReportScopeFilters({
           </div>
 
           <div className={cn("grid gap-3", gridCols)}>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-muted-foreground">Project</Label>
-              {Array.isArray(values.projectId) ? (
-                <SearchableMultiSelect
-                  value={values.projectId}
-                  onChange={onProjectChange}
-                  options={projects.map((p) => ({ value: p.id, label: p.name, color: p.color }))}
-                  placeholder="All projects"
-                  searchPlaceholder="Search projects…"
-                  selectAllLabel="All projects"
-                  triggerClassName={triggerClass}
-                  renderOption={(option) => (
-                    <span className="flex items-center gap-2">
-                      {"color" in option && option.color ? (
-                        <ProjectColorDot color={option.color as string} />
-                      ) : null}
-                      {option.label}
-                    </span>
+            {showProjectScopeFields ? (
+              <>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-muted-foreground">Project</Label>
+                  {Array.isArray(values.projectId) ? (
+                    <SearchableMultiSelect
+                      value={values.projectId}
+                      onChange={onProjectChange}
+                      options={projects.map((p) => ({
+                        value: p.id,
+                        label: p.name,
+                        color: p.color
+                      }))}
+                      placeholder="All projects"
+                      searchPlaceholder="Search projects…"
+                      selectAllLabel="All projects"
+                      triggerClassName={triggerClass}
+                      contentClassName="z-[80]"
+                      renderOption={(option) => (
+                        <span className="flex items-center gap-2">
+                          {"color" in option && option.color ? (
+                            <ProjectColorDot color={option.color as string} />
+                          ) : null}
+                          {option.label}
+                        </span>
+                      )}
+                      aria-label="Project"
+                    />
+                  ) : (
+                    <SearchableSelect
+                      value={values.projectId || "__all__"}
+                      onValueChange={(v) => onProjectChange(v === "__all__" ? "" : v)}
+                      options={[
+                        { value: "__all__", label: "All projects" },
+                        ...projects.map((p) => ({ value: p.id, label: p.name }))
+                      ]}
+                      placeholder="All projects"
+                      searchPlaceholder="Search projects…"
+                      triggerClassName={triggerClass}
+                      contentClassName="z-[80]"
+                      renderOption={(option) =>
+                        option.value === "__all__" ? (
+                          option.label
+                        ) : (
+                          <span className="flex items-center gap-2">
+                            <ProjectColorDot
+                              color={
+                                projects.find((p) => p.id === option.value)?.color ?? "#236bfe"
+                              }
+                            />
+                            {option.label}
+                          </span>
+                        )
+                      }
+                      renderValue={(option) =>
+                        option && option.value !== "__all__" ? (
+                          <span className="flex items-center gap-2">
+                            <ProjectColorDot
+                              color={
+                                projects.find((p) => p.id === option.value)?.color ?? "#236bfe"
+                              }
+                            />
+                            {option.label}
+                          </span>
+                        ) : (
+                          (option?.label ?? "All projects")
+                        )
+                      }
+                      aria-label="Project"
+                    />
                   )}
-                  aria-label="Project"
-                />
-              ) : (
-                <SearchableSelect
-                  value={values.projectId || "__all__"}
-                  onValueChange={(v) => onProjectChange(v === "__all__" ? "" : v)}
-                  options={[
-                    { value: "__all__", label: "All projects" },
-                    ...projects.map((p) => ({ value: p.id, label: p.name }))
-                  ]}
-                  placeholder="All projects"
-                  searchPlaceholder="Search projects…"
-                  triggerClassName={triggerClass}
-                  renderOption={(option) =>
-                    option.value === "__all__" ? (
-                      option.label
-                    ) : (
-                      <span className="flex items-center gap-2">
-                        <ProjectColorDot
-                          color={projects.find((p) => p.id === option.value)?.color ?? "#236bfe"}
-                        />
-                        {option.label}
-                      </span>
-                    )
-                  }
-                  renderValue={(option) =>
-                    option && option.value !== "__all__" ? (
-                      <span className="flex items-center gap-2">
-                        <ProjectColorDot
-                          color={projects.find((p) => p.id === option.value)?.color ?? "#236bfe"}
-                        />
-                        {option.label}
-                      </span>
-                    ) : (
-                      (option?.label ?? "All projects")
-                    )
-                  }
-                  aria-label="Project"
-                />
-              )}
-            </div>
+                </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-muted-foreground">Category</Label>
-              {Array.isArray(values.categoryId) ? (
-                <SearchableMultiSelect
-                  value={values.categoryId}
-                  onChange={onCategoryChange}
-                  options={categories.map((c) => ({ value: c.id, label: c.name }))}
-                  placeholder="All categories"
-                  searchPlaceholder="Search categories…"
-                  selectAllLabel="All categories"
-                  triggerClassName={triggerClass}
-                  aria-label="Category"
-                />
-              ) : (
-                <SearchableSelect
-                  value={values.categoryId || "__all__"}
-                  onValueChange={(v) => onCategoryChange(v === "__all__" ? "" : v)}
-                  options={[
-                    { value: "__all__", label: "All categories" },
-                    ...categories.map((c) => ({ value: c.id, label: c.name }))
-                  ]}
-                  placeholder="All categories"
-                  searchPlaceholder="Search categories…"
-                  triggerClassName={triggerClass}
-                  aria-label="Category"
-                />
-              )}
-            </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-muted-foreground">Category</Label>
+                  {Array.isArray(values.categoryId) ? (
+                    <SearchableMultiSelect
+                      value={values.categoryId}
+                      onChange={onCategoryChange}
+                      options={categories.map((c) => ({ value: c.id, label: c.name }))}
+                      placeholder="All categories"
+                      searchPlaceholder="Search categories…"
+                      selectAllLabel="All categories"
+                      triggerClassName={triggerClass}
+                      contentClassName="z-[80]"
+                      aria-label="Category"
+                    />
+                  ) : (
+                    <SearchableSelect
+                      value={values.categoryId || "__all__"}
+                      onValueChange={(v) => onCategoryChange(v === "__all__" ? "" : v)}
+                      options={[
+                        { value: "__all__", label: "All categories" },
+                        ...categories.map((c) => ({ value: c.id, label: c.name }))
+                      ]}
+                      placeholder="All categories"
+                      searchPlaceholder="Search categories…"
+                      triggerClassName={triggerClass}
+                      contentClassName="z-[80]"
+                      aria-label="Category"
+                    />
+                  )}
+                </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-muted-foreground">Task</Label>
-              {!taskRequiresProject || hasSelectedProject ? (
-                <SearchableSelect
-                  value={values.taskId || "__all__"}
-                  onValueChange={(v) => onTaskChange(v === "__all__" ? "" : v)}
-                  options={[
-                    { value: "__all__", label: "All tasks" },
-                    ...tasks.map((t) => ({ value: t.id, label: t.taskName }))
-                  ]}
-                  placeholder="All tasks"
-                  searchPlaceholder="Search tasks…"
-                  disabled={taskRequiresProject && !hasSelectedProject}
-                  triggerClassName={triggerClass}
-                  aria-label="Task"
-                />
-              ) : (
-                <p className={placeholderClass}>Select a project first</p>
-              )}
-            </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-muted-foreground">Task</Label>
+                  {!taskRequiresProject || hasSelectedProject ? (
+                    <SearchableSelect
+                      value={values.taskId || "__all__"}
+                      onValueChange={(v) => onTaskChange(v === "__all__" ? "" : v)}
+                      options={[
+                        { value: "__all__", label: "All tasks" },
+                        ...tasks.map((t) => ({ value: t.id, label: t.taskName }))
+                      ]}
+                      placeholder="All tasks"
+                      searchPlaceholder="Search tasks…"
+                      disabled={taskRequiresProject && !hasSelectedProject}
+                      triggerClassName={triggerClass}
+                      contentClassName="z-[80]"
+                      aria-label="Task"
+                    />
+                  ) : (
+                    <p className={placeholderClass}>Select a project first</p>
+                  )}
+                </div>
+              </>
+            ) : null}
 
             {!hideMemberFilter ? (
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium text-muted-foreground">Member</Label>
-                {!memberRequiresProject || hasSelectedProject ? (
+                {!memberRequiresProject || nonProjectOnly || hasSelectedProject ? (
                   Array.isArray(values.userId) ? (
                     <SearchableMultiSelect
                       value={values.userId}
@@ -371,6 +442,7 @@ export function ReportScopeFilters({
                       searchPlaceholder="Search members…"
                       selectAllLabel={memberAllLabel}
                       triggerClassName={triggerClass}
+                      contentClassName="z-[80]"
                       aria-label="Member"
                     />
                   ) : (
@@ -383,14 +455,33 @@ export function ReportScopeFilters({
                       ]}
                       placeholder={memberPlaceholder}
                       searchPlaceholder="Search members…"
-                      disabled={memberRequiresProject && !values.projectId}
+                      disabled={memberRequiresProject && !nonProjectOnly && !values.projectId}
                       triggerClassName={triggerClass}
+                      contentClassName="z-[80]"
                       aria-label="Member"
                     />
                   )
                 ) : (
                   <p className={placeholderClass}>Select a project first</p>
                 )}
+              </div>
+            ) : null}
+
+            {showNonProjectTime && nonProjectTime && onNonProjectTimeChange ? (
+              <div className="space-y-1.5" data-testid="non-project-time-filter">
+                <Label className="text-xs font-medium text-muted-foreground">
+                  Non-project time
+                </Label>
+                <SearchableSelect
+                  value={nonProjectTime}
+                  onValueChange={(next) => onNonProjectTimeChange(next as NonProjectTimeFilter)}
+                  options={NON_PROJECT_TIME_OPTIONS}
+                  placeholder="Include"
+                  searchPlaceholder="Search include, exclude, only…"
+                  triggerClassName={triggerClass}
+                  contentClassName="z-[80]"
+                  aria-label="Non-project time"
+                />
               </div>
             ) : null}
           </div>

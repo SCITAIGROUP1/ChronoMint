@@ -670,6 +670,30 @@ describe("WorkspaceService", () => {
     expect((result as any).settings.jiraSiteUrl).toBe("https://acme.atlassian.net");
   });
 
+  it("getOperationalSettings returns hours without jira secrets", async () => {
+    mockPrisma.workspace.findUniqueOrThrow = vi.fn().mockResolvedValue({
+      id: "ws-1",
+      name: "Acme Corporation",
+      slug: "acme",
+      settings: {
+        dailyTargetHours: 7.5,
+        timezone: "America/Denver",
+        weekStart: "sunday",
+        jiraServiceToken: "ATATT3xtoken"
+      }
+    });
+
+    const result = await service.getOperationalSettings("ws-1");
+
+    expect(result).toEqual({
+      timezone: "America/Denver",
+      weekStart: "sunday",
+      timesheetApprovalPeriod: "weekly",
+      dailyTargetHours: 7.5
+    });
+    expect(result).not.toHaveProperty("jiraServiceToken");
+  });
+
   it("update rejects renaming to an existing workspace name", async () => {
     mockPrisma.workspace.findUnique.mockResolvedValue({
       id: "ws-1",

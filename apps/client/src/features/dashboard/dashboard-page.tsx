@@ -1,7 +1,12 @@
 "use client";
 
 import { isShareableWidgetId, ROUTES } from "@kloqra/contracts";
-import type { DashboardReportDto, Permission, TeamMemberDto } from "@kloqra/contracts";
+import type {
+  DashboardReportDto,
+  NonProjectTimeFilter,
+  Permission,
+  TeamMemberDto
+} from "@kloqra/contracts";
 import {
   Button,
   Select,
@@ -105,6 +110,7 @@ function rangeQuery(
     userId?: string | string[];
     categoryId?: string | string[];
     taskId?: string;
+    nonProjectTime?: NonProjectTimeFilter;
   },
   timezone?: string
 ) {
@@ -147,6 +153,7 @@ function rangeQuery(
     }
   }
   if (filters?.taskId) params.set("taskId", filters.taskId);
+  if (filters?.nonProjectTime) params.set("nonProjectTime", filters.nonProjectTime);
   return params;
 }
 
@@ -204,6 +211,9 @@ export function ManagementDashboardPage({
   const [userId, setUserId] = useState<string[]>([]);
   const [categoryId, setCategoryId] = useState<string[]>([]);
   const [taskId, setTaskId] = useState("");
+  const [nonProjectTime, setNonProjectTime] = useState<NonProjectTimeFilter>(
+    showManagement ? "exclude" : "include"
+  );
   const catalog = useEntryCatalogQueries(ws, { enabled: Boolean(ws) });
   const projects =
     showPersonal && !showManagement
@@ -466,6 +476,7 @@ export function ManagementDashboardPage({
     setUserId([]);
     setCategoryId([]);
     setTaskId("");
+    setNonProjectTime("exclude");
   }
 
   const load = useCallback(() => {
@@ -486,10 +497,12 @@ export function ManagementDashboardPage({
         startDate,
         endDate,
         {
-          projectId: projectId,
+          projectId: nonProjectTime === "only" ? undefined : projectId,
           userId: userId,
-          categoryId: categoryId.length > 0 ? categoryId : undefined,
-          taskId: taskId || undefined
+          categoryId:
+            nonProjectTime === "only" ? undefined : categoryId.length > 0 ? categoryId : undefined,
+          taskId: nonProjectTime === "only" ? undefined : taskId || undefined,
+          nonProjectTime
         },
         timezone
       )}`,
@@ -508,6 +521,7 @@ export function ManagementDashboardPage({
     userId,
     categoryId,
     taskId,
+    nonProjectTime,
     timezone
   ]);
 
@@ -1058,16 +1072,18 @@ export function ManagementDashboardPage({
       {showPersonal || showManagement ? (
         <DashboardFiltersToolbar
           period={
-            <DashboardPeriodFilter
-              className="min-w-0 flex-1"
-              range={range}
-              onPresetChange={handleRangePresetChange}
-              startDate={startDate}
-              endDate={endDate}
-              onDateRangeChange={handleDateRangeChange}
-              presets={ADMIN_PERIOD_PRESETS}
-              dateRangeAriaLabel="Dashboard date range"
-            />
+            <>
+              <DashboardPeriodFilter
+                className="min-w-0 flex-1"
+                range={range}
+                onPresetChange={handleRangePresetChange}
+                startDate={startDate}
+                endDate={endDate}
+                onDateRangeChange={handleDateRangeChange}
+                presets={ADMIN_PERIOD_PRESETS}
+                dateRangeAriaLabel="Dashboard date range"
+              />
+            </>
           }
           scope={
             <ReportScopeFilters
@@ -1097,6 +1113,9 @@ export function ManagementDashboardPage({
               onTaskChange={setTaskId}
               onUserChange={setUserId}
               onClearAll={clearScopeFilters}
+              nonProjectTime={showManagement ? nonProjectTime : undefined}
+              onNonProjectTimeChange={showManagement ? setNonProjectTime : undefined}
+              defaultNonProjectTime="exclude"
             />
           }
         />

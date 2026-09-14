@@ -950,3 +950,93 @@ export const SEED_NOTIFICATIONS: SeedNotificationSpec[] = [
     metadata: { variant: "info", href: "/workspace" }
   }
 ];
+
+/** Custom (non-system) activity types for the demo tenant catalog. */
+export const SEED_CUSTOM_ACTIVITY_TYPES = [
+  { name: "Training", slug: "training", color: "#7c3aed" },
+  { name: "Town hall", slug: "town_hall", color: "#db2777" }
+] as const;
+
+/**
+ * Holiday catalog. Negative `daysFromToday` is in the past (time logs applied);
+ * positive is upcoming (catalog only). Seed snaps onto a weekday.
+ */
+export const SEED_HOLIDAY_SPECS = [
+  { name: "Company Holiday", daysFromToday: -14, applyLogs: true },
+  { name: "Team Day Off", daysFromToday: 9, applyLogs: false }
+] as const;
+
+export type SeedNonProjectLogSpec =
+  | {
+      email: string;
+      classification: "LEAVE_FULL";
+      daysFromToday: number;
+      description: string;
+    }
+  | {
+      email: string;
+      classification: "LEAVE_HALF";
+      slot: "AM" | "PM";
+      daysFromToday: number;
+      description: string;
+    }
+  | {
+      email: string;
+      classification: "TENANT_ACTIVITY";
+      activitySlug: string;
+      daysFromToday: number;
+      startLocal: string;
+      durationMin: number;
+      description: string;
+    };
+
+/** Demo leave and organization-activity entries on the personal timesheet. */
+export const SEED_NON_PROJECT_LOG_SPECS: readonly SeedNonProjectLogSpec[] = [
+  {
+    email: "member@kloqra.dev",
+    classification: "LEAVE_FULL",
+    daysFromToday: -7,
+    description: "Annual leave"
+  },
+  {
+    email: "taylor@kloqra.dev",
+    classification: "LEAVE_HALF",
+    slot: "AM",
+    daysFromToday: -4,
+    description: "Medical appointment"
+  },
+  {
+    email: "alex@kloqra.dev",
+    classification: "LEAVE_HALF",
+    slot: "PM",
+    daysFromToday: -4,
+    description: "Personal half-day"
+  },
+  {
+    email: "member@kloqra.dev",
+    classification: "TENANT_ACTIVITY",
+    activitySlug: "office_meeting",
+    daysFromToday: -5,
+    startLocal: "10:00",
+    durationMin: 90,
+    description: "All-hands standup"
+  },
+  {
+    email: "taylor@kloqra.dev",
+    classification: "TENANT_ACTIVITY",
+    activitySlug: "training",
+    daysFromToday: -6,
+    startLocal: "14:00",
+    durationMin: 120,
+    description: "Design systems workshop"
+  },
+  {
+    email: "admin@kloqra.dev",
+    classification: "TENANT_ACTIVITY",
+    activitySlug: "town_hall",
+    daysFromToday: -3,
+    startLocal: "15:00",
+    durationMin: 60,
+    description: "Q3 town hall"
+  }
+];

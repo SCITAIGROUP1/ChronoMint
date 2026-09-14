@@ -126,7 +126,7 @@ export function filterPersonalDashboardData(
 
   const taskById = new Map(data.tasks.map((task) => [task.id, task]));
   const logs = data.logs.filter((log) => {
-    const task = taskById.get(log.taskId);
+    const task = taskById.get(log.taskId ?? "");
     if (!task) return false;
     if (taskId && task.id !== taskId) return false;
     if (hasCategoryFilter && !categoryIds.includes(task.categoryId)) return false;

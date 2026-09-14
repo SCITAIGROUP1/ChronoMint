@@ -1,6 +1,6 @@
 "use client";
 
-import type { ExportBodyDto } from "@kloqra/contracts";
+import type { ExportBodyDto, NonProjectTimeFilter } from "@kloqra/contracts";
 import {
   Badge,
   Button,
@@ -14,6 +14,7 @@ import {
 } from "@kloqra/ui";
 import { CalendarDays } from "lucide-react";
 import type { ReactNode } from "react";
+import { NonProjectTimeFilterSelect } from "@/components/non-project-time-filter-select";
 import {
   applyDatePreset,
   describeExportPeriodApplied,
@@ -37,6 +38,8 @@ export type ExportPeriodFilterProps = {
   onToChange: (to: string) => void;
   billable?: ExportBodyDto["billable"];
   onBillableChange?: (billable: ExportBodyDto["billable"]) => void;
+  nonProjectTime?: NonProjectTimeFilter;
+  onNonProjectTimeChange?: (value: NonProjectTimeFilter) => void;
   weekStartsOn?: 0 | 1;
   dateRangeAriaLabel?: string;
   previewLoading?: boolean;
@@ -50,6 +53,8 @@ export function ExportPeriodFilter({
   onToChange,
   billable,
   onBillableChange,
+  nonProjectTime,
+  onNonProjectTimeChange,
   weekStartsOn = 1,
   dateRangeAriaLabel = "Export date range",
   previewLoading = false,
@@ -169,6 +174,15 @@ export function ExportPeriodFilter({
                   </SelectContent>
                 </Select>
               </div>
+            </>
+          ) : null}
+          {nonProjectTime && onNonProjectTimeChange ? (
+            <>
+              <div className="hidden w-px self-stretch bg-border/60 md:block" aria-hidden />
+              <NonProjectTimeFilterSelect
+                value={nonProjectTime}
+                onChange={onNonProjectTimeChange}
+              />
             </>
           ) : null}
         </div>

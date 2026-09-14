@@ -14,7 +14,10 @@ export const timeLogOccupancyItemSchema = z.object({
   workspaceName: z.string(),
   label: z.string(),
   source: timelogSourceSchema,
-  isLocked: z.boolean()
+  isLocked: z.boolean(),
+  classification: z
+    .enum(["PROJECT", "PUBLIC_HOLIDAY", "LEAVE_FULL", "LEAVE_HALF", "TENANT_ACTIVITY"])
+    .default("PROJECT")
 });
 
 export const listTimeLogOccupancyQuerySchema = z

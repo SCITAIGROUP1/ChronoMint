@@ -1,4 +1,4 @@
-import { ErrorCodes, inviteMemberSchema } from "@kloqra/contracts";
+import { ErrorCodes, inviteMemberSchema, parseWorkspaceSettings } from "@kloqra/contracts";
 import type {
   BulkInviteJobStatusDto,
   InviteMemberDto,
@@ -8,6 +8,7 @@ import type {
   WorkspaceDto,
   WorkspaceListItemDto,
   WorkspaceMemberPickerDto,
+  WorkspaceOperationalSettingsDto,
   WorkspaceWithRoleDto,
   AssignWorkspaceAdminDto
 } from "@kloqra/contracts";
@@ -751,6 +752,17 @@ export class WorkspaceService {
   async getById(id: string) {
     const ws = await this.prisma.workspace.findUniqueOrThrow({ where: { id } });
     return this.toWorkspaceDto(ws);
+  }
+
+  async getOperationalSettings(id: string): Promise<WorkspaceOperationalSettingsDto> {
+    const ws = await this.prisma.workspace.findUniqueOrThrow({ where: { id } });
+    const parsed = parseWorkspaceSettings(ws.settings);
+    return {
+      ...(parsed.timezone ? { timezone: parsed.timezone } : {}),
+      weekStart: parsed.weekStart ?? "monday",
+      timesheetApprovalPeriod: parsed.timesheetApprovalPeriod ?? "weekly",
+      dailyTargetHours: parsed.dailyTargetHours ?? 8
+    };
   }
 
   async update(id: string, dto: { name?: string; settings?: any }) {

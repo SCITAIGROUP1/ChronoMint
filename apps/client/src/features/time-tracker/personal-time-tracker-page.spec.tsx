@@ -35,6 +35,9 @@ vi.mock("@kloqra/web-shared", async (importOriginal) => {
       isLoading: false
     }),
     useTimesheetSubmissionStatusQuery: () => ({ submissionByKey: new Map() }),
+    useTenantActivityTypesQuery: () => ({ data: { items: [] } }),
+    useUserProfile: () => ({ profile: { preferences: {} } }),
+    useWorkspaceOperationalSettings: () => ({ dailyTargetHours: 8 }),
     useTimelogMutations: (
       _workspaceId: string,
       options: { onLocalRefresh?: () => Promise<void>; listPaths?: string[] }

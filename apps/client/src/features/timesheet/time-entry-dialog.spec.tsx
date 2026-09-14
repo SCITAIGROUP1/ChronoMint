@@ -59,6 +59,7 @@ const editingLog: TimeLogDto = {
   id: "log-1",
   userId: "user-1",
   taskId: "task-1",
+  classification: "PROJECT",
   startTime: "2026-06-09T13:04:00.000Z",
   endTime: "2026-06-09T14:04:00.000Z",
   durationSec: 3600,
@@ -138,6 +139,7 @@ describe("TimeEntryDialog", () => {
     );
 
     await waitFor(() => {
+      expect(screen.getByRole("button", { name: /leave or other time/i })).toBeTruthy();
       expect(screen.getByRole("combobox", { name: "Project" })).toBeTruthy();
     });
 
@@ -578,5 +580,208 @@ describe("TimeEntryDialog", () => {
     expect(screen.getByRole("alert").textContent).toMatch(/This time overlaps an existing entry/i);
     expect(screen.getByRole("alert").textContent).toMatch(/Client presentation/i);
     expect(screen.getByRole("button", { name: "Log time" })).toHaveProperty("disabled", true);
+  });
+
+  it("keeps project fields first and offers other types behind a link", async () => {
+    const onDraftChange = vi.fn();
+    render(
+      <TimeEntryDialog
+        open
+        title="Log time"
+        draft={{ ...draft, projectId: "", taskSelection: "" }}
+        projects={projects}
+        tasks={tasks}
+        taskLabel={() => "Task"}
+        onClose={vi.fn()}
+        onDraftChange={onDraftChange}
+        onSave={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("combobox", { name: "Project" })).toBeTruthy();
+    });
+    expect(screen.queryByRole("combobox", { name: "Entry type" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /leave or other time/i }));
+    await waitFor(() => {
+      expect(screen.getByRole("radio", { name: "Full" })).toBeTruthy();
+    });
+    expect(screen.queryByRole("combobox", { name: "Project" })).toBeNull();
+    expect(screen.queryByRole("combobox", { name: "Task" })).toBeNull();
+    fireEvent.click(screen.getByRole("radio", { name: "Full" }));
+
+    expect(onDraftChange).toHaveBeenCalledWith(
+      expect.objectContaining({ classification: "LEAVE_FULL" })
+    );
+  });
+
+  it("shows leave duration and a back link when the draft is not project work", async () => {
+    const onDraftChange = vi.fn();
+    render(
+      <TimeEntryDialog
+        open
+        title="Log time"
+        draft={{
+          ...draft,
+          classification: "LEAVE_FULL",
+          projectId: "",
+          taskSelection: "",
+          startTime: "09:00",
+          endTime: "17:00",
+          isBillable: false
+        }}
+        projects={projects}
+        tasks={tasks}
+        taskLabel={() => "Task"}
+        dailyTargetHours={8}
+        onClose={vi.fn()}
+        onDraftChange={onDraftChange}
+        onSave={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Start time")).toBeTruthy();
+    });
+    expect(screen.getByLabelText("End time")).toBeTruthy();
+    expect(screen.getByLabelText("Duration")).toHaveProperty("value", "8:00");
+    expect(screen.queryByRole("combobox", { name: "Project" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Project work" }));
+    expect(onDraftChange).toHaveBeenCalledWith(
+      expect.objectContaining({ classification: "PROJECT" })
+    );
+  });
+
+  it("keeps start and end pickers when logging a holiday", async () => {
+    render(
+      <TimeEntryDialog
+        open
+        title="Log time"
+        draft={{
+          ...draft,
+          classification: "PUBLIC_HOLIDAY",
+          projectId: "",
+          taskSelection: "",
+          startTime: "09:00",
+          endTime: "17:00",
+          isBillable: false
+        }}
+        projects={projects}
+        tasks={tasks}
+        taskLabel={() => "Task"}
+        dailyTargetHours={8}
+        onClose={vi.fn()}
+        onDraftChange={vi.fn()}
+        onSave={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Start time")).toHaveProperty("value", "09:00");
+    });
+    expect(screen.getByLabelText("End time")).toHaveProperty("value", "17:00");
+    expect(screen.getByLabelText("Duration")).toHaveProperty("value", "8:00");
+  });
+
+  it("prefills half-day leave times without a morning or afternoon picker", async () => {
+    render(
+      <TimeEntryDialog
+        open
+        title="Log time"
+        draft={{
+          ...draft,
+          classification: "LEAVE_HALF",
+          projectId: "",
+          taskSelection: "",
+          startTime: "09:00",
+          endTime: "13:00",
+          isBillable: false
+        }}
+        projects={projects}
+        tasks={tasks}
+        taskLabel={() => "Task"}
+        dailyTargetHours={8}
+        onClose={vi.fn()}
+        onDraftChange={vi.fn()}
+        onSave={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Start time")).toHaveProperty("value", "09:00");
+    });
+    expect(screen.getByLabelText("End time")).toHaveProperty("value", "13:00");
+    expect(screen.getByLabelText("Duration")).toHaveProperty("value", "4:00");
+    expect(screen.queryByText("Half of day")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Morning" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Afternoon" })).toBeNull();
+  });
+
+  it("offers type switching while editing an existing project entry", async () => {
+    render(
+      <TimeEntryDialog
+        open
+        title="Edit time entry"
+        draft={draft}
+        projects={projects}
+        tasks={tasks}
+        taskLabel={() => "Task"}
+        editingLog={editingLog}
+        onClose={vi.fn()}
+        onDraftChange={vi.fn()}
+        onSave={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("combobox", { name: "Project" })).toBeTruthy();
+    });
+    expect(screen.getByRole("button", { name: /leave or other time/i })).toBeTruthy();
+  });
+
+  it("lets holiday and other entries change type while editing", async () => {
+    const onDraftChange = vi.fn();
+    render(
+      <TimeEntryDialog
+        open
+        title="Edit time entry"
+        draft={{
+          ...draft,
+          classification: "PUBLIC_HOLIDAY",
+          projectId: "",
+          taskSelection: "",
+          description: "POya",
+          isBillable: false
+        }}
+        projects={projects}
+        tasks={tasks}
+        taskLabel={() => "Task"}
+        editingLog={{
+          ...editingLog,
+          taskId: null,
+          classification: "PUBLIC_HOLIDAY",
+          description: "POya",
+          isBillable: false
+        }}
+        dailyTargetHours={8}
+        onClose={vi.fn()}
+        onDraftChange={onDraftChange}
+        onSave={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("radio", { name: "Public" })).toBeTruthy();
+    });
+    expect(screen.getByRole("radio", { name: "Full" })).toBeTruthy();
+    expect(screen.getByRole("radio", { name: "Half" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Project work" })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("radio", { name: "Full" }));
+    expect(onDraftChange).toHaveBeenCalledWith(
+      expect.objectContaining({ classification: "LEAVE_FULL" })
+    );
   });
 });

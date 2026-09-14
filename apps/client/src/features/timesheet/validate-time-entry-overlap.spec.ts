@@ -10,7 +10,8 @@ const sampleItem: OccupancyItem = {
   workspaceId: "ws-1",
   workspaceName: "Acme",
   label: "Design",
-  isLocked: false
+  isLocked: false,
+  classification: "PROJECT"
 };
 
 describe("overlapMessageFromItems", () => {

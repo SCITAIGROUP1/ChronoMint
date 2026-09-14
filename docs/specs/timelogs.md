@@ -21,7 +21,7 @@
 | PATCH  | `/timelogs/:id`               | timelog.dto                                                                           |
 | DELETE | `/timelogs/:id`               | timelog.dto                                                                           |
 
-Timesheet routes are documented in [submissions.md](./submissions.md). Controller: [timelogs.controller.ts](../../apps/api/src/modules/timelogs/interface/http/timelogs.controller.ts), [timesheets.controller.ts](../../apps/api/src/modules/timelogs/interface/http/timesheets.controller.ts).
+Timesheet routes are documented in [submissions.md](./submissions.md). Non-project time (holidays, leave, organization activities) is specified in [non-project-time.md](./non-project-time.md). Controller: [timelogs.controller.ts](../../apps/api/src/modules/timelogs/interface/http/timelogs.controller.ts), [timesheets.controller.ts](../../apps/api/src/modules/timelogs/interface/http/timesheets.controller.ts).
 
 ## Given / When / Then
 

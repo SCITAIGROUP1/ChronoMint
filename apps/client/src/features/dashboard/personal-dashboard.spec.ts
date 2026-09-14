@@ -12,6 +12,7 @@ function log(
     endTime: "2026-07-20T11:00:00.000Z",
     isBillable: true,
     source: "manual",
+    classification: "PROJECT",
     ...partial
   };
 }

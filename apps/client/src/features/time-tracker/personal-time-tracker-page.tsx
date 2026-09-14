@@ -1,5 +1,6 @@
 "use client";
 
+import { resolveEffectiveDailyTargetHours } from "@kloqra/contracts";
 import type { TimeLogDto } from "@kloqra/contracts";
 import {
   AppBar,
@@ -21,7 +22,10 @@ import {
   useDisplayPreferences,
   useEntryCatalogQueries,
   useTimesheetSubmissionStatusQuery,
-  useTimelogMutations
+  useTimelogMutations,
+  useTenantActivityTypesQuery,
+  useUserProfile,
+  useWorkspaceOperationalSettings
 } from "@kloqra/web-shared";
 import { Download, Eye, EyeOff, Filter, Search, Upload } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -57,7 +61,9 @@ import { useTimeTrackerLogs } from "./use-time-tracker-logs";
 import {
   canSaveTaskDraft,
   draftFromLog,
+  draftToBatchBody,
   draftToIsoRange,
+  draftToTimelogBody,
   type TimeEntryDraft
 } from "@/features/timesheet/time-entry-draft";
 import { clearTimeEntryDraftStorageFor } from "@/features/timesheet/time-entry-draft-storage";
@@ -80,6 +86,17 @@ export function PersonalTimeTrackerPage() {
   const { projects, tasks, categories } = useEntryCatalogQueries(workspaceId, {
     enabled: Boolean(workspaceId)
   });
+  const { data: activityTypesRes } = useTenantActivityTypesQuery(workspaceId, Boolean(workspaceId));
+  const activityTypes = activityTypesRes?.items ?? [];
+  const { profile } = useUserProfile();
+  const { dailyTargetHours: workspaceDailyHours } = useWorkspaceOperationalSettings(
+    workspaceId,
+    Boolean(workspaceId)
+  );
+  const dailyTargetHours = resolveEffectiveDailyTargetHours(
+    profile?.preferences ?? {},
+    workspaceDailyHours
+  );
   const workspaces = useWorkspacesStore((state) => state.workspaces);
   const workspaceNamesById = useMemo(
     () => Object.fromEntries(workspaces.map((workspace) => [workspace.id, workspace.name])),
@@ -229,6 +246,7 @@ export function PersonalTimeTrackerPage() {
   );
 
   function isEntryReadOnly(log: TimeLogDto): boolean {
+    if (!log.taskId) return false;
     const task = taskById.get(log.taskId);
     const project = task ? projectById.get(task.projectId) : undefined;
     const category = task?.categoryId ? categoryById.get(task.categoryId) : undefined;
@@ -290,7 +308,7 @@ export function PersonalTimeTrackerPage() {
       else setQuickAddError(message);
     };
     if (!canSaveTaskDraft(draft)) {
-      const message = "Select a project and a task.";
+      const message = "Select a project and a task, or an organization time type.";
       setSurfaceError(message);
       return false;
     }
@@ -322,25 +340,9 @@ export function PersonalTimeTrackerPage() {
           setSurfaceError("Please select an end date for the recurrence.");
           return false;
         }
-        await timelogMutations.createBatch({
-          taskId: draft.taskSelection,
-          localStartTime: draft.startTime,
-          localEndTime: draft.endTime,
-          startDate: draft.date,
-          endDate: draft.repeatUntil,
-          recurrence: draft.recurrence,
-          timezone,
-          description: draft.description || undefined,
-          isBillable: draft.isBillable
-        });
+        await timelogMutations.createBatch(draftToBatchBody(draft, timezone));
       } else {
-        const body = {
-          taskId: draft.taskSelection,
-          startTime,
-          endTime,
-          description: draft.description || undefined,
-          isBillable: draft.isBillable
-        };
+        const body = draftToTimelogBody(draft, timezone);
         if (editing) {
           await timelogMutations.update(editing.id, body);
         } else {
@@ -432,6 +434,8 @@ export function PersonalTimeTrackerPage() {
           projects={projects}
           tasks={tasks}
           categories={categories}
+          activityTypes={activityTypes}
+          dailyTargetHours={dailyTargetHours}
           timezone={timezone}
           resetKey={quickAddResetKey}
           saving={entrySaving && !entryDialogOpen}
@@ -555,6 +559,8 @@ export function PersonalTimeTrackerPage() {
         readOnly={isImpersonating || (editingLog ? isEntryReadOnly(editingLog) : false)}
         timezone={timezone}
         workspaceId={workspaceId}
+        activityTypes={activityTypes}
+        dailyTargetHours={dailyTargetHours}
         onClose={closeEntryDialog}
         onDraftChange={setEntryDraft}
         onSave={() => void saveEntry()}
@@ -591,12 +597,12 @@ export function PersonalTimeTrackerPage() {
         submissionByKey={submissionByKey}
         entryColor={entryColor}
         isEntryLocked={(log) => {
-          const task = taskById.get(log.taskId);
+          const task = log.taskId ? taskById.get(log.taskId) : undefined;
           const project = task ? projectById.get(task.projectId) : undefined;
           return isTimeEntryLocked(log, project, submissionByKey);
         }}
         isEntryInactive={(log) => {
-          const task = taskById.get(log.taskId);
+          const task = log.taskId ? taskById.get(log.taskId) : undefined;
           const project = task ? projectById.get(task.projectId) : undefined;
           const category = task?.categoryId ? categoryById.get(task.categoryId) : undefined;
           return isTimeEntryInactive(project, task, category);

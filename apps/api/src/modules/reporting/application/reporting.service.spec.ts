@@ -197,6 +197,17 @@ describe("ReportingService dashboard", () => {
     );
   });
 
+  it("excludes non-project time from management dashboard totals by default", async () => {
+    await service.dashboard(workspaceId, {
+      from: "2025-06-01",
+      to: "2025-06-07"
+    });
+    expect(mockAggregation.fetchLogs).toHaveBeenCalledWith(
+      workspaceId,
+      expect.objectContaining({ nonProjectTime: "exclude" })
+    );
+  });
+
   it("includes budget usage fields on timeByProject rows", async () => {
     const report = await service.dashboard(workspaceId, {
       from: "2025-06-01",

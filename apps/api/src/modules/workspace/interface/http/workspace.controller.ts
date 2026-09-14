@@ -241,6 +241,16 @@ export class WorkspaceController {
     return this.workspace.getById(id);
   }
 
+  @Get(ROUTES.WORKSPACES.OPERATIONAL_SETTINGS(":id"))
+  @RequirePermission("workspace:Access", {
+    scope: "workspace",
+    workspaceId: { source: "route", parameter: "id" },
+    expectedTenantId: { source: "session", field: "tenantId" }
+  })
+  getOperationalSettings(@Param("id") id: string, @WorkspaceUser() _user: WorkspaceRequestUser) {
+    return this.workspace.getOperationalSettings(id);
+  }
+
   @Patch(ROUTES.WORKSPACES.BY_ID(":id"))
   @RequirePermission("workspace:UpdateSettings", {
     scope: "workspace",

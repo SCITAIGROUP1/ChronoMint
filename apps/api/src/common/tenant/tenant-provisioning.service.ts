@@ -2,6 +2,7 @@ import type { PlanLimits } from "@kloqra/contracts";
 import { Injectable } from "@nestjs/common";
 import { splitDisplayName } from "../../modules/users/application/user-name.util";
 import { generateTempPassword, hashPassword } from "../auth/password.util";
+import { ensureSystemActivityTypes } from "../non-project/non-project-scope";
 import { generatedPrisma } from "../prisma/generated-prisma.util";
 import { PrismaService } from "../prisma/prisma.service";
 import { resolveUniqueSlug } from "./slug.util";
@@ -122,6 +123,8 @@ export class TenantProvisioningService {
           role: "OWNER"
         }
       });
+
+      await ensureSystemActivityTypes(gtx, tenant.id);
 
       await gtx.tenantSubscription.create({
         data: {

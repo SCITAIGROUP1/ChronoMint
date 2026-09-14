@@ -1,3 +1,4 @@
+import { nonProjectDurationSec, SYSTEM_TENANT_ACTIVITY_TYPES } from "@kloqra/contracts";
 import * as bcrypt from "bcrypt";
 import {
   Prisma,
@@ -17,8 +18,11 @@ import {
   DAY_CATEGORY_BOOST,
   LOG_DESCRIPTIONS,
   SEED_CATEGORIES,
+  SEED_CUSTOM_ACTIVITY_TYPES,
   SEED_DEMO_HIERARCHY,
   SEED_DEMO_PERSONAS,
+  SEED_HOLIDAY_SPECS,
+  SEED_NON_PROJECT_LOG_SPECS,
   SEED_NOTIFICATIONS,
   SEED_PASSWORD,
   SEED_PLANS,
@@ -205,8 +209,14 @@ async function main() {
   const colorCount = await seedUserProjectColors(allProjectCtx, users);
   console.log(`  personal project colors: ${colorCount}`);
 
-  const logCount = await seedTimeLogs(allProjectCtx, users);
+  const nonProjectSkip = planNonProjectSkip();
+  const logCount = await seedTimeLogs(allProjectCtx, users, nonProjectSkip);
   console.log(`  time logs: ${logCount} (history through yesterday — today is clean)`);
+
+  const nonProject = await seedNonProjectTime(tenant.id, workspaces, users, nonProjectSkip);
+  console.log(
+    `  non-project: ${nonProject.holidays} holidays, ${nonProject.activityTypes} activity types, ${nonProject.logs} classified logs`
+  );
 
   const dashboardLayoutCount = await seedDashboardLayouts(users, workspaces);
   console.log(`  dashboard layouts: ${dashboardLayoutCount} user/workspace assignments`);
@@ -240,6 +250,8 @@ async function resetDatabase() {
   console.log("Resetting database…");
   await prisma.timeLogAuditEvent.deleteMany();
   await prisma.timeLog.deleteMany();
+  await prisma.tenantHoliday.deleteMany();
+  await prisma.tenantActivityType.deleteMany();
   await prisma.timesheetAmendmentRequest.deleteMany();
   await prisma.timesheetPeriod.deleteMany();
   await prisma.projectInvite.deleteMany();
@@ -585,6 +597,36 @@ async function seedTenant(users: Map<string, User>) {
         userId: user.id,
         role: member.role
       }
+    });
+  }
+
+  for (const type of SYSTEM_TENANT_ACTIVITY_TYPES) {
+    await prisma.tenantActivityType.upsert({
+      where: { tenantId_name: { tenantId: tenant.id, name: type.name } },
+      create: {
+        tenantId: tenant.id,
+        name: type.name,
+        slug: type.slug,
+        color: type.color,
+        isSystem: true,
+        isActive: true
+      },
+      update: {}
+    });
+  }
+
+  for (const type of SEED_CUSTOM_ACTIVITY_TYPES) {
+    await prisma.tenantActivityType.upsert({
+      where: { tenantId_name: { tenantId: tenant.id, name: type.name } },
+      create: {
+        tenantId: tenant.id,
+        name: type.name,
+        slug: type.slug,
+        color: type.color,
+        isSystem: false,
+        isActive: true
+      },
+      update: {}
     });
   }
 
@@ -1308,7 +1350,11 @@ function logDescriptionFor(category: SeedCategoryName, daysAgo: number, salt: nu
   return pool[Math.floor(hash01(daysAgo, salt, category.length) * pool.length)]!;
 }
 
-async function seedTimeLogs(projectCtx: ProjectCtx[], users: Map<string, User>): Promise<number> {
+async function seedTimeLogs(
+  projectCtx: ProjectCtx[],
+  users: Map<string, User>,
+  skip: NonProjectSkip
+): Promise<number> {
   let batch: LogRow[] = [];
   let created = 0;
   const dayCursorMinutes = new Map<string, number>();
@@ -1323,6 +1369,8 @@ async function seedTimeLogs(projectCtx: ProjectCtx[], users: Map<string, User>):
 
     // Skip today (daysAgo === 0) so dashboards and timers start with a clean slate.
     for (let daysAgo = userSpec.historyDays; daysAgo >= 1; daysAgo--) {
+      if (skip.holidayDaysAgo.has(daysAgo)) continue;
+      if (skip.byEmail.get(userSpec.email)?.has(daysAgo)) continue;
       const weekend = !isWeekday(daysAgo);
       if (weekend && hash01(daysAgo, 0, userSpec.email.length) > 0.2 + userSpec.intensity * 0.5) {
         continue;
@@ -1392,6 +1440,233 @@ async function seedTimeLogs(projectCtx: ProjectCtx[], users: Map<string, User>):
 
   await flushBatch(batch);
   return created;
+}
+
+type NonProjectSkip = {
+  holidayDaysAgo: Set<number>;
+  byEmail: Map<string, Set<number>>;
+};
+
+function utcCalendarDate(daysFromToday: number): Date {
+  const d = new Date();
+  d.setUTCHours(12, 0, 0, 0);
+  d.setUTCDate(d.getUTCDate() + daysFromToday);
+  return d;
+}
+
+function snapToWeekday(daysFromToday: number): Date {
+  const d = utcCalendarDate(daysFromToday);
+  if (daysFromToday < 0) {
+    while (d.getUTCDay() === 0 || d.getUTCDay() === 6) {
+      d.setUTCDate(d.getUTCDate() - 1);
+    }
+  } else if (daysFromToday > 0) {
+    while (d.getUTCDay() === 0 || d.getUTCDay() === 6) {
+      d.setUTCDate(d.getUTCDate() + 1);
+    }
+  }
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+}
+
+function daysAgoOf(date: Date): number {
+  const today = utcCalendarDate(0);
+  const target = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  target.setUTCHours(12, 0, 0, 0);
+  return Math.round((today.getTime() - target.getTime()) / 86400000);
+}
+
+function planNonProjectSkip(): NonProjectSkip {
+  const holidayDaysAgo = new Set<number>();
+  const byEmail = new Map<string, Set<number>>();
+
+  for (const spec of SEED_HOLIDAY_SPECS) {
+    if (!spec.applyLogs) continue;
+    const daysAgo = daysAgoOf(snapToWeekday(spec.daysFromToday));
+    if (daysAgo >= 1) holidayDaysAgo.add(daysAgo);
+  }
+
+  for (const spec of SEED_NON_PROJECT_LOG_SPECS) {
+    const daysAgo = daysAgoOf(snapToWeekday(spec.daysFromToday));
+    if (daysAgo < 1) continue;
+    const set = byEmail.get(spec.email) ?? new Set<number>();
+    set.add(daysAgo);
+    byEmail.set(spec.email, set);
+  }
+
+  return { holidayDaysAgo, byEmail };
+}
+
+function workspaceJsonNumber(settings: Prisma.JsonValue, key: string, fallback: number): number {
+  if (!settings || typeof settings !== "object" || Array.isArray(settings)) return fallback;
+  const value = (settings as Record<string, unknown>)[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function workspaceJsonString(settings: Prisma.JsonValue, key: string, fallback: string): string {
+  if (!settings || typeof settings !== "object" || Array.isArray(settings)) return fallback;
+  const value = (settings as Record<string, unknown>)[key];
+  return typeof value === "string" && value.length > 0 ? value : fallback;
+}
+
+function parseLocalHm(value: string): { hour: number; minute: number } {
+  const [hourRaw, minuteRaw] = value.split(":");
+  return { hour: Number(hourRaw) || 0, minute: Number(minuteRaw) || 0 };
+}
+
+async function seedNonProjectTime(
+  tenantId: string,
+  workspaces: Workspace[],
+  users: Map<string, User>,
+  skip: NonProjectSkip
+): Promise<{ holidays: number; activityTypes: number; logs: number }> {
+  const activityTypes = await prisma.tenantActivityType.findMany({ where: { tenantId } });
+  const activityBySlug = new Map(
+    activityTypes.filter((t) => t.slug).map((t) => [t.slug as string, t])
+  );
+
+  const holidays: { id: string; name: string; date: Date; applyLogs: boolean }[] = [];
+  for (const spec of SEED_HOLIDAY_SPECS) {
+    const date = snapToWeekday(spec.daysFromToday);
+    const row = await prisma.tenantHoliday.create({
+      data: { tenantId, date, name: spec.name, isActive: true }
+    });
+    holidays.push({ id: row.id, name: row.name, date: row.date, applyLogs: spec.applyLogs });
+  }
+
+  const memberships = await prisma.workspaceMember.findMany({
+    where: { userId: { in: [...users.values()].map((u) => u.id) } },
+    orderBy: { createdAt: "asc" }
+  });
+  const firstWorkspaceId = new Map<string, string>();
+  for (const membership of memberships) {
+    if (!firstWorkspaceId.has(membership.userId)) {
+      firstWorkspaceId.set(membership.userId, membership.workspaceId);
+    }
+  }
+  const workspaceById = new Map(workspaces.map((ws) => [ws.id, ws]));
+
+  type NonProjectRow = {
+    userId: string;
+    taskId: null;
+    classification: string;
+    tenantId: string;
+    workspaceId: string;
+    activityTypeId: string | null;
+    holidayId: string | null;
+    startTime: Date;
+    endTime: Date;
+    durationSec: number;
+    description: string;
+    isBillable: false;
+    source: "manual";
+  };
+  const rows: NonProjectRow[] = [];
+
+  const holidayByDaysAgo = new Map(
+    holidays.filter((h) => h.applyLogs).map((h) => [daysAgoOf(h.date), h])
+  );
+  for (const [daysAgo, holiday] of holidayByDaysAgo) {
+    if (!skip.holidayDaysAgo.has(daysAgo)) continue;
+    for (const userSpec of SEED_USERS) {
+      const user = users.get(userSpec.email);
+      if (!user) continue;
+      const workspaceId = firstWorkspaceId.get(user.id);
+      const workspace = workspaceId ? workspaceById.get(workspaceId) : undefined;
+      if (!workspace) continue;
+      const dayHours =
+        userSpec.preferences?.dailyTargetHours ??
+        workspaceJsonNumber(workspace.settings, "dailyTargetHours", 8);
+      const timezone =
+        userSpec.preferences?.timezone ??
+        workspaceJsonString(workspace.settings, "timezone", "UTC");
+      const durationSec = nonProjectDurationSec("PUBLIC_HOLIDAY", dayHours);
+      const start = utcDay(daysAgo, 9, 0, timezone);
+      rows.push({
+        userId: user.id,
+        taskId: null,
+        classification: "PUBLIC_HOLIDAY",
+        tenantId,
+        workspaceId: workspace.id,
+        activityTypeId: null,
+        holidayId: holiday.id,
+        startTime: start,
+        endTime: new Date(start.getTime() + durationSec * 1000),
+        durationSec,
+        description: holiday.name,
+        isBillable: false,
+        source: "manual"
+      });
+    }
+  }
+
+  for (const spec of SEED_NON_PROJECT_LOG_SPECS) {
+    const user = users.get(spec.email);
+    const userSpec = SEED_USERS.find((u) => u.email === spec.email);
+    if (!user || !userSpec) continue;
+    const daysAgo = daysAgoOf(snapToWeekday(spec.daysFromToday));
+    if (daysAgo < 1) continue;
+    const workspaceId = firstWorkspaceId.get(user.id);
+    const workspace = workspaceId ? workspaceById.get(workspaceId) : undefined;
+    if (!workspace) continue;
+    const dayHours =
+      userSpec.preferences?.dailyTargetHours ??
+      workspaceJsonNumber(workspace.settings, "dailyTargetHours", 8);
+    const timezone =
+      userSpec.preferences?.timezone ?? workspaceJsonString(workspace.settings, "timezone", "UTC");
+
+    if (spec.classification === "LEAVE_FULL" || spec.classification === "LEAVE_HALF") {
+      const durationSec = nonProjectDurationSec(spec.classification, dayHours);
+      const startHour = spec.classification === "LEAVE_HALF" && spec.slot === "PM" ? 13 : 9;
+      const start = utcDay(daysAgo, startHour, 0, timezone);
+      rows.push({
+        userId: user.id,
+        taskId: null,
+        classification: spec.classification,
+        tenantId,
+        workspaceId: workspace.id,
+        activityTypeId: null,
+        holidayId: null,
+        startTime: start,
+        endTime: new Date(start.getTime() + durationSec * 1000),
+        durationSec,
+        description: spec.description,
+        isBillable: false,
+        source: "manual"
+      });
+      continue;
+    }
+
+    const activity = activityBySlug.get(spec.activitySlug);
+    if (!activity) continue;
+    const { hour, minute } = parseLocalHm(spec.startLocal);
+    const start = utcDay(daysAgo, hour, minute, timezone);
+    const durationSec = spec.durationMin * 60;
+    rows.push({
+      userId: user.id,
+      taskId: null,
+      classification: "TENANT_ACTIVITY",
+      tenantId,
+      workspaceId: workspace.id,
+      activityTypeId: activity.id,
+      holidayId: null,
+      startTime: start,
+      endTime: new Date(start.getTime() + durationSec * 1000),
+      durationSec,
+      description: spec.description,
+      isBillable: false,
+      source: "manual"
+    });
+  }
+
+  if (rows.length > 0) {
+    await prisma.timeLog.createMany({ data: rows });
+  }
+
+  return {
+    holidays: holidays.length,
+    activityTypes: activityTypes.length,
+    logs: rows.length
+  };
 }
 
 async function seedTimesheetPeriods(

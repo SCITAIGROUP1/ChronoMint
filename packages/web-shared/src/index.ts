@@ -239,6 +239,10 @@ export {
   useCategoriesListQuery,
   useTasksListQuery
 } from "./query/use-catalog-queries";
+export {
+  useTenantHolidaysQuery,
+  useTenantActivityTypesQuery
+} from "./query/use-non-project-catalog-queries";
 export { useEntryCatalogQueries } from "./query/use-entry-catalog-queries";
 export { fetchCatalogList } from "./query/use-catalog-queries";
 export {

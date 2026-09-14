@@ -24,7 +24,8 @@ function log(
     durationSec: partial.durationSec,
     description: partial.description ?? null,
     isBillable: partial.isBillable ?? true,
-    source: partial.source ?? "manual"
+    source: partial.source ?? "manual",
+    classification: partial.classification ?? "PROJECT"
   };
 }
 

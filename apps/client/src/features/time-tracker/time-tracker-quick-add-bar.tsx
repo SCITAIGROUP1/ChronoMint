@@ -1,7 +1,25 @@
 "use client";
 
-import type { CategoryDto, ProjectDto, TaskDto } from "@kloqra/contracts";
-import { Button, DatePicker, Input, ProjectColorDot, SearchableSelect, cn } from "@kloqra/ui";
+import type {
+  CategoryDto,
+  ProjectDto,
+  TaskDto,
+  TenantActivityTypeDto,
+  TimeLogClassification
+} from "@kloqra/contracts";
+import {
+  Button,
+  DatePicker,
+  Input,
+  ProjectColorDot,
+  SearchableSelect,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  cn
+} from "@kloqra/ui";
 import {
   buildTaskSelectGroups,
   prioritizeByFavoriteIds,
@@ -18,8 +36,11 @@ import {
   parseDurationInput
 } from "@/features/timesheet/parse-duration-input";
 import {
+  applyClassificationToDraft,
   canSaveTaskDraft,
+  draftClassification,
   draftFromSlot,
+  ENTRY_TYPE_OPTIONS,
   suggestBillableFromTask,
   type TimeEntryDraft
 } from "@/features/timesheet/time-entry-draft";
@@ -30,6 +51,8 @@ type TimeTrackerQuickAddBarProps = {
   projects: ProjectDto[];
   tasks: TaskDto[];
   categories: CategoryDto[];
+  activityTypes?: TenantActivityTypeDto[];
+  dailyTargetHours?: number;
   timezone: string;
   /** Bump after a successful create to clear the bar back to defaults. */
   resetKey?: number;
@@ -52,6 +75,8 @@ export function TimeTrackerQuickAddBar({
   projects,
   tasks,
   categories,
+  activityTypes = [],
+  dailyTargetHours = 8,
   timezone,
   resetKey = 0,
   saving = false,
@@ -173,88 +198,140 @@ export function TimeTrackerQuickAddBar({
         disabled={busy}
         className="h-9 min-w-[10rem] flex-1 border-0 bg-transparent shadow-none focus-visible:ring-0 sm:min-w-[12rem]"
       />
-      <SearchableSelect
-        value={draft.projectId}
-        onValueChange={(projectId) =>
-          patch({
-            projectId,
-            taskSelection: "",
-            isBillable: true
-          })
-        }
-        options={orderedProjects.map((project) => ({
-          value: project.id,
-          label: formatProjectLabel(project)
-        }))}
-        placeholder="Project"
-        searchPlaceholder="Search projects…"
-        disabled={busy}
-        aria-label="Project"
-        triggerClassName={cn(controlClass, "min-w-[9.5rem] w-[11rem] sm:w-[12rem]")}
-        contentClassName="z-[100]"
-        favoritedValues={favoriteProjectIds}
-        onToggleFavorite={busy ? undefined : toggleProject}
-        renderOption={(option) => (
-          <span className="flex items-center gap-2">
-            <ProjectColorDot
-              color={
-                selectableProjects.find((project) => project.id === option.value)?.color ??
-                "#236bfe"
-              }
-            />
-            {option.label}
-          </span>
-        )}
-        renderValue={(option) =>
-          option ? (
-            <span className="flex items-center gap-2 truncate">
-              <ProjectColorDot
-                color={
-                  selectableProjects.find((project) => project.id === option.value)?.color ??
-                  "#236bfe"
-                }
-              />
-              <span className="truncate">{option.label}</span>
-            </span>
-          ) : (
-            "Project"
+      <Select
+        value={draftClassification(draft)}
+        onValueChange={(value) =>
+          setDraft((current) =>
+            applyClassificationToDraft(current, value as TimeLogClassification, dailyTargetHours)
           )
         }
-      />
-      <SearchableSelect
-        key={draft.projectId}
-        value={draft.taskSelection || ""}
-        onValueChange={(taskSelection) =>
-          patch({
-            taskSelection,
-            isBillable: suggestBillableFromTask(selectableTasks, taskSelection)
-          })
-        }
-        groups={projectTaskGroups}
-        favoritedValues={favoriteTaskIds}
-        onToggleFavorite={
-          busy
-            ? undefined
-            : (taskId) => {
-                const task = projectTasks.find((t) => t.id === taskId);
-                const project = selectableProjects.find((p) => p.id === draft.projectId);
-                if (!task || !project) return;
-                toggleTask({
-                  projectId: project.id,
-                  taskId: task.id,
-                  projectName: project.name,
-                  taskName: task.taskName,
-                  projectColor: project.color
-                });
-              }
-        }
-        placeholder={!draft.projectId ? "Task" : projectTasks.length === 0 ? "No tasks" : "Task"}
-        searchPlaceholder="Search tasks…"
-        disabled={busy || !draft.projectId || projectTasks.length === 0}
-        aria-label="Task"
-        triggerClassName={cn(controlClass, "min-w-[9.5rem] w-[11rem] sm:w-[12rem]")}
-        contentClassName="z-[100]"
-      />
+        disabled={busy}
+      >
+        <SelectTrigger
+          aria-label="Entry type"
+          className={cn(controlClass, "min-w-[8.5rem] w-[10rem]")}
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {ENTRY_TYPE_OPTIONS.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {draftClassification(draft) === "PROJECT" ? (
+        <>
+          <SearchableSelect
+            value={draft.projectId}
+            onValueChange={(projectId) =>
+              patch({
+                projectId,
+                taskSelection: "",
+                isBillable: true
+              })
+            }
+            options={orderedProjects.map((project) => ({
+              value: project.id,
+              label: formatProjectLabel(project)
+            }))}
+            placeholder="Project"
+            searchPlaceholder="Search projects…"
+            disabled={busy}
+            aria-label="Project"
+            triggerClassName={cn(controlClass, "min-w-[9.5rem] w-[11rem] sm:w-[12rem]")}
+            contentClassName="z-[100]"
+            favoritedValues={favoriteProjectIds}
+            onToggleFavorite={busy ? undefined : toggleProject}
+            renderOption={(option) => (
+              <span className="flex items-center gap-2">
+                <ProjectColorDot
+                  color={
+                    selectableProjects.find((project) => project.id === option.value)?.color ??
+                    "#236bfe"
+                  }
+                />
+                {option.label}
+              </span>
+            )}
+            renderValue={(option) =>
+              option ? (
+                <span className="flex items-center gap-2 truncate">
+                  <ProjectColorDot
+                    color={
+                      selectableProjects.find((project) => project.id === option.value)?.color ??
+                      "#236bfe"
+                    }
+                  />
+                  <span className="truncate">{option.label}</span>
+                </span>
+              ) : (
+                "Project"
+              )
+            }
+          />
+          <SearchableSelect
+            key={draft.projectId}
+            value={draft.taskSelection || ""}
+            onValueChange={(taskSelection) =>
+              patch({
+                taskSelection,
+                isBillable: suggestBillableFromTask(selectableTasks, taskSelection)
+              })
+            }
+            groups={projectTaskGroups}
+            favoritedValues={favoriteTaskIds}
+            onToggleFavorite={
+              busy
+                ? undefined
+                : (taskId) => {
+                    const task = projectTasks.find((t) => t.id === taskId);
+                    const project = selectableProjects.find((p) => p.id === draft.projectId);
+                    if (!task || !project) return;
+                    toggleTask({
+                      projectId: project.id,
+                      taskId: task.id,
+                      projectName: project.name,
+                      taskName: task.taskName,
+                      projectColor: project.color
+                    });
+                  }
+            }
+            placeholder={
+              !draft.projectId ? "Task" : projectTasks.length === 0 ? "No tasks" : "Task"
+            }
+            searchPlaceholder="Search tasks…"
+            disabled={busy || !draft.projectId || projectTasks.length === 0}
+            aria-label="Task"
+            triggerClassName={cn(controlClass, "min-w-[9.5rem] w-[11rem] sm:w-[12rem]")}
+            contentClassName="z-[100]"
+          />
+        </>
+      ) : null}
+      {draftClassification(draft) === "TENANT_ACTIVITY" ? (
+        <Select
+          value={draft.activityTypeId || ""}
+          onValueChange={(activityTypeId) => patch({ activityTypeId })}
+          disabled={busy}
+        >
+          <SelectTrigger
+            aria-label="Activity type"
+            className={cn(controlClass, "min-w-[10rem] w-[12rem]")}
+          >
+            <SelectValue placeholder="Activity" />
+          </SelectTrigger>
+          <SelectContent>
+            {activityTypes
+              .filter((type) => type.isActive)
+              .map((type) => (
+                <SelectItem key={type.id} value={type.id}>
+                  {type.name}
+                </SelectItem>
+              ))}
+          </SelectContent>
+        </Select>
+      ) : null}
       <DatePicker
         value={draft.date}
         onChange={(date) => patch({ date })}
