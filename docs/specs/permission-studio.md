@@ -250,7 +250,7 @@ tenant admin or support.
   primitives, responsive master-detail behavior, accessibility and focus behavior.
 - `packages/web-shared`: typed API/session/list hooks, query keys, capability helpers, optimistic
   conflict handling, and invalidation. It never decides authorization.
-- `apps/app`: thin route wrapper, Permission Studio composition, URL-addressed selection, draft/review
+- `apps/client`: thin route wrapper, Permission Studio composition, URL-addressed selection, draft/review
   workflow, and small typed local draft state. It does not redefine contracts, paths, permission copy,
   or transport.
 - Platform templates and `TENANT_OWNER` appear read-only. Tenant admins see only delegated actions.

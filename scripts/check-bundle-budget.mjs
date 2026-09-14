@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Fail if the unified dashboard first-load JS (uncompressed chunks) exceeds budget.
- * Run after: pnpm --filter @kloqra/app exec next build
+ * Run after: pnpm --filter @kloqra/client exec next build
  *
  * Note: Next's build table "First Load JS" is a gzip estimate; this gate sums raw .js chunks
  * for the dashboard route (page + layout). Default ~1.45 MB raw ≈ 400 KB transferred.
@@ -12,7 +12,7 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 const ROOT = join(import.meta.dirname, "..");
-const APP_NAME = process.env.BUNDLE_BUDGET_APP ?? "app";
+const APP_NAME = process.env.BUNDLE_BUDGET_APP ?? "client";
 const APP_NEXT = join(ROOT, `apps/${APP_NAME}/.next`);
 const MANIFEST_PATH = join(APP_NEXT, "app-build-manifest.json");
 const BUDGET_BYTES = Number(process.env.BUNDLE_BUDGET_DASHBOARD_BYTES ?? 1_450_000);

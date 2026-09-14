@@ -39,7 +39,7 @@ isProject: false
 ## Non-negotiable architecture boundaries
 - Preserve contract-first delivery: permission IDs, scopes, role applicability, metadata, effects, DTOs, routes, errors, pagination, and capability snapshots are defined once in `@kloqra/contracts` before API or UI implementation. Apps must not redefine shapes, infer permission meaning from names, or hardcode API paths.
 - Keep policy decisions centralized in the API access layer. Controllers/services consume one evaluator and one binding/policy resolver; no new direct role-string checks or feature-local authorization logic.
-- Keep reusable visual primitives and behavior in `@kloqra/ui`, shared API/session/list hooks in `@kloqra/web-shared`, and only page orchestration/draft workflow in `apps/app`. Remove the app-local switch/permission implementations rather than creating parallel components.
+- Keep reusable visual primitives and behavior in `@kloqra/ui`, shared API/session/list hooks in `@kloqra/web-shared`, and only page orchestration/draft workflow in `apps/client`. Remove the app-local switch/permission implementations rather than creating parallel components.
 - Derive API validation, studio labels/groups/risk, role defaults, audit display, and enforcement coverage from the same canonical contract metadata. Any unavoidable display-only copy must reference a permission ID and be tested against the catalog.
 - Follow the existing thin `app/.../page.tsx` wrapper, `features/...` client page, `api()`/`ROUTES`, `AppBar`, `DataTableCard`, `ConfirmDialog`, loading, error, toast, and design-token conventions documented in [`FRONTEND-UI.md`](/Users/chamal/Desktop/ChronoMint/docs/development/FRONTEND-UI.md).
 
@@ -80,7 +80,7 @@ isProject: false
 - Support draft-oriented batch mutations in the contract/API so the UI can review and atomically save a coherent change set. Return field-level validation/conflict results keyed by permission ID; never require dozens of independent toggle requests.
 
 ## 6. Replace the confusing UI with one truthful editor
-- Rebuild [`permissions-studio-page.tsx`](/Users/chamal/Desktop/ChronoMint/apps/app/src/features/account/permission-matrix/permissions-studio-page.tsx) as an enterprise master-detail workspace:
+- Rebuild [`permissions-studio-page.tsx`](/Users/chamal/Desktop/ChronoMint/apps/client/src/features/account/permission-matrix/permissions-studio-page.tsx) as an enterprise master-detail workspace:
   - `AppBar` with policy version/status and a centralized `SegmentedControl` for “Role templates” versus “Member overrides”.
   - URL-addressable scope/resource/role/member selection so refresh, back/forward, and deep links preserve context.
   - Desktop searchable directory plus detail pane; compact screens use the same directory in an accessible drawer and a single-column editor.
@@ -93,9 +93,9 @@ isProject: false
 - Use a deliberate draft/review/save interaction rather than immediate destructive toggles. Maintain a visible changed-count bar, undo per row, discard all, and “Review changes” drawer summarizing before/after decisions and affected scope. Save the batch atomically with optimistic versioning.
 - Require `ConfirmDialog` plus a reason for high-risk grants/denies, bulk changes, and reset-all. Clearly distinguish reversible inheritance reset from destructive denial and never rely on color alone.
 - Show pending, empty, stale, conflict, partial-load, and permission-loss states inline. Preserve user drafts across a recoverable refetch, block navigation with unsaved changes, and offer reload/compare on version conflict.
-- Remove the simulated success path in [`permission-toggle-dialog.tsx`](/Users/chamal/Desktop/ChronoMint/apps/app/src/components/permission-toggle-dialog.tsx); organization/workspace member actions will deep-link to or reuse the authoritative studio.
+- Remove the simulated success path in [`permission-toggle-dialog.tsx`](/Users/chamal/Desktop/ChronoMint/apps/client/src/components/permission-toggle-dialog.tsx); organization/workspace member actions will deep-link to or reuse the authoritative studio.
 - Add the reusable tri-state control, review drawer primitives, status badges, and responsive master-detail behavior to `@kloqra/ui` only when an existing primitive cannot compose the experience; each new primitive ships with sibling tests and design-token-only styling.
-- Put shared permission-query/mutation hooks, cache invalidation, and scoped capability helpers in `@kloqra/web-shared`; keep feature draft state in a small typed Zustand store when it spans panes/drawers. `apps/app` owns composition, not transport or contract duplication.
+- Put shared permission-query/mutation hooks, cache invalidation, and scoped capability helpers in `@kloqra/web-shared`; keep feature draft state in a small typed Zustand store when it spans panes/drawers. `apps/client` owns composition, not transport or contract duplication.
 - Meet WCAG 2.2 AA: complete keyboard operation, roving/focus management, screen-reader announcements for effective/configured changes, 44px touch targets, reduced-motion support, contrast, zoom/reflow, and deterministic focus restoration after dialogs/drawers.
 - Correct audit-page claims unless tamper evidence is actually implemented. Use concise copy that says “Organization”, “Role default”, “Member override”, and “Effective access” consistently rather than mixing tenant, endpoint capability, and permission-matrix terminology.
 

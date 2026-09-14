@@ -18,7 +18,7 @@ Every feature change ships with tests in the same PR:
 | API service          | `apps/api/src/modules/*/application/*.service.ts` | `*.service.spec.ts` in same module             |
 | API HTTP             | `apps/api/src/modules/*/interface/**`             | module `*.spec.ts` or `apps/api/test/*.e2e.ts` |
 | UI components        | `packages/ui/src/**/*.tsx`                        | sibling `*.spec.tsx`                           |
-| Product app features | `apps/app/src/features/**`                        | `apps/app/e2e/**` or unit `*.spec.ts`          |
+| Product app features | `apps/client/src/features/**`                     | `apps/client/e2e/**` or unit `*.spec.ts`       |
 
 Pre-commit enforces this via `scripts/check-staged-has-tests.mjs`. Emergency bypass: `SKIP_TEST_CHECK=1 git commit`.
 
@@ -36,7 +36,7 @@ Pre-commit enforces this via `scripts/check-staged-has-tests.mjs`. Emergency byp
 ```bash
 pnpm test:dashboard          # local hub: coverage HTML, Playwright reports, Swagger link
 pnpm test:ui                 # Vitest UI for API unit tests
-pnpm --filter @kloqra/app test:e2e:ui
+pnpm --filter @kloqra/client test:e2e:ui
 ```
 
 App Playwright locally: `pnpm prisma:seed`, then API on `:3001` (or let Playwright start it). CI already migrates, seeds, and starts services.

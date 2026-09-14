@@ -7,7 +7,7 @@ Bootstrap with `pnpm serve:docker` or `pnpm serve:native`. For split processes, 
 ```bash
 pnpm dev:shared
 pnpm dev:api
-pnpm --filter @kloqra/app dev
+pnpm --filter @kloqra/client dev
 ```
 
 The product uses http://localhost:3000, the API uses http://localhost:3001, and the isolated
@@ -33,7 +33,7 @@ Use `REDIS_USE_MEMORY=true` for local development without Redis. With Redis, set
 ## CORS or login failures
 
 - API `PUBLIC_APP_URL` must be exactly `http://localhost:3000` locally.
-- `apps/app` must use `NEXT_PUBLIC_API_BASE_URL=http://localhost:3001`.
+- `apps/client` must use `NEXT_PUBLIC_API_BASE_URL=http://localhost:3001`.
 - Every customer session must use `NEXT_PUBLIC_AUTH_SCOPE=app` and `X-Auth-Scope: app`.
 - Cookie-backed browser requests use `credentials: "include"`.
 - Clear site data and sign in again after changing auth variables.

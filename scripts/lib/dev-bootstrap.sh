@@ -339,9 +339,9 @@ dev_bootstrap_patch_chronomint_env() {
 }
 
 dev_bootstrap_ensure_frontend_env_files() {
-  local env_file="apps/app/.env.local"
+  local env_file="apps/client/.env.local"
   if [[ ! -f "$env_file" ]]; then
-    cp "apps/app/.env.example" "$env_file"
+    cp "apps/client/.env.example" "$env_file"
     dev_bootstrap_log "==> Created $env_file"
   fi
 }
@@ -506,7 +506,7 @@ dev_bootstrap_print_dev_terminals() {
   echo "    Option 2 — one app per terminal (run dev:shared first):"
   echo "        pnpm dev:shared    # terminal 1 — contracts + ui watch"
   echo "        pnpm dev:api       # terminal 2 — http://localhost:3001"
-  echo "        pnpm dev:app       # terminal 3 — unified product, http://localhost:3000"
+  echo "        pnpm dev:client       # terminal 3 — unified product, http://localhost:3000"
   echo "        pnpm dev:platform  # terminal 4 — internal console, http://localhost:3003"
   echo ""
   echo "    Split prep only (no apps): pnpm dev:split  (same as pnpm local)"

@@ -43,7 +43,7 @@ and actions. Browser-supplied tenant or workspace identifiers are never authoriz
 
 | Product               | Scope      | Audience                              |
 | --------------------- | ---------- | ------------------------------------- |
-| `apps/app`            | `app`      | Members through tenant owners/admins  |
+| `apps/client`         | `app`      | Members through tenant owners/admins  |
 | `apps/platform-admin` | `platform` | Isolated internal platform operations |
 
 ### Capability freshness

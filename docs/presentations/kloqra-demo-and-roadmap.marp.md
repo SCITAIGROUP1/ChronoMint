@@ -78,7 +78,7 @@ style: |
 ## Architecture
 
 ```
-apps/app (:3000)  ─────►  apps/api (:3001)  ──►  PostgreSQL
+apps/client (:3000)  ─────►  apps/api (:3001)  ──►  PostgreSQL
                       │         │
                       │         └──► Redis (timer, queues, pub/sub)
 packages/contracts · ui · web-shared

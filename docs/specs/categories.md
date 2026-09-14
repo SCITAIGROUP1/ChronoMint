@@ -37,7 +37,7 @@ List responses are paginated (`page`, `limit`, `search`).
 
 ## UI
 
-- Admin categories: [apps/app/src/features/categories/](../../apps/app/src/features/categories/)
+- Admin categories: [apps/client/src/features/categories/](../../apps/client/src/features/categories/)
 
 ## Edge cases
 

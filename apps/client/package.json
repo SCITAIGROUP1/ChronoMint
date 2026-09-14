@@ -1,5 +1,5 @@
 {
-  "name": "@kloqra/app",
+  "name": "@kloqra/client",
   "version": "0.1.0",
   "private": true,
   "scripts": {

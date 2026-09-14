@@ -39,7 +39,7 @@ Full action catalog: [platform-admin.md](../specs/platform-admin.md). Plan confi
 |             |                                                                                      |
 | ----------- | ------------------------------------------------------------------------------------ |
 | **Persona** | Agency principal / org owner                                                         |
-| **App**     | Unified product (`apps/app`) → Account home                                          |
+| **App**     | Unified product (`apps/client`) → Account home                                       |
 | **DB**      | `tenant_members.role = OWNER`                                                        |
 | **Can**     | Create workspaces, assign workspace admins, subscription/billing (F13), org settings |
 | **Cannot**  | Auto-access every workspace’s ops unless also `workspace_members` row                |
@@ -128,7 +128,7 @@ flowchart TB
 flowchart LR
   subgraph apps [Apps]
     PA[platform-admin]
-    Product[apps/app unified product]
+    Product[apps/client unified product]
   end
   Superadmin --> PA
   Owner --> Product
@@ -142,7 +142,7 @@ flowchart LR
 | App                   | `NEXT_PUBLIC_AUTH_SCOPE` | Primary roles                                   |
 | --------------------- | ------------------------ | ----------------------------------------------- |
 | `apps/platform-admin` | `platform`               | Internal platform operations                    |
-| `apps/app`            | `app`                    | Member, PM, workspace admin, tenant owner/admin |
+| `apps/client`         | `app`                    | Member, PM, workspace admin, tenant owner/admin |
 
 **Unified shell:** `/dashboard` composes personal and management widgets from effective
 capabilities. Tenant controls remain under `/account/*`. There is no member/admin mode switch.
@@ -322,11 +322,11 @@ Follow [FRONTEND-UI.md](../development/FRONTEND-UI.md) and [chronomint-fe-featur
 ### Layout
 
 ```
-apps/app/src/app/(app)/account/
+apps/client/src/app/(app)/account/
   page.tsx              → thin server wrapper
   layout.tsx            → Account sub-nav (optional)
 
-apps/app/src/features/account/
+apps/client/src/features/account/
   account-overview-page.tsx
   account-workspaces-page.tsx
   account-organization-page.tsx

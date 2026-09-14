@@ -8,8 +8,8 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 source "$ROOT/scripts/lib/dev-bootstrap.sh"
 
 RUN_DIR="$ROOT/.local-serve"
-DEV_NAMES=(shared api app platform)
-DEV_COMMANDS=(dev:shared dev:api dev:app dev:platform)
+DEV_NAMES=(shared api client platform)
+DEV_COMMANDS=(dev:shared dev:api dev:client dev:platform)
 DEV_PORTS=("" 3001 3000 3003)
 DEV_URLS=("" "http://localhost:3001" "http://localhost:3000" "http://localhost:3003")
 
@@ -148,12 +148,12 @@ cmd_start() {
   dev_split_start_one shared "$pnpm_exec" dev:shared
   sleep 5
   dev_split_start_one api "$pnpm_exec" dev:api
-  dev_split_start_one app "$pnpm_exec" dev:app
+  dev_split_start_one client "$pnpm_exec" dev:client
   dev_split_start_one platform "$pnpm_exec" dev:platform
 
   dev_bootstrap_log "==> Waiting for app ports..."
   dev_split_wait_for_port 3001 api
-  dev_split_wait_for_port 3000 app
+  dev_split_wait_for_port 3000 client
   dev_split_wait_for_port 3003 platform
 
   echo ""

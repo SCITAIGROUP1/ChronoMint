@@ -5,7 +5,7 @@ Next-generation time analytics platform with a NestJS API and one capability-dri
 ## Stack
 
 - **API:** NestJS, Prisma, PostgreSQL, Redis
-- **Product:** `apps/app` (`@kloqra/app`), Next.js 15, Zustand, Tailwind v4
+- **Product:** `apps/client` (`@kloqra/client`), Next.js 15, Zustand, Tailwind v4
 - **Shared:** `@kloqra/contracts`, `@kloqra/ui`, `@kloqra/web-shared`
 
 ## Quick start
@@ -20,7 +20,7 @@ For daily development, prepare dependencies and run the product and API in separ
 ```bash
 pnpm dev:shared
 pnpm dev:api
-pnpm --filter @kloqra/app dev
+pnpm --filter @kloqra/client dev
 ```
 
 - Product: http://localhost:3000

@@ -140,4 +140,4 @@ Coordinates all subscription mutations to ensure consistency:
 
 - Unit: `subscription-sync.service.spec.ts`, `stripe-webhook.service.spec.ts`, `subscriptions.service.spec.ts`, `subscription-lifecycle.service.spec.ts`
 - E2E: `stripe-webhook.e2e.ts`, `subscription-lifecycle.e2e.ts`, `subscription-plan-change.e2e.ts`, `sales-inquiry.e2e.ts`, `platform-subscriptions.e2e.ts`
-- Playwright: `apps/app/e2e/account-billing.spec.ts`, `apps/platform-admin/e2e/subscriptions.spec.ts`
+- Playwright: `apps/client/e2e/account-billing.spec.ts`, `apps/platform-admin/e2e/subscriptions.spec.ts`

@@ -100,11 +100,11 @@ Entries created via `POST /timer/stop` have `source: timer`. Timer entries canno
 
 ## UI
 
-- Unified product: [timesheet-page.tsx](../../apps/app/src/features/timesheet/timesheet-page.tsx),
-  [time-tracker-page.tsx](../../apps/app/src/features/time-tracker/time-tracker-page.tsx)
-- Submissions: [submissions-page.tsx](../../apps/app/src/features/submissions/submissions-page.tsx) —
+- Unified product: [timesheet-page.tsx](../../apps/client/src/features/timesheet/timesheet-page.tsx),
+  [time-tracker-page.tsx](../../apps/client/src/features/time-tracker/time-tracker-page.tsx)
+- Submissions: [submissions-page.tsx](../../apps/client/src/features/submissions/submissions-page.tsx) —
   see [submissions.md](./submissions.md)
-- Admin project approval settings: [unified-projects-page.tsx](../../apps/app/src/features/projects/unified-projects-page.tsx)
+- Admin project approval settings: [unified-projects-page.tsx](../../apps/client/src/features/projects/unified-projects-page.tsx)
 
 ## Edge cases
 

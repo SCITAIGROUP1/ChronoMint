@@ -147,7 +147,7 @@ For heavy or long-running exports that could timeout or block the main HTTP thre
 
 ## UI
 
-- Admin: [exports/page.tsx](<../../apps/app/src/app/(app)/exports/page.tsx>), [dashboard/page.tsx](<../../apps/app/src/app/(app)/dashboard/page.tsx>)
+- Admin: [exports/page.tsx](<../../apps/client/src/app/(app)/exports/page.tsx>), [dashboard/page.tsx](<../../apps/client/src/app/(app)/dashboard/page.tsx>)
 - Personal experience: timesheet export in the unified product
 
 ## Testing

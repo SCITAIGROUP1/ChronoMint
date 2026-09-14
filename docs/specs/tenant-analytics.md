@@ -49,7 +49,7 @@ Requires `X-Workspace-Id` (any workspace the owner belongs to).
 - Unit: `apps/api/src/modules/tenants/application/tenant-analytics.service.spec.ts`
 - E2E: `apps/api/test/tenant-analytics.e2e.ts`
 - Hook: `packages/web-shared/src/features/tenant/use-tenant-analytics-summary.spec.ts`
-- Playwright: `apps/app/e2e/account-rollup.spec.ts`
+- Playwright: `apps/client/e2e/account-rollup.spec.ts`
 
 ## Out of scope (v1)
 

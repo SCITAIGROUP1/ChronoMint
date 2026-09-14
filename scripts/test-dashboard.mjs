@@ -18,7 +18,7 @@ const REPORT_PATHS = {
   "api-coverage": "apps/api/coverage/index.html",
   "contracts-coverage": "packages/contracts/coverage/index.html",
   "ui-coverage": "packages/ui/coverage/index.html",
-  "app-playwright": "apps/app/playwright-report/index.html",
+  "app-playwright": "apps/client/playwright-report/index.html",
   "platform-playwright": "apps/platform-admin/playwright-report/index.html",
   "api-junit": "apps/api/test-results/unit-junit.xml",
   "api-e2e-junit": "apps/api/test-results/e2e-junit.xml"
@@ -116,7 +116,7 @@ function buildHtml() {
     <article class="card">
       <h2>Product app Playwright ${statusBadge(REPORT_PATHS["app-playwright"])}</h2>
       <p class="muted">Requires API on :3001 and seeded DB before e2e.</p>
-      <p>${exists(REPORT_PATHS["app-playwright"]) ? `<a href="/${REPORT_PATHS["app-playwright"]}">Open HTML report</a>` : "Run <code>pnpm --filter @kloqra/app test:e2e</code>"}</p>
+      <p>${exists(REPORT_PATHS["app-playwright"]) ? `<a href="/${REPORT_PATHS["app-playwright"]}">Open HTML report</a>` : "Run <code>pnpm --filter @kloqra/client test:e2e</code>"}</p>
     </article>
     <article class="card">
       <h2>Platform console Playwright ${statusBadge(REPORT_PATHS["platform-playwright"])}</h2>
@@ -133,7 +133,7 @@ function buildHtml() {
     <h2>Interactive runners (terminal)</h2>
     <ul class="commands">
       <li><code>pnpm test:ui</code> — Vitest UI (API unit tests)</li>
-      <li><code>pnpm --filter @kloqra/app test:e2e:ui</code> — Playwright UI (product app)</li>
+      <li><code>pnpm --filter @kloqra/client test:e2e:ui</code> — Playwright UI (product app)</li>
       <li><code>pnpm --filter @kloqra/platform-admin test:e2e:ui</code> — Playwright UI (platform console)</li>
       <li><code>pnpm test:coverage</code> — refresh coverage HTML linked above</li>
       <li><code>pnpm test:integration</code> — API Supertest e2e</li>

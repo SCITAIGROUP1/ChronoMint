@@ -48,8 +48,8 @@ Expired `WidgetShare` rows are purged on the same daily interval as `ReportShare
 
 ## UI
 
-- Admin: [apps/app/src/app/(app)/dashboard/page.tsx](<../../apps/app/src/app/(app)/dashboard/page.tsx>)
-- Public widget share: [apps/app/src/app/widget/[token]/page.tsx](../../apps/app/src/app/widget/[token]/page.tsx)
+- Admin: [apps/client/src/app/(app)/dashboard/page.tsx](<../../apps/client/src/app/(app)/dashboard/page.tsx>)
+- Public widget share: [apps/client/src/app/widget/[token]/page.tsx](../../apps/client/src/app/widget/[token]/page.tsx)
 - Client timesheet may use `/reporting/me` for “My week summary”.
 
 ## Edge cases

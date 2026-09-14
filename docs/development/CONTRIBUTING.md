@@ -14,7 +14,7 @@ Run split development processes after infrastructure is ready:
 ```bash
 pnpm dev:shared
 pnpm dev:api
-pnpm --filter @kloqra/app dev
+pnpm --filter @kloqra/client dev
 pnpm dev:platform # optional isolated platform console
 ```
 
@@ -25,7 +25,7 @@ http://localhost:3003.
 
 | Path                  | Purpose                                   |
 | --------------------- | ----------------------------------------- |
-| `apps/app`            | Unified customer product                  |
+| `apps/client`         | Unified customer product                  |
 | `apps/api`            | NestJS API and sole database write path   |
 | `apps/platform-admin` | Isolated internal platform console        |
 | `packages/contracts`  | Zod DTO and route source of truth         |
@@ -38,7 +38,7 @@ http://localhost:3003.
 1. Update cross-package contracts first.
 2. Add or update tests with the change.
 3. Implement API behavior in `apps/api`.
-4. Implement customer UI in `apps/app` using shared packages.
+4. Implement customer UI in `apps/client` using shared packages.
 5. Update the canonical spec and roadmap/task status.
 
 Do not duplicate DTO shapes or treat hidden UI as authorization.

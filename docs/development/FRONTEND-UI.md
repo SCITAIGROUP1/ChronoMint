@@ -1,7 +1,7 @@
 # Frontend UI patterns
 
 Shared UI lives in `@kloqra/ui`. Stateful cross-product composites, providers, API/session hooks,
-and theme persistence live in `@kloqra/web-shared`. The unified product in `apps/app` owns routes, data orchestration, and capability-driven composition.
+and theme persistence live in `@kloqra/web-shared`. The unified product in `apps/client` owns routes, data orchestration, and capability-driven composition.
 
 ## Package roles
 
@@ -133,7 +133,7 @@ Wired in the unified product at `/profile` and `/settings`. Spec:
 ## Feature module layout (apps)
 
 ```
-apps/app/src/
+apps/client/src/
   app/              # Next.js routes (thin wrappers)
   features/<domain>/  # pages, hooks, components
   components/       # app-specific shell pieces

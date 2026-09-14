@@ -33,5 +33,5 @@ Keep both **false** in production until F23 legal sign-off.
 ## Tests
 
 - `apps/api/test/self-serve-signup.e2e.ts`
-- `apps/app/e2e/signup.spec.ts`
+- `apps/client/e2e/signup.spec.ts`
 - `apps/api/scripts/migrate-pilots-to-tenants.spec.ts` (F21)

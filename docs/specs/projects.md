@@ -61,9 +61,9 @@ See [DOMAIN_MODEL.md](../architecture/DOMAIN_MODEL.md).
 ## UI
 
 - Unified projects:
-  [apps/app/src/app/(app)/projects/page.tsx](<../../apps/app/src/app/(app)/projects/page.tsx>)
+  [apps/client/src/app/(app)/projects/page.tsx](<../../apps/client/src/app/(app)/projects/page.tsx>)
 - Invite accept:
-  [apps/app/src/app/invite/[token]/page.tsx](../../apps/app/src/app/invite/[token]/page.tsx)
+  [apps/client/src/app/invite/[token]/page.tsx](../../apps/client/src/app/invite/[token]/page.tsx)
 
 ## Edge cases
 

@@ -28,8 +28,8 @@ isProject: false
 ## Context
 
 - API CRUD already exists: [`tasks.service.ts`](apps/api/src/modules/tasks/application/tasks.service.ts) enforces `project:ManageTasks`, `assertProjectInWorkspace`, and `assertCategoryActiveInWorkspace`.
-- Full UI already exists on managed project tabs: [`project-tasks-panel.tsx`](apps/app/src/features/projects/project-tasks-panel.tsx).
-- Global [`tasks-page.tsx`](apps/app/src/features/tasks/tasks-page.tsx) is list-only today.
+- Full UI already exists on managed project tabs: [`project-tasks-panel.tsx`](apps/client/src/features/projects/project-tasks-panel.tsx).
+- Global [`tasks-page.tsx`](apps/client/src/features/tasks/tasks-page.tsx) is list-only today.
 - No task catalog import/export routes exist; closest patterns are categories (async Excel) and timelog import (sync per-row results + name/UUID resolve).
 
 **Chosen scope:** 1B (CRUD + deep-link to project tasks) and 2A (import + export of task master data).
@@ -79,7 +79,7 @@ flowchart TD
 - Create/edit forms use `SearchableSelect` options loaded from:
   - projects the user can manage (`managedProjectIds` or admin’s full list)
   - **active** categories only (`useCategoriesListQuery` filtered by `isActive`)
-- Selecting a project loads that project’s active flag; activate/deactivate copy stays aligned with [`getTaskConfirmCopy`](apps/app/src/features/projects/task-confirmation.ts).
+- Selecting a project loads that project’s active flag; activate/deactivate copy stays aligned with [`getTaskConfirmCopy`](apps/client/src/features/projects/task-confirmation.ts).
 - Deep-link: task row → `/projects/{projectId}/tasks` for advanced project-tab management if needed.
 - **Create on `/tasks` and bulk import always create common tasks** (`isCommon=true`, no assignee picker on this page). Assigned/non-common tasks remain editable only via the existing project Tasks tab.
 
@@ -124,7 +124,7 @@ Extend [`tasks.controller.ts`](apps/api/src/modules/tasks/interface/http/tasks.c
 
 ### 3. Frontend `/tasks`
 
-Enhance [`tasks-page.tsx`](apps/app/src/features/tasks/tasks-page.tsx):
+Enhance [`tasks-page.tsx`](apps/client/src/features/tasks/tasks-page.tsx):
 
 - Toolbar actions when user can manage ≥1 project: **Add task**, **Import**, **Export**
 - Create/edit: modal or inline panel (project select + name, category, billable) — **always common; no assignee picker**

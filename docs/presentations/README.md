@@ -19,7 +19,7 @@ Slide decks for demos, investor updates, and technical walkthroughs.
 
 ## Regenerate PDF
 
-From repo root (requires `apps/app` devDependencies / Playwright):
+From repo root (requires `apps/client` devDependencies / Playwright):
 
 ```bash
 node docs/presentations/generate-pdf.mjs

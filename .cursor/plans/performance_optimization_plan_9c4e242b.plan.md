@@ -12,7 +12,7 @@ todos:
     content: Expand optimizePackageImports in both next.config.ts files; re-run analyze to verify
     status: completed
   - id: dev-fast-scripts
-    content: Add dev:apps fast path + optional --turbo; document workflow in PERFORMANCE.md
+    content: Add dev:clients fast path + optional --turbo; document workflow in PERFORMANCE.md
     status: completed
   - id: web-shared-prebuild
     content: Add tsup build for @kloqra/web-shared (mirror contracts) and wire into turbo dev/build
@@ -161,10 +161,10 @@ Lazy-load these via the new `widgets-lazy.tsx` wrapper with a skeleton fallback 
 
 **Change:** Add scripts like:
 
-- `dev:apps` — start api/client/admin only (no bootstrap)
+- `dev:clients` — start api/client/admin only (no bootstrap)
 - `dev:once` — current behavior (bootstrap + build + start)
 
-Document: run bootstrap once (`pnpm local` or first `pnpm dev`), then use `dev:apps` for daily work.
+Document: run bootstrap once (`pnpm local` or first `pnpm dev`), then use `dev:clients` for daily work.
 
 ### 2B. Enable Turbopack for Next dev
 
@@ -236,7 +236,7 @@ Only pursue if profiler shows slow API calls, not slow JS:
 
 - Client `/dashboard` first-load JS reduced measurably in bundle analyzer
 - Non-dashboard routes no longer include `recharts` / grid layout in initial chunks
-- Warm `dev:apps` startup under ~30s on a typical machine (excluding first Docker pull)
+- Warm `dev:clients` startup under ~30s on a typical machine (excluding first Docker pull)
 - `test:prepr` wall time reduced by parallel unit tests + better Turbo cache hits
 - [`docs/development/PERFORMANCE.md`](docs/development/PERFORMANCE.md) reflects actual config and new scripts
 

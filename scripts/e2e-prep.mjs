@@ -49,7 +49,7 @@ Database bootstrap finished. Playwright will start the API on :3001 if it is not
 
 If e2e still fails, start the stack manually:
   pnpm dev:api
-  pnpm dev:app   # :3000
+  pnpm dev:client   # :3000
 
 `);
 }

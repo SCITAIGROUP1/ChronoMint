@@ -32,7 +32,7 @@ Presenter guide for product + engineering audiences. Covers live product flows, 
 pnpm install
 pnpm serve:docker    # or pnpm serve:native
 pnpm dev:api         # API :3001
-pnpm --filter @kloqra/app dev # unified product :3000
+pnpm --filter @kloqra/client dev # unified product :3000
 ```
 
 - [ ] `GET http://localhost:3001/health` returns OK
@@ -55,7 +55,7 @@ pnpm --filter @kloqra/app dev # unified product :3000
 
 ### Fallback assets if live demo fails
 
-- [ ] `apps/app/e2e/member-personal-routes.spec.ts` recording or Playwright report
+- [ ] `apps/client/e2e/member-personal-routes.spec.ts` recording or Playwright report
 - [ ] `.cursor/plans/websocket_notifications_guide.plan.md` (realtime diagram)
 - [ ] `docs/architecture/CONTEXT.md` mermaid diagram
 
@@ -189,7 +189,7 @@ Point to **`docs/api/ROUTES.md`** — 200+ lines cataloging every route with con
 - Auto-stop policy (stale timer dialog) — mention if visible in seed
 - Optional: link Jira issue on entry (`GET /jira/my-issues`)
 
-**Files:** `apps/app/src/features/timer/timer-page.tsx` · `apps/api/src/modules/timer/`
+**Files:** `apps/client/src/features/timer/timer-page.tsx` · `apps/api/src/modules/timer/`
 
 ---
 
@@ -213,7 +213,7 @@ Point to **`docs/api/ROUTES.md`** — 200+ lines cataloging every route with con
 - `POST /timelogs/batch` — recurring entries
 - Amendment flow when period already submitted
 
-**Files:** `apps/app/src/features/timesheet/timesheet-page.tsx` · `docs/specs/timelogs.md`
+**Files:** `apps/client/src/features/timesheet/timesheet-page.tsx` · `docs/specs/timelogs.md`
 
 ---
 
@@ -396,13 +396,13 @@ Pick **one** — don’t rush all:
 
 ### Management power features (pick 1 if ahead of schedule)
 
-| Feature              | How to show                                   | Technical                                     |
-| -------------------- | --------------------------------------------- | --------------------------------------------- |
-| Global search        | `Cmd+K` / palette                             | `docs/specs/global-search.md`                 |
-| Capability contrast  | Sign in as member in Browser A                | `apps/app/e2e/member-personal-routes.spec.ts` |
-| Jira                 | Workspace settings → credentials              | `apps/api/src/modules/jira/`                  |
-| Public reporting API | Settings → API keys                           | `docs/api/public-reporting-client-guide.md`   |
-| Workspace settings   | `/workspace` — timezone, week start, rounding | `Workspace.settings` JSON                     |
+| Feature              | How to show                                   | Technical                                        |
+| -------------------- | --------------------------------------------- | ------------------------------------------------ |
+| Global search        | `Cmd+K` / palette                             | `docs/specs/global-search.md`                    |
+| Capability contrast  | Sign in as member in Browser A                | `apps/client/e2e/member-personal-routes.spec.ts` |
+| Jira                 | Workspace settings → credentials              | `apps/api/src/modules/jira/`                     |
+| Public reporting API | Settings → API keys                           | `docs/api/public-reporting-client-guide.md`      |
+| Workspace settings   | `/workspace` — timezone, week start, rounding | `Workspace.settings` JSON                        |
 
 ---
 
@@ -498,7 +498,7 @@ timelogs/
 - `apps/api/src/modules/notifications/interface/ws/notifications.gateway.ts`
 - `apps/api/src/modules/notifications/application/notifications-realtime.service.ts`
 - `packages/web-shared/src/realtime/notification-socket-manager.ts`
-- `apps/app/src/lib/workspace-data-sync.ts`
+- `apps/client/src/lib/workspace-data-sync.ts`
 
 **Intentional limits (shows maturity):**
 
@@ -515,7 +515,7 @@ timelogs/
 2. packages/contracts (+ failing spec)
 3. Failing tests (QA / TDD)
 4. apps/api module
-5. apps/app (unified customer product)
+5. apps/client (unified customer product)
 6. TASK_BOARD.json + docs/agent/ROC.md
 7. pnpm format:check && lint && typecheck && test && build
 ```

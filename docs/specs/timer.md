@@ -59,7 +59,7 @@ State stored in Redis (or in-memory when `REDIS_USE_MEMORY=true`).
 
 ## UI
 
-- Unified-product timer: [apps/app/src/features/timer/](../../apps/app/src/features/timer/)
+- Unified-product timer: [apps/client/src/features/timer/](../../apps/client/src/features/timer/)
 - Sequence diagram: [TIMER_SEQUENCE.md](../architecture/TIMER_SEQUENCE.md)
 
 ## Edge cases

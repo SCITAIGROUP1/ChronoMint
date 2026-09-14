@@ -6,8 +6,8 @@ Next.js 15 product app for personal work, projects, workspace management, billin
 
 ```bash
 # From repo root
-pnpm --filter @kloqra/app dev
-pnpm --filter @kloqra/app test:e2e
+pnpm --filter @kloqra/client dev
+pnpm --filter @kloqra/client test:e2e
 ```
 
 ## Environment
@@ -48,7 +48,7 @@ Tables use `DataTableCard` + `usePaginatedList`. Modals use `AppModal`. Toasts v
 
 ## Deploy (Vercel)
 
-Deploy with **Root Directory** `apps/app` and the same API base URL configured for the product app.
+Deploy with **Root Directory** `apps/client` and the same API base URL configured for the product app.
 
 See [docs/runbooks/vercel.md](../../docs/runbooks/vercel.md).
 

@@ -11,7 +11,7 @@
 
 ## Scope and exclusions
 
-- Unified product (`apps/app`); results and navigation are capability-filtered.
+- Unified product (`apps/client`); results and navigation are capability-filtered.
 - Scoped to the active workspace from session; no cross-workspace search.
 - No free-text search on approvals, notifications, billing, or exports in v1.
 - Clients are not a separate entity; project `clientName` matches via project search.
@@ -78,8 +78,8 @@ When a group returns more than five hits, a **View all** row links to the list p
 ## UI
 
 - Entry: search trigger in admin shell toolbar (search icon + “Search…” hint with ⌘K badge).
-- Feature: [`apps/app/src/features/global-search/`](../../apps/app/src/features/global-search/)
-- Nav config: [`apps/app/src/config/app-nav.ts`](../../apps/app/src/config/app-nav.ts)
+- Feature: [`apps/client/src/features/global-search/`](../../apps/client/src/features/global-search/)
+- Nav config: [`apps/client/src/config/app-nav.ts`](../../apps/client/src/config/app-nav.ts)
 
 ## Edge cases
 

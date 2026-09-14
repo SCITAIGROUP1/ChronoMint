@@ -43,7 +43,7 @@ Publisher: [notifications-realtime.service.ts](../../apps/api/src/modules/notifi
 | Shared socket singleton | [notification-socket-manager.ts](../../packages/web-shared/src/realtime/notification-socket-manager.ts) |
 | Shell hook              | [use-notification-socket.ts](../../packages/web-shared/src/hooks/use-notification-socket.ts)            |
 | Data invalidation bus   | [workspace-data-sync.ts](../../packages/web-shared/src/realtime/workspace-data-sync.ts)                 |
-| Unified-product wiring  | [apps/app/src/lib/workspace-data-sync.ts](../../apps/app/src/lib/workspace-data-sync.ts)                |
+| Unified-product wiring  | [apps/client/src/lib/workspace-data-sync.ts](../../apps/client/src/lib/workspace-data-sync.ts)          |
 
 ## Given / When / Then
 
