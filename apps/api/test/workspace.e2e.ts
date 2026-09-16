@@ -47,6 +47,22 @@ describe("Workspace E2E", () => {
     expect(res.status).toBe(403);
   });
 
+  it("member cannot GET /workspaces/:id full settings", async () => {
+    const res = await authedAgent(app, memberSession).get(
+      ROUTES.WORKSPACES.BY_ID(memberSession.workspaceId)
+    );
+    expect(res.status).toBe(403);
+  });
+
+  it("member can GET /workspaces/:id/operational-settings", async () => {
+    const res = await authedAgent(app, memberSession).get(
+      ROUTES.WORKSPACES.OPERATIONAL_SETTINGS(memberSession.workspaceId)
+    );
+    expect(res.status).toBe(200);
+    expect(typeof res.body.dailyTargetHours).toBe("number");
+    expect(res.body.jiraServiceToken).toBeUndefined();
+  });
+
   it("POST /workspaces rejects duplicate workspace names", async () => {
     const prisma = app.get(PrismaService);
     const existingWorkspace = await prisma.workspace.findFirst({

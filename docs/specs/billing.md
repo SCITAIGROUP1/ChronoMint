@@ -30,7 +30,7 @@ Returns `totalHours`, `billableHours`, `totalAmount`, `currency: "USD"` for the 
 
 ## UI
 
-- [apps/app/src/app/(app)/billing/page.tsx](<../../apps/app/src/app/(app)/billing/page.tsx>)
+- [apps/client/src/app/(app)/billing/page.tsx](<../../apps/client/src/app/(app)/billing/page.tsx>)
 
 ## Edge cases
 

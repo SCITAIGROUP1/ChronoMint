@@ -5,11 +5,11 @@
   "scripts": {
     "build": "turbo run build",
     "predev:apps": "bash scripts/predev-bootstrap.sh && pnpm build --filter=@kloqra/contracts --filter=@kloqra/ui --filter=@kloqra/web-shared && pnpm prisma:generate",
-    "dev": "pnpm run predev:apps && pnpm --parallel --filter @kloqra/api --filter @kloqra/app dev",
+    "dev": "pnpm run predev:apps && pnpm --parallel --filter @kloqra/api --filter @kloqra/client dev",
     "dev:shared": "pnpm --parallel --filter @kloqra/contracts --filter @kloqra/ui --filter @kloqra/web-shared dev",
     "check:bundle-budget": "node scripts/check-bundle-budget.mjs",
     "dev:api": "pnpm --filter @kloqra/api dev",
-    "dev:app": "pnpm --filter @kloqra/app dev",
+    "dev:client": "pnpm --filter @kloqra/client dev",
     "dev:platform": "pnpm --filter @kloqra/platform-admin dev",
     "dev:web": "pnpm --filter @kloqra/web dev",
     "docker:up": "docker compose up -d",

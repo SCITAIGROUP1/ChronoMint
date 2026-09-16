@@ -71,7 +71,7 @@
 
 ## UI
 
-- Account: `apps/app/src/features/account/` (F08, F15 owner setup on `/account/organization`)
+- Account: `apps/client/src/features/account/` (F08, F15 owner setup on `/account/organization`)
 - Platform: `apps/platform-admin/` (F14–F15 create/list/detail/suspend)
 
 ## Edge cases

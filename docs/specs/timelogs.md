@@ -21,7 +21,7 @@
 | PATCH  | `/timelogs/:id`               | timelog.dto                                                                           |
 | DELETE | `/timelogs/:id`               | timelog.dto                                                                           |
 
-Timesheet routes are documented in [submissions.md](./submissions.md). Controller: [timelogs.controller.ts](../../apps/api/src/modules/timelogs/interface/http/timelogs.controller.ts), [timesheets.controller.ts](../../apps/api/src/modules/timelogs/interface/http/timesheets.controller.ts).
+Timesheet routes are documented in [submissions.md](./submissions.md). Non-project time (holidays, leave, organization activities) is specified in [non-project-time.md](./non-project-time.md). Controller: [timelogs.controller.ts](../../apps/api/src/modules/timelogs/interface/http/timelogs.controller.ts), [timesheets.controller.ts](../../apps/api/src/modules/timelogs/interface/http/timesheets.controller.ts).
 
 ## Given / When / Then
 
@@ -100,11 +100,11 @@ Entries created via `POST /timer/stop` have `source: timer`. Timer entries canno
 
 ## UI
 
-- Unified product: [timesheet-page.tsx](../../apps/app/src/features/timesheet/timesheet-page.tsx),
-  [time-tracker-page.tsx](../../apps/app/src/features/time-tracker/time-tracker-page.tsx)
-- Submissions: [submissions-page.tsx](../../apps/app/src/features/submissions/submissions-page.tsx) —
+- Unified product: [timesheet-page.tsx](../../apps/client/src/features/timesheet/timesheet-page.tsx),
+  [time-tracker-page.tsx](../../apps/client/src/features/time-tracker/time-tracker-page.tsx)
+- Submissions: [submissions-page.tsx](../../apps/client/src/features/submissions/submissions-page.tsx) —
   see [submissions.md](./submissions.md)
-- Admin project approval settings: [unified-projects-page.tsx](../../apps/app/src/features/projects/unified-projects-page.tsx)
+- Admin project approval settings: [unified-projects-page.tsx](../../apps/client/src/features/projects/unified-projects-page.tsx)
 
 ## Edge cases
 

@@ -65,7 +65,7 @@ echo "=== Kloqra Vercel setup: ${ENV_NAME} ==="
 echo "API URL: ${API_URL}"
 echo ""
 echo "Ensure each Vercel project has:"
-echo "  - Product app Root Directory: apps/app"
+echo "  - Product app Root Directory: apps/client"
 echo "  - Include source files outside Root Directory: ON"
 echo ""
 
@@ -83,7 +83,7 @@ else
   APP_URL="${APP_URL:-https://${VERCEL_APP_PROJECT}.vercel.app}"
 fi
 
-setup_app "apps/app" "$VERCEL_APP_PROJECT" "$APP_URL"
+setup_app "apps/client" "$VERCEL_APP_PROJECT" "$APP_URL"
 
 echo ""
 echo "=== Wire CORS on Railway API ==="

@@ -6,7 +6,9 @@ import { SubscriptionsModule } from "../subscriptions/subscriptions.module";
 import { WorkspaceModule } from "../workspace/workspace.module";
 import { PermissionMatrixService } from "./application/permission-matrix.service";
 import { RoleGrantAuditLogService } from "./application/role-grant-audit-log.service";
+import { TenantActivityTypesService } from "./application/tenant-activity-types.service";
 import { TenantAnalyticsService } from "./application/tenant-analytics.service";
+import { TenantHolidaysService } from "./application/tenant-holidays.service";
 import { TenantWorkspaceAdminsOverviewService } from "./application/tenant-workspace-admins-overview.service";
 import { TenantsService } from "./application/tenants.service";
 import { PublicTenantsController } from "./interface/http/public-tenants.controller";
@@ -20,7 +22,9 @@ import { TenantsController } from "./interface/http/tenants.controller";
     TenantAnalyticsService,
     TenantWorkspaceAdminsOverviewService,
     RoleGrantAuditLogService,
-    PermissionMatrixService
+    PermissionMatrixService,
+    TenantHolidaysService,
+    TenantActivityTypesService
   ]
 })
 export class TenantsModule {}

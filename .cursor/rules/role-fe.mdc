@@ -1,12 +1,12 @@
 ---
 description: Frontend agent directory bounds
-globs: apps/app/**,packages/ui/**
+globs: apps/client/**,packages/ui/**
 alwaysApply: false
 ---
 
 # Frontend role
 
-**May edit:** `apps/app/`, `packages/ui/src/`
+**May edit:** `apps/client/`, `packages/ui/src/`
 
 **May not edit:** `apps/api/`, `packages/contracts/`
 

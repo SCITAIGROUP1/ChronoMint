@@ -14,9 +14,9 @@ browser-origin checks.
 Mail uses SMTP or Brevo configuration. Stripe variables enable paid subscription flows. Keep
 `HARD_AUTO_STOP_HOURS` aligned with `NEXT_PUBLIC_HARD_AUTO_STOP_HOURS`.
 
-## Product (`apps/app`)
+## Product (`apps/client`)
 
-Copy `apps/app/.env.example` to `apps/app/.env.local`.
+Copy `apps/client/.env.example` to `apps/client/.env.local`.
 
 | Variable                                 | Required | Description                                                  |
 | ---------------------------------------- | -------- | ------------------------------------------------------------ |

@@ -2,7 +2,7 @@
 
 ## Scope (v1)
 
-- Unified product (`apps/app`), available to member-capable sessions
+- Unified product (`apps/client`), available to member-capable sessions
 - Conversational help powered by OpenAI via `apps/assistant-api` (FastAPI)
 - Public API: `POST /assistant/chat` (NestJS proxy, JWT required)
 - Answers product questions and returns in-app deep links

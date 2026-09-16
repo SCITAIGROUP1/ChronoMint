@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { nonProjectTimeFilterSchema, timeLogClassificationSchema } from "../non-project-time";
 import { assertMaxDateRange, isoDatetimeSchema, uuidSchema } from "./common.dto";
 
 export const exportReportTypeSchema = z.enum([
@@ -91,6 +92,7 @@ export const TIME_ENTRIES_COLUMNS = [
   "project",
   "category",
   "task",
+  "entry_type",
   "member",
   "email",
   "date",
@@ -279,6 +281,7 @@ export const EXPORT_COLUMN_LABELS: Record<ExportReportType, Record<string, strin
     project: "Project",
     category: "Category",
     task: "Task",
+    entry_type: "Entry type",
     member: "Member",
     email: "Email",
     date: "Date",
@@ -540,6 +543,8 @@ const exportFiltersObjectSchema = z.object({
   taskId: uuidSchema.optional(),
   teamOnly: z.boolean().optional(),
   billable: exportBillableFilterSchema.default("all"),
+  nonProjectTime: nonProjectTimeFilterSchema.optional(),
+  classifications: z.array(timeLogClassificationSchema).max(8).optional(),
   groupBy: exportGroupByListSchema.default([]),
   sheetLayout: exportSheetLayoutSchema.default("standard"),
   exportPurpose: z.string().max(48).optional(),
@@ -639,6 +644,7 @@ export const MEMBER_TIME_ENTRIES_COLUMNS = [
   "project",
   "category",
   "task",
+  "entry_type",
   "date",
   "start_time",
   "end_time",
@@ -677,6 +683,7 @@ export const MEMBER_EXPORT_COLUMN_LABELS: Record<MemberExportReportType, Record<
     project: "Project",
     category: "Category",
     task: "Task",
+    entry_type: "Entry type",
     date: "Date",
     start_time: "Start",
     end_time: "End",
@@ -742,6 +749,7 @@ export const memberExportBodySchema = z
     categoryId: uuidSchema.optional(),
     taskId: uuidSchema.optional(),
     billable: exportBillableFilterSchema.default("all"),
+    nonProjectTime: nonProjectTimeFilterSchema.optional(),
     reportTypes: z.array(memberExportReportTypeSchema).min(1).default(["time_entries"]),
     format: exportFormatSchema,
     columns: memberExportColumnsSchema,

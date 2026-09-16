@@ -1,6 +1,8 @@
 import type { ExportBillableFilter } from "@kloqra/contracts";
+import { TIME_LOG_CLASSIFICATION_LABELS, isNonProjectClassification } from "@kloqra/contracts";
 import { Injectable } from "@nestjs/common";
 import { isClientCommercialFeaturesEnabled } from "../commercial/client-commercial-features.util";
+import { composeTimeLogScopeWhere } from "../non-project/non-project-scope";
 import { PrismaService } from "../prisma/prisma.service";
 
 export type TimeLogWithRelations = Awaited<ReturnType<TimeAggregationService["fetchLogs"]>>[number];
@@ -15,6 +17,8 @@ export type ExportFilters = {
   categoryId?: string | string[];
   taskId?: string;
   billable?: ExportBillableFilter;
+  nonProjectTime?: "include" | "exclude" | "only";
+  classifications?: string[];
 };
 
 const UNCATEGORIZED_LABEL = "Uncategorized";
@@ -26,11 +30,57 @@ function normalizeIdList(value?: string | string[]): string[] {
 }
 
 function categoryMeta(log: {
-  task: { categoryId: string; category: { id: string; name: string } | null };
+  task: {
+    categoryId: string;
+    category: { id: string; name: string } | null;
+  } | null;
+  classification?: string | null;
 }) {
+  if (!log.task) {
+    const classification =
+      log.classification && isNonProjectClassification(log.classification)
+        ? log.classification
+        : "TENANT_ACTIVITY";
+    return {
+      categoryId: classification,
+      categoryName: TIME_LOG_CLASSIFICATION_LABELS[classification]
+    };
+  }
   return {
     categoryId: log.task.category?.id ?? log.task.categoryId,
     categoryName: log.task.category?.name ?? UNCATEGORIZED_LABEL
+  };
+}
+
+export type TimeLogWithTask = TimeLogWithRelations & {
+  task: NonNullable<TimeLogWithRelations["task"]>;
+};
+
+export function resolveLogTaskView(log: TimeLogWithRelations) {
+  if (log.task) {
+    return {
+      taskId: log.taskId,
+      taskName: log.task.taskName || "General Work",
+      categoryId: log.task.category?.id ?? log.task.categoryId,
+      categoryName: log.task.category?.name ?? UNCATEGORIZED_LABEL,
+      projectId: log.task.projectId,
+      projectName: log.task.project.name,
+      clientName: log.task.project.clientName
+    };
+  }
+  const classification = isNonProjectClassification(log.classification)
+    ? log.classification
+    : "TENANT_ACTIVITY";
+  const label =
+    log.activityType?.name ?? log.holiday?.name ?? TIME_LOG_CLASSIFICATION_LABELS[classification];
+  return {
+    taskId: log.taskId,
+    taskName: label,
+    categoryId: classification,
+    categoryName: TIME_LOG_CLASSIFICATION_LABELS[classification],
+    projectId: "__non_project__",
+    projectName: label,
+    clientName: null as string | null
   };
 }
 
@@ -98,13 +148,32 @@ export class TimeAggregationService {
           ? { categoryId: categoryIds[0] }
           : { categoryId: { in: categoryIds } };
 
+    const workspace = await this.prisma.workspace.findUniqueOrThrow({
+      where: { id: workspaceId },
+      select: { tenantId: true }
+    });
+    const hasProjectFilters = Boolean(filters.taskId || pIds.length > 0 || categoryIds.length > 0);
+    const projectLogsWhere = {
+      ...(filters.taskId ? { taskId: filters.taskId } : {}),
+      task: {
+        ...categoryWhere,
+        project: projectWhere
+      }
+    };
+    const scopeWhere = composeTimeLogScopeWhere({
+      workspaceId,
+      tenantId: workspace.tenantId,
+      nonProjectTime: filters.nonProjectTime,
+      hasProjectFilters,
+      projectLogsWhere
+    });
+
     return this.prisma.timeLog.findMany({
       where: {
-        ...(filters.taskId ? { taskId: filters.taskId } : {}),
-        task: {
-          ...categoryWhere,
-          project: projectWhere
-        },
+        ...(filters.classifications?.length
+          ? { classification: { in: filters.classifications } }
+          : {}),
+        ...scopeWhere,
         startTime: { gte: filters.from, lte: filters.to },
         ...billableWhere,
         ...userWhere
@@ -113,6 +182,7 @@ export class TimeAggregationService {
         id: true,
         userId: true,
         taskId: true,
+        classification: true,
         startTime: true,
         endTime: true,
         durationSec: true,
@@ -127,6 +197,8 @@ export class TimeAggregationService {
             defaultHourlyRate: true
           }
         },
+        activityType: { select: { name: true } },
+        holiday: { select: { name: true } },
         task: {
           select: {
             id: true,
@@ -261,11 +333,18 @@ export class TimeAggregationService {
     for (const log of logs) {
       const hours = log.durationSec / 3600;
       const billable = log.isBillable;
+      const projectId = log.task?.projectId ?? "__non_project__";
+      const projectName =
+        log.task?.project.name ??
+        (isNonProjectClassification(log.classification)
+          ? TIME_LOG_CLASSIFICATION_LABELS[log.classification]
+          : "Organization time");
+      const clientName = log.task?.project.clientName ?? null;
       const amount = billable
         ? hours *
           resolveRate(
             log.userId,
-            log.task.projectId,
+            log.task?.projectId ?? "",
             log.user.defaultHourlyRate?.toNumber() ?? null,
             log.startTime
           )
@@ -273,10 +352,10 @@ export class TimeAggregationService {
 
       this.addHours(workspaceAgg, hours, billable, amount);
 
-      const pid = log.task.projectId;
+      const pid = projectId;
       const pEntry = byProject.get(pid) ?? {
-        projectName: log.task.project.name,
-        clientName: log.task.project.clientName,
+        projectName,
+        clientName,
         members: new Set<string>(),
         totalHours: 0,
         billableHours: 0,
@@ -304,7 +383,7 @@ export class TimeAggregationService {
         billableHours: 0,
         billableAmount: 0
       };
-      cEntry.tasks.add(log.taskId);
+      cEntry.tasks.add(log.taskId ?? categoryId);
       this.addHours(cEntry, hours, billable, amount);
       byCategory.set(categoryId, cEntry);
 
@@ -314,8 +393,8 @@ export class TimeAggregationService {
       const dEntry = dayMap.get(rowKey) ?? {
         userName: log.user.name,
         userEmail: log.user.email,
-        projectName: log.task.project.name,
-        clientName: log.task.project.clientName,
+        projectName,
+        clientName,
         totalHours: 0,
         billableHours: 0,
         billableAmount: 0

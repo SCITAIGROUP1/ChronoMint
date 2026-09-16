@@ -260,6 +260,12 @@
       "title": "Production hardening, UAT, and unified deployment",
       "status": "done",
       "owner": "QA"
+    },
+    {
+      "id": "NPT-01",
+      "title": "Non-project time: holidays, leave, tenant activities",
+      "status": "done",
+      "owner": "LSA"
     }
   ]
 }

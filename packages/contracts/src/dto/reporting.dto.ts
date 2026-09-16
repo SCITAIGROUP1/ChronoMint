@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { nonProjectTimeFilterSchema } from "../non-project-time";
 import { listPaginationQuerySchema } from "../pagination";
 import {
   assertMaxDateRange,
@@ -16,14 +17,17 @@ export const reportQuerySchema = z
     projectId: queryUuidArraySchema,
     userId: queryUuidArraySchema,
     categoryId: queryUuidArraySchema,
-    taskId: uuidSchema.optional()
+    taskId: uuidSchema.optional(),
+    nonProjectTime: nonProjectTimeFilterSchema.optional()
   })
   .superRefine((v, ctx) => assertMaxDateRange(v.from, v.to, ctx));
 
 export const hoursBreakdownSchema = z.object({
   totalHours: z.number(),
   billableHours: z.number(),
-  nonBillableHours: z.number()
+  nonBillableHours: z.number(),
+  projectHours: z.number().optional(),
+  nonProjectHours: z.number().optional()
 });
 
 export const timeByProjectSchema = hoursBreakdownSchema.extend({

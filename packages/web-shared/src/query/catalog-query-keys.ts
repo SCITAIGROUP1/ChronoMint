@@ -6,5 +6,9 @@ export const catalogQueryKeys = {
   tasks: (workspaceId: string, filterKey = "") =>
     [...catalogQueryKeys.workspace(workspaceId), "tasks", filterKey] as const,
   categories: (workspaceId: string) =>
-    [...catalogQueryKeys.workspace(workspaceId), "categories"] as const
+    [...catalogQueryKeys.workspace(workspaceId), "categories"] as const,
+  holidays: (workspaceId: string) =>
+    [...catalogQueryKeys.workspace(workspaceId), "holidays"] as const,
+  activityTypes: (workspaceId: string) =>
+    [...catalogQueryKeys.workspace(workspaceId), "activity-types"] as const
 };

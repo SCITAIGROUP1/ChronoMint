@@ -6,7 +6,7 @@
 
 ## Outcome
 
-Kloqra ships one authenticated product from `apps/app` (`@kloqra/app`) on local port 3000. Every
+Kloqra ships one authenticated product from `apps/client` (`@kloqra/client`) on local port 3000. Every
 customer persona uses auth scope `app`, one login, one workspace context, one shell, and one
 personalized dashboard. `apps/web` remains public marketing and `apps/platform-admin` remains an
 isolated internal console with scope `platform`.
@@ -37,7 +37,7 @@ Revocation invalidates relevant authorization state immediately.
 - `packages/ui` owns tokens, primitives, shell chrome, and reusable visual behavior.
 - `packages/web-shared` owns shared providers, API/session hooks, stateful composites, and theme
   persistence.
-- `apps/app` owns routes, data orchestration, capabilities, and feature composition.
+- `apps/client` owns routes, data orchestration, capabilities, and feature composition.
 
 ## Acceptance criteria
 
@@ -47,7 +47,7 @@ Revocation invalidates relevant authorization state immediately.
 - Product auth uses only scope `app`; platform auth remains isolated.
 - Navigation/dashboard composition, accessibility, responsive behavior, Web Vitals, and bundle
   budgets pass.
-- CI and deployment publish one customer product from `apps/app`.
+- CI and deployment publish one customer product from `apps/client`.
 - `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm build` pass before release.
 
 Operational guidance: [deployment](../runbooks/deploy.md), [authentication](../architecture/AUTH.md),

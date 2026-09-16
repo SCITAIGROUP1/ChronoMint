@@ -105,7 +105,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            apps/app/.next/cache
+            apps/client/.next/cache
           key: ${{ runner.os }}-nextjs-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-nextjs-
@@ -234,7 +234,7 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
         run: |
           pnpm exec vercel deploy --prod \
-            --cwd apps/app \
+            --cwd apps/client \
             --project "${{ vars.VERCEL_APP_PROJECT }}" \
             --yes \
             --token "$VERCEL_TOKEN"

@@ -112,7 +112,7 @@ export class ProjectsService {
 
     const byProject = new Map<string, number>(projectIds.map((id) => [id, 0]));
     for (const row of aggregates) {
-      const projectId = taskIdToProjectId.get(row.taskId);
+      const projectId = row.taskId ? taskIdToProjectId.get(row.taskId) : undefined;
       if (!projectId) continue;
       byProject.set(projectId, (byProject.get(projectId) ?? 0) + (row._sum.durationSec ?? 0));
     }

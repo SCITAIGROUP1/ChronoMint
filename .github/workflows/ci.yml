@@ -58,7 +58,7 @@ jobs:
         run: node scripts/check-bundle-budget.mjs
       - name: Bundle analysis (app, non-blocking)
         continue-on-error: true
-        run: pnpm --filter @kloqra/app analyze
+        run: pnpm --filter @kloqra/client analyze
       - run: pnpm test:config
 
   unit:
@@ -168,7 +168,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        app: [app, platform-admin]
+        app: [client, platform-admin]
     services:
       postgres:
         image: postgres:16-alpine
@@ -211,7 +211,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            apps/app/.next/cache
+            apps/client/.next/cache
             apps/platform-admin/.next/cache
           key: ${{ runner.os }}-nextjs-${{ github.sha }}
           restore-keys: |

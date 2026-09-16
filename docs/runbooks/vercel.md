@@ -1,15 +1,15 @@
 # Deploy the product on Vercel
 
-Kloqra has one customer-facing Next.js product in `apps/app`. Every customer persona uses this
+Kloqra has one customer-facing Next.js product in `apps/client`. Every customer persona uses this
 deployment with auth scope `app`; capabilities control presentation while the API enforces access.
 `apps/platform-admin` remains a separate internal deployment with auth scope `platform`.
 
 ## Product project
 
 1. Import the repository into Vercel.
-2. Set **Root Directory** to `apps/app`.
+2. Set **Root Directory** to `apps/client`.
 3. Enable source files outside the root directory for workspace packages.
-4. Build with `pnpm --filter @kloqra/app... build`.
+4. Build with `pnpm --filter @kloqra/client... build`.
 5. Configure the variables below and attach the canonical product domain.
 6. Set that exact origin as API `PUBLIC_APP_URL`.
 
@@ -37,8 +37,8 @@ Vercel-plus-Railway topology.
 ## CLI deploy
 
 ```bash
-pnpm exec vercel link --cwd apps/app
-pnpm exec vercel deploy --prod --cwd apps/app
+pnpm exec vercel link --cwd apps/client
+pnpm exec vercel deploy --prod --cwd apps/client
 ```
 
 ## Smoke test

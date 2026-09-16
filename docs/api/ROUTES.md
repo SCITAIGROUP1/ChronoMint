@@ -39,12 +39,13 @@ Paths are defined in [packages/contracts/src/routes.ts](../../packages/contracts
 
 ## Workspaces
 
-| Method | Path                               | Roles | DTO                                                                   | Controller                                                                                             |
-| ------ | ---------------------------------- | ----- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| GET    | `/workspaces`                      | Auth  | —                                                                     | [workspace.controller.ts](../../apps/api/src/modules/workspace/interface/http/workspace.controller.ts) |
-| GET    | `/workspaces/:id/members`          | Auth  | —                                                                     | workspace.controller                                                                                   |
-| GET    | `/workspaces/:id/members/overview` | ADMIN | paginated team overview                                               | workspace.controller                                                                                   |
-| POST   | `/workspaces/:id/members/invite`   | ADMIN | [workspace.dto.ts](../../packages/contracts/src/dto/workspace.dto.ts) | workspace.controller                                                                                   |
+| Method | Path                                   | Roles | DTO                                                                   | Controller                                                                                             |
+| ------ | -------------------------------------- | ----- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| GET    | `/workspaces`                          | Auth  | —                                                                     | [workspace.controller.ts](../../apps/api/src/modules/workspace/interface/http/workspace.controller.ts) |
+| GET    | `/workspaces/:id/operational-settings` | Auth  | timezone, week start, daily hours                                     | workspace.controller                                                                                   |
+| GET    | `/workspaces/:id/members`              | Auth  | —                                                                     | workspace.controller                                                                                   |
+| GET    | `/workspaces/:id/members/overview`     | ADMIN | paginated team overview                                               | workspace.controller                                                                                   |
+| POST   | `/workspaces/:id/members/invite`       | ADMIN | [workspace.dto.ts](../../packages/contracts/src/dto/workspace.dto.ts) | workspace.controller                                                                                   |
 
 ## Projects and team invites
 
@@ -91,6 +92,8 @@ List responses are paginated (`page`, `limit`, `search`).
 | ------ | ----------------------------- | ------------- | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
 | GET    | `/timelogs`                   | Auth          | [timelog.dto.ts](../../packages/contracts/src/dto/timelog.dto.ts) | [timelogs.controller.ts](../../apps/api/src/modules/timelogs/interface/http/timelogs.controller.ts) |
 | GET    | `/timelogs/occupancy`         | Auth (member) | timelog-occupancy.dto                                             | timelogs.controller                                                                                 |
+| GET    | `/timelogs/holidays`          | Auth          | non-project-time.dto                                              | timelogs.controller                                                                                 |
+| GET    | `/timelogs/activity-types`    | Auth          | non-project-time.dto                                              | timelogs.controller                                                                                 |
 | GET    | `/timelogs/yesterday-summary` | Auth (member) | timelog.dto                                                       | timelogs.controller                                                                                 |
 | GET    | `/timelogs/audit`             | ADMIN         | timelog-audit.dto                                                 | timelogs.controller                                                                                 |
 | GET    | `/timelogs/:id/audit-events`  | Auth          | timelog-audit.dto                                                 | timelogs.controller                                                                                 |
@@ -98,6 +101,8 @@ List responses are paginated (`page`, `limit`, `search`).
 | POST   | `/timelogs/batch`             | Auth          | timelog.dto (recurring batch create)                              | timelogs.controller                                                                                 |
 | PATCH  | `/timelogs/:id`               | Auth          | timelog.dto                                                       | timelogs.controller                                                                                 |
 | DELETE | `/timelogs/:id`               | Auth          | —                                                                 | timelogs.controller                                                                                 |
+
+Org-admin holiday calendar and activity-type catalog: `GET/POST /tenants/current/holidays`, `PATCH/DELETE /tenants/current/holidays/:id`, `POST /tenants/current/holidays/:id/apply`, `GET/POST /tenants/current/activity-types`, `PATCH/DELETE /tenants/current/activity-types/:id`. Spec: [non-project-time.md](../specs/non-project-time.md).
 
 ## Timesheets (submissions & approvals)
 

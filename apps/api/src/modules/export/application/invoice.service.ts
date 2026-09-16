@@ -48,7 +48,8 @@ export class InvoiceService {
       projectId: dto.projectId,
       from: fromDate,
       to: toDate,
-      billable: "billable"
+      billable: "billable",
+      nonProjectTime: "exclude"
     });
 
     if (logs.length === 0) {
@@ -83,7 +84,7 @@ export class InvoiceService {
         existing.hours += hours;
       } else {
         lineItemsMap.set(key, {
-          taskName: log.task.taskName,
+          taskName: log.task?.taskName ?? "Task",
           userName: log.user.name,
           hours,
           rate

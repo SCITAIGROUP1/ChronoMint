@@ -31,7 +31,7 @@ import { TimeAggregationService } from "../../../common/time/time-aggregation.se
 import { formatExportClockTime, formatExportDateKey } from "./export-format.util";
 import { buildExportPreviewCopy } from "./export-preview-copy.util";
 import { projectRows, rowsToCsv, rowsToJsonExport } from "./export-render.util";
-import { ExportRowsBuilder, type ExportRowContext } from "./export-rows.builder";
+import { ExportRowsBuilder, type ExportRowContext, withSyntheticTask } from "./export-rows.builder";
 import { buildExportPreviewSampleRows } from "./export-sample-rows.util";
 import {
   allocateSheetName,
@@ -258,7 +258,11 @@ export class ExportService {
       userIds: userIds && userIds.length > 1 ? userIds : undefined,
       categoryId: filters.categoryId,
       taskId: filters.taskId,
-      billable: filters.billable
+      billable: filters.billable,
+      nonProjectTime: (filters as { reportTypes?: string[] }).reportTypes?.includes("invoice")
+        ? "exclude"
+        : (filters.nonProjectTime ?? "include"),
+      classifications: filters.classifications
     });
 
     const { resolveRate } = await this.aggregation.resolveRateMaps(workspaceId);
@@ -281,7 +285,7 @@ export class ExportService {
       filters,
       from,
       to,
-      logs,
+      logs: logs.map(withSyntheticTask),
       aggregates,
       resolveRate
     };
@@ -417,7 +421,7 @@ export class ExportService {
     timeZone?: string
   ): Record<string, string | number>[] {
     if (report === "time_entries") {
-      return logs.map((l) => {
+      return logs.map(withSyntheticTask).map((l) => {
         const hours = l.durationSec / 3600;
         const rate = resolveRate(
           l.userId,

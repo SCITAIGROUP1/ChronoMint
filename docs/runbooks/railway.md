@@ -1,7 +1,7 @@
 # Deploy API on Railway (staging and production)
 
 Railway hosts the **NestJS API** with managed PostgreSQL and Redis. The unified product deploys
-from `apps/app` on [Vercel](./vercel.md).
+from `apps/client` on [Vercel](./vercel.md).
 
 ## Topology
 

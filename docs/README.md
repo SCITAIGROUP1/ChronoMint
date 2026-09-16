@@ -49,7 +49,7 @@ Start here for architecture, development, API reference, feature specs, user gui
 - [architecture/ci-cd-pipeline.md](architecture/ci-cd-pipeline.md) — CI/CD workflow and deploy gates
 - [api/OVERVIEW.md](api/OVERVIEW.md) — API conventions
 - [api/ROUTES.md](api/ROUTES.md) — endpoint catalog
-- Active app READMEs: [apps/api](../apps/api/README.md), [unified product](../apps/app/README.md)
+- Active app READMEs: [apps/api](../apps/api/README.md), [unified product](../apps/client/README.md)
 - Platform operations: [platform-admin spec](specs/platform-admin.md)
 - Package READMEs: [packages/ui](../packages/ui/README.md), [packages/web-shared](../packages/web-shared/README.md)
 

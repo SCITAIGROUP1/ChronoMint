@@ -2,7 +2,7 @@
 
 ```mermaid
 flowchart TB
-  Product[apps/app unified product]
+  Product[apps/client unified product]
   Platform[apps/platform-admin isolated operations]
   Assistant[apps/assistant-api]
   API[apps/api NestJS]
@@ -18,7 +18,7 @@ flowchart TB
 
 ## Monorepo layout
 
-- `apps/app` — customer product for personal, project, workspace, and organization capabilities
+- `apps/client` — customer product for personal, project, workspace, and organization capabilities
 - `apps/api` — sole database write path and background workers
 - `apps/platform-admin` — separately deployed internal platform operations console
 - `apps/assistant-api` — internal help assistant service

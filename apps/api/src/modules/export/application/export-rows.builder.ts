@@ -1,6 +1,8 @@
 import {
   DEFAULT_EXPECTED_WEEKLY_HOURS,
+  TIME_LOG_CLASSIFICATION_LABELS,
   formatTimesheetPeriodLabel,
+  isNonProjectClassification,
   parseWorkspaceSettings,
   type ExportFiltersDto,
   type ExportReportType
@@ -10,7 +12,8 @@ import { PrismaService } from "../../../common/prisma/prisma.service";
 import { roundExport } from "../../../common/time/round.util";
 import {
   TimeAggregationService,
-  type TimeLogWithRelations
+  type TimeLogWithRelations,
+  type TimeLogWithTask
 } from "../../../common/time/time-aggregation.service";
 import { daysInRange, formatWeekLabel, getWeekStartUtc } from "../../../common/time/week.util";
 import {
@@ -30,7 +33,7 @@ export type ExportRowContext = {
   filters: ExportFiltersDto;
   from: Date;
   to: Date;
-  logs: TimeLogWithRelations[];
+  logs: TimeLogWithTask[];
   aggregates: ReturnType<TimeAggregationService["buildAggregates"]>;
   resolveRate: (
     userId: string,
@@ -45,6 +48,36 @@ function approvalPeriodForLabel(period: string | null | undefined): "daily" | "w
   return "weekly";
 }
 
+export function withSyntheticTask(log: TimeLogWithRelations): TimeLogWithTask {
+  if (log.task) return log as TimeLogWithTask;
+  const classification = isNonProjectClassification(log.classification)
+    ? log.classification
+    : "TENANT_ACTIVITY";
+  const label =
+    log.activityType?.name ?? log.holiday?.name ?? TIME_LOG_CLASSIFICATION_LABELS[classification];
+  return {
+    ...log,
+    task: {
+      id: "",
+      taskName: label,
+      projectId: "__non_project__",
+      categoryId: classification,
+      category: { id: classification, name: TIME_LOG_CLASSIFICATION_LABELS[classification] },
+      project: { id: "__non_project__", name: label, clientName: null }
+    }
+  };
+}
+
+function entryTypeLabel(log: TimeLogWithRelations) {
+  if (isNonProjectClassification(log.classification)) {
+    if (log.classification === "TENANT_ACTIVITY") {
+      return log.activityType?.name ?? TIME_LOG_CLASSIFICATION_LABELS.TENANT_ACTIVITY;
+    }
+    return TIME_LOG_CLASSIFICATION_LABELS[log.classification];
+  }
+  return TIME_LOG_CLASSIFICATION_LABELS.PROJECT;
+}
+
 @Injectable()
 export class ExportRowsBuilder {
   constructor(
@@ -57,62 +90,63 @@ export class ExportRowsBuilder {
     ctx: ExportRowContext
   ): Promise<Record<string, string | number>[]> {
     const groupBy = ctx.filters.groupBy ?? [];
+    const safeCtx = { ...ctx, logs: ctx.logs.map(withSyntheticTask) };
     let rows: Record<string, string | number>[];
 
     switch (report) {
       case "time_entries":
-        rows = this.buildTimeEntries(ctx);
+        rows = this.buildTimeEntries(safeCtx);
         break;
       case "invoice":
-        rows = this.buildInvoice(ctx);
+        rows = this.buildInvoice(safeCtx);
         break;
       case "daily_summary":
-        rows = this.buildDailySummary(ctx);
+        rows = this.buildDailySummary(safeCtx);
         break;
       case "weekly_summary":
-        rows = await this.buildWeeklySummary(ctx);
+        rows = await this.buildWeeklySummary(safeCtx);
         break;
       case "by_project":
-        rows = this.buildByProject(ctx);
+        rows = this.buildByProject(safeCtx);
         break;
       case "by_member":
-        rows = this.buildByMember(ctx);
+        rows = this.buildByMember(safeCtx);
         break;
       case "by_client":
-        rows = this.buildByClient(ctx);
+        rows = this.buildByClient(safeCtx);
         break;
       case "by_task":
-        rows = this.buildByTask(ctx);
+        rows = this.buildByTask(safeCtx);
         break;
       case "by_category":
-        rows = this.buildByCategory(ctx);
+        rows = this.buildByCategory(safeCtx);
         break;
       case "users_without_time":
-        rows = await this.buildUsersWithoutTime(ctx);
+        rows = await this.buildUsersWithoutTime(safeCtx);
         break;
       case "budget_vs_actual":
-        rows = await this.buildBudgetVsActual(ctx);
+        rows = await this.buildBudgetVsActual(safeCtx);
         break;
       case "utilization":
-        rows = await this.buildUtilization(ctx);
+        rows = await this.buildUtilization(safeCtx);
         break;
       case "member_daily_total":
-        rows = this.buildMemberDailyTotal(ctx);
+        rows = this.buildMemberDailyTotal(safeCtx);
         break;
       case "member_project_breakdown":
-        rows = this.buildMemberProjectBreakdown(ctx);
+        rows = this.buildMemberProjectBreakdown(safeCtx);
         break;
       case "missing_days":
-        rows = await this.buildMissingDays(ctx);
+        rows = await this.buildMissingDays(safeCtx);
         break;
       case "overtime_summary":
-        rows = await this.buildOvertimeSummary(ctx);
+        rows = await this.buildOvertimeSummary(safeCtx);
         break;
       case "hours_by_source":
-        rows = this.buildHoursBySource(ctx);
+        rows = this.buildHoursBySource(safeCtx);
         break;
       case "timesheet_approval_status":
-        rows = await this.buildTimesheetApprovalStatus(ctx);
+        rows = await this.buildTimesheetApprovalStatus(safeCtx);
         break;
       default:
         rows = [];
@@ -169,7 +203,7 @@ export class ExportRowsBuilder {
   }
 
   private logToTimeEntryRow(
-    l: TimeLogWithRelations,
+    l: TimeLogWithTask,
     workspaceName: string,
     resolveRate: ExportRowContext["resolveRate"],
     timeZone?: string
@@ -201,7 +235,8 @@ export class ExportRowsBuilder {
       rate,
       amount,
       description: l.description ?? "",
-      source: l.source
+      source: l.source,
+      entry_type: entryTypeLabel(l)
     };
   }
 
@@ -369,7 +404,7 @@ export class ExportRowsBuilder {
     >();
 
     for (const log of ctx.logs) {
-      const key = log.taskId;
+      const key = log.taskId ?? log.task.taskName;
       const categoryName = log.task.category?.name ?? "Uncategorized";
       const entry = byTask.get(key) ?? {
         taskName: log.task.taskName,
@@ -438,7 +473,7 @@ export class ExportRowsBuilder {
         tasks: new Set<string>()
       };
       const hours = log.durationSec / 3600;
-      entry.tasks.add(log.taskId);
+      entry.tasks.add(log.taskId ?? log.task.taskName);
       entry.totalHours += hours;
       if (log.isBillable) {
         entry.billableHours += hours;

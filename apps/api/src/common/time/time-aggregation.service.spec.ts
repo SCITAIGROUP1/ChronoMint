@@ -120,9 +120,16 @@ describe("TimeAggregationService.teamMembersUserIds", () => {
 });
 
 describe("TimeAggregationService.fetchLogs category filter", () => {
+  function serviceWith(findMany: ReturnType<typeof vi.fn>) {
+    return new TimeAggregationService({
+      workspace: { findUniqueOrThrow: vi.fn().mockResolvedValue({ tenantId: "t-1" }) },
+      timeLog: { findMany }
+    } as never);
+  }
+
   it("filters by a single categoryId", async () => {
     const findMany = vi.fn().mockResolvedValue([]);
-    const service = new TimeAggregationService({ timeLog: { findMany } } as any);
+    const service = serviceWith(findMany);
     await service.fetchLogs("ws-1", {
       from: new Date("2026-01-01T00:00:00.000Z"),
       to: new Date("2026-01-31T23:59:59.000Z"),
@@ -139,7 +146,7 @@ describe("TimeAggregationService.fetchLogs category filter", () => {
 
   it("filters by multiple categoryIds with in", async () => {
     const findMany = vi.fn().mockResolvedValue([]);
-    const service = new TimeAggregationService({ timeLog: { findMany } } as any);
+    const service = serviceWith(findMany);
     await service.fetchLogs("ws-1", {
       from: new Date("2026-01-01T00:00:00.000Z"),
       to: new Date("2026-01-31T23:59:59.000Z"),
@@ -149,6 +156,88 @@ describe("TimeAggregationService.fetchLogs category filter", () => {
       expect.objectContaining({
         where: expect.objectContaining({
           task: expect.objectContaining({ categoryId: { in: ["c1", "c2"] } })
+        })
+      })
+    );
+  });
+
+  it("excludes non-project logs when requested", async () => {
+    const findMany = vi.fn().mockResolvedValue([]);
+    const service = serviceWith(findMany);
+    await service.fetchLogs("ws-1", {
+      from: new Date("2026-01-01T00:00:00.000Z"),
+      to: new Date("2026-01-31T23:59:59.000Z"),
+      nonProjectTime: "exclude"
+    });
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          task: { project: { workspaceId: "ws-1" } }
+        })
+      })
+    );
+  });
+
+  it("includes tenant non-project logs alongside workspace project logs", async () => {
+    const findMany = vi.fn().mockResolvedValue([]);
+    const service = serviceWith(findMany);
+    await service.fetchLogs("ws-1", {
+      from: new Date("2026-01-01T00:00:00.000Z"),
+      to: new Date("2026-01-31T23:59:59.000Z"),
+      nonProjectTime: "include"
+    });
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [
+            { task: { project: { workspaceId: "ws-1" } } },
+            { classification: { not: "PROJECT" }, tenantId: "t-1" }
+          ]
+        })
+      })
+    );
+  });
+
+  it("ignores project filters when listing only non-project time", async () => {
+    const findMany = vi.fn().mockResolvedValue([]);
+    const service = serviceWith(findMany);
+    await service.fetchLogs("ws-1", {
+      from: new Date("2026-01-01T00:00:00.000Z"),
+      to: new Date("2026-01-31T23:59:59.000Z"),
+      projectId: "p1",
+      categoryId: "c1",
+      taskId: "t1",
+      nonProjectTime: "only"
+    });
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          classification: { not: "PROJECT" },
+          tenantId: "t-1"
+        })
+      })
+    );
+    const where = findMany.mock.calls[0][0].where as Record<string, unknown>;
+    expect(where.task).toBeUndefined();
+    expect(where.taskId).toBeUndefined();
+  });
+
+  it("keeps non-project rows when include is combined with a project filter", async () => {
+    const findMany = vi.fn().mockResolvedValue([]);
+    const service = serviceWith(findMany);
+    await service.fetchLogs("ws-1", {
+      from: new Date("2026-01-01T00:00:00.000Z"),
+      to: new Date("2026-01-31T23:59:59.000Z"),
+      projectId: "p1",
+      nonProjectTime: "include"
+    });
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [
+            { task: { project: { workspaceId: "ws-1", id: "p1" } } },
+            { classification: { not: "PROJECT" }, tenantId: "t-1" }
+          ]
         })
       })
     );

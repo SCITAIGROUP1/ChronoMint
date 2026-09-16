@@ -149,6 +149,16 @@ describe("contracts", () => {
     expect(ROUTES.TIMELOGS.OCCUPANCY).toBe("/timelogs/occupancy");
   });
 
+  it("exposes non-project time routes", () => {
+    expect(ROUTES.TIMELOGS.HOLIDAYS).toBe("/timelogs/holidays");
+    expect(ROUTES.TIMELOGS.ACTIVITY_TYPES).toBe("/timelogs/activity-types");
+    expect(ROUTES.TENANTS.HOLIDAYS).toBe("/tenants/current/holidays");
+    expect(ROUTES.TENANTS.HOLIDAY(UUID)).toBe(`/tenants/current/holidays/${UUID}`);
+    expect(ROUTES.TENANTS.HOLIDAY_APPLY(UUID)).toBe(`/tenants/current/holidays/${UUID}/apply`);
+    expect(ROUTES.TENANTS.ACTIVITY_TYPES).toBe("/tenants/current/activity-types");
+    expect(ROUTES.TENANTS.ACTIVITY_TYPE(UUID)).toBe(`/tenants/current/activity-types/${UUID}`);
+  });
+
   it("exposes timelog import routes", () => {
     expect(ROUTES.TIMELOGS.IMPORT).toBe("/timelogs/import");
     expect(ROUTES.TIMELOGS.IMPORT_TEMPLATE).toBe("/timelogs/import/template");
@@ -825,6 +835,9 @@ describe("contracts", () => {
       "/workspaces/ws-1/project-managers/overview"
     );
     expect(ROUTES.WORKSPACES.MEMBERS_OVERVIEW("ws-1")).toBe("/workspaces/ws-1/members/overview");
+    expect(ROUTES.WORKSPACES.OPERATIONAL_SETTINGS("ws-1")).toBe(
+      "/workspaces/ws-1/operational-settings"
+    );
     expect(ROUTES.WORKSPACES.MEMBER("ws-1", "m-1")).toBe("/workspaces/ws-1/members/m-1");
     expect(ROUTES.WORKSPACES.RESEND_CREDENTIALS("ws-1", "m-1")).toBe(
       "/workspaces/ws-1/members/m-1/resend-credentials"

@@ -7,7 +7,7 @@
 This document is the **single source of truth** for transforming Kloqra into a multi-tenant B2B SaaS product. **Do not implement epics until that epic’s research gate is signed off.**
 
 > **Current-state notice (July 2026):** This planning record originally assumed separate customer
-> applications. That topology is superseded: all customer workflows are in `apps/app` under auth
+> applications. That topology is superseded: all customer workflows are in `apps/client` under auth
 > scope `app`, composed by capability. `apps/platform-admin` remains isolated. Use
 > [Unified product site](../specs/unified-product-site.md) for current application topology.
 
@@ -78,10 +78,10 @@ erDiagram
 
 ```
 Platform superadmin     →  apps/platform-admin (new, internal)
-Tenant owner / admin    →  apps/app → Account capabilities
-Workspace admin         →  apps/app → Workspace capabilities
-Project manager         →  apps/app → project-scoped capabilities
-Member                  →  apps/app → personal capabilities
+Tenant owner / admin    →  apps/client → Account capabilities
+Workspace admin         →  apps/client → Workspace capabilities
+Project manager         →  apps/client → project-scoped capabilities
+Member                  →  apps/client → personal capabilities
 ```
 
 ### 3.2 Three “billing” concepts (keep separate)
@@ -145,7 +145,7 @@ flowchart TB
 
 | App                   | Audience              | Action                                              |
 | --------------------- | --------------------- | --------------------------------------------------- |
-| `apps/app`            | All customer personas | Compose personal and management capabilities        |
+| `apps/client`         | All customer personas | Compose personal and management capabilities        |
 | `apps/platform-admin` | Kloqra superadmin     | **New** — internal deploy only                      |
 | `apps/api`            | All                   | New modules: `tenants`, `platform`, `subscriptions` |
 
@@ -774,7 +774,7 @@ sequenceDiagram
 
 ### Deliverables
 
-- `apps/app/src/app/(account)/` or `(admin)/account/`
+- `apps/client/src/app/(account)/` or `(admin)/account/`
 - `@kloqra/web-shared` hooks: `useTenant`, `useTenantWorkspaces`
 - Playwright: tenant owner creates workspace + assigns admin
 

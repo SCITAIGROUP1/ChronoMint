@@ -1,6 +1,6 @@
 ---
 name: unified-product-site
-overview: "Deliver one capability-driven Kloqra customer product in apps/app, with app-only customer auth and isolated platform operations."
+overview: "Deliver one capability-driven Kloqra customer product in apps/client, with app-only customer auth and isolated platform operations."
 todos:
   - id: spec-contract
     content: Define unified personas, routes, capabilities, and acceptance criteria.
@@ -15,10 +15,10 @@ todos:
     content: Build the capability-driven shell and personalized dashboard.
     status: completed
   - id: migrate-features
-    content: Consolidate personal and management features in apps/app.
+    content: Consolidate personal and management features in apps/client.
     status: completed
   - id: deploy-cutover
-    content: Deploy one customer product from apps/app and document unified-only operation.
+    content: Deploy one customer product from apps/client and document unified-only operation.
     status: completed
   - id: production-hardening
     content: Complete security, observability, performance, and deployment hardening.
@@ -32,7 +32,7 @@ isProject: false
 # Unified Kloqra product site
 
 > **Current state (July 2026):** This plan is complete. Kloqra has one customer product in
-> `apps/app`, package `@kloqra/app`, local port `3000`, and customer auth scope `app`.
+> `apps/client`, package `@kloqra/client`, local port `3000`, and customer auth scope `app`.
 > `apps/platform-admin` remains an isolated internal console with scope `platform`.
 
 ## Product contract
@@ -65,7 +65,7 @@ authorized actions in context; there is no persona mode switch.
 - Secure cookies, exact origins, CSRF/CORS protections, security headers, and session revocation are
   verified.
 - Personal and management widgets remain independently lazy-loaded and meet bundle budgets.
-- Staging and production deploy only `apps/app` as the customer product.
+- Staging and production deploy only `apps/client` as the customer product.
 - The pre-PR gate and role-based UAT pass.
 
 Canonical specification: [docs/specs/unified-product-site.md](docs/specs/unified-product-site.md).

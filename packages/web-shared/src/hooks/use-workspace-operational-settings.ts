@@ -1,7 +1,10 @@
 "use client";
 
-import { ROUTES, parseWorkspaceSettings } from "@kloqra/contracts";
-import type { TimesheetApprovalPeriod } from "@kloqra/contracts";
+import {
+  ROUTES,
+  type TimesheetApprovalPeriod,
+  type WorkspaceOperationalSettingsDto
+} from "@kloqra/contracts";
 import { useMemo } from "react";
 import { api } from "../api/client";
 import { useWorkspaceRemoteQuery } from "../query/use-workspace-remote-query";
@@ -10,13 +13,14 @@ export type WorkspaceOperationalSettings = {
   timezone: string;
   weekStart: "monday" | "sunday";
   timesheetApprovalPeriod: TimesheetApprovalPeriod;
+  dailyTargetHours: number;
 };
 
 function workspaceOperationalQueryKey(workspaceId: string) {
   return ["workspace", workspaceId, "operational-settings"] as const;
 }
 
-/** Workspace TZ / week start for submit periods and admin operational views. */
+/** Workspace TZ / week start / daily hours for timesheet and reports. Safe for members. */
 export function useWorkspaceOperationalSettings(workspaceId: string, enabled = true) {
   const browserTimezone =
     typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC";
@@ -25,20 +29,20 @@ export function useWorkspaceOperationalSettings(workspaceId: string, enabled = t
     workspaceId,
     workspaceOperationalQueryKey(workspaceId),
     () =>
-      api<{ settings?: Record<string, unknown> }>(ROUTES.WORKSPACES.BY_ID(workspaceId), {
+      api<WorkspaceOperationalSettingsDto>(ROUTES.WORKSPACES.OPERATIONAL_SETTINGS(workspaceId), {
         workspaceId
       }),
     enabled && Boolean(workspaceId)
   );
 
   const settings = useMemo((): WorkspaceOperationalSettings => {
-    const parsed = parseWorkspaceSettings(query.data?.settings);
     return {
-      timezone: parsed.timezone ?? browserTimezone ?? "UTC",
-      weekStart: parsed.weekStart ?? "monday",
-      timesheetApprovalPeriod: parsed.timesheetApprovalPeriod ?? "weekly"
+      timezone: query.data?.timezone ?? browserTimezone ?? "UTC",
+      weekStart: query.data?.weekStart ?? "monday",
+      timesheetApprovalPeriod: query.data?.timesheetApprovalPeriod ?? "weekly",
+      dailyTargetHours: query.data?.dailyTargetHours ?? 8
     };
-  }, [query.data?.settings, browserTimezone]);
+  }, [query.data, browserTimezone]);
 
   return {
     ...settings,

@@ -11,6 +11,13 @@ export const workspaceSchema = z.object({
   settings: z.record(z.unknown()).optional()
 });
 
+export const workspaceOperationalSettingsSchema = z.object({
+  timezone: z.string().optional(),
+  weekStart: z.enum(["monday", "sunday"]).optional(),
+  timesheetApprovalPeriod: z.enum(["daily", "weekly", "monthly"]).optional(),
+  dailyTargetHours: z.number().positive().max(24).optional()
+});
+
 export const workspaceWithRoleSchema = workspaceSchema.extend({
   role: workspaceRoleSchema,
   managedProjectIds: z.array(uuidSchema).optional()
@@ -138,6 +145,7 @@ export const teamMembersOverviewSchema = z.object({
 });
 
 export type WorkspaceDto = z.infer<typeof workspaceSchema>;
+export type WorkspaceOperationalSettingsDto = z.infer<typeof workspaceOperationalSettingsSchema>;
 export type WorkspaceWithRoleDto = z.infer<typeof workspaceWithRoleSchema>;
 export type WorkspaceListItemDto = z.infer<typeof workspaceListItemSchema>;
 export type WorkspaceMemberDto = z.infer<typeof workspaceMemberSchema>;

@@ -15,6 +15,12 @@ import {
   updateTenantCurrentSchema,
   updateWorkspaceMemberSchema,
   workspaceAdminsOverviewQuerySchema,
+  createTenantHolidaySchema,
+  updateTenantHolidaySchema,
+  listTenantHolidaysQuerySchema,
+  createTenantActivityTypeSchema,
+  updateTenantActivityTypeSchema,
+  listTenantActivityTypesQuerySchema,
   type AssignWorkspaceAdminDto,
   type CreateTenantWorkspaceDto,
   type InviteTenantMemberDto,
@@ -29,7 +35,13 @@ import {
   type UpdateTenantCurrentDto,
   type UpdateTenantMemberDto,
   type UpdateWorkspaceMemberDto,
-  type WorkspaceAdminsOverviewQuery
+  type WorkspaceAdminsOverviewQuery,
+  type CreateTenantHolidayDto,
+  type UpdateTenantHolidayDto,
+  type ListTenantHolidaysQueryDto,
+  type CreateTenantActivityTypeDto,
+  type UpdateTenantActivityTypeDto,
+  type ListTenantActivityTypesQueryDto
 } from "@kloqra/contracts";
 import {
   Body,
@@ -57,7 +69,9 @@ import { WorkspaceService } from "../../../workspace/application/workspace.servi
 /* eslint-enable no-restricted-imports */
 import { PermissionMatrixService } from "../../application/permission-matrix.service";
 import { RoleGrantAuditLogService } from "../../application/role-grant-audit-log.service";
+import { TenantActivityTypesService } from "../../application/tenant-activity-types.service";
 import { TenantAnalyticsService } from "../../application/tenant-analytics.service";
+import { TenantHolidaysService } from "../../application/tenant-holidays.service";
 import { TenantWorkspaceAdminsOverviewService } from "../../application/tenant-workspace-admins-overview.service";
 import { TenantsService } from "../../application/tenants.service";
 
@@ -72,7 +86,9 @@ export class TenantsController {
     private workspace: WorkspaceService,
     private subscriptions: SubscriptionsService,
     private roleGrantAuditLog: RoleGrantAuditLogService,
-    private permissionMatrix: PermissionMatrixService
+    private permissionMatrix: PermissionMatrixService,
+    private holidays: TenantHolidaysService,
+    private activityTypes: TenantActivityTypesService
   ) {}
 
   @Get(ROUTES.TENANTS.CURRENT)
@@ -451,6 +467,108 @@ export class TenantsController {
   })
   restoreMemberRoleDefaults(@CurrentUser() user: RequestUser, @Param("memberId") memberId: string) {
     return this.permissionMatrix.restoreRoleDefaults(user.userId, user.tenantId, memberId);
+  }
+
+  @Get(ROUTES.TENANTS.HOLIDAYS)
+  @RequirePermission("tenant:ReadOrganization", {
+    scope: "tenant",
+    tenantId: { source: "session", field: "tenantId" }
+  })
+  listHolidays(
+    @CurrentUser() user: RequestUser,
+    @Query(new ZodValidationPipe(listTenantHolidaysQuerySchema)) query: ListTenantHolidaysQueryDto
+  ) {
+    return this.holidays.list(user.tenantId, query);
+  }
+
+  @Post(ROUTES.TENANTS.HOLIDAYS)
+  @RequirePermission("tenant:UpdateOrganization", {
+    scope: "tenant",
+    tenantId: { source: "session", field: "tenantId" }
+  })
+  createHoliday(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodValidationPipe(createTenantHolidaySchema)) body: CreateTenantHolidayDto
+  ) {
+    return this.holidays.create(user.tenantId, body);
+  }
+
+  @Patch(ROUTES.TENANTS.HOLIDAY(":id"))
+  @RequirePermission("tenant:UpdateOrganization", {
+    scope: "tenant",
+    tenantId: { source: "session", field: "tenantId" }
+  })
+  updateHoliday(
+    @CurrentUser() user: RequestUser,
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(updateTenantHolidaySchema)) body: UpdateTenantHolidayDto
+  ) {
+    return this.holidays.update(user.tenantId, id, body);
+  }
+
+  @Delete(ROUTES.TENANTS.HOLIDAY(":id"))
+  @RequirePermission("tenant:UpdateOrganization", {
+    scope: "tenant",
+    tenantId: { source: "session", field: "tenantId" }
+  })
+  deleteHoliday(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+    return this.holidays.remove(user.tenantId, id);
+  }
+
+  @Post(ROUTES.TENANTS.HOLIDAY_APPLY(":id"))
+  @RequirePermission("tenant:UpdateOrganization", {
+    scope: "tenant",
+    tenantId: { source: "session", field: "tenantId" }
+  })
+  applyHoliday(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+    return this.holidays.applyToMembers(user.tenantId, id);
+  }
+
+  @Get(ROUTES.TENANTS.ACTIVITY_TYPES)
+  @RequirePermission("tenant:ReadOrganization", {
+    scope: "tenant",
+    tenantId: { source: "session", field: "tenantId" }
+  })
+  listActivityTypes(
+    @CurrentUser() user: RequestUser,
+    @Query(new ZodValidationPipe(listTenantActivityTypesQuerySchema))
+    query: ListTenantActivityTypesQueryDto
+  ) {
+    return this.activityTypes.list(user.tenantId, query);
+  }
+
+  @Post(ROUTES.TENANTS.ACTIVITY_TYPES)
+  @RequirePermission("tenant:UpdateOrganization", {
+    scope: "tenant",
+    tenantId: { source: "session", field: "tenantId" }
+  })
+  createActivityType(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodValidationPipe(createTenantActivityTypeSchema)) body: CreateTenantActivityTypeDto
+  ) {
+    return this.activityTypes.create(user.tenantId, body);
+  }
+
+  @Patch(ROUTES.TENANTS.ACTIVITY_TYPE(":id"))
+  @RequirePermission("tenant:UpdateOrganization", {
+    scope: "tenant",
+    tenantId: { source: "session", field: "tenantId" }
+  })
+  updateActivityType(
+    @CurrentUser() user: RequestUser,
+    @Param("id") id: string,
+    @Body(new ZodValidationPipe(updateTenantActivityTypeSchema)) body: UpdateTenantActivityTypeDto
+  ) {
+    return this.activityTypes.update(user.tenantId, id, body);
+  }
+
+  @Delete(ROUTES.TENANTS.ACTIVITY_TYPE(":id"))
+  @RequirePermission("tenant:UpdateOrganization", {
+    scope: "tenant",
+    tenantId: { source: "session", field: "tenantId" }
+  })
+  deleteActivityType(@CurrentUser() user: RequestUser, @Param("id") id: string) {
+    return this.activityTypes.remove(user.tenantId, id);
   }
 
   private requireExplicitPolicyTarget(query: PolicyDirectoryQueryDto) {

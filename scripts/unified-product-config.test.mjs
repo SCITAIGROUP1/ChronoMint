@@ -18,13 +18,17 @@ const INCLUDED_ROOT_FILES = [
   "turbo.json"
 ];
 const INCLUDED_DIRECTORIES = [".github", "scripts"];
-const REMOVED_APP_NAMES = [["ad", "min"].join(""), ["cli", "ent"].join("")];
+const REMOVED_APP_NAMES = [["ad", "min"].join("")];
 const LEGACY_REFERENCES = [
   ...REMOVED_APP_NAMES.flatMap((name) => [`@kloqra/${name}`, `apps/${name}`]),
   ...REMOVED_APP_NAMES.flatMap((name) => [
     `PUBLIC_${name.toUpperCase()}_URL`,
     `VERCEL_${name.toUpperCase()}_PROJECT`
-  ])
+  ]),
+  "PUBLIC_CLIENT_URL",
+  "VERCEL_CLIENT_PROJECT",
+  "@kloqra/app",
+  "apps/app"
 ];
 
 function filesUnder(relativePath) {
@@ -38,8 +42,9 @@ function filesUnder(relativePath) {
 
 test("root automation targets only the canonical product app", () => {
   const packageJson = JSON.parse(readFileSync(path.join(ROOT, "package.json"), "utf8"));
-  assert.match(packageJson.scripts.dev, /@kloqra\/app/);
-  assert.equal(packageJson.scripts["dev:app"], "pnpm --filter @kloqra/app dev");
+  assert.match(packageJson.scripts.dev, /@kloqra\/client/);
+  assert.equal(packageJson.scripts["dev:client"], "pnpm --filter @kloqra/client dev");
+  assert.equal(packageJson.scripts["dev:app"], undefined);
   for (const legacyName of REMOVED_APP_NAMES) {
     assert.equal(packageJson.scripts[`dev:${legacyName}`], undefined);
   }
@@ -57,13 +62,14 @@ test("root automation targets only the canonical product app", () => {
 
   const deployWorkflow = readFileSync(path.join(ROOT, ".github/workflows/deploy.yml"), "utf8");
   assert.match(deployWorkflow, /vars\.VERCEL_APP_PROJECT/);
-  assert.match(deployWorkflow, /--cwd apps\/app/);
+  assert.match(deployWorkflow, /--cwd apps\/client/);
   assert.match(deployWorkflow, /APP_URL: \$\{\{ vars\.APP_URL \}\}/);
 });
 
 test("workspace and lockfile omit deleted product frontends", () => {
   const workspace = readFileSync(path.join(ROOT, "pnpm-workspace.yaml"), "utf8");
-  assert.match(workspace, /apps\/app/);
+  assert.match(workspace, /apps\/client/);
+  assert.ok(!workspace.includes("apps/app"));
   for (const legacyName of REMOVED_APP_NAMES) {
     assert.ok(!workspace.includes(`apps/${legacyName}`));
   }
@@ -72,7 +78,8 @@ test("workspace and lockfile omit deleted product frontends", () => {
   for (const legacyName of REMOVED_APP_NAMES) {
     assert.ok(!lockfile.includes(`  apps/${legacyName}:`));
   }
-  assert.match(lockfile, /^ {2}apps\/app:/m);
+  assert.ok(!lockfile.includes("  apps/app:"));
+  assert.match(lockfile, /^ {2}apps\/client:/m);
 });
 
 test("CORS helper emits one canonical product origin", () => {

@@ -40,6 +40,7 @@ export const ROUTES = {
     LIST: "/workspaces",
     CREATE: "/workspaces",
     BY_ID: (id: string) => `/workspaces/${id}`,
+    OPERATIONAL_SETTINGS: (id: string) => `/workspaces/${id}/operational-settings`,
     MEMBERS: (id: string) => `/workspaces/${id}/members`,
     MEMBERS_OVERVIEW: (id: string) => `/workspaces/${id}/members/overview`,
     PROJECT_MANAGERS_OVERVIEW: (id: string) => `/workspaces/${id}/project-managers/overview`,
@@ -111,7 +112,9 @@ export const ROUTES = {
     BY_ID: (id: string) => `/timelogs/${id}`,
     AUDIT_EVENTS: (id: string) => `/timelogs/${id}/audit-events`,
     AUDIT_EVENTS_WORKSPACE: "/timelogs/audit",
-    YESTERDAY_SUMMARY: "/timelogs/yesterday-summary"
+    YESTERDAY_SUMMARY: "/timelogs/yesterday-summary",
+    HOLIDAYS: "/timelogs/holidays",
+    ACTIVITY_TYPES: "/timelogs/activity-types"
   },
   TIMER: {
     START: "/timer/start",
@@ -250,7 +253,12 @@ export const ROUTES = {
     PERMISSION_MATRIX: "/tenants/current/permission-matrix",
     MEMBER_PERMISSIONS: (memberId: string) => `/tenants/current/members/${memberId}/permissions`,
     MEMBER_RESTORE_ROLE_DEFAULTS: (memberId: string) =>
-      `/tenants/current/members/${memberId}/permissions/restore-defaults`
+      `/tenants/current/members/${memberId}/permissions/restore-defaults`,
+    HOLIDAYS: "/tenants/current/holidays",
+    HOLIDAY: (id: string) => `/tenants/current/holidays/${id}`,
+    HOLIDAY_APPLY: (id: string) => `/tenants/current/holidays/${id}/apply`,
+    ACTIVITY_TYPES: "/tenants/current/activity-types",
+    ACTIVITY_TYPE: (id: string) => `/tenants/current/activity-types/${id}`
   },
   WEBHOOKS: {
     STRIPE: "/webhooks/stripe"

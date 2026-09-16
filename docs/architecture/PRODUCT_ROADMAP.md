@@ -5,15 +5,15 @@
 Product features beyond the core timer/timesheet loop. Shipped features link to specs under `docs/specs/`.
 
 > **Current-state note (July 2026):** The feature table preserves original capability provenance.
-> All customer capabilities now ship in `apps/app` with auth scope `app`; the Client/Admin columns
+> All customer capabilities now ship in `apps/client` with auth scope `app`; the Client/Admin columns
 > are historical labels, not separate applications. Platform operations remain isolated.
 
 ## Role model (reminder)
 
-| Product surface          | Audience                                     | Purpose                                               |
-| ------------------------ | -------------------------------------------- | ----------------------------------------------------- |
-| **Product** (`apps/app`) | Members, PMs, workspace and tenant operators | Personal work plus authorized management capabilities |
-| **Platform admin**       | Internal platform operators                  | Isolated tenant/fleet operations                      |
+| Product surface             | Audience                                     | Purpose                                               |
+| --------------------------- | -------------------------------------------- | ----------------------------------------------------- |
+| **Product** (`apps/client`) | Members, PMs, workspace and tenant operators | Personal work plus authorized management capabilities |
+| **Platform admin**          | Internal platform operators                  | Isolated tenant/fleet operations                      |
 
 See [DOMAIN_MODEL.md](./DOMAIN_MODEL.md) for workspace vs project team boundaries.
 

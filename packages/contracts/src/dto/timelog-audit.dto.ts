@@ -4,7 +4,10 @@ import { isoDatetimeSchema, timelogSourceSchema, uuidSchema } from "./common.dto
 export const timelogAuditActionSchema = z.enum(["CREATE", "UPDATE", "DELETE"]);
 
 export const timelogAuditSnapshotSchema = z.object({
-  taskId: uuidSchema,
+  taskId: uuidSchema.nullable(),
+  classification: z
+    .enum(["PROJECT", "PUBLIC_HOLIDAY", "LEAVE_FULL", "LEAVE_HALF", "TENANT_ACTIVITY"])
+    .optional(),
   startTime: isoDatetimeSchema,
   endTime: isoDatetimeSchema,
   durationSec: z.number().int().nonnegative(),

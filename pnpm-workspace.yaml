@@ -1,6 +1,6 @@
 packages:
   - "apps/api"
-  - "apps/app"
+  - "apps/client"
   - "apps/platform-admin"
   - "apps/web"
   - "packages/*"

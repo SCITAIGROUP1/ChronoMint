@@ -4,19 +4,19 @@ Kloqra has one customer-facing product at http://localhost:3000. Members, projec
 workspace admins, and tenant owners/admins sign in at the same URL. Capabilities alter the visible
 experience, while the API must deny unauthorized direct requests.
 
-| Service              | Local URL                      |
-| -------------------- | ------------------------------ |
-| Product (`apps/app`) | http://localhost:3000          |
-| API                  | http://localhost:3001          |
-| API docs             | http://localhost:3001/api/docs |
-| Platform admin       | http://localhost:3003          |
+| Service                 | Local URL                      |
+| ----------------------- | ------------------------------ |
+| Product (`apps/client`) | http://localhost:3000          |
+| API                     | http://localhost:3001          |
+| API docs                | http://localhost:3001/api/docs |
+| Platform admin          | http://localhost:3003          |
 
 Start the API and product after bootstrap:
 
 ```bash
 corepack pnpm serve:native # or serve:docker
 corepack pnpm dev:api
-corepack pnpm --filter @kloqra/app dev
+corepack pnpm --filter @kloqra/client dev
 ```
 
 Seed password: `password123`. Use `member@kloqra.dev` for personal workflows and

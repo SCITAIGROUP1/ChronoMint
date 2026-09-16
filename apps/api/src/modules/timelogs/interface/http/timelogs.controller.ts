@@ -4,6 +4,8 @@ import {
   listTimeLogOccupancyQuerySchema,
   updateTimeLogSchema,
   createBatchTimeLogsSchema,
+  listTenantHolidaysQuerySchema,
+  listTenantActivityTypesQuerySchema,
   ErrorCodes,
   ROUTES
 } from "@kloqra/contracts";
@@ -75,6 +77,30 @@ export class TimelogsController {
     @Query(new ZodValidationPipe(listTimeLogOccupancyQuerySchema)) query: unknown
   ) {
     return this.timelogs.listOccupancy(user.userId, query as ListTimeLogOccupancyQueryDto);
+  }
+
+  @RequirePermission("personal:ManageTimelogs", {
+    scope: "self",
+    workspaceId: { source: "session", field: "workspaceId" }
+  })
+  @Get(ROUTES.TIMELOGS.HOLIDAYS)
+  listHolidays(
+    @WorkspaceUser() user: WorkspaceRequestUser,
+    @Query(new ZodValidationPipe(listTenantHolidaysQuerySchema)) query: unknown
+  ) {
+    return this.timelogs.listHolidays(user.workspaceId, query as never);
+  }
+
+  @RequirePermission("personal:ManageTimelogs", {
+    scope: "self",
+    workspaceId: { source: "session", field: "workspaceId" }
+  })
+  @Get(ROUTES.TIMELOGS.ACTIVITY_TYPES)
+  listActivityTypes(
+    @WorkspaceUser() user: WorkspaceRequestUser,
+    @Query(new ZodValidationPipe(listTenantActivityTypesQuerySchema)) query: unknown
+  ) {
+    return this.timelogs.listActivityTypes(user.workspaceId, query as never);
   }
 
   @Get(ROUTES.TIMELOGS.AUDIT_EVENTS(":id"))

@@ -1,7 +1,7 @@
 # Kloqra deployment current state
 
 Kloqra deploys the NestJS API, PostgreSQL, and Redis on Railway and one customer-facing Next.js
-product from `apps/app` on Vercel. GitHub Actions orchestrates CI, migrations, deployment, and smoke
+product from `apps/client` on Vercel. GitHub Actions orchestrates CI, migrations, deployment, and smoke
 checks. `apps/platform-admin` is a separate internal Vercel deployment.
 
 | Component           | Platform | Notes                                                     |
@@ -9,7 +9,7 @@ checks. `apps/platform-admin` is a separate internal Vercel deployment.
 | API                 | Railway  | Container from `apps/api/Dockerfile`; health at `/health` |
 | PostgreSQL          | Railway  | System of record through `DATABASE_URL`                   |
 | Redis               | Railway  | Timer, presence, pub/sub, and BullMQ                      |
-| Product             | Vercel   | `apps/app`, auth scope `app`                              |
+| Product             | Vercel   | `apps/client`, auth scope `app`                           |
 | Platform operations | Vercel   | `apps/platform-admin`, auth scope `platform`              |
 
 The API is a long-running process. Multi-instance deployments require shared Redis. Background jobs

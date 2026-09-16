@@ -5,7 +5,7 @@ Master roadmap for product, engineering, and production. Supersedes the phased t
 **Last updated:** June 2026  
 **Current baseline:** Phases 1–2 shipped, level-up sprints largely complete, realtime notifications live on `dev`.
 
-> **Current-state note (July 2026):** Customer work is unified in `apps/app` with auth scope `app`.
+> **Current-state note (July 2026):** Customer work is unified in `apps/client` with auth scope `app`.
 > Historical persona columns below describe capability ownership, not separate applications.
 > `apps/platform-admin` remains isolated. See [Unified product site](../specs/unified-product-site.md).
 
