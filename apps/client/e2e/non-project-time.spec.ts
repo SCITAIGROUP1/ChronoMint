@@ -9,8 +9,11 @@ test.describe("non-project time", () => {
     await expect(page.getByRole("button", { name: "week", exact: true })).toBeVisible({
       timeout: 30_000
     });
-    const slot = page.locator("button[aria-label*='9:']").first();
-    await slot.click({ timeout: 15_000 });
+    await page.getByRole("button", { name: "day", exact: true }).click();
+    // Seeded weekdays fill 09:00–18:15. An evening slot stays empty, and force
+    // click avoids the sticky day header intercepting Playwright's scroll-into-view.
+    const emptySlot = page.getByRole("button", { name: /^(7:30 PM|19:30)$/ });
+    await emptySlot.click({ force: true, timeout: 15_000 });
     await expect(page.getByTestId("entry-type-alt-link")).toBeVisible({ timeout: 15_000 });
     await page.getByTestId("entry-type-alt-link").click();
     await expect(page.getByRole("combobox", { name: "Activity" })).toBeVisible();
