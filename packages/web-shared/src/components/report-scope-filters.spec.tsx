@@ -109,7 +109,7 @@ describe("ReportScopeFilters", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Scope filters" }));
 
-    expect(screen.getByTestId("non-project-time-filter")).toHaveTextContent(/exclude/i);
+    expect(screen.getByTestId("non-project-time-filter").textContent).toMatch(/exclude/i);
     fireEvent.click(screen.getByRole("combobox", { name: "Non-project time" }));
 
     fireEvent.click(screen.getByRole("option", { name: "Include" }));
