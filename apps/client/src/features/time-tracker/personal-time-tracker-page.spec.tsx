@@ -145,7 +145,7 @@ describe("PersonalTimeTrackerPage", () => {
       expect(create).toHaveBeenCalledWith(
         expect.objectContaining({
           taskId: "task-1",
-          description: undefined,
+          description: "Assigned task",
           isBillable: true
         })
       )

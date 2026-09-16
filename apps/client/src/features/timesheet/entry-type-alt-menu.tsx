@@ -1,12 +1,13 @@
 "use client";
 
 import {
-  LEAVE_ENTRY_TYPE_OPTIONS,
   TIME_LOG_CLASSIFICATION_LABELS,
+  activityTypeLabel,
+  groupTenantActivityTypes,
   type TenantActivityTypeDto,
   type TimeLogClassification
 } from "@kloqra/contracts";
-import { cn } from "@kloqra/ui";
+import { Label, SearchableSelect, type SearchableSelectGroup } from "@kloqra/ui";
 import { useMemo, useState } from "react";
 import { NON_PROJECT_ENTRY_COLORS } from "@/lib/non-project-entry-styles";
 
@@ -24,21 +25,6 @@ type EntryTypeAltMenuProps = {
   onExpandedChange?: (expanded: boolean) => void;
   onSelect: (selection: EntryTypeSelection) => void;
 };
-
-const OTHER_CHOICES = [
-  {
-    slug: "organizational" as const,
-    label: "Organizational",
-    hint: "Meetings, events, training",
-    color: "#0d9488"
-  },
-  {
-    slug: "recreational" as const,
-    label: "Recreational",
-    hint: "Team socials and downtime",
-    color: "#059669"
-  }
-];
 
 function TypeDot({ color }: { color: string }) {
   return (
@@ -58,125 +44,48 @@ function selectedLabel(
   if (value === "PROJECT") return TIME_LOG_CLASSIFICATION_LABELS.PROJECT;
   if (value === "TENANT_ACTIVITY") {
     return (
-      activityTypes.find((type) => type.id === activityTypeId)?.name ??
+      activityTypeLabel(activityTypes, activityTypeId) ??
       TIME_LOG_CLASSIFICATION_LABELS.TENANT_ACTIVITY
     );
   }
-  return (
-    LEAVE_ENTRY_TYPE_OPTIONS.find((option) => option.value === value)?.label ??
-    TIME_LOG_CLASSIFICATION_LABELS[value]
-  );
+  return TIME_LOG_CLASSIFICATION_LABELS[value];
 }
 
-function TypeChip({
-  label,
-  hint,
-  color,
-  selected,
-  disabled,
-  onSelect
-}: {
-  label: string;
-  hint: string;
-  color: string;
-  selected: boolean;
-  disabled?: boolean;
-  onSelect: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      role="radio"
-      aria-checked={selected}
-      aria-label={label}
-      disabled={disabled}
-      onClick={onSelect}
-      className={cn(
-        "flex min-w-0 flex-col gap-0.5 rounded-xl border px-3 py-2.5 text-left transition-colors",
-        selected
-          ? "border-transparent shadow-sm"
-          : "border-border/80 bg-background hover:border-border hover:bg-muted/40",
-        disabled && "pointer-events-none opacity-60"
-      )}
-      style={
-        selected
-          ? { backgroundColor: `${color}1a`, boxShadow: `inset 0 0 0 1.5px ${color}` }
-          : undefined
-      }
-    >
-      <span className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-        <TypeDot color={color} />
-        {label}
-      </span>
-      <span className="pl-3.5 text-[11px] leading-snug text-muted-foreground">{hint}</span>
-    </button>
-  );
-}
+function buildActivitySelectGroups(types: TenantActivityTypeDto[]): {
+  options?: { value: string; label: string }[];
+  groups?: SearchableSelectGroup[];
+} {
+  const { roots, childrenByParentId } = groupTenantActivityTypes(types);
+  const leafRoots = roots.filter((type) => !childrenByParentId.has(type.id));
+  const parentGroups = roots
+    .filter((type) => childrenByParentId.has(type.id))
+    .map((type) => ({
+      label: type.name,
+      options: (childrenByParentId.get(type.id) ?? []).map((child) => ({
+        value: child.id,
+        label: child.name
+      }))
+    }));
 
-function TypeChoiceGrid({
-  value,
-  activityTypeId,
-  activityTypes,
-  disabled,
-  onSelect
-}: {
-  value: TimeLogClassification;
-  activityTypeId?: string;
-  activityTypes: TenantActivityTypeDto[];
-  disabled?: boolean;
-  onSelect: (selection: EntryTypeSelection) => void;
-}) {
-  const selectedOtherSlug =
-    value !== "TENANT_ACTIVITY"
-      ? undefined
-      : activityTypes.find((type) => type.id === activityTypeId)?.slug === "recreational"
-        ? "recreational"
-        : "organizational";
+  if (parentGroups.length === 0) {
+    return {
+      options: leafRoots.map((type) => ({ value: type.id, label: type.name }))
+    };
+  }
 
-  return (
-    <div className="space-y-3" data-testid="entry-type-menu">
-      <div className="space-y-1.5">
-        <p className="text-xs font-medium text-muted-foreground">Leave</p>
-        <div role="radiogroup" aria-label="Leave" className="grid grid-cols-3 gap-2">
-          {LEAVE_ENTRY_TYPE_OPTIONS.map((option) => (
-            <TypeChip
-              key={option.value}
-              label={option.label}
-              hint={option.hint}
-              color={colorForClassification(option.value)}
-              selected={value === option.value}
-              disabled={disabled}
-              onSelect={() => onSelect({ classification: option.value })}
-            />
-          ))}
-        </div>
-      </div>
-      <div className="space-y-1.5">
-        <p className="text-xs font-medium text-muted-foreground">Other</p>
-        <div role="radiogroup" aria-label="Other" className="grid grid-cols-2 gap-2">
-          {OTHER_CHOICES.map((choice) => {
-            const match = activityTypes.find((type) => type.slug === choice.slug);
-            return (
-              <TypeChip
-                key={choice.slug}
-                label={choice.label}
-                hint={choice.hint}
-                color={match?.color || choice.color}
-                selected={selectedOtherSlug === choice.slug}
-                disabled={disabled}
-                onSelect={() =>
-                  onSelect({
-                    classification: "TENANT_ACTIVITY",
-                    activityTypeId: match?.id
-                  })
-                }
-              />
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
+  return {
+    groups: [
+      ...(leafRoots.length > 0
+        ? [
+            {
+              label: "Activities",
+              options: leafRoots.map((type) => ({ value: type.id, label: type.name }))
+            }
+          ]
+        : []),
+      ...parentGroups
+    ]
+  };
 }
 
 export function EntryTypeAltMenu({
@@ -200,6 +109,8 @@ export function EntryTypeAltMenu({
         ? (types.find((type) => type.id === activityTypeId)?.color ??
           NON_PROJECT_ENTRY_COLORS.TENANT_ACTIVITY)
         : colorForClassification(value);
+  const selectModel = useMemo(() => buildActivitySelectGroups(types), [types]);
+  const colorById = useMemo(() => new Map(types.map((type) => [type.id, type.color])), [types]);
 
   function setPickerOpen(next: boolean) {
     setUncontrolledOpen(next);
@@ -223,19 +134,19 @@ export function EntryTypeAltMenu({
     return (
       <button
         type="button"
-        className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+        className="shrink-0 text-xs font-medium text-primary underline-offset-4 hover:underline"
         data-testid="entry-type-alt-link"
         onClick={() => setPickerOpen(true)}
       >
-        Leave or other time
+        Other time
       </button>
     );
   }
 
   return (
-    <div className="space-y-3" data-testid="entry-type-badge">
+    <div className="space-y-2" data-testid="entry-type-badge">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-medium">Type</p>
+        <Label>Activity</Label>
         {isProject ? (
           <button
             type="button"
@@ -255,12 +166,42 @@ export function EntryTypeAltMenu({
           </button>
         )}
       </div>
-      <TypeChoiceGrid
-        value={value}
-        activityTypeId={activityTypeId}
-        activityTypes={types}
-        onSelect={onSelect}
-      />
+      <div data-testid="entry-type-menu">
+        <SearchableSelect
+          value={activityTypeId || ""}
+          onValueChange={(nextId) =>
+            onSelect({
+              classification: "TENANT_ACTIVITY",
+              activityTypeId: nextId
+            })
+          }
+          options={selectModel.options}
+          groups={selectModel.groups}
+          placeholder="Select activity"
+          searchPlaceholder="Search activities…"
+          emptyMessage={
+            types.length === 0 ? "No organization activities yet." : "No matching activities."
+          }
+          contentClassName="z-[100]"
+          aria-label="Activity"
+          renderOption={(option) => (
+            <span className="flex items-center gap-2">
+              <TypeDot color={colorById.get(option.value) ?? "#0d9488"} />
+              {option.label}
+            </span>
+          )}
+          renderValue={(option) =>
+            option ? (
+              <span className="flex items-center gap-2">
+                <TypeDot color={colorById.get(option.value) ?? "#0d9488"} />
+                {activityTypeLabel(types, option.value) ?? option.label}
+              </span>
+            ) : (
+              "Select activity"
+            )
+          }
+        />
+      </div>
     </div>
   );
 }

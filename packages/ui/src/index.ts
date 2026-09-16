@@ -30,6 +30,7 @@ export {
 } from "./components/ui/permission-tri-state-control.js";
 
 export { Input } from "./components/ui/input.js";
+export { Textarea } from "./components/ui/textarea.js";
 export { PasswordInput } from "./components/ui/password-input.js";
 export { Label } from "./components/ui/label.js";
 export { Skeleton, SkeletonText } from "./components/ui/skeleton.js";

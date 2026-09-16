@@ -101,6 +101,15 @@ describe("DatePicker", () => {
     expect(futureDay).toHaveClass("opacity-30");
   });
 
+  it("renders a quieter header chip when variant is ghost", () => {
+    render(
+      <DatePicker value="2026-09-14" onChange={vi.fn()} ariaLabel="Entry date" variant="ghost" />
+    );
+
+    expect(screen.getByRole("button", { name: "Entry date" })).toHaveClass("text-muted-foreground");
+    expect(screen.getByRole("button", { name: "Entry date" })).toHaveTextContent("Sep 14, 2026");
+  });
+
   afterEach(() => {
     vi.useRealTimers();
   });

@@ -1,11 +1,13 @@
 "use client";
 
-import type {
-  CategoryDto,
-  ProjectDto,
-  TaskDto,
-  TenantActivityTypeDto,
-  TimeLogClassification
+import {
+  activityTypeLabel,
+  loggableActivityTypes,
+  type CategoryDto,
+  type ProjectDto,
+  type TaskDto,
+  type TenantActivityTypeDto,
+  type TimeLogClassification
 } from "@kloqra/contracts";
 import {
   Button,
@@ -322,13 +324,11 @@ export function TimeTrackerQuickAddBar({
             <SelectValue placeholder="Activity" />
           </SelectTrigger>
           <SelectContent>
-            {activityTypes
-              .filter((type) => type.isActive)
-              .map((type) => (
-                <SelectItem key={type.id} value={type.id}>
-                  {type.name}
-                </SelectItem>
-              ))}
+            {loggableActivityTypes(activityTypes.filter((type) => type.isActive)).map((type) => (
+              <SelectItem key={type.id} value={type.id}>
+                {activityTypeLabel(activityTypes, type.id) ?? type.name}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       ) : null}

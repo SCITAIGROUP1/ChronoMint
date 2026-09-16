@@ -30,7 +30,11 @@ import { useMemo, useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { TimeTrackerEntryActions } from "../time-tracker/time-tracker-entry-actions";
 import { TimeEntryDialog, draftFromLog, type TimeEntryDraft } from "../timesheet/time-entry-dialog";
-import { draftToIsoRange, canSaveTaskDraft } from "../timesheet/time-entry-draft";
+import {
+  draftToIsoRange,
+  canSaveTaskDraft,
+  resolveEntryDescription
+} from "../timesheet/time-entry-draft";
 import { clearTimeEntryDraftStorageFor } from "../timesheet/time-entry-draft-storage";
 import { validateTimeEntryOverlap } from "../timesheet/validate-time-entry-overlap";
 import { SubmissionStatusDialogs } from "./submission-status-dialogs";
@@ -171,7 +175,7 @@ function SubmissionRowLogs({
         taskId,
         startTime,
         endTime,
-        description: draft.description || undefined,
+        description: resolveEntryDescription(draft, { tasks }) || undefined,
         isBillable: draft.isBillable
       };
       if (editingLog) {

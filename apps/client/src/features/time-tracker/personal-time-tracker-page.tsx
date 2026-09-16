@@ -340,9 +340,17 @@ export function PersonalTimeTrackerPage() {
           setSurfaceError("Please select an end date for the recurrence.");
           return false;
         }
-        await timelogMutations.createBatch(draftToBatchBody(draft, timezone));
+        await timelogMutations.createBatch(
+          draftToBatchBody(draft, timezone, {
+            tasks,
+            activityTypes
+          })
+        );
       } else {
-        const body = draftToTimelogBody(draft, timezone);
+        const body = draftToTimelogBody(draft, timezone, {
+          tasks,
+          activityTypes
+        });
         if (editing) {
           await timelogMutations.update(editing.id, body);
         } else {

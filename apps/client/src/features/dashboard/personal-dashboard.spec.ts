@@ -84,4 +84,59 @@ describe("filterPersonalDashboardData", () => {
     });
     expect(filtered.logs.map((item) => item.id)).toEqual(["log-1", "log-2"]);
   });
+
+  it("keeps non-project logs when include is set with a project filter", () => {
+    const filtered = filterPersonalDashboardData(
+      baseData({
+        logs: [
+          log({ id: "log-1", taskId: "task-1", durationSec: 3600 }),
+          log({
+            id: "leave-1",
+            taskId: null,
+            durationSec: 28800,
+            classification: "LEAVE_FULL"
+          })
+        ]
+      }),
+      { projectIds: ["project-1"], nonProjectTime: "include" }
+    );
+    expect(filtered.logs.map((item) => item.id)).toEqual(["log-1", "leave-1"]);
+  });
+
+  it("excludes non-project logs from personal widgets", () => {
+    const filtered = filterPersonalDashboardData(
+      baseData({
+        logs: [
+          log({ id: "log-1", taskId: "task-1", durationSec: 3600 }),
+          log({
+            id: "leave-1",
+            taskId: null,
+            durationSec: 28800,
+            classification: "LEAVE_FULL"
+          })
+        ]
+      }),
+      { nonProjectTime: "exclude" }
+    );
+    expect(filtered.logs.map((item) => item.id)).toEqual(["log-1"]);
+    expect(filtered.recentSeconds).toBe(3600);
+  });
+
+  it("shows only non-project logs and ignores project filters", () => {
+    const filtered = filterPersonalDashboardData(
+      baseData({
+        logs: [
+          log({ id: "log-1", taskId: "task-1", durationSec: 3600 }),
+          log({
+            id: "holiday-1",
+            taskId: null,
+            durationSec: 28800,
+            classification: "PUBLIC_HOLIDAY"
+          })
+        ]
+      }),
+      { projectIds: ["project-1"], nonProjectTime: "only" }
+    );
+    expect(filtered.logs.map((item) => item.id)).toEqual(["holiday-1"]);
+  });
 });

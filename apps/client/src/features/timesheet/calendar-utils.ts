@@ -719,6 +719,18 @@ export function resolveDayHeaderTotalSeconds(
   );
 }
 
+export function totalSecondsOnDays(
+  logs: { startTime: string; endTime: string; durationSec?: number }[],
+  days: Date[],
+  timezone: string = "UTC",
+  activeTimer?: DayHeaderTimerState | null
+): number {
+  return days.reduce(
+    (sum, day) => sum + resolveDayHeaderTotalSeconds(logs, day, timezone, activeTimer),
+    0
+  );
+}
+
 /** Finished entries attributed to the day's preference-TZ start day (not visual clips). */
 export function countLogsOnDay(
   logs: { startTime: string; endTime?: string; durationSec?: number }[],

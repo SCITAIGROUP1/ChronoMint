@@ -44,6 +44,7 @@ describe("Dialog", () => {
     );
 
     const closeButtons = screen.getAllByRole("button", { name: "Close" });
+    expect(closeButtons[0]!.className).toMatch(/absolute/);
     await user.click(closeButtons[0]!);
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });

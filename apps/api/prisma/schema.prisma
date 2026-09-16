@@ -565,6 +565,7 @@ model TenantHoliday {
 model TenantActivityType {
   id        String   @id @default(uuid())
   tenantId  String   @map("tenant_id")
+  parentId  String?  @map("parent_id")
   name      String
   slug      String?
   color     String   @default("#0d9488")
@@ -573,10 +574,13 @@ model TenantActivityType {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parent    TenantActivityType?  @relation("ActivityTypeTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children  TenantActivityType[] @relation("ActivityTypeTree")
   timeLogs  TimeLog[]
 
   @@unique([tenantId, name])
   @@index([tenantId, isActive])
+  @@index([tenantId, parentId])
   @@map("tenant_activity_types")
 }
 

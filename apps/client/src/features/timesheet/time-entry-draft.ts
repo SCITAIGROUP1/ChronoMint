@@ -1,5 +1,6 @@
 import type { TaskDto, TimeLogClassification, TimeLogDto, HalfDaySlot } from "@kloqra/contracts";
 import {
+  activityTypeLabel,
   isDayBlockClassification,
   nonProjectDurationSec,
   TIME_LOG_CLASSIFICATION_LABELS
@@ -49,7 +50,7 @@ export function canSaveTaskDraft(draft: TimeEntryDraft): boolean {
 export function taskSaveHint(draft: TimeEntryDraft): string | null {
   const classification = draftClassification(draft);
   if (classification === "TENANT_ACTIVITY" && !draft.activityTypeId) {
-    return "Select an organization activity type to enable Save.";
+    return "Select an activity to enable Save.";
   }
   if (classification !== "PROJECT") return null;
   if (!draft.projectId) return null;
@@ -57,6 +58,48 @@ export function taskSaveHint(draft: TimeEntryDraft): string | null {
     return "Select a task for this project to enable Save.";
   }
   return null;
+}
+
+export type EntryDescriptionCatalogs = {
+  tasks?: readonly Pick<TaskDto, "id" | "taskName">[];
+  activityTypes?: readonly { id: string; name: string; parentId?: string | null }[];
+};
+
+export function defaultDescriptionForDraft(
+  draft: TimeEntryDraft,
+  catalogs: EntryDescriptionCatalogs = {}
+): string {
+  const classification = draftClassification(draft);
+  if (classification === "PROJECT") {
+    return catalogs.tasks?.find((task) => task.id === draft.taskSelection)?.taskName.trim() ?? "";
+  }
+  if (classification === "TENANT_ACTIVITY") {
+    return (
+      activityTypeLabel([...(catalogs.activityTypes ?? [])], draft.activityTypeId)?.trim() ?? ""
+    );
+  }
+  return TIME_LOG_CLASSIFICATION_LABELS[classification];
+}
+
+export function resolveEntryDescription(
+  draft: TimeEntryDraft,
+  catalogs: EntryDescriptionCatalogs = {}
+): string {
+  const typed = draft.description.trim();
+  return typed || defaultDescriptionForDraft(draft, catalogs);
+}
+
+export function withSyncedDescription(
+  previous: TimeEntryDraft,
+  next: TimeEntryDraft,
+  catalogs: EntryDescriptionCatalogs = {}
+): TimeEntryDraft {
+  const previousDefault = defaultDescriptionForDraft(previous, catalogs);
+  const previousTyped = previous.description.trim();
+  if (previousTyped && previousTyped !== previousDefault) {
+    return { ...next, description: previous.description };
+  }
+  return { ...next, description: defaultDescriptionForDraft(next, catalogs) };
 }
 
 export function applyClassificationToDraft(
@@ -206,7 +249,7 @@ export function draftFromLog(
   const end = new Date(log.endTime);
   const task = log.taskId ? tasks.find((t) => t.id === log.taskId) : undefined;
   const classification = log.classification ?? "PROJECT";
-  return {
+  const draft: TimeEntryDraft = {
     classification,
     projectId: task?.projectId ?? "",
     taskSelection: log.taskId ?? "",
@@ -221,11 +264,26 @@ export function draftFromLog(
     recurrence: "none",
     repeatUntil: toDateKeyInZone(start, timezone)
   };
+  return {
+    ...draft,
+    description: resolveEntryDescription(draft, {
+      tasks,
+      activityTypes:
+        log.activityTypeId && log.activityTypeName
+          ? [{ id: log.activityTypeId, name: log.activityTypeName, parentId: null }]
+          : undefined
+    })
+  };
 }
 
-export function draftToTimelogBody(draft: TimeEntryDraft, timezone: string) {
+export function draftToTimelogBody(
+  draft: TimeEntryDraft,
+  timezone: string,
+  catalogs: EntryDescriptionCatalogs = {}
+) {
   const classification = draftClassification(draft);
   const { startTime, endTime } = draftToIsoRange(draft, timezone);
+  const description = resolveEntryDescription(draft, catalogs) || undefined;
   if (classification === "PROJECT") {
     return {
       classification,
@@ -234,7 +292,7 @@ export function draftToTimelogBody(draft: TimeEntryDraft, timezone: string) {
       holidayId: null,
       startTime,
       endTime,
-      description: draft.description || undefined,
+      description,
       isBillable: draft.isBillable
     };
   }
@@ -246,12 +304,16 @@ export function draftToTimelogBody(draft: TimeEntryDraft, timezone: string) {
     halfDaySlot: draft.halfDaySlot,
     startTime,
     endTime,
-    description: draft.description || undefined,
+    description,
     isBillable: false as const
   };
 }
 
-export function draftToBatchBody(draft: TimeEntryDraft, timezone: string) {
+export function draftToBatchBody(
+  draft: TimeEntryDraft,
+  timezone: string,
+  catalogs: EntryDescriptionCatalogs = {}
+) {
   const classification = draftClassification(draft);
   return {
     classification,
@@ -265,7 +327,7 @@ export function draftToBatchBody(draft: TimeEntryDraft, timezone: string) {
     endDate: draft.repeatUntil ?? draft.date,
     recurrence: draft.recurrence as "daily" | "weekdays" | "weekly",
     timezone,
-    description: draft.description || undefined,
+    description: resolveEntryDescription(draft, catalogs) || undefined,
     isBillable: classification === "PROJECT" ? draft.isBillable : false
   };
 }

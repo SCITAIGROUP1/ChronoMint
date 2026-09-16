@@ -48,6 +48,45 @@ export const SYSTEM_TENANT_ACTIVITY_TYPES = [
 
 export const PRIMARY_OTHER_ACTIVITY_SLUGS = ["organizational", "recreational"] as const;
 
+export function groupTenantActivityTypes<T extends { id: string; parentId?: string | null }>(
+  types: T[]
+): { roots: T[]; childrenByParentId: Map<string, T[]> } {
+  const roots: T[] = [];
+  const childrenByParentId = new Map<string, T[]>();
+  for (const type of types) {
+    if (!type.parentId) {
+      roots.push(type);
+      continue;
+    }
+    const siblings = childrenByParentId.get(type.parentId) ?? [];
+    siblings.push(type);
+    childrenByParentId.set(type.parentId, siblings);
+  }
+  return { roots, childrenByParentId };
+}
+
+export function formatNestedActivityName(name: string, parentName?: string | null) {
+  return parentName ? `${parentName} : ${name}` : name;
+}
+
+export function loggableActivityTypes<T extends { id: string; parentId?: string | null }>(
+  types: T[]
+): T[] {
+  const { childrenByParentId } = groupTenantActivityTypes(types);
+  return types.filter((type) => !childrenByParentId.has(type.id));
+}
+
+export function activityTypeLabel<T extends { id: string; name: string; parentId?: string | null }>(
+  types: T[],
+  id: string | undefined
+): string | undefined {
+  const type = types.find((item) => item.id === id);
+  if (!type) return undefined;
+  if (!type.parentId) return type.name;
+  const parent = types.find((item) => item.id === type.parentId);
+  return formatNestedActivityName(type.name, parent?.name);
+}
+
 export const nonProjectTimeFilterSchema = z.enum(["include", "exclude", "only"]);
 
 export type NonProjectTimeFilter = z.infer<typeof nonProjectTimeFilterSchema>;

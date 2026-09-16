@@ -33,6 +33,12 @@ describe("tenant prisma schema", () => {
     expect(modelNames).toContain("TenantActivityType");
   });
 
+  it("TenantActivityType can nest under a parent activity", () => {
+    const activityType = Prisma.dmmf.datamodel.models.find((m) => m.name === "TenantActivityType");
+    const parentId = activityType?.fields.find((f) => f.name === "parentId");
+    expect(parentId?.isRequired).toBe(false);
+  });
+
   it("TimeLog allows nullable taskId and classification for non-project time", () => {
     const timeLog = Prisma.dmmf.datamodel.models.find((m) => m.name === "TimeLog");
     const taskId = timeLog?.fields.find((f) => f.name === "taskId");

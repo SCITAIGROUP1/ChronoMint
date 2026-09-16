@@ -46,9 +46,11 @@ import {
   addMonths,
   getWeekDays,
   startOfMonth,
+  endOfMonth,
   startOfWeekWithPreference,
   startOfDay,
   localMidnightUtcInZone,
+  totalSecondsOnDays,
   todayInZone,
   buildDayOccupancySegments,
   calendarDateKey,
@@ -78,6 +80,7 @@ import {
 } from "./time-entry-draft";
 import { clearTimeEntryDraftStorageFor } from "./time-entry-draft-storage";
 import { TimeEntryDialog, TimesheetCalendar, TimesheetMonth } from "./timesheet-lazy";
+import { TimesheetPeriodHours } from "./timesheet-period-hours";
 import {
   ALL_WEEKDAY_INDEXES,
   filterDaysByVisibleWeekdays,
@@ -421,6 +424,17 @@ export function TimesheetPage() {
     return [];
   }, [view, anchor, weekStart, visibleWeekdays]);
 
+  const periodDays = useMemo(() => {
+    if (view === "day") return [startOfDay(anchor)];
+    if (view === "week") return getWeekDays(weekStart);
+    const first = startOfMonth(monthStart);
+    const last = endOfMonth(monthStart);
+    return Array.from(
+      { length: last.getDate() },
+      (_, index) => new Date(first.getFullYear(), first.getMonth(), index + 1)
+    );
+  }, [view, anchor, weekStart, monthStart]);
+
   const weekdayOrder = useMemo(() => weekdayCheckboxOrder(weekStartPref), [weekStartPref]);
 
   const visibleRange = useMemo(() => {
@@ -479,6 +493,18 @@ export function TimesheetPage() {
     () => (logsData?.items ?? []).filter((log) => !userId || log.userId === userId),
     [logsData?.items, userId]
   );
+
+  const periodTotalSec = useMemo(() => {
+    const timerState = isActiveTimer(activeTimer)
+      ? {
+          startedAt: activeTimer.startedAt,
+          isPaused: activeTimer.isPaused ?? false,
+          elapsedSec: activeTimer.elapsedSec,
+          liveElapsedSec
+        }
+      : null;
+    return totalSecondsOnDays(logs, periodDays, timezone, timerState);
+  }, [logs, periodDays, timezone, activeTimer, liveElapsedSec]);
   // Occupancy refetches after saves — do not hide the calendar; list patch/refetch owns entries.
   const calendarLoading = logsQueryLoading || catalog.isLoading;
 
@@ -729,7 +755,10 @@ export function TimesheetPage() {
           setError("Select a recurrence pattern.");
           return;
         }
-        const body = draftToBatchBody(draft, timezone);
+        const body = draftToBatchBody(draft, timezone, {
+          tasks,
+          activityTypes
+        });
         const res = await timelogMutations.createBatch(body);
         closeDialog();
         if (res.skippedCount > 0) {
@@ -740,7 +769,10 @@ export function TimesheetPage() {
           toast.success(`Logged ${res.createdCount} recurring entries!`);
         }
       } else {
-        const body = draftToTimelogBody(draft, timezone);
+        const body = draftToTimelogBody(draft, timezone, {
+          tasks,
+          activityTypes
+        });
         if (classification === "PROJECT" && !draft.taskSelection) {
           setError("Select a task to log time.");
           return;
@@ -994,6 +1026,7 @@ export function TimesheetPage() {
               view === "week" ? "Jump to week" : view === "month" ? "Jump to month" : "Jump to day"
             }
           />
+          <TimesheetPeriodHours totalSec={periodTotalSec} view={view} />
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
