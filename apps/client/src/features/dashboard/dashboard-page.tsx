@@ -247,9 +247,10 @@ export function ManagementDashboardPage({
       filterPersonalDashboardData(personalDataRaw, {
         projectIds: projectId,
         categoryId,
-        taskId
+        taskId,
+        nonProjectTime
       }),
-    [personalDataRaw, projectId, categoryId, taskId]
+    [personalDataRaw, projectId, categoryId, taskId, nonProjectTime]
   );
 
   // Keep date ranges in sync with the loaded/updated timezone preference
@@ -470,6 +471,7 @@ export function ManagementDashboardPage({
       setUserId([]);
       setCategoryId([]);
       setTaskId("");
+      setNonProjectTime("include");
       return;
     }
     setProjectId(workspaceWide ? [] : [...scopedProjectIds]);
@@ -1113,9 +1115,9 @@ export function ManagementDashboardPage({
               onTaskChange={setTaskId}
               onUserChange={setUserId}
               onClearAll={clearScopeFilters}
-              nonProjectTime={showManagement ? nonProjectTime : undefined}
-              onNonProjectTimeChange={showManagement ? setNonProjectTime : undefined}
-              defaultNonProjectTime="exclude"
+              nonProjectTime={nonProjectTime}
+              onNonProjectTimeChange={setNonProjectTime}
+              defaultNonProjectTime={showManagement ? "exclude" : "include"}
             />
           }
         />

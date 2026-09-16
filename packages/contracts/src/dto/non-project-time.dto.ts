@@ -50,18 +50,21 @@ export const tenantActivityTypeSchema = z.object({
   slug: z.string().min(1).max(64).nullable(),
   color: hexColorSchema,
   isSystem: z.boolean(),
-  isActive: z.boolean()
+  isActive: z.boolean(),
+  parentId: uuidSchema.nullable().default(null)
 });
 
 export const createTenantActivityTypeSchema = z.object({
   name: z.string().min(1).max(120),
-  color: hexColorSchema.optional()
+  color: hexColorSchema.optional(),
+  parentId: uuidSchema.optional()
 });
 
 export const updateTenantActivityTypeSchema = z.object({
   name: z.string().min(1).max(120).optional(),
   color: hexColorSchema.optional(),
-  isActive: z.boolean().optional()
+  isActive: z.boolean().optional(),
+  parentId: uuidSchema.nullable().optional()
 });
 
 export const listTenantActivityTypesQuerySchema = z.object({

@@ -26,6 +26,7 @@ export type DatePickerProps = {
   weekStartsOn?: 0 | 1;
   maxDate?: string;
   popoverAlign?: "start" | "center" | "end";
+  variant?: "outline" | "ghost";
 };
 
 type MonthPanelProps = {
@@ -106,7 +107,8 @@ export function DatePicker({
   disabled = false,
   weekStartsOn = 1,
   maxDate,
-  popoverAlign = "start"
+  popoverAlign = "start",
+  variant = "outline"
 }: DatePickerProps) {
   const [open, setOpen] = React.useState(false);
   const [visibleMonth, setVisibleMonth] = React.useState(() => {
@@ -134,14 +136,21 @@ export function DatePicker({
       <PopoverTrigger asChild>
         <Button
           type="button"
-          variant="outline"
+          variant={variant === "ghost" ? "ghost" : "outline"}
           size="sm"
           disabled={disabled}
           aria-label={ariaLabel}
-          className={cn("h-8 gap-2 px-3 font-normal", className)}
+          className={cn(
+            "h-8 gap-2 px-3 font-normal",
+            variant === "ghost" &&
+              "gap-1.5 px-2.5 text-xs font-medium text-muted-foreground shadow-none hover:text-foreground",
+            className
+          )}
         >
           <CalendarDays className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
-          <span className="truncate text-sm font-medium">{triggerLabel}</span>
+          <span className={cn("truncate font-medium", variant === "ghost" ? "text-xs" : "text-sm")}>
+            {triggerLabel}
+          </span>
         </Button>
       </PopoverTrigger>
       <PopoverContent

@@ -1,6 +1,11 @@
 "use client";
 
-import { ROUTES, type TimeLogDto } from "@kloqra/contracts";
+import {
+  ROUTES,
+  type NonProjectTimeFilter,
+  type TimeLogDto,
+  isNonProjectClassification
+} from "@kloqra/contracts";
 import { DashboardStatCard } from "@kloqra/ui";
 import {
   SUBMISSIONS_LOOKBACK_WEEKS,
@@ -110,6 +115,7 @@ export function filterPersonalDashboardData(
     projectIds?: readonly string[];
     categoryId?: string | readonly string[];
     taskId?: string;
+    nonProjectTime?: NonProjectTimeFilter;
   }
 ): PersonalDashboardData {
   const projectIds = filters.projectIds ?? [];
@@ -121,11 +127,17 @@ export function filterPersonalDashboardData(
       : [];
   const hasCategoryFilter = categoryIds.length > 0;
   const taskId = filters.taskId ?? "";
+  const nonProjectTime = filters.nonProjectTime ?? "include";
 
-  if (!hasProjectFilter && !hasCategoryFilter && !taskId) return data;
+  const hasScopeFilter = hasProjectFilter || hasCategoryFilter || Boolean(taskId);
+  if (!hasScopeFilter && nonProjectTime === "include") return data;
 
   const taskById = new Map(data.tasks.map((task) => [task.id, task]));
   const logs = data.logs.filter((log) => {
+    const isNonProject = isNonProjectClassification(log.classification);
+    if (nonProjectTime === "exclude" && isNonProject) return false;
+    if (nonProjectTime === "only") return isNonProject;
+    if (isNonProject) return true;
     const task = taskById.get(log.taskId ?? "");
     if (!task) return false;
     if (taskId && task.id !== taskId) return false;

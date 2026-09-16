@@ -86,7 +86,7 @@ export class TimelogsService {
     description: string | null;
     isBillable: boolean;
     source: string;
-    activityType?: { name: string } | null;
+    activityType?: { name: string; parent?: { name: string } | null } | null;
     holiday?: { name: string } | null;
   }) {
     const classification: TimeLogClassification = isNonProjectClassification(log.classification)
@@ -101,7 +101,11 @@ export class TimelogsService {
       workspaceId: log.workspaceId ?? null,
       activityTypeId: log.activityTypeId ?? null,
       holidayId: log.holidayId ?? null,
-      activityTypeName: log.activityType?.name ?? null,
+      activityTypeName: log.activityType
+        ? log.activityType.parent?.name
+          ? `${log.activityType.parent.name} : ${log.activityType.name}`
+          : log.activityType.name
+        : null,
       holidayName: log.holiday?.name ?? null,
       startTime: log.startTime.toISOString(),
       endTime: log.endTime.toISOString(),
@@ -288,7 +292,7 @@ export class TimelogsService {
     const logs = await this.prisma.timeLog.findMany({
       where: finalWhere,
       include: {
-        activityType: { select: { name: true } },
+        activityType: { select: { name: true, parent: { select: { name: true } } } },
         holiday: { select: { name: true } }
       },
       orderBy: { startTime: "desc" },
@@ -334,7 +338,7 @@ export class TimelogsService {
         ]
       },
       include: {
-        activityType: { select: { name: true } },
+        activityType: { select: { name: true, parent: { select: { name: true } } } },
         holiday: { select: { name: true } },
         workspace: { select: { id: true, name: true } },
         task: {
@@ -596,7 +600,7 @@ export class TimelogsService {
           source: "manual"
         },
         include: {
-          activityType: { select: { name: true } },
+          activityType: { select: { name: true, parent: { select: { name: true } } } },
           holiday: { select: { name: true } }
         }
       });
@@ -818,7 +822,7 @@ export class TimelogsService {
           ...(isTimerSource ? { source: "manual" } : {})
         },
         include: {
-          activityType: { select: { name: true } },
+          activityType: { select: { name: true, parent: { select: { name: true } } } },
           holiday: { select: { name: true } }
         }
       });
@@ -1286,7 +1290,8 @@ export class TimelogsService {
         slug: row.slug,
         color: row.color,
         isSystem: row.isSystem,
-        isActive: row.isActive
+        isActive: row.isActive,
+        parentId: row.parentId ?? null
       }))
     };
   }
@@ -1326,6 +1331,7 @@ export class TimelogsService {
           HttpStatus.NOT_FOUND
         );
       }
+      await this.assertLoggableActivity(tenantId, activity.id);
       activityTypeId = activity.id;
     }
 
@@ -1398,7 +1404,7 @@ export class TimelogsService {
               source: "manual"
             },
             include: {
-              activityType: { select: { name: true } },
+              activityType: { select: { name: true, parent: { select: { name: true } } } },
               holiday: { select: { name: true } }
             }
           });
@@ -1472,6 +1478,7 @@ export class TimelogsService {
           HttpStatus.NOT_FOUND
         );
       }
+      await this.assertLoggableActivity(tenantId, activity.id);
       activityTypeId = activity.id;
     }
 
@@ -1497,6 +1504,19 @@ export class TimelogsService {
     }
 
     return { activityTypeId, holidayId };
+  }
+
+  private async assertLoggableActivity(tenantId: string, activityTypeId: string) {
+    const childCount = await this.prisma.tenantActivityType.count({
+      where: { parentId: activityTypeId, tenantId }
+    });
+    if (childCount > 0) {
+      throw new DomainException(
+        ErrorCodes.VALIDATION_ERROR,
+        "Choose a sub-activity. Time cannot be logged to a main activity that has sub-activities.",
+        HttpStatus.BAD_REQUEST
+      );
+    }
   }
 
   private async resolveNonProjectRange(

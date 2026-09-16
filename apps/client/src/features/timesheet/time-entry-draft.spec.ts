@@ -3,8 +3,10 @@ import {
   estimateRecurrenceCount,
   applyClassificationToDraft,
   canSaveTaskDraft,
+  draftFromLog,
   draftToTimelogBody,
-  NON_PROJECT_ENTRY_TYPE_OPTIONS
+  NON_PROJECT_ENTRY_TYPE_OPTIONS,
+  withSyncedDescription
 } from "./time-entry-draft";
 import type { TimeEntryDraft } from "./time-entry-draft";
 
@@ -91,5 +93,69 @@ describe("non-project drafts", () => {
       activityTypeId: null,
       holidayId: null
     });
+  });
+
+  it("defaults a blank description to the task or activity name on save", () => {
+    const tasks = [{ id: "t1", taskName: "Regular Task" }];
+    const activityTypes = [
+      { id: "holiday-1", name: "Holiday", parentId: null },
+      { id: "public-1", name: "Public Holiday", parentId: "holiday-1" }
+    ];
+
+    expect(
+      draftToTimelogBody({ ...base, taskSelection: "t1", description: "" }, "UTC", { tasks })
+        .description
+    ).toBe("Regular Task");
+    expect(
+      draftToTimelogBody({ ...base, description: "  Wrote tests  " }, "UTC", { tasks }).description
+    ).toBe("Wrote tests");
+
+    const activity = applyClassificationToDraft(base, "TENANT_ACTIVITY", 8, "public-1");
+    expect(draftToTimelogBody(activity, "UTC", { activityTypes }).description).toBe(
+      "Holiday : Public Holiday"
+    );
+  });
+
+  it("keeps a custom description when the task changes", () => {
+    const tasks = [
+      { id: "t1", taskName: "Regular Task" },
+      { id: "t2", taskName: "Favorite Task" }
+    ];
+    const previous = { ...base, taskSelection: "t1", description: "Regular Task" };
+    const next = { ...previous, taskSelection: "t2" };
+    expect(withSyncedDescription(previous, next, { tasks }).description).toBe("Favorite Task");
+    expect(
+      withSyncedDescription({ ...previous, description: "My note" }, next, { tasks }).description
+    ).toBe("My note");
+  });
+
+  it("fills a blank description when opening an existing entry for edit", () => {
+    const draft = draftFromLog(
+      {
+        id: "log-1",
+        userId: "user-1",
+        taskId: "t1",
+        classification: "PROJECT",
+        startTime: "2026-08-31T09:00:00.000Z",
+        endTime: "2026-08-31T10:00:00.000Z",
+        durationSec: 3600,
+        description: null,
+        isBillable: true,
+        source: "manual"
+      },
+      [
+        {
+          id: "t1",
+          projectId: "p1",
+          categoryId: "c1",
+          taskName: "Regular Task",
+          billableDefault: true,
+          isCommon: true,
+          isActive: true,
+          assignees: []
+        }
+      ]
+    );
+    expect(draft.description).toBe("Regular Task");
   });
 });

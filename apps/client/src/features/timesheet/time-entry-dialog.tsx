@@ -18,11 +18,7 @@ import {
   Label,
   ProjectColorDot,
   SearchableSelect,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Textarea,
   TimeEntryAuditTrail,
   DatePicker,
   cn
@@ -36,7 +32,7 @@ import {
   useSessionStore,
   useTimelogOccupancyQuery
 } from "@kloqra/web-shared";
-import { AlertTriangle, ChevronDown, Clock } from "lucide-react";
+import { AlertTriangle, ChevronDown, Clock, Repeat2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { EntryTypeAltMenu } from "./entry-type-alt-menu";
 import {
@@ -52,9 +48,11 @@ import {
   applyClassificationToDraft,
   canSaveTaskDraft,
   draftClassification,
+  defaultDescriptionForDraft,
   draftToIsoRange,
   suggestBillableFromTask,
-  taskSaveHint
+  taskSaveHint,
+  withSyncedDescription
 } from "./time-entry-draft";
 import {
   clearTimeEntryDraftStorage,
@@ -81,6 +79,44 @@ export {
 } from "./time-entry-draft";
 
 const EMPTY_CATEGORIES: CategoryDto[] = [];
+
+function CompactTimeField({
+  id,
+  label,
+  value,
+  disabled,
+  invalid,
+  onChange
+}: {
+  id: string;
+  label: string;
+  value: string;
+  disabled?: boolean;
+  invalid?: boolean;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="min-w-0 space-y-1.5">
+      <Label
+        htmlFor={id}
+        className="flex h-4 items-center text-[11px] font-medium text-muted-foreground"
+      >
+        {label}
+      </Label>
+      <Input
+        id={id}
+        type="time"
+        value={value}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value)}
+        required
+        aria-label={`${label} time`}
+        aria-invalid={Boolean(invalid)}
+        className={cn("h-10 min-w-0 tabular-nums", invalid ? "border-destructive" : undefined)}
+      />
+    </div>
+  );
+}
 
 type TimeEntryDialogProps = {
   open: boolean;
@@ -313,6 +349,11 @@ export function TimeEntryDialog({
         )
       : null;
 
+  const descriptionCatalogs = useMemo(
+    () => ({ tasks: selectableTasks, activityTypes }),
+    [selectableTasks, activityTypes]
+  );
+
   if (!mounted) return null;
 
   const canDelete = Boolean(editingLog && onDelete && !readOnly);
@@ -337,7 +378,28 @@ export function TimeEntryDialog({
     : { fieldErrors: {}, formError: "" };
 
   function patch(partial: Partial<TimeEntryDraft>) {
-    if (draft) onDraftChange({ ...draft, ...partial });
+    if (!draft) return;
+    const next = { ...draft, ...partial };
+    if (partial.description !== undefined) {
+      onDraftChange(next);
+      return;
+    }
+    onDraftChange(withSyncedDescription(draft, next, descriptionCatalogs));
+  }
+
+  function applyTypeSelection(
+    classification: TimeEntryDraft["classification"],
+    activityTypeId?: string
+  ) {
+    if (!draft || !classification) return;
+    const next = applyClassificationToDraft(
+      draft,
+      classification,
+      dailyTargetHours,
+      activityTypeId
+    );
+    setLeavePickerOpen(false);
+    onDraftChange(withSyncedDescription(draft, next, descriptionCatalogs));
   }
 
   function handleDateChange(dateKey: string) {
@@ -461,7 +523,20 @@ export function TimeEntryDialog({
         description={description}
         icon={<Clock className="size-5" />}
         size="lg"
-        bodyClassName="space-y-4"
+        headerAction={
+          draft ? (
+            <DatePicker
+              value={draft.date}
+              onChange={handleDateChange}
+              placeholder="Select date"
+              ariaLabel="Entry date"
+              disabled={!canEdit}
+              variant="ghost"
+              popoverAlign="end"
+            />
+          ) : null
+        }
+        bodyClassName="space-y-3"
         footer={footer}
       >
         {restoredBanner ? (
@@ -511,16 +586,97 @@ export function TimeEntryDialog({
         {draft && activeTab === "details" ? (
           <form
             id="time-entry-form"
-            className="space-y-4"
+            className="space-y-3"
             onSubmit={(e) => {
               e.preventDefault();
               onSave();
             }}
           >
+            <div className="space-y-2" data-testid="entry-when-cluster">
+              <div className="grid grid-cols-3 gap-3">
+                <div className="min-w-0 space-y-1.5">
+                  <Label
+                    htmlFor="entry-duration"
+                    className="flex h-4 items-center text-[11px] font-medium text-muted-foreground"
+                  >
+                    Duration
+                  </Label>
+                  <Input
+                    id="entry-duration"
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="0:00"
+                    value={durationText}
+                    disabled={!canEdit}
+                    className="h-10 font-mono tabular-nums"
+                    onFocus={() => {
+                      durationFocusedRef.current = true;
+                    }}
+                    onChange={(e) => handleDurationChange(e.target.value)}
+                    onBlur={handleDurationBlur}
+                    aria-label="Duration"
+                    aria-invalid={Boolean(durationError)}
+                    aria-describedby={durationError ? "entry-duration-error" : undefined}
+                  />
+                </div>
+                <CompactTimeField
+                  id="entry-start"
+                  label="Start"
+                  value={draft.startTime}
+                  disabled={!canEdit}
+                  invalid={Boolean(parsedValidation.fieldErrors.start || overlapNotice)}
+                  onChange={handleStartChange}
+                />
+                <CompactTimeField
+                  id="entry-end"
+                  label="End"
+                  value={draft.endTime}
+                  disabled={!canEdit}
+                  invalid={Boolean(parsedValidation.fieldErrors.end || overlapNotice)}
+                  onChange={handleEndChange}
+                />
+              </div>
+              {durationError ? (
+                <p id="entry-duration-error" className="text-xs text-destructive">
+                  {durationError}
+                </p>
+              ) : null}
+              {parsedValidation.fieldErrors.start ? (
+                <p className="text-xs text-destructive">{parsedValidation.fieldErrors.start}</p>
+              ) : null}
+              {parsedValidation.fieldErrors.end ? (
+                <p className="text-xs text-destructive">{parsedValidation.fieldErrors.end}</p>
+              ) : null}
+              {overlapNotice ? (
+                <div
+                  role="alert"
+                  className="flex items-start gap-2 rounded-lg border border-status-danger-border bg-status-danger-bg px-3 py-2 text-sm text-status-danger-fg"
+                >
+                  <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
+                  <p>{overlapNotice}</p>
+                </div>
+              ) : null}
+            </div>
+
             {showProjectFields ? (
               <>
                 <div className="space-y-2">
-                  <Label>Project</Label>
+                  <div className="flex items-center justify-between gap-2">
+                    <Label>Project</Label>
+                    {(canEdit || !isProjectDraft) && (
+                      <EntryTypeAltMenu
+                        value={draftClassification(draft)}
+                        activityTypeId={draft.activityTypeId}
+                        activityTypes={activityTypes}
+                        disabled={!canEdit}
+                        expanded={false}
+                        onExpandedChange={setLeavePickerOpen}
+                        onSelect={(selection) =>
+                          applyTypeSelection(selection.classification, selection.activityTypeId)
+                        }
+                      />
+                    )}
+                  </div>
                   <SearchableSelect
                     value={draft.projectId}
                     onValueChange={(projectId) =>
@@ -641,170 +797,40 @@ export function TimeEntryDialog({
                   )}
                 </div>
               </>
-            ) : null}
-
-            {(canEdit || !isProjectDraft) && (
-              <EntryTypeAltMenu
-                value={draftClassification(draft)}
-                activityTypeId={draft.activityTypeId}
-                activityTypes={activityTypes}
-                disabled={!canEdit}
-                expanded={!isProjectDraft || leavePickerOpen}
-                onExpandedChange={setLeavePickerOpen}
-                onSelect={(selection) => {
-                  setLeavePickerOpen(false);
-                  onDraftChange(
-                    applyClassificationToDraft(
-                      draft,
-                      selection.classification,
-                      dailyTargetHours,
-                      selection.activityTypeId
-                    )
-                  );
-                }}
-              />
-            )}
-
-            {draftClassification(draft) === "TENANT_ACTIVITY" && !draft.activityTypeId ? (
-              <div className="space-y-2">
-                <Label>Activity type</Label>
-                <Select
-                  value={draft.activityTypeId || ""}
-                  onValueChange={(activityTypeId) => patch({ activityTypeId })}
+            ) : canEdit || !isProjectDraft ? (
+              <>
+                <EntryTypeAltMenu
+                  value={draftClassification(draft)}
+                  activityTypeId={draft.activityTypeId}
+                  activityTypes={activityTypes}
                   disabled={!canEdit}
-                >
-                  <SelectTrigger aria-label="Activity type" data-testid="activity-type-select">
-                    <SelectValue placeholder="Select activity" />
-                  </SelectTrigger>
-                  <SelectContent className="z-[100]">
-                    {activityTypes
-                      .filter((type) => type.isActive)
-                      .map((type) => (
-                        <SelectItem key={type.id} value={type.id}>
-                          {type.name}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
+                  expanded={!isProjectDraft || leavePickerOpen}
+                  onExpandedChange={setLeavePickerOpen}
+                  onSelect={(selection) =>
+                    applyTypeSelection(selection.classification, selection.activityTypeId)
+                  }
+                />
                 {saveHint ? (
                   <p className="text-xs text-amber-600 dark:text-amber-500" role="status">
                     {saveHint}
                   </p>
                 ) : null}
-              </div>
+              </>
             ) : null}
 
             <div className="space-y-2">
-              <Label>When</Label>
-              <DatePicker
-                value={draft.date}
-                onChange={handleDateChange}
-                placeholder="Select date"
-                ariaLabel="Entry date"
-                disabled={!canEdit}
-                className="h-10 w-full justify-start bg-background"
-                popoverAlign="start"
-              />
-              <div className="grid grid-cols-2 gap-2">
-                <div className="min-w-0 space-y-1.5">
-                  <Label htmlFor="entry-start" className="text-xs text-muted-foreground">
-                    Start
-                  </Label>
-                  <Input
-                    id="entry-start"
-                    type="time"
-                    value={draft.startTime}
-                    disabled={!canEdit}
-                    onChange={(e) => handleStartChange(e.target.value)}
-                    required
-                    aria-label="Start time"
-                    aria-invalid={Boolean(parsedValidation.fieldErrors.start || overlapNotice)}
-                    className={cn("min-w-0", overlapNotice ? "border-destructive" : undefined)}
-                  />
-                </div>
-                <div className="min-w-0 space-y-1.5">
-                  <Label htmlFor="entry-end" className="text-xs text-muted-foreground">
-                    End
-                  </Label>
-                  <Input
-                    id="entry-end"
-                    type="time"
-                    value={draft.endTime}
-                    disabled={!canEdit}
-                    onChange={(e) => handleEndChange(e.target.value)}
-                    required
-                    aria-label="End time"
-                    aria-invalid={Boolean(parsedValidation.fieldErrors.end || overlapNotice)}
-                    className={cn("min-w-0", overlapNotice ? "border-destructive" : undefined)}
-                  />
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="entry-duration" className="text-xs text-muted-foreground">
-                  Duration
-                </Label>
-                <Input
-                  id="entry-duration"
-                  type="text"
-                  inputMode="decimal"
-                  placeholder="0:00"
-                  value={durationText}
-                  disabled={!canEdit}
-                  className="font-mono tabular-nums"
-                  onFocus={() => {
-                    durationFocusedRef.current = true;
-                  }}
-                  onChange={(e) => handleDurationChange(e.target.value)}
-                  onBlur={handleDurationBlur}
-                  aria-label="Duration"
-                  aria-invalid={Boolean(durationError)}
-                  aria-describedby={durationError ? "entry-duration-error" : undefined}
-                />
-              </div>
-              {durationError ? (
-                <p id="entry-duration-error" className="text-xs text-destructive">
-                  {durationError}
-                </p>
-              ) : null}
-              {parsedValidation.fieldErrors.start ? (
-                <p className="text-xs text-destructive">{parsedValidation.fieldErrors.start}</p>
-              ) : null}
-              {parsedValidation.fieldErrors.end ? (
-                <p className="text-xs text-destructive">{parsedValidation.fieldErrors.end}</p>
-              ) : null}
-              {overlapNotice ? (
-                <div
-                  role="alert"
-                  className="flex items-start gap-2 rounded-lg border border-status-danger-border bg-status-danger-bg px-3 py-2 text-sm text-status-danger-fg"
-                >
-                  <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
-                  <p>{overlapNotice}</p>
-                </div>
-              ) : null}
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <Label htmlFor="entry-description">Description</Label>
-                {showRepeatAffordance ? (
-                  <button
-                    type="button"
-                    className="text-xs text-muted-foreground hover:text-foreground"
-                    onClick={openRepeatPanel}
-                  >
-                    + Repeat on more days
-                  </button>
-                ) : null}
-              </div>
-              <Input
+              <Label htmlFor="entry-description">Description</Label>
+              <Textarea
                 id="entry-description"
                 value={draft.description}
                 disabled={!canEdit}
+                rows={3}
                 onChange={(e) => patch({ description: e.target.value })}
                 placeholder={
-                  draftClassification(draft) === "PROJECT"
+                  defaultDescriptionForDraft(draft, descriptionCatalogs) ||
+                  (draftClassification(draft) === "PROJECT"
                     ? "What did you work on?"
-                    : "Add a note (optional)"
+                    : "Add a note")
                 }
                 aria-invalid={Boolean(parsedValidation.fieldErrors.description)}
               />
@@ -814,6 +840,17 @@ export function TimeEntryDialog({
                 </p>
               ) : null}
             </div>
+
+            {showRepeatAffordance ? (
+              <button
+                type="button"
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                onClick={openRepeatPanel}
+              >
+                <Repeat2 className="size-3.5" aria-hidden />
+                Repeat on more days
+              </button>
+            ) : null}
 
             {canRepeat ? (
               <RepeatEntryPanel

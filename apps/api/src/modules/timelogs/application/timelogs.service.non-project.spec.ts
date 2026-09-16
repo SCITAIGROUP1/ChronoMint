@@ -193,6 +193,56 @@ describe("TimelogsService non-project create", () => {
         error.getStatus() === HttpStatus.BAD_REQUEST
     );
   });
+
+  it("rejects logging time against a parent activity with sub-activities", async () => {
+    const prisma = {
+      workspace: {
+        findUniqueOrThrow: vi.fn().mockResolvedValue({ tenantId: "tenant-1" })
+      },
+      tenantActivityType: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: "training-1",
+          tenantId: "tenant-1",
+          name: "Training",
+          isActive: true
+        }),
+        count: vi.fn().mockResolvedValue(1)
+      }
+    };
+    const service = new TimelogsService(
+      prisma as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      mockAuthorization() as never,
+      mockSubscriptions() as never,
+      mockWorkspaceDataRealtime() as never
+    );
+
+    await expect(
+      service.create(
+        "ws-1",
+        "user-1",
+        "MEMBER",
+        {
+          classification: "TENANT_ACTIVITY",
+          activityTypeId: "training-1",
+          startTime: "2026-08-31T09:00:00.000Z",
+          endTime: "2026-08-31T10:00:00.000Z"
+        },
+        "user-1"
+      )
+    ).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof DomainException &&
+        error.code === ErrorCodes.VALIDATION_ERROR &&
+        error.message.includes("sub-activity")
+    );
+    expect(prisma.tenantActivityType.count).toHaveBeenCalledWith({
+      where: { parentId: "training-1", tenantId: "tenant-1" }
+    });
+  });
 });
 
 describe("TimelogsService non-project update", () => {

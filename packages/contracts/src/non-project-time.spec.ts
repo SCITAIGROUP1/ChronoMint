@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   applyTenantHolidayResponseSchema,
+  activityTypeLabel,
   createTenantActivityTypeSchema,
   createTenantHolidaySchema,
+  groupTenantActivityTypes,
+  loggableActivityTypes,
+  updateTenantActivityTypeSchema,
   createTimeLogSchema,
   updateTimeLogSchema,
   listTenantHolidaysResponseSchema,
@@ -139,6 +143,41 @@ describe("non-project time contracts", () => {
     ).toBe(true);
 
     expect(createTenantActivityTypeSchema.safeParse({ name: "Town hall" }).success).toBe(true);
+    expect(
+      createTenantActivityTypeSchema.safeParse({ name: "Workshop", parentId: UUID }).success
+    ).toBe(true);
+    expect(updateTenantActivityTypeSchema.safeParse({ parentId: null }).success).toBe(true);
+
+    const nested = tenantActivityTypeSchema.parse({
+      id: UUID,
+      tenantId: UUID,
+      name: "Workshop",
+      slug: null,
+      color: "#7c3aed",
+      isSystem: false,
+      isActive: true,
+      parentId: UUID
+    });
+    expect(nested.parentId).toBe(UUID);
+
+    const grouped = groupTenantActivityTypes([
+      { id: "root", name: "Training", parentId: null },
+      { id: "child", name: "Workshop", parentId: "root" }
+    ]);
+    expect(grouped.roots.map((item) => item.id)).toEqual(["root"]);
+    expect(grouped.childrenByParentId.get("root")?.map((item) => item.id)).toEqual(["child"]);
+    expect(
+      activityTypeLabel(
+        [...grouped.roots, ...(grouped.childrenByParentId.get("root") ?? [])],
+        "child"
+      )
+    ).toBe("Training : Workshop");
+    expect(
+      loggableActivityTypes([
+        ...grouped.roots,
+        { id: "child", name: "Workshop", parentId: "root" }
+      ]).map((item) => item.id)
+    ).toEqual(["child"]);
 
     expect(listTenantHolidaysResponseSchema.safeParse({ items: [] }).success).toBe(true);
     expect(

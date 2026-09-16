@@ -7,6 +7,7 @@ import { cn } from "../../lib/utils.js";
 import {
   modalAccentBarClass,
   modalBodyClass,
+  modalCloseAbsoluteClass,
   modalCloseButtonClass,
   modalContentVariants,
   modalFooterClass,
@@ -59,7 +60,7 @@ const DialogContent = React.forwardRef<
     >
       <div className={modalAccentBarClass} aria-hidden />
       {showClose ? (
-        <DialogClose className={modalCloseButtonClass}>
+        <DialogClose className={cn(modalCloseAbsoluteClass, modalCloseButtonClass)}>
           <X className="size-4" />
           <span className="sr-only">Close</span>
         </DialogClose>

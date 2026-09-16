@@ -12,7 +12,8 @@ import {
   rangeOccupiedElsewhere,
   resolveDayHeaderTotalSeconds,
   slotIntervalForIndex,
-  toDateKey
+  toDateKey,
+  totalSecondsOnDays
 } from "./calendar-utils";
 
 describe("day header totals", () => {
@@ -47,6 +48,30 @@ describe("day header totals", () => {
 
     expect(resolveDayHeaderTotalSeconds([overnight, sameDay], wed, "Asia/Colombo")).toBe(36_000);
     expect(resolveDayHeaderTotalSeconds([overnight, sameDay], thu, "Asia/Colombo")).toBe(0);
+  });
+
+  it("aggregates weekly hours across days without double-counting overnight entries", () => {
+    const wed = fromDateKey("2026-07-08");
+    const thu = fromDateKey("2026-07-09");
+    const logs = [
+      {
+        startTime: "2026-07-08T09:00:00.000Z",
+        endTime: "2026-07-08T14:00:00.000Z",
+        durationSec: 18_000
+      },
+      {
+        startTime: "2026-07-08T15:00:00.000Z",
+        endTime: "2026-07-08T20:00:00.000Z",
+        durationSec: 18_000
+      },
+      {
+        startTime: "2026-07-09T09:00:00.000Z",
+        endTime: "2026-07-09T11:00:00.000Z",
+        durationSec: 7_200
+      }
+    ];
+
+    expect(totalSecondsOnDays(logs, [wed, thu], "Asia/Colombo")).toBe(43_200);
   });
 
   it("includes active timer seconds on the day the timer started", () => {

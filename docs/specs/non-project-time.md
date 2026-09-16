@@ -2,8 +2,8 @@
 
 ## User-visible outcome
 
-- **Members** log public holidays, full-day leave, half-day leave, and organization activities (office event, office meeting, custom types) **without a project**.
-- **Organization owner / org admin** maintain one holiday calendar and one activity-type catalog for the tenant. Catalogs appear in **every workspace**.
+- **Members** log public holidays, full-day leave, half-day leave, and organization activities (office event, office meeting, custom types and their sub-activities) **without a project**.
+- **Organization owner / org admin** maintain one holiday calendar and one activity-type catalog for the tenant, including nested sub-activities. Catalogs appear in **every workspace**.
 - **Timesheet and occupancy** show these entries on the same timeline as project work, with distinct styling.
 - **Export and dashboard** can include, exclude, or show only non-project time. Invoice reports always exclude it.
 - Leave entitlement, balances, accrual, and approval workflows are **out of scope**.
@@ -64,4 +64,5 @@ Contracts: [non-project-time.dto.ts](../../packages/contracts/src/dto/non-projec
 - When nonProjectTime is **include**, those filters still apply to project rows; non-project rows remain.
 - When nonProjectTime is **exclude**, only project rows are returned.
 - System activity types **Organizational**, **Recreational**, **Office Event**, and **Office Meeting** are seeded per tenant and cannot be deleted.
+- Custom activity types can nest one level of **sub-activities**. System types stay top-level parents. If a main type has sub-activities, members must log the sub (`Office Event : Get Together`); the main type cannot be logged. A type with children cannot be deleted until those children are removed. Org admins can edit name, color, parent, and active state from the organization catalog.
 - Overlap rules still apply across all of a user’s logs.

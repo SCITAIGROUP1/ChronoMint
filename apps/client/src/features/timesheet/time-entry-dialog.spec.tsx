@@ -139,7 +139,7 @@ describe("TimeEntryDialog", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /leave or other time/i })).toBeTruthy();
+      expect(screen.getByRole("button", { name: /other time/i })).toBeTruthy();
       expect(screen.getByRole("combobox", { name: "Project" })).toBeTruthy();
     });
 
@@ -278,7 +278,7 @@ describe("TimeEntryDialog", () => {
     });
   });
 
-  it("renders When row with entry date picker", async () => {
+  it("renders duration beside start and end with the date picker", async () => {
     render(
       <TimeEntryDialog
         open
@@ -294,12 +294,57 @@ describe("TimeEntryDialog", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("When")).toBeTruthy();
       expect(screen.getByRole("button", { name: "Entry date" })).toBeTruthy();
       expect(screen.getByLabelText("Duration")).toBeTruthy();
       expect(screen.getByLabelText("Start time")).toBeTruthy();
       expect(screen.getByLabelText("End time")).toBeTruthy();
     });
+    expect(screen.queryByText("When")).toBeNull();
+    expect(screen.queryByText("Date")).toBeNull();
+    expect(screen.getByText("Start")).toBeTruthy();
+    expect(screen.getByText("End")).toBeTruthy();
+  });
+
+  it("orders duration, project, task, description, then repeat", async () => {
+    render(
+      <TimeEntryDialog
+        open
+        title="Log time"
+        draft={{ ...draft, projectId: "", taskSelection: "" }}
+        projects={projects}
+        tasks={tasks}
+        taskLabel={() => "Task"}
+        onClose={vi.fn()}
+        onDraftChange={vi.fn()}
+        onSave={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Duration")).toBeTruthy();
+      expect(screen.getByRole("combobox", { name: "Project" })).toBeTruthy();
+    });
+
+    const duration = screen.getByLabelText("Duration");
+    const start = screen.getByLabelText("Start time");
+    const end = screen.getByLabelText("End time");
+    const project = screen.getByRole("combobox", { name: "Project" });
+    const task = screen.getByRole("combobox", { name: "Task" });
+    const description = screen.getByLabelText("Description");
+    const repeat = screen.getByRole("button", { name: /repeat on more days/i });
+
+    expect(description.tagName).toBe("TEXTAREA");
+
+    expect(duration.compareDocumentPosition(start) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(start.compareDocumentPosition(end) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(end.compareDocumentPosition(project) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(project.compareDocumentPosition(task) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      task.compareDocumentPosition(description) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(
+      description.compareDocumentPosition(repeat) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
   });
 
   it("treats 2.5 and 2:30 as the same duration from start", async () => {
@@ -391,6 +436,111 @@ describe("TimeEntryDialog", () => {
     );
   });
 
+  it("fills a blank description with the selected task name", async () => {
+    const onDraftChange = vi.fn();
+    render(
+      <TimeEntryDialog
+        open
+        title="Log time"
+        draft={{ ...draft, projectId: "proj-1", taskSelection: "", description: "" }}
+        projects={[
+          {
+            id: "proj-1",
+            workspaceId: "ws-1",
+            name: "Main",
+            color: "#333333",
+            clientName: null,
+            budgetHours: null,
+            isActive: true,
+            timesheetApprovalPeriod: null
+          }
+        ]}
+        tasks={tasks}
+        taskLabel={() => "Task"}
+        onClose={vi.fn()}
+        onDraftChange={onDraftChange}
+        onSave={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("combobox", { name: "Task" })).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole("combobox", { name: "Task" }));
+    await waitFor(() => {
+      expect(screen.getByText("Regular Task")).toBeTruthy();
+    });
+    fireEvent.click(screen.getByRole("option", { name: /Regular Task/ }));
+
+    expect(onDraftChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        taskSelection: "task-1",
+        description: "Regular Task"
+      })
+    );
+  });
+
+  it("fills a blank description with the selected activity name", async () => {
+    const onDraftChange = vi.fn();
+    render(
+      <TimeEntryDialog
+        open
+        title="Log time"
+        draft={{ ...draft, projectId: "", taskSelection: "", description: "" }}
+        projects={projects}
+        tasks={tasks}
+        activityTypes={[
+          {
+            id: "training-1",
+            tenantId: "t1",
+            name: "Training",
+            slug: "training",
+            color: "#7c3aed",
+            isSystem: false,
+            isActive: true,
+            parentId: null
+          },
+          {
+            id: "workshop-1",
+            tenantId: "t1",
+            name: "Workshop",
+            slug: "workshop",
+            color: "#a855f7",
+            isSystem: false,
+            isActive: true,
+            parentId: "training-1"
+          }
+        ]}
+        taskLabel={() => "Task"}
+        onClose={vi.fn()}
+        onDraftChange={onDraftChange}
+        onSave={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /other time/i })).toBeTruthy();
+    });
+    fireEvent.click(screen.getByRole("button", { name: /other time/i }));
+    await waitFor(() => {
+      expect(screen.getByRole("combobox", { name: "Activity" })).toBeTruthy();
+    });
+    fireEvent.click(screen.getByRole("combobox", { name: "Activity" }));
+    await waitFor(() => {
+      expect(screen.getByRole("option", { name: "Workshop" })).toBeTruthy();
+    });
+    fireEvent.click(screen.getByRole("option", { name: "Workshop" }));
+
+    expect(onDraftChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        classification: "TENANT_ACTIVITY",
+        activityTypeId: "workshop-1",
+        description: "Training : Workshop"
+      })
+    );
+  });
+
   it("shows duration formatted from start and end", async () => {
     render(
       <TimeEntryDialog
@@ -427,7 +577,7 @@ describe("TimeEntryDialog", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "+ Repeat on more days" })).toBeTruthy();
+      expect(screen.getByRole("button", { name: /repeat on more days/i })).toBeTruthy();
     });
 
     rerender(
@@ -445,7 +595,7 @@ describe("TimeEntryDialog", () => {
       />
     );
 
-    expect(screen.queryByRole("button", { name: "+ Repeat on more days" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /repeat on more days/i })).toBeNull();
   });
 
   it("opens repeat panel and patches draft when repeat affordance is clicked", () => {
@@ -464,7 +614,7 @@ describe("TimeEntryDialog", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "+ Repeat on more days" }));
+    fireEvent.click(screen.getByRole("button", { name: /repeat on more days/i }));
 
     expect(onDraftChange).toHaveBeenCalledWith({
       ...draft,
@@ -603,17 +753,14 @@ describe("TimeEntryDialog", () => {
     });
     expect(screen.queryByRole("combobox", { name: "Entry type" })).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: /leave or other time/i }));
+    fireEvent.click(screen.getByRole("button", { name: /other time/i }));
     await waitFor(() => {
-      expect(screen.getByRole("radio", { name: "Full" })).toBeTruthy();
+      expect(screen.getByRole("combobox", { name: "Activity" })).toBeTruthy();
     });
     expect(screen.queryByRole("combobox", { name: "Project" })).toBeNull();
     expect(screen.queryByRole("combobox", { name: "Task" })).toBeNull();
-    fireEvent.click(screen.getByRole("radio", { name: "Full" }));
-
-    expect(onDraftChange).toHaveBeenCalledWith(
-      expect.objectContaining({ classification: "LEAVE_FULL" })
-    );
+    expect(screen.queryByRole("radio", { name: "Full" })).toBeNull();
+    expect(screen.queryByText("Leave")).toBeNull();
   });
 
   it("shows leave duration and a back link when the draft is not project work", async () => {
@@ -738,7 +885,7 @@ describe("TimeEntryDialog", () => {
     await waitFor(() => {
       expect(screen.getByRole("combobox", { name: "Project" })).toBeTruthy();
     });
-    expect(screen.getByRole("button", { name: /leave or other time/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /other time/i })).toBeTruthy();
   });
 
   it("lets holiday and other entries change type while editing", async () => {
@@ -773,15 +920,16 @@ describe("TimeEntryDialog", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole("radio", { name: "Public" })).toBeTruthy();
+      expect(screen.getByRole("combobox", { name: "Activity" })).toBeTruthy();
     });
-    expect(screen.getByRole("radio", { name: "Full" })).toBeTruthy();
-    expect(screen.getByRole("radio", { name: "Half" })).toBeTruthy();
+    expect(screen.queryByRole("radio", { name: "Public" })).toBeNull();
+    expect(screen.queryByRole("radio", { name: "Full" })).toBeNull();
+    expect(screen.queryByRole("radio", { name: "Half" })).toBeNull();
     expect(screen.getByRole("button", { name: "Project work" })).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("radio", { name: "Full" }));
+    fireEvent.click(screen.getByRole("button", { name: "Project work" }));
     expect(onDraftChange).toHaveBeenCalledWith(
-      expect.objectContaining({ classification: "LEAVE_FULL" })
+      expect.objectContaining({ classification: "PROJECT" })
     );
   });
 });
