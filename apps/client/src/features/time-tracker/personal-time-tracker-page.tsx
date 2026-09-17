@@ -36,7 +36,11 @@ import {
   resolveTimeTrackerDateRange,
   type TimeTrackerPeriodSelection
 } from "./time-tracker-period";
-import { persistErrorSurface, type TimeTrackerPersistSurface } from "./time-tracker-persist-error";
+import {
+  persistErrorSurface,
+  persistTaskDraftHint,
+  type TimeTrackerPersistSurface
+} from "./time-tracker-persist-error";
 import { TimeTrackerQuickAddBar } from "./time-tracker-quick-add-bar";
 import { TimeTrackerStatCards } from "./time-tracker-stat-cards";
 import { computeTimeTrackerStats } from "./time-tracker-stats";
@@ -289,11 +293,7 @@ export function PersonalTimeTrackerPage() {
       else setQuickAddError(message);
     };
     if (!canSaveTaskDraft(draft)) {
-      const message =
-        persistErrorSurface(surface) === "quickadd"
-          ? "Select a project and a task."
-          : "Select a project and a task, or an organization time type.";
-      setSurfaceError(message);
+      setSurfaceError(persistTaskDraftHint(surface));
       return false;
     }
     const { startTime, endTime } = draftToIsoRange(draft, timezone);

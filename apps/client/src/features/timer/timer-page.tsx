@@ -229,7 +229,12 @@ export function TimerPage() {
     await refetchRecentLogs();
   }, [refetchRecentLogs]);
 
-  const timerActions = useTimerActions(ws, Boolean(ws), { notify: false });
+  const {
+    start: startTimerAction,
+    stop: stopTimerAction,
+    pause: pauseTimerAction,
+    resume: resumeTimerAction
+  } = useTimerActions(ws, Boolean(ws), { notify: false });
 
   const refreshActiveTimer = useCallback(async () => {
     if (!ws) return;
@@ -288,13 +293,13 @@ export function TimerPage() {
     setError(null);
   }
 
-  async function startTimer() {
+  const startTimer = useCallback(async () => {
     if (isImpersonating || !canStart) return;
     setStarting(true);
     setError(null);
 
     try {
-      await timerActions.start(taskChoice);
+      await startTimerAction(taskChoice);
       setTaskChoice("");
       toast.success("Timer started successfully!");
       void refreshRecentLogs();
@@ -306,15 +311,15 @@ export function TimerPage() {
     } finally {
       setStarting(false);
     }
-  }
+  }, [isImpersonating, canStart, startTimerAction, taskChoice, refreshRecentLogs]);
 
-  async function stopTimer() {
+  const stopTimer = useCallback(async () => {
     if (isImpersonating) return;
     setStopping(true);
     setError(null);
 
     try {
-      const created = await timerActions.stop({
+      const created = await stopTimerAction({
         description: description.trim() || undefined,
         isBillable: activeTask?.billableDefault ?? true
       });
@@ -333,37 +338,44 @@ export function TimerPage() {
     } finally {
       setStopping(false);
     }
-  }
+  }, [
+    isImpersonating,
+    stopTimerAction,
+    description,
+    activeTask?.billableDefault,
+    elapsedSec,
+    setActive
+  ]);
 
-  async function pauseTimer() {
+  const pauseTimer = useCallback(async () => {
     if (isImpersonating) return;
     setPausing(true);
     setError(null);
 
     try {
-      await timerActions.pause();
+      await pauseTimerAction();
       toast.success("Timer paused. Enjoy your break!");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not pause timer");
     } finally {
       setPausing(false);
     }
-  }
+  }, [isImpersonating, pauseTimerAction]);
 
-  async function resumeTimer() {
+  const resumeTimer = useCallback(async () => {
     if (isImpersonating) return;
     setResuming(true);
     setError(null);
 
     try {
-      await timerActions.resume();
+      await resumeTimerAction();
       toast.success("Timer resumed. Welcome back!");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not resume timer");
     } finally {
       setResuming(false);
     }
-  }
+  }, [isImpersonating, resumeTimerAction]);
 
   // Stale Warning Dialog actions
   const handleKeepRunning = () => {
@@ -433,7 +445,7 @@ export function TimerPage() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [tracking, isPaused, canStart, starting, stopping, pausing, resuming]);
+  }, [tracking, isPaused, canStart, startTimer, stopTimer, pauseTimer, resumeTimer]);
 
   const todayLoggedSec = useMemo(() => {
     const today = todayInZone(timezone);

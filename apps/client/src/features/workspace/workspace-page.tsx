@@ -1,6 +1,6 @@
 "use client";
 
-import { ROUTES } from "@kloqra/contracts";
+import { ROUTES, type AuthSessionWithTokenDto, type WorkspaceListItemDto } from "@kloqra/contracts";
 import {
   AppModal,
   PageLayout,
@@ -185,14 +185,16 @@ export function WorkspacePage() {
       setCreateSuccess(`Workspace "${res.name}" created! Switching workspace...`);
       setNewWorkspaceName("");
 
-      const switchRes = await api<any>(ROUTES.AUTH.SWITCH_WORKSPACE, {
+      const switchRes = await api<AuthSessionWithTokenDto>(ROUTES.AUTH.SWITCH_WORKSPACE, {
         method: "POST",
         workspaceId: ws,
         body: JSON.stringify({ workspaceId: res.id })
       });
       setSession(switchRes, switchRes.accessToken, switchRes.refreshToken);
 
-      const list = await api<any[]>(ROUTES.WORKSPACES.LIST, { workspaceId: res.id });
+      const list = await api<WorkspaceListItemDto[]>(ROUTES.WORKSPACES.LIST, {
+        workspaceId: res.id
+      });
       setWorkspaces(list);
 
       setIsCreateOpen(false);

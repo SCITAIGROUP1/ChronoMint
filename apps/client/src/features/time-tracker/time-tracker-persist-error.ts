@@ -6,3 +6,9 @@ export function persistErrorSurface(
 ): "entryError" | "quickAddError" {
   return surface === "dialog" ? "entryError" : "quickAddError";
 }
+
+export function persistTaskDraftHint(surface: TimeTrackerPersistSurface): string {
+  return persistErrorSurface(surface) === "quickAddError"
+    ? "Select a project and a task."
+    : "Select a project and a task, or an organization time type.";
+}
