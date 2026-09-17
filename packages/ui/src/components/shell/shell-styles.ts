@@ -3,15 +3,16 @@ import { cva } from "class-variance-authority";
 /**
  * Shared shell spacing — keeps sidebar brand, app bar title, and page body on one grid.
  */
-export const shellInsetXClass = "px-4 lg:px-8";
+/** Horizontal page gutters — container width, not viewport lg. */
+export const shellInsetXClass = "px-4 @min-[1101px]/shell:px-6";
 
-export const shellHeaderBandYClass = "py-3 @min-[720px]/shell:py-5";
+export const shellHeaderBandYClass = "py-3";
 
-export const shellMainContentClass = `${shellInsetXClass} pb-6 lg:pb-8`;
+export const shellMainContentClass = `${shellInsetXClass} flex min-h-0 flex-1 flex-col overflow-y-auto pb-6`;
 
 /** Shared layout shell surfaces */
 export const shellSidebarClass =
-  "sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-border/80 bg-card shadow-sm transition-all duration-300 ease-in-out lg:flex";
+  "sticky top-0 hidden h-dvh min-h-0 shrink-0 flex-col overflow-hidden border-r border-border/80 bg-card shadow-sm transition-all duration-300 ease-in-out lg:flex";
 
 /** Narrow rail — wide enough for 36px controls with minimal inset */
 export const shellSidebarCollapsedWidthClass = "w-[5rem]";
@@ -20,15 +21,16 @@ export const shellSidebarCollapsedWidthClass = "w-[5rem]";
 export const shellSidebarExpandedWidthClass = "w-[14rem] xl:w-[17rem]";
 
 export const shellSidebarCollapsedInsetClass = "px-2";
+export const shellSidebarInsetXClass = "px-3";
 
 /** Sticky brand + context; only nav scrolls below. */
-export const shellSidebarHeaderClass = `flex shrink-0 flex-col gap-5 ${shellInsetXClass} pt-4 lg:pt-5 transition-all duration-300`;
+export const shellSidebarHeaderClass = `flex shrink-0 flex-col gap-3 ${shellSidebarInsetXClass} pt-3 transition-all duration-300`;
 
-export const shellSidebarHeaderCollapsedClass = `flex shrink-0 flex-col items-center gap-5 ${shellSidebarCollapsedInsetClass} pt-4 transition-all duration-300`;
+export const shellSidebarHeaderCollapsedClass = `flex shrink-0 flex-col items-center gap-3 ${shellSidebarCollapsedInsetClass} pt-3 transition-all duration-300`;
 
-export const shellSidebarNavScrollClass = `flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain ${shellInsetXClass} pt-5 pb-4 transition-all duration-300`;
+export const shellSidebarNavScrollClass = `flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain ${shellSidebarInsetXClass} pt-3 pb-3 transition-all duration-300`;
 
-export const shellSidebarNavScrollCollapsedClass = `flex min-h-0 flex-1 flex-col items-center overflow-y-auto overscroll-y-contain ${shellSidebarCollapsedInsetClass} pt-5 pb-3 transition-all duration-300`;
+export const shellSidebarNavScrollCollapsedClass = `flex min-h-0 flex-1 flex-col items-center overflow-y-auto overscroll-y-contain ${shellSidebarCollapsedInsetClass} pt-3 pb-3 transition-all duration-300`;
 
 /** @deprecated Prefer shellSidebarHeaderClass + shellSidebarNavScrollClass */
 export const shellSidebarScrollClass = shellSidebarNavScrollClass;
@@ -36,12 +38,12 @@ export const shellSidebarScrollClass = shellSidebarNavScrollClass;
 /** @deprecated Prefer shellSidebarHeaderCollapsedClass + shellSidebarNavScrollCollapsedClass */
 export const shellSidebarScrollCollapsedClass = shellSidebarNavScrollCollapsedClass;
 
-export const shellSidebarFooterClass = `shrink-0 border-t border-border/70 bg-card ${shellInsetXClass} py-4 transition-all duration-300`;
+export const shellSidebarFooterClass = `shrink-0 border-t border-border/70 bg-card ${shellSidebarInsetXClass} py-2.5 transition-all duration-300`;
 
-export const shellSidebarFooterCollapsedClass = `flex shrink-0 flex-col items-center border-t border-border/70 bg-card ${shellSidebarCollapsedInsetClass} py-3 transition-all duration-300`;
+export const shellSidebarFooterCollapsedClass = `flex shrink-0 flex-col items-center border-t border-border/70 bg-card ${shellSidebarCollapsedInsetClass} py-2.5 transition-all duration-300`;
 
 export const shellMainClass =
-  "min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-muted/20 overscroll-y-contain";
+  "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-muted/20 overscroll-y-contain";
 
 export const shellMobileHeaderClass =
   "sticky top-0 z-40 flex h-14 shrink-0 items-center gap-2 border-b border-border/80 bg-card/90 px-3 backdrop-blur-md lg:hidden";
@@ -50,7 +52,7 @@ export const shellMobileDrawerClass =
   "fixed inset-y-0 left-0 z-50 flex h-full w-[17rem] flex-col border-r border-border/80 bg-card p-4 shadow-xl transition-transform duration-300 ease-in-out lg:hidden";
 
 /** App bar — negative margin pairs with `shellMainContentClass` horizontal inset */
-export const shellAppBarClass = `sticky top-0 z-30 -mx-4 mb-4 border-b border-border/80 bg-background/95 backdrop-blur-md lg:-mx-8 lg:mb-6 ${shellInsetXClass} ${shellHeaderBandYClass}`;
+export const shellAppBarClass = `sticky top-0 z-30 -mx-4 mb-0 border-b border-border/80 bg-background/95 backdrop-blur-md @min-[1101px]/shell:-mx-6 ${shellInsetXClass} ${shellHeaderBandYClass}`;
 
 export const shellAppBarPrimaryRowClass =
   "flex min-h-10 flex-col gap-3 @min-[640px]/shell:flex-row @min-[640px]/shell:items-start @min-[720px]/shell:items-center @min-[720px]/shell:justify-between";
@@ -60,8 +62,7 @@ export const shellAppBarUtilityRowClass =
 
 export const shellAppBarSecondaryRowClass = "w-full min-w-0";
 
-export const shellAppBarTitleClass =
-  "truncate text-xl font-semibold tracking-tight @min-[720px]/shell:text-2xl";
+export const shellAppBarTitleClass = "truncate text-xl font-semibold tracking-tight";
 
 export const shellAppBarDescriptionClass = "max-w-2xl text-sm text-muted-foreground";
 
@@ -172,4 +173,4 @@ export const widgetShellVariants = cva(
 export const widgetShellTitleClass =
   "truncate text-sm font-semibold tracking-tight text-foreground";
 
-export const widgetShellViewToolbarClass = "mb-3 flex items-center justify-between gap-3";
+export const widgetShellViewToolbarClass = "mb-2 flex items-center justify-between gap-2";

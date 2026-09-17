@@ -13,7 +13,6 @@ import {
   useTasksListQuery,
   useWorkspaceOperationalSettings
 } from "@kloqra/web-shared";
-import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ExportCustomFlow } from "./export-custom-flow";
@@ -21,7 +20,7 @@ import { ExportHistoryPanel } from "./export-history-panel";
 import { ExportQuickFlow } from "./export-quick-flow";
 import type { ExportScenarioId } from "./export-scenarios";
 import { InvoiceWizard } from "./invoice-wizard";
-import { AppBar, SegmentedControl } from "@/components/app-page";
+import { PageLayout, SegmentedControl } from "@/components/app-page";
 import { api } from "@/lib/api";
 import { isCommercialFeaturesEnabled } from "@/lib/commercial-features";
 import { describeExportPeriodApplied, toDateInputValue } from "@/lib/export-date-presets";
@@ -266,47 +265,24 @@ export function ExportsPage() {
   );
 
   return (
-    <div className="min-w-0 space-y-8">
-      <AppBar
-        title="Exports"
-        description={
-          <>
-            Download timesheets and summaries for your team. Pick a purpose, set the period, and
-            check the live preview before you download. Syncs with the{" "}
-            <Link
-              href="/dashboard"
-              className="font-medium text-primary underline-offset-4 hover:underline"
-            >
-              dashboard
-            </Link>
-            .
-          </>
-        }
-      />
-
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-        <div className="w-full min-w-0 sm:w-auto">
+    <PageLayout
+      title="Exports"
+      description="Download timesheets and summaries. Pick a purpose, set the period, then preview."
+      scroll="page"
+      secondary={
+        <div className="flex min-w-0 flex-nowrap items-center justify-between gap-2 overflow-x-auto border-t border-border/60 pt-3">
           <SegmentedControl
             value={exportMode}
             onChange={setExportMode}
-            fullWidth
             options={[
               { value: "quick", label: "Quick reports" },
-              { value: "custom", label: "Custom export" }
+              { value: "custom", label: "Custom export" },
+              ...(commercialEnabled ? [{ value: "invoice" as const, label: "Invoice" }] : [])
             ]}
           />
         </div>
-        {commercialEnabled ? (
-          <button
-            type="button"
-            className="shrink-0 text-left text-sm text-muted-foreground hover:text-primary hover:underline sm:text-right"
-            onClick={() => setExportMode("invoice")}
-          >
-            Need a formal invoice PDF?
-          </button>
-        ) : null}
-      </div>
-
+      }
+    >
       {exportMode === "quick" ? (
         <ExportQuickFlow
           {...sharedScopeProps}
@@ -339,7 +315,7 @@ export function ExportsPage() {
         onLoading={setPreviewLoading}
         onError={setPreviewError}
       />
-    </div>
+    </PageLayout>
   );
 }
 

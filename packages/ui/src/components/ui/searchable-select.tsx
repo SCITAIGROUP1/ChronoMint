@@ -172,7 +172,7 @@ export function SearchableSelect({
           aria-label={ariaLabel}
           disabled={disabled}
           className={cn(
-            "h-9 w-full justify-between font-normal shadow-sm [&>span]:line-clamp-1",
+            "h-10 w-full justify-between font-normal shadow-sm [&>span]:line-clamp-1",
             !selectedOption && "text-muted-foreground",
             triggerClassName,
             className

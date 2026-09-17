@@ -2,18 +2,7 @@
 
 import { ROUTES, resolveEffectiveDailyTargetHours } from "@kloqra/contracts";
 import type { TimeLogDto, UserProfileDto } from "@kloqra/contracts";
-import {
-  AppBar,
-  AppModal,
-  Button,
-  ConfirmDialog,
-  Badge,
-  LoadingCrossfade,
-  WeekDatePicker,
-  cn,
-  dateFromKey,
-  dateKeyFromDate
-} from "@kloqra/ui";
+import { Badge, Button, ConfirmDialog, LoadingCrossfade, PageLayout } from "@kloqra/ui";
 import {
   api as sharedApi,
   buildMemberSubmissionsHref,
@@ -34,7 +23,7 @@ import {
   useUserProfile,
   useWorkspaceOperationalSettings
 } from "@kloqra/web-shared";
-import { Clock, Eye, EyeOff, Lock, X } from "lucide-react";
+import { X } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -81,27 +70,24 @@ import {
 } from "./time-entry-draft";
 import { clearTimeEntryDraftStorageFor } from "./time-entry-draft-storage";
 import { TimeEntryDialog, TimesheetCalendar, TimesheetMonth } from "./timesheet-lazy";
-import { TimesheetPeriodHours } from "./timesheet-period-hours";
+import { TimesheetToolbar } from "./timesheet-toolbar";
 import {
   ALL_WEEKDAY_INDEXES,
   filterDaysByVisibleWeekdays,
   parseVisibleWeekdays,
-  sameWeekdays,
   serializeVisibleWeekdays,
   toggleVisibleWeekday,
-  WEEKDAY_SHORT_LABELS,
   weekdayCheckboxOrder,
-  WORK_WEEKDAY_INDEXES,
   type WeekdayIndex
 } from "./timesheet-visible-days";
 import {
+  defaultTimesheetSlotPx,
   DEFAULT_TIMESHEET_SLOT_PX,
   parseTimesheetSlotPx,
   zoomInSlotPx,
   zoomOutSlotPx,
   type TimesheetSlotPx
 } from "./timesheet-zoom";
-import { TimesheetZoomControls } from "./timesheet-zoom-controls";
 import { validateTimeEntryOverlap } from "./validate-time-entry-overlap";
 import { countDueSubmissions } from "@/features/submissions/use-my-submissions";
 import {
@@ -113,7 +99,6 @@ import { useActiveTimerSession } from "@/hooks/use-active-timer-session";
 import { useIsImpersonating } from "@/hooks/use-is-impersonating";
 import { useJiraIssues } from "@/hooks/use-jira-issues";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import { NON_PROJECT_ENTRY_COLORS } from "@/lib/non-project-entry-styles";
 import { colorForTask } from "@/lib/project-color-styles";
 import { formatTaskLabel } from "@/lib/project-labels";
 import { useSessionStore, getWorkspaceId } from "@/stores/session.store";
@@ -243,11 +228,12 @@ export function TimesheetPage() {
   const [confirmDeleteLog, setConfirmDeleteLog] = useState<TimeLogDto | null>(null);
 
   const [showOccupancyOverlay, setShowOccupancyOverlay] = useState(true);
-  const [viewOptionsOpen, setViewOptionsOpen] = useState(false);
   const [visibleWeekdays, setVisibleWeekdays] = useState<WeekdayIndex[]>(() => [
     ...ALL_WEEKDAY_INDEXES
   ]);
-  const [slotPx, setSlotPx] = useState<TimesheetSlotPx>(DEFAULT_TIMESHEET_SLOT_PX);
+  const [slotPx, setSlotPx] = useState<TimesheetSlotPx>(() =>
+    defaultTimesheetSlotPx(typeof window === "undefined" ? 900 : window.innerHeight)
+  );
   const { active: activeTimer, elapsedSec: liveElapsedSec, tick } = useTimerStore();
 
   useEffect(() => {
@@ -282,6 +268,8 @@ export function TimesheetPage() {
       const savedZoom = parseTimesheetSlotPx(localStorage.getItem(zoomKey));
       if (savedZoom) {
         setSlotPx(savedZoom);
+      } else {
+        setSlotPx(defaultTimesheetSlotPx(window.innerHeight));
       }
     }
     const bannerKey = timesheetSessionKey(userId, "timesheet_mobile_banner_dismissed");
@@ -913,267 +901,133 @@ export function TimesheetPage() {
   }
 
   return (
-    <div className="space-y-4">
-      <AppBar
-        title={
-          <span className="inline-flex items-center gap-2">
-            Timesheet
-            <Badge variant="secondary" className="font-normal text-xs">
-              {timezone}
-            </Badge>
-          </span>
-        }
-        titleLabel="Timesheet"
-        description={
-          <>
-            <span className="hidden md:inline">
-              Drag slots, drag blocks to move, resize edges, Ctrl+drag to duplicate.
-            </span>
-            <span className="md:hidden">
-              Tap slots to log time. Day view works best on small screens.
-            </span>
-          </>
-        }
-        actions={
-          <div className="flex rounded-lg border border-border bg-card p-0.5">
-            {(["day", "week", "month"] as const).map((mode) => (
-              <Button
-                key={mode}
-                type="button"
-                size="sm"
-                variant={view === mode ? "default" : "ghost"}
-                className="h-9 capitalize"
-                onClick={() => setView(mode)}
-              >
-                {mode}
-              </Button>
-            ))}
-          </div>
-        }
-      />
-
-      {actionableSubmissionCount > 0 ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm">
-          <p>
-            {actionableSubmissionCount} period{actionableSubmissionCount === 1 ? "" : "s"} ready to
-            submit for review.
-          </p>
-          <Button asChild size="sm" variant="outline" className="h-8 text-xs shrink-0">
-            <Link href={buildMemberSubmissionsHref({ tab: "action" })}>Go to Submissions</Link>
-          </Button>
-        </div>
-      ) : null}
-
-      {isMobile && !mobileBannerDismissed ? (
-        <div className="flex items-start justify-between gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm md:hidden">
-          <p className="text-foreground">
-            On mobile,{" "}
-            <Link
-              href="/time-tracker"
-              className="font-medium text-primary underline-offset-2 hover:underline"
-            >
-              Time Tracker
-            </Link>{" "}
-            is easier for viewing and editing entries.
-          </p>
-          <div className="flex shrink-0 items-center gap-2">
-            <Button asChild size="sm" variant="outline" className="h-8 text-xs">
-              <Link href="/time-tracker">Open</Link>
-            </Button>
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8"
-              onClick={dismissMobileBanner}
-              aria-label="Dismiss mobile tip"
-            >
-              <X className="size-4" />
-            </Button>
-          </div>
-        </div>
-      ) : null}
-
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" variant="outline" size="sm" onClick={goToday}>
-            Today
-          </Button>
-          <div className="flex items-center gap-1">
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="h-8 w-8"
-              onClick={goPrev}
-            >
-              ‹
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="h-8 w-8"
-              onClick={goNext}
-            >
-              ›
-            </Button>
-          </div>
-          <WeekDatePicker
-            anchorDate={dateKeyFromDate(anchor)}
-            onChange={(key) => setAnchor(dateFromKey(key))}
-            label={rangeLabel}
-            weekStartsOn={weekStartPref === "sunday" ? 0 : 1}
-            highlightMode={view}
-            ariaLabel={
-              view === "week" ? "Jump to week" : view === "month" ? "Jump to month" : "Jump to day"
-            }
-          />
-          <TimesheetPeriodHours totalSec={periodTotalSec} view={view} />
-        </div>
-
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="lg:hidden"
-          onClick={() => setViewOptionsOpen(true)}
-        >
-          View options
-        </Button>
-        <div className="hidden flex-wrap items-center gap-2 lg:flex">
-          <TimesheetViewOptions
-            view={view}
-            visibleWeekdays={visibleWeekdays}
-            weekdayOrder={weekdayOrder}
-            onWeekdaysPreset={setVisibleWeekdaysPreset}
-            onVisibleWeekdayChange={onVisibleWeekdayChange}
-            slotPx={slotPx}
-            onZoomIn={onZoomIn}
-            onZoomOut={onZoomOut}
-            onZoomReset={onZoomReset}
-            showOccupancyOverlay={showOccupancyOverlay}
-            onToggleOccupancy={toggleOccupancyOverlay}
-          />
-        </div>
-      </div>
-
-      <AppModal
-        open={viewOptionsOpen}
-        onOpenChange={setViewOptionsOpen}
-        title="View options"
-        size="sm"
-        footer={
-          <Button type="button" onClick={() => setViewOptionsOpen(false)}>
-            Done
-          </Button>
-        }
-      >
-        <TimesheetViewOptions
+    <PageLayout
+      title={
+        <span className="inline-flex items-center gap-2">
+          Timesheet
+          <Badge variant="secondary" className="font-normal text-xs">
+            {timezone}
+          </Badge>
+        </span>
+      }
+      titleLabel="Timesheet"
+      description="Log time on the calendar."
+      secondary={
+        <TimesheetToolbar
           view={view}
+          anchor={anchor}
+          rangeLabel={rangeLabel}
+          weekStartPref={weekStartPref}
+          periodTotalSec={periodTotalSec}
           visibleWeekdays={visibleWeekdays}
           weekdayOrder={weekdayOrder}
           onWeekdaysPreset={setVisibleWeekdaysPreset}
           onVisibleWeekdayChange={onVisibleWeekdayChange}
-          slotPx={slotPx}
-          onZoomIn={onZoomIn}
-          onZoomOut={onZoomOut}
-          onZoomReset={onZoomReset}
           showOccupancyOverlay={showOccupancyOverlay}
           onToggleOccupancy={toggleOccupancyOverlay}
+          onToday={goToday}
+          onPrev={goPrev}
+          onNext={goNext}
+          onAnchorChange={setAnchor}
+          onViewChange={setView}
         />
-      </AppModal>
+      }
+    >
+      <div className="flex min-h-0 flex-1 flex-col gap-3">
+        {actionableSubmissionCount > 0 ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm">
+            <p>
+              {actionableSubmissionCount} period{actionableSubmissionCount === 1 ? "" : "s"} ready
+              to submit for review.
+            </p>
+            <Button asChild size="sm" variant="outline" className="h-8 text-xs shrink-0">
+              <Link href={buildMemberSubmissionsHref({ tab: "action" })}>Go to Submissions</Link>
+            </Button>
+          </div>
+        ) : null}
 
-      {showOccupancyOverlay && (view === "day" || view === "week") && (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/30 px-2.5 py-0.5 text-[11px] text-muted-foreground">
-            <span className="occupancy-legend-swatch inline-block h-2.5 w-3 rounded-[2px]" />
-            Busy elsewhere
-          </span>
-          <span className="inline-flex items-center gap-1 rounded-full border border-dashed border-muted-foreground/30 px-2.5 py-0.5 text-[11px] text-muted-foreground">
-            <Lock className="h-3 w-3" />
-            Locked
-          </span>
-          <span className="inline-flex items-center gap-1 rounded-full border border-dotted border-muted-foreground/30 px-2.5 py-0.5 text-[11px] text-muted-foreground">
-            <Clock className="h-3 w-3" />
-            Timer
-          </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/30 px-2.5 py-0.5 text-[11px] text-muted-foreground">
-            <span
-              className="inline-block h-2.5 w-3 rounded-[2px]"
-              style={{ backgroundColor: NON_PROJECT_ENTRY_COLORS.PUBLIC_HOLIDAY }}
+        {isMobile && !mobileBannerDismissed ? (
+          <div className="flex items-start justify-between gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm md:hidden">
+            <p className="text-foreground">
+              On mobile,{" "}
+              <Link
+                href="/time-tracker"
+                className="font-medium text-primary underline-offset-2 hover:underline"
+              >
+                Time Tracker
+              </Link>{" "}
+              is easier for viewing and editing entries.
+            </p>
+            <div className="flex shrink-0 items-center gap-2">
+              <Button asChild size="sm" variant="outline" className="h-8 text-xs">
+                <Link href="/time-tracker">Open</Link>
+              </Button>
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8"
+                onClick={dismissMobileBanner}
+                aria-label="Dismiss mobile tip"
+              >
+                <X className="size-4" />
+              </Button>
+            </div>
+          </div>
+        ) : null}
+
+        {error && !dialogOpen && <p className="text-sm text-destructive">{error}</p>}
+
+        <LoadingCrossfade
+          loading={calendarLoading}
+          loaderLabel="Loading timesheet…"
+          className="flex min-h-0 flex-1 flex-col"
+        >
+          {view === "month" ? (
+            <TimesheetMonth
+              month={monthStart}
+              logs={logs}
+              entryColor={entryColor}
+              holidayDates={holidayDates}
+              onDayClick={onMonthDayClick}
+              timezone={timezone}
             />
-            Holiday
-          </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/30 px-2.5 py-0.5 text-[11px] text-muted-foreground">
-            <span
-              className="inline-block h-2.5 w-3 rounded-[2px]"
-              style={{ backgroundColor: NON_PROJECT_ENTRY_COLORS.LEAVE_FULL }}
+          ) : (
+            <TimesheetCalendar
+              view={view}
+              days={calendarDays}
+              logs={logs}
+              occupancy={occupancy}
+              workspaceId={ws}
+              showOccupancyOverlay={showOccupancyOverlay}
+              taskName={(id) => taskLabel(id)}
+              taskInfo={taskInfo}
+              entryColor={entryColor}
+              holidayDates={holidayDates}
+              activeTimer={isActiveTimer(activeTimer) ? activeTimer : null}
+              liveElapsedSec={liveElapsedSec}
+              isEntryLocked={isSubmissionLocked}
+              isEntryInactive={isEntryInactive}
+              isTimerEntry={isTimerEntry}
+              overlapConflictMessage={overlapConflictMessage}
+              onSlotClick={openCreateSlot}
+              onSlotRangeSelect={openCreateRange}
+              onEntryClick={openEditEntry}
+              onEntryResize={resizeEntry}
+              onEntryMove={moveEntry}
+              onEntryDuplicate={duplicateEntry}
+              readOnly={isImpersonating}
+              timezone={timezone}
+              displayFormat={displayFormat ?? undefined}
+              slotPx={slotPx}
+              onZoomIn={onZoomIn}
+              onZoomOut={onZoomOut}
+              onZoomReset={onZoomReset}
+              className="min-h-0 flex-1"
             />
-            Leave
-          </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/30 px-2.5 py-0.5 text-[11px] text-muted-foreground">
-            <span
-              className="inline-block h-2.5 w-3 rounded-[2px]"
-              style={{ backgroundColor: NON_PROJECT_ENTRY_COLORS.TENANT_ACTIVITY }}
-            />
-            Org activity
-          </span>
-          {isActiveTimer(activeTimer) && (
-            <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] text-emerald-700 dark:text-emerald-300">
-              <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
-              Live timer
-            </span>
           )}
-        </div>
-      )}
-
-      {error && !dialogOpen && <p className="text-sm text-destructive">{error}</p>}
-
-      <LoadingCrossfade loading={calendarLoading} loaderLabel="Loading timesheet…">
-        {view === "month" ? (
-          <TimesheetMonth
-            month={monthStart}
-            logs={logs}
-            entryColor={entryColor}
-            holidayDates={holidayDates}
-            onDayClick={onMonthDayClick}
-            timezone={timezone}
-          />
-        ) : (
-          <TimesheetCalendar
-            view={view}
-            days={calendarDays}
-            logs={logs}
-            occupancy={occupancy}
-            workspaceId={ws}
-            showOccupancyOverlay={showOccupancyOverlay}
-            taskName={(id) => taskLabel(id)}
-            taskInfo={taskInfo}
-            entryColor={entryColor}
-            holidayDates={holidayDates}
-            activeTimer={isActiveTimer(activeTimer) ? activeTimer : null}
-            liveElapsedSec={liveElapsedSec}
-            isEntryLocked={isSubmissionLocked}
-            isEntryInactive={isEntryInactive}
-            isTimerEntry={isTimerEntry}
-            overlapConflictMessage={overlapConflictMessage}
-            onSlotClick={openCreateSlot}
-            onSlotRangeSelect={openCreateRange}
-            onEntryClick={openEditEntry}
-            onEntryResize={resizeEntry}
-            onEntryMove={moveEntry}
-            onEntryDuplicate={duplicateEntry}
-            readOnly={isImpersonating}
-            timezone={timezone}
-            displayFormat={displayFormat ?? undefined}
-            slotPx={slotPx}
-            onZoomIn={onZoomIn}
-            onZoomOut={onZoomOut}
-            onZoomReset={onZoomReset}
-          />
-        )}
-      </LoadingCrossfade>
+        </LoadingCrossfade>
+      </div>
 
       <TimeEntryDialog
         open={dialogOpen}
@@ -1211,117 +1065,6 @@ export function TimesheetPage() {
         onConfirm={() => void confirmDelete()}
         onCancel={() => setConfirmDeleteLog(null)}
       />
-    </div>
-  );
-}
-
-function TimesheetViewOptions({
-  view,
-  visibleWeekdays,
-  weekdayOrder,
-  onWeekdaysPreset,
-  onVisibleWeekdayChange,
-  slotPx,
-  onZoomIn,
-  onZoomOut,
-  onZoomReset,
-  showOccupancyOverlay,
-  onToggleOccupancy
-}: {
-  view: ViewMode;
-  visibleWeekdays: WeekdayIndex[];
-  weekdayOrder: WeekdayIndex[];
-  onWeekdaysPreset: (days: WeekdayIndex[]) => void;
-  onVisibleWeekdayChange: (day: WeekdayIndex, visible: boolean) => void;
-  slotPx: TimesheetSlotPx;
-  onZoomIn: () => void;
-  onZoomOut: () => void;
-  onZoomReset: () => void;
-  showOccupancyOverlay: boolean;
-  onToggleOccupancy: () => void;
-}) {
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      {view === "week" ? (
-        <div
-          className="flex flex-wrap items-center gap-1"
-          role="group"
-          aria-label="Visible weekdays"
-        >
-          <Button
-            type="button"
-            size="sm"
-            variant={sameWeekdays(visibleWeekdays, WORK_WEEKDAY_INDEXES) ? "secondary" : "ghost"}
-            className="h-7 px-2 text-[11px]"
-            onClick={() => onWeekdaysPreset([...WORK_WEEKDAY_INDEXES])}
-          >
-            Weekdays
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant={sameWeekdays(visibleWeekdays, ALL_WEEKDAY_INDEXES) ? "secondary" : "ghost"}
-            className="h-7 px-2 text-[11px]"
-            onClick={() => onWeekdaysPreset([...ALL_WEEKDAY_INDEXES])}
-          >
-            All
-          </Button>
-          <span className="mx-0.5 h-4 w-px bg-border" aria-hidden />
-          {weekdayOrder.map((day) => {
-            const checked = visibleWeekdays.includes(day);
-            const onlyOneLeft = checked && visibleWeekdays.length === 1;
-            return (
-              <button
-                key={day}
-                type="button"
-                disabled={onlyOneLeft}
-                aria-pressed={checked}
-                aria-label={`${WEEKDAY_SHORT_LABELS[day]}${checked ? ", shown" : ", hidden"}`}
-                onClick={() => onVisibleWeekdayChange(day, !checked)}
-                className={cn(
-                  "inline-flex h-7 min-w-8 items-center justify-center rounded-md px-1.5 text-[11px] font-medium transition-colors",
-                  checked
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                  onlyOneLeft && "opacity-60"
-                )}
-              >
-                {WEEKDAY_SHORT_LABELS[day]}
-              </button>
-            );
-          })}
-        </div>
-      ) : null}
-      {view === "day" || view === "week" ? (
-        <>
-          <TimesheetZoomControls
-            compact
-            slotPx={slotPx}
-            onZoomIn={onZoomIn}
-            onZoomOut={onZoomOut}
-            onReset={onZoomReset}
-          />
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={onToggleOccupancy}
-            className="text-muted-foreground hover:text-foreground text-xs flex items-center gap-1.5 h-8"
-          >
-            {showOccupancyOverlay ? (
-              <>
-                <EyeOff className="h-3.5 w-3.5" />
-                Hide occupied
-              </>
-            ) : (
-              <>
-                <Eye className="h-3.5 w-3.5" />
-                Show occupied
-              </>
-            )}
-          </Button>
-        </>
-      ) : null}
-    </div>
+    </PageLayout>
   );
 }

@@ -24,7 +24,7 @@ export function TimesheetPeriodHours({
   const label = formatTimesheetPeriodHours(totalSec);
   return (
     <span
-      className="inline-flex h-8 items-center text-sm font-semibold tabular-nums text-primary"
+      className="inline-flex h-10 items-center text-sm font-semibold tabular-nums text-primary"
       aria-label={timesheetPeriodHoursAriaLabel(totalSec, view)}
       title={timesheetPeriodHoursAriaLabel(totalSec, view)}
     >

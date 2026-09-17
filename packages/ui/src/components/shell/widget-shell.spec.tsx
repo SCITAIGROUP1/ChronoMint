@@ -33,4 +33,14 @@ describe("WidgetShell", () => {
     expect(html).toContain("overflow-hidden");
     expect(html).not.toContain("overflow-auto");
   });
+
+  it("uses compact card density and tighter content padding", () => {
+    const html = renderToStaticMarkup(
+      <WidgetShell id="weekly_chart" label="Weekly Activity" isEditing={false}>
+        <div>Chart body</div>
+      </WidgetShell>
+    );
+    expect(html).toContain('data-density="compact"');
+    expect(html).toContain("p-3");
+  });
 });

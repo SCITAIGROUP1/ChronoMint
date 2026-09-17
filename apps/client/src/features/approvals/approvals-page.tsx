@@ -8,7 +8,6 @@ import {
   type TimesheetAmendmentDto
 } from "@kloqra/contracts";
 import {
-  AppBar,
   AppBarSecondary,
   Badge,
   Button,
@@ -18,7 +17,9 @@ import {
   DataTableHead,
   DataTableHeaderRow,
   DismissableList,
+  FloatingActionBar,
   LoadingCrossfade,
+  PageLayout,
   SegmentedControl,
   Table,
   TableBody,
@@ -40,7 +41,8 @@ import { AmendmentRequestCard } from "./amendment-request-card";
 import { ApprovalsFiltersBar } from "./approvals-filters-bar";
 import { readApprovalsViewMode, writeApprovalsViewMode } from "./approvals-view-mode-storage";
 import { resolveMissingTimesheetsAnchorDateKey } from "./missing-timesheets-anchor";
-import { PendingTimesheetCard, PendingActivity } from "./pending-timesheet-card";
+import { PendingTimesheetCard } from "./pending-timesheet-card";
+import { APPROVALS_EXPANDED_CELL_CLASS, PendingActivity } from "./period-entry-activity";
 import { RemindMemberDialog } from "./remind-member-dialog";
 import { ReviewedTimesheetCard } from "./reviewed-timesheet-card";
 import { useAllTimesheets } from "./use-all-timesheets";
@@ -110,7 +112,7 @@ function PendingRow({
   onReject,
   expanded,
   onToggleExpand,
-  timezone: _timezone,
+  timezone,
   showStatusBadge,
   allTab
 }: PendingRowProps) {
@@ -168,15 +170,18 @@ function PendingRow({
             </Badge>
           </DataTableCell>
         )}
-        <DataTableCell className="text-xs text-muted-foreground text-left">
+        <DataTableCell className="text-xs text-muted-foreground text-left" priority="meta">
           {item.submittedAt ? new Date(item.submittedAt).toLocaleString() : "—"}
         </DataTableCell>
         {allTab ? (
-          <DataTableCell className="text-xs text-muted-foreground text-left">—</DataTableCell>
+          <DataTableCell className="text-xs text-muted-foreground text-left" priority="meta">
+            —
+          </DataTableCell>
         ) : null}
         <DataTableCell
           className="max-w-[200px] truncate text-xs text-left"
           title={item.note ?? undefined}
+          priority="meta"
         >
           {item.note ?? "—"}
         </DataTableCell>
@@ -208,11 +213,14 @@ function PendingRow({
         <TableRow className="bg-muted/5 hover:bg-muted/5">
           <DataTableCell
             colSpan={showStatusBadge ? 11 : 9}
-            className="p-0 border-t border-b border-border/40"
+            className={APPROVALS_EXPANDED_CELL_CLASS}
           >
-            <div className="p-4 bg-muted/10 text-left">
-              <PendingActivity item={item} workspaceId={workspaceId} />
-            </div>
+            <PendingActivity
+              item={item}
+              workspaceId={workspaceId}
+              timezone={timezone}
+              layout="table"
+            />
           </DataTableCell>
         </TableRow>
       )}
@@ -239,7 +247,7 @@ function ReviewedRow({
   rangeLabel,
   expanded,
   onToggleExpand,
-  timezone: _timezone,
+  timezone,
   showStatusBadge,
   allTab
 }: ReviewedRowProps) {
@@ -353,11 +361,14 @@ function ReviewedRow({
         <TableRow className="bg-muted/5 hover:bg-muted/5">
           <DataTableCell
             colSpan={showStatusBadge ? 11 : 9}
-            className="p-0 border-t border-b border-border/40"
+            className={APPROVALS_EXPANDED_CELL_CLASS}
           >
-            <div className="p-4 bg-muted/10 text-left">
-              <PendingActivity item={item} workspaceId={workspaceId} />
-            </div>
+            <PendingActivity
+              item={item}
+              workspaceId={workspaceId}
+              timezone={timezone}
+              layout="table"
+            />
           </DataTableCell>
         </TableRow>
       )}
@@ -642,49 +653,48 @@ export function ApprovalsPage() {
   });
 
   return (
-    <div className="space-y-6">
-      <AppBar
-        title="Approvals"
-        description="Review submitted timesheets, remind missing submissions, and handle edit requests."
-        secondary={
-          <AppBarSecondary
-            trailing={
-              <div className="w-full overflow-x-auto">
-                <SegmentedControl value={tab} onChange={setTab} options={tabOptions} />
-              </div>
-            }
-          />
-        }
-      />
-
-      <ApprovalsFiltersBar
-        filters={filters}
-        onChange={setFilters}
-        onClear={clearFilters}
-        projectOptions={projectOptions}
-        memberOptions={memberOptions}
-        loading={filterOptionsLoading}
-        showSort={tab === "review"}
-        viewMode={viewMode}
-        onViewModeChange={tab !== "missing" ? handleViewModeChange : undefined}
-        weekStartsOn={weekStartsOn}
-        resultCount={
-          tab === "review"
-            ? pendingTotal
-            : tab === "missing"
-              ? missingTotal
-              : tab === "amendments"
-                ? amendmentsTotal
-                : tab === "approved"
-                  ? approvedTotal
-                  : tab === "rejected"
-                    ? rejectedTotal
-                    : tab === "all"
-                      ? allTotal
-                      : undefined
-        }
-      />
-
+    <PageLayout
+      title="Approvals"
+      description="Review timesheets and edit requests."
+      secondary={
+        <AppBarSecondary
+          leading={
+            <ApprovalsFiltersBar
+              filters={filters}
+              onChange={setFilters}
+              onClear={clearFilters}
+              projectOptions={projectOptions}
+              memberOptions={memberOptions}
+              loading={filterOptionsLoading}
+              showSort={tab === "review"}
+              viewMode={viewMode}
+              onViewModeChange={tab !== "missing" ? handleViewModeChange : undefined}
+              weekStartsOn={weekStartsOn}
+              resultCount={
+                tab === "review"
+                  ? pendingTotal
+                  : tab === "missing"
+                    ? missingTotal
+                    : tab === "amendments"
+                      ? amendmentsTotal
+                      : tab === "approved"
+                        ? approvedTotal
+                        : tab === "rejected"
+                          ? rejectedTotal
+                          : tab === "all"
+                            ? allTotal
+                            : undefined
+              }
+            />
+          }
+          trailing={
+            <div className="w-full overflow-x-auto">
+              <SegmentedControl value={tab} onChange={setTab} options={tabOptions} />
+            </div>
+          }
+        />
+      }
+    >
       {tab === "review" ? (
         <LoadingCrossfade loading={loading} loaderLabel="Loading pending timesheets…">
           {pending.length === 0 ? (
@@ -702,7 +712,7 @@ export function ApprovalsPage() {
               </p>
             </Card>
           ) : viewMode === "table" ? (
-            <div className="rounded-lg border border-border/60 overflow-x-auto animate-fade-in">
+            <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-border/60 animate-fade-in">
               <Table className="text-sm">
                 <TableHeader>
                   <DataTableHeaderRow>
@@ -757,12 +767,12 @@ export function ApprovalsPage() {
                         </Button>
                       )}
                     </DataTableHead>
-                    <DataTableHead>Member</DataTableHead>
+                    <DataTableHead sticky>Member</DataTableHead>
                     <DataTableHead>Project</DataTableHead>
                     <DataTableHead>Period</DataTableHead>
                     <DataTableHead className="text-right">Hours</DataTableHead>
-                    <DataTableHead>Submitted At</DataTableHead>
-                    <DataTableHead>Note</DataTableHead>
+                    <DataTableHead priority="meta">Submitted At</DataTableHead>
+                    <DataTableHead priority="meta">Note</DataTableHead>
                     <DataTableHead className="text-right">Actions</DataTableHead>
                   </DataTableHeaderRow>
                 </TableHeader>
@@ -873,7 +883,7 @@ export function ApprovalsPage() {
               <p className="font-medium text-sm">Everyone has submitted for the selected period</p>
             </Card>
           ) : (
-            <div className="rounded-lg border border-border/60 overflow-x-auto animate-fade-in">
+            <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-border/60 animate-fade-in">
               <Table className="text-sm">
                 <TableHeader>
                   <DataTableHeaderRow>
@@ -953,7 +963,7 @@ export function ApprovalsPage() {
               </p>
             </Card>
           ) : viewMode === "table" ? (
-            <div className="rounded-lg border border-border/60 overflow-x-auto animate-fade-in">
+            <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-border/60 animate-fade-in">
               <Table className="text-sm">
                 <TableHeader>
                   <DataTableHeaderRow>
@@ -1066,7 +1076,7 @@ export function ApprovalsPage() {
               </p>
             </Card>
           ) : viewMode === "table" ? (
-            <div className="rounded-lg border border-border/60 overflow-x-auto animate-fade-in">
+            <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-border/60 animate-fade-in">
               <Table className="text-sm">
                 <TableHeader>
                   <DataTableHeaderRow>
@@ -1188,7 +1198,7 @@ export function ApprovalsPage() {
               </p>
             </Card>
           ) : viewMode === "table" ? (
-            <div className="rounded-lg border border-border/60 overflow-x-auto animate-fade-in">
+            <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-border/60 animate-fade-in">
               <Table className="text-sm">
                 <TableHeader>
                   <DataTableHeaderRow>
@@ -1310,7 +1320,7 @@ export function ApprovalsPage() {
               </p>
             </Card>
           ) : viewMode === "table" ? (
-            <div className="rounded-lg border border-border/60 overflow-x-auto animate-fade-in">
+            <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-border/60 animate-fade-in">
               <Table className="text-sm">
                 <TableHeader>
                   <DataTableHeaderRow>
@@ -1513,7 +1523,7 @@ export function ApprovalsPage() {
       ) : null}
 
       {selectedIds.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 bg-background/95 backdrop-blur border border-border shadow-lg px-6 py-3 rounded-full animate-in slide-in-from-bottom duration-200">
+        <FloatingActionBar>
           <span className="text-xs font-semibold text-muted-foreground whitespace-nowrap">
             {selectedIds.length} item{selectedIds.length === 1 ? "" : "s"} selected
           </span>
@@ -1547,7 +1557,7 @@ export function ApprovalsPage() {
               Clear
             </Button>
           </div>
-        </div>
+        </FloatingActionBar>
       )}
 
       <ConfirmNoteDialog
@@ -1707,6 +1717,6 @@ export function ApprovalsPage() {
         submitting={reminding}
         onConfirm={(message) => void sendReminder(message)}
       />
-    </div>
+    </PageLayout>
   );
 }

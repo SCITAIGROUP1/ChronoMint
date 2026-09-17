@@ -3,7 +3,6 @@
 import { ROUTES } from "@kloqra/contracts";
 import type { CategoryDto } from "@kloqra/contracts";
 import {
-  AppBar,
   AppBarListToolbar,
   AppModal,
   Badge,
@@ -12,9 +11,11 @@ import {
   DataTableCell,
   DataTableHead,
   DataTableHeaderRow,
+  DataTableScroll,
   entityRowClassName,
   Input,
   Label,
+  PageLayout,
   Table,
   TableBody,
   TableHeader,
@@ -27,7 +28,8 @@ import {
   SelectTrigger,
   SelectValue,
   ConfirmDialog,
-  appBarListFilterTriggerClass
+  appBarListFilterTriggerClass,
+  appBarPageActionClass
 } from "@kloqra/ui";
 import { apiDownloadGet, saveDownloadResponse, usePaginatedList } from "@kloqra/web-shared";
 import {
@@ -112,6 +114,7 @@ export function AdminCategoriesPage() {
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
@@ -142,6 +145,7 @@ export function AdminCategoriesPage() {
       });
       setName("");
       setDescription("");
+      setCreateOpen(false);
       toast.success("Category created.");
       await reload();
     } catch (err) {
@@ -296,203 +300,181 @@ export function AdminCategoriesPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <AppBar
-        title="Categories"
-        description="Organize tasks into categories. Each task belongs to one category."
-        secondary={
-          <AppBarListToolbar
-            searchValue={search}
-            onSearchChange={setSearch}
-            searchPlaceholder="Search categories…"
-            searchAriaLabel="Search categories"
-            filters={
-              <Select
-                value={statusFilter}
-                onValueChange={(v) => setStatusFilter(v as "ALL" | "active" | "inactive")}
-              >
-                <SelectTrigger
-                  className={appBarListFilterTriggerClass}
-                  aria-label="Filter by status"
-                >
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">All statuses</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-            }
-          />
-        }
-      />
-
-      <form
-        onSubmit={createCategory}
-        className="grid gap-4 rounded-xl border border-primary/10 bg-card p-4 shadow-sm sm:grid-cols-[1fr_1fr_auto] sm:items-end"
-      >
-        <div className="space-y-2">
-          <Label htmlFor="category-name">Name</Label>
-          <Input
-            id="category-name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Development"
-            required
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="category-description">Description</Label>
-          <Input
-            id="category-description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Optional"
-          />
-        </div>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <Button
-            type="button"
-            variant="outline"
-            className="h-10 w-full gap-2 sm:w-auto"
-            onClick={() => setBulkOpen(true)}
-          >
-            <Upload className="size-4" aria-hidden />
-            Bulk import
-          </Button>
-          <Button type="submit" disabled={saving} className="h-10 w-full gap-2 sm:w-auto">
-            <Plus className="size-4" aria-hidden />
-            Add category
-          </Button>
-        </div>
-      </form>
-
-      <DataTableCard>
+    <PageLayout
+      title="Categories"
+      description="Organize tasks into categories."
+      secondary={
+        <AppBarListToolbar
+          searchValue={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Search categories…"
+          searchAriaLabel="Search categories"
+          filters={
+            <Select
+              value={statusFilter}
+              onValueChange={(v) => setStatusFilter(v as "ALL" | "active" | "inactive")}
+            >
+              <SelectTrigger className={appBarListFilterTriggerClass} aria-label="Filter by status">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All statuses</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+          }
+          moreActions={
+            <Button
+              type="button"
+              variant="outline"
+              className={appBarPageActionClass}
+              onClick={() => setBulkOpen(true)}
+            >
+              <Upload className="size-4" aria-hidden />
+              Bulk import
+            </Button>
+          }
+          action={
+            <Button
+              type="button"
+              className={appBarPageActionClass}
+              onClick={() => setCreateOpen(true)}
+            >
+              <Plus className="size-4" aria-hidden />
+              Add category
+            </Button>
+          }
+        />
+      }
+    >
+      <DataTableCard fill>
         {loading ? (
           <TableLoadingState rows={6} columns={5} />
         ) : (
           <>
-            <Table>
-              <TableHeader>
-                <DataTableHeaderRow>
-                  <DataTableHead>Name</DataTableHead>
-                  <DataTableHead>Description</DataTableHead>
-                  <DataTableHead>Status</DataTableHead>
-                  <DataTableHead>Tasks</DataTableHead>
-                  <DataTableHead className="text-right">Actions</DataTableHead>
-                </DataTableHeaderRow>
-              </TableHeader>
-              <TableBody>
-                {categories.map((category) => {
-                  const isEditing = editingId === category.id;
-                  return (
-                    <TableRow key={category.id} className={entityRowClassName(category.isActive)}>
-                      <DataTableCell>
-                        {isEditing ? (
-                          <Input
-                            value={editName}
-                            onChange={(e) => setEditName(e.target.value)}
-                            aria-label="Edit category name"
-                          />
-                        ) : (
-                          <span className="font-medium">{category.name}</span>
-                        )}
-                      </DataTableCell>
-                      <DataTableCell className="text-muted-foreground">
-                        {isEditing ? (
-                          <Input
-                            value={editDescription}
-                            onChange={(e) => setEditDescription(e.target.value)}
-                            aria-label="Edit category description"
-                          />
-                        ) : (
-                          (category.description ?? "—")
-                        )}
-                      </DataTableCell>
-                      <DataTableCell>
-                        <Badge variant={category.isActive ? "default" : "secondary"}>
-                          {category.isActive ? "Active" : "Inactive"}
-                        </Badge>
-                      </DataTableCell>
-                      <DataTableCell>
-                        <Badge variant="secondary">{category.taskCount ?? 0}</Badge>
-                      </DataTableCell>
-                      <DataTableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
+            <DataTableScroll>
+              <Table>
+                <TableHeader>
+                  <DataTableHeaderRow>
+                    <DataTableHead sticky>Name</DataTableHead>
+                    <DataTableHead>Description</DataTableHead>
+                    <DataTableHead priority="meta">Status</DataTableHead>
+                    <DataTableHead priority="meta">Tasks</DataTableHead>
+                    <DataTableHead className="text-right">Actions</DataTableHead>
+                  </DataTableHeaderRow>
+                </TableHeader>
+                <TableBody>
+                  {categories.map((category) => {
+                    const isEditing = editingId === category.id;
+                    return (
+                      <TableRow key={category.id} className={entityRowClassName(category.isActive)}>
+                        <DataTableCell sticky>
                           {isEditing ? (
-                            <>
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                onClick={cancelEdit}
-                              >
-                                Cancel
-                              </Button>
-                              <Button
-                                type="button"
-                                size="sm"
-                                disabled={busyId === category.id}
-                                onClick={() => void saveEdit(category)}
-                              >
-                                Save
-                              </Button>
-                            </>
+                            <Input
+                              value={editName}
+                              onChange={(e) => setEditName(e.target.value)}
+                              aria-label="Edit category name"
+                            />
                           ) : (
-                            <>
-                              <Button
-                                type="button"
-                                size="icon"
-                                variant="ghost"
-                                className="size-8"
-                                onClick={() => startEdit(category)}
-                                aria-label={`Edit ${category.name}`}
-                              >
-                                <Pencil className="size-4" aria-hidden />
-                              </Button>
-                              <Button
-                                type="button"
-                                size="icon"
-                                variant="ghost"
-                                className="size-8"
-                                disabled={busyId === category.id}
-                                title={
-                                  category.isActive ? "Deactivate category" : "Activate category"
-                                }
-                                onClick={() => requestCategoryStatusChange(category)}
-                                aria-label={
-                                  category.isActive
-                                    ? `Deactivate ${category.name}`
-                                    : `Activate ${category.name}`
-                                }
-                              >
-                                {category.isActive ? (
-                                  <Lock className="size-4" aria-hidden />
-                                ) : (
-                                  <Unlock className="size-4" aria-hidden />
-                                )}
-                              </Button>
-                              <Button
-                                type="button"
-                                size="icon"
-                                variant="ghost"
-                                className="size-8 text-destructive hover:text-destructive"
-                                disabled={busyId === category.id}
-                                onClick={() => requestCategoryDelete(category)}
-                                aria-label={`Delete ${category.name}`}
-                              >
-                                <Trash2 className="size-4" aria-hidden />
-                              </Button>
-                            </>
+                            <span className="font-medium">{category.name}</span>
                           )}
-                        </div>
-                      </DataTableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                        </DataTableCell>
+                        <DataTableCell className="text-muted-foreground">
+                          {isEditing ? (
+                            <Input
+                              value={editDescription}
+                              onChange={(e) => setEditDescription(e.target.value)}
+                              aria-label="Edit category description"
+                            />
+                          ) : (
+                            (category.description ?? "—")
+                          )}
+                        </DataTableCell>
+                        <DataTableCell priority="meta">
+                          <Badge variant={category.isActive ? "default" : "secondary"}>
+                            {category.isActive ? "Active" : "Inactive"}
+                          </Badge>
+                        </DataTableCell>
+                        <DataTableCell priority="meta">
+                          <Badge variant="secondary">{category.taskCount ?? 0}</Badge>
+                        </DataTableCell>
+                        <DataTableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            {isEditing ? (
+                              <>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={cancelEdit}
+                                >
+                                  Cancel
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  disabled={busyId === category.id}
+                                  onClick={() => void saveEdit(category)}
+                                >
+                                  Save
+                                </Button>
+                              </>
+                            ) : (
+                              <>
+                                <Button
+                                  type="button"
+                                  size="icon"
+                                  variant="ghost"
+                                  className="size-8"
+                                  onClick={() => startEdit(category)}
+                                  aria-label={`Edit ${category.name}`}
+                                >
+                                  <Pencil className="size-4" aria-hidden />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="icon"
+                                  variant="ghost"
+                                  className="size-8"
+                                  disabled={busyId === category.id}
+                                  title={
+                                    category.isActive ? "Deactivate category" : "Activate category"
+                                  }
+                                  onClick={() => requestCategoryStatusChange(category)}
+                                  aria-label={
+                                    category.isActive
+                                      ? `Deactivate ${category.name}`
+                                      : `Activate ${category.name}`
+                                  }
+                                >
+                                  {category.isActive ? (
+                                    <Lock className="size-4" aria-hidden />
+                                  ) : (
+                                    <Unlock className="size-4" aria-hidden />
+                                  )}
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="icon"
+                                  variant="ghost"
+                                  className="size-8 text-destructive hover:text-destructive"
+                                  disabled={busyId === category.id}
+                                  onClick={() => requestCategoryDelete(category)}
+                                  aria-label={`Delete ${category.name}`}
+                                >
+                                  <Trash2 className="size-4" aria-hidden />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </DataTableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </DataTableScroll>
             <TablePagination
               page={page}
               totalPages={totalPages}
@@ -507,6 +489,53 @@ export function AdminCategoriesPage() {
       </DataTableCard>
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
+
+      <AppModal
+        open={createOpen}
+        onOpenChange={(open) => {
+          setCreateOpen(open);
+          if (!open) {
+            setName("");
+            setDescription("");
+            setError(null);
+          }
+        }}
+        title="Add category"
+        description="Each task belongs to one category."
+        icon={<Plus className="size-5" />}
+        footer={
+          <>
+            <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" form="create-category-form" disabled={saving}>
+              {saving ? "Saving…" : "Create category"}
+            </Button>
+          </>
+        }
+      >
+        <form id="create-category-form" onSubmit={createCategory} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="category-name">Name</Label>
+            <Input
+              id="category-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Development"
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="category-description">Description</Label>
+            <Input
+              id="category-description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Optional"
+            />
+          </div>
+        </form>
+      </AppModal>
 
       <AppModal
         open={bulkOpen}
@@ -589,6 +618,6 @@ export function AdminCategoriesPage() {
         onConfirm={() => void handleConfirmCategoryAction()}
         onCancel={() => setConfirmTarget(null)}
       />
-    </div>
+    </PageLayout>
   );
 }

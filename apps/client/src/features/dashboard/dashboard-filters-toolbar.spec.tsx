@@ -18,9 +18,8 @@ describe("DashboardFiltersToolbar", () => {
     );
 
     const toolbar = screen.getByTestId("dashboard-filters-toolbar");
-    const content = toolbar.firstElementChild as HTMLElement | null;
-    expect(content?.className).toContain("grid-cols-[minmax(0,1fr)_auto]");
-    expect(content?.className).toBe(DASHBOARD_FILTERS_TOOLBAR_CONTENT_CLASS);
+    expect(toolbar.className).toContain("grid-cols-[minmax(0,1fr)_auto]");
+    expect(toolbar.className).toBe(DASHBOARD_FILTERS_TOOLBAR_CONTENT_CLASS);
     expect(screen.getByRole("button", { name: "Period" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Filters" })).toBeTruthy();
   });
@@ -42,8 +41,7 @@ describe("DashboardFiltersToolbar", () => {
       />
     );
 
-    const content = screen.getByTestId("dashboard-filters-toolbar")
-      .firstElementChild as HTMLElement;
+    const content = screen.getByTestId("dashboard-filters-toolbar");
     const applied = screen.getByTestId("scope-filters-applied");
     expect(content.contains(applied)).toBe(true);
     expect(applied.className).toContain("col-span-full");

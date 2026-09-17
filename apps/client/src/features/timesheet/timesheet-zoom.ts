@@ -41,3 +41,7 @@ export function canZoomIn(slotPx: number): boolean {
 export function canZoomOut(slotPx: number): boolean {
   return slotPx > TIMESHEET_ZOOM_LEVELS[0]!;
 }
+
+export function defaultTimesheetSlotPx(viewportHeight = 900): TimesheetSlotPx {
+  return viewportHeight <= 800 ? 32 : DEFAULT_TIMESHEET_SLOT_PX;
+}

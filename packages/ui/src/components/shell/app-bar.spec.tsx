@@ -70,6 +70,7 @@ describe("AppBar", () => {
 
     expect(screen.getByRole("textbox", { name: "Search team members" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add Team Member" })).toBeInTheDocument();
+    expect(screen.getByTestId("app-bar-secondary-actions").className).toContain("ml-auto");
   });
 
   it("hides the title block from compact chrome and keeps page actions", () => {

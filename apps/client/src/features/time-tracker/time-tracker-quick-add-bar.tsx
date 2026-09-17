@@ -1,26 +1,14 @@
 "use client";
 
-import {
-  activityTypeLabel,
-  loggableActivityTypes,
-  type CategoryDto,
-  type ProjectDto,
-  type TaskDto,
-  type TenantActivityTypeDto,
-  type TimeLogClassification
-} from "@kloqra/contracts";
+import type { CategoryDto, ProjectDto, TaskDto } from "@kloqra/contracts";
 import {
   Button,
   DatePicker,
   Input,
   ProjectColorDot,
   SearchableSelect,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  cn
+  cn,
+  controlHeightClass
 } from "@kloqra/ui";
 import {
   buildTaskSelectGroups,
@@ -38,11 +26,8 @@ import {
   parseDurationInput
 } from "@/features/timesheet/parse-duration-input";
 import {
-  applyClassificationToDraft,
   canSaveTaskDraft,
-  draftClassification,
   draftFromSlot,
-  ENTRY_TYPE_OPTIONS,
   suggestBillableFromTask,
   type TimeEntryDraft
 } from "@/features/timesheet/time-entry-draft";
@@ -53,8 +38,6 @@ type TimeTrackerQuickAddBarProps = {
   projects: ProjectDto[];
   tasks: TaskDto[];
   categories: CategoryDto[];
-  activityTypes?: TenantActivityTypeDto[];
-  dailyTargetHours?: number;
   timezone: string;
   /** Bump after a successful create to clear the bar back to defaults. */
   resetKey?: number;
@@ -77,8 +60,6 @@ export function TimeTrackerQuickAddBar({
   projects,
   tasks,
   categories,
-  activityTypes = [],
-  dailyTargetHours = 8,
   timezone,
   resetKey = 0,
   saving = false,
@@ -132,7 +113,7 @@ export function TimeTrackerQuickAddBar({
 
   function patch(partial: Partial<TimeEntryDraft>) {
     onClearError?.();
-    setDraft((current) => ({ ...current, ...partial }));
+    setDraft((current) => ({ ...current, classification: "PROJECT", ...partial }));
   }
 
   function handleStartChange(startTime: string) {
@@ -175,56 +156,36 @@ export function TimeTrackerQuickAddBar({
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    if (disabled || saving || !canSaveTaskDraft(draft)) return;
-    await onSubmit(draft);
+    const projectDraft: TimeEntryDraft = {
+      ...draft,
+      classification: "PROJECT",
+      activityTypeId: "",
+      holidayId: ""
+    };
+    if (disabled || saving || !canSaveTaskDraft(projectDraft)) return;
+    await onSubmit(projectDraft);
   }
 
-  const canAdd = canSaveTaskDraft(draft) && !saving && !disabled;
+  const canAdd = canSaveTaskDraft({ ...draft, classification: "PROJECT" }) && !saving && !disabled;
   const busy = disabled || saving;
-  const controlClass = "h-9 shrink-0";
+  const controlClass = cn(controlHeightClass, "shrink-0");
 
   return (
     <form
       onSubmit={(event) => void handleSubmit(event)}
-      className={cn(
-        "rounded-xl border border-border/70 bg-background shadow-sm",
-        "flex flex-wrap items-center gap-2 p-2 sm:flex-nowrap sm:gap-1.5 sm:overflow-x-auto sm:p-2"
-      )}
+      className="flex flex-col gap-1 rounded-xl border border-border/70 bg-background p-2 shadow-sm"
       aria-label="Quick add time entry"
     >
-      <Input
-        value={draft.description}
-        onChange={(event) => patch({ description: event.target.value })}
-        placeholder="What have you worked on?"
-        aria-label="Description"
-        disabled={busy}
-        className="h-9 min-w-[10rem] flex-1 border-0 bg-transparent shadow-none focus-visible:ring-0 sm:min-w-[12rem]"
-      />
-      <Select
-        value={draftClassification(draft)}
-        onValueChange={(value) =>
-          setDraft((current) =>
-            applyClassificationToDraft(current, value as TimeLogClassification, dailyTargetHours)
-          )
-        }
-        disabled={busy}
-      >
-        <SelectTrigger
-          aria-label="Entry type"
-          className={cn(controlClass, "min-w-[8.5rem] w-[10rem]")}
-        >
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {ENTRY_TYPE_OPTIONS.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      {draftClassification(draft) === "PROJECT" ? (
-        <>
+      <div className="flex flex-col gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 @min-[720px]/shell:flex-nowrap">
+          <Input
+            value={draft.description}
+            onChange={(event) => patch({ description: event.target.value })}
+            placeholder="What have you worked on?"
+            aria-label="Description"
+            disabled={busy}
+            className="h-10 min-w-[10rem] flex-1 border-0 bg-transparent shadow-none focus-visible:ring-0"
+          />
           <SearchableSelect
             value={draft.projectId}
             onValueChange={(projectId) =>
@@ -309,80 +270,61 @@ export function TimeTrackerQuickAddBar({
             triggerClassName={cn(controlClass, "min-w-[9.5rem] w-[11rem] sm:w-[12rem]")}
             contentClassName="z-[100]"
           />
-        </>
-      ) : null}
-      {draftClassification(draft) === "TENANT_ACTIVITY" ? (
-        <Select
-          value={draft.activityTypeId || ""}
-          onValueChange={(activityTypeId) => patch({ activityTypeId })}
-          disabled={busy}
-        >
-          <SelectTrigger
-            aria-label="Activity type"
-            className={cn(controlClass, "min-w-[10rem] w-[12rem]")}
+        </div>
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <DatePicker
+            value={draft.date}
+            onChange={(date) => patch({ date })}
+            disabled={busy}
+            ariaLabel="Date"
+            className={cn(controlClass, "w-[8.75rem]")}
+          />
+          <Input
+            type="time"
+            value={draft.startTime}
+            onChange={(event) => handleStartChange(event.target.value)}
+            disabled={busy}
+            required
+            aria-label="Start time"
+            className={cn(controlClass, "w-[8.25rem] tabular-nums")}
+          />
+          <span className="text-muted-foreground" aria-hidden>
+            –
+          </span>
+          <Input
+            type="time"
+            value={draft.endTime}
+            onChange={(event) => handleEndChange(event.target.value)}
+            disabled={busy}
+            required
+            aria-label="End time"
+            className={cn(controlClass, "w-[8.25rem] tabular-nums")}
+          />
+          <Input
+            value={durationText}
+            onChange={(event) => handleDurationChange(event.target.value)}
+            onFocus={() => {
+              durationFocusedRef.current = true;
+            }}
+            onBlur={handleDurationBlur}
+            placeholder="0:30"
+            aria-label="Duration"
+            disabled={busy}
+            className={cn(controlClass, "w-[4.5rem] tabular-nums")}
+            aria-invalid={Boolean(durationError)}
+          />
+          <Button
+            type="submit"
+            variant="outline"
+            disabled={!canAdd}
+            className={cn(controlClass, "ml-auto px-3")}
           >
-            <SelectValue placeholder="Activity" />
-          </SelectTrigger>
-          <SelectContent>
-            {loggableActivityTypes(activityTypes.filter((type) => type.isActive)).map((type) => (
-              <SelectItem key={type.id} value={type.id}>
-                {activityTypeLabel(activityTypes, type.id) ?? type.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      ) : null}
-      <DatePicker
-        value={draft.date}
-        onChange={(date) => patch({ date })}
-        disabled={busy}
-        ariaLabel="Date"
-        className={cn(controlClass, "w-[8.75rem]")}
-      />
-      <Input
-        type="time"
-        value={draft.startTime}
-        onChange={(event) => handleStartChange(event.target.value)}
-        disabled={busy}
-        required
-        aria-label="Start time"
-        className={cn(controlClass, "min-w-[9.5rem] w-[9.5rem] tabular-nums")}
-      />
-      <span className="hidden text-muted-foreground sm:inline" aria-hidden>
-        –
-      </span>
-      <Input
-        type="time"
-        value={draft.endTime}
-        onChange={(event) => handleEndChange(event.target.value)}
-        disabled={busy}
-        required
-        aria-label="End time"
-        className={cn(controlClass, "min-w-[9.5rem] w-[9.5rem] tabular-nums")}
-      />
-      <Input
-        value={durationText}
-        onChange={(event) => handleDurationChange(event.target.value)}
-        onFocus={() => {
-          durationFocusedRef.current = true;
-        }}
-        onBlur={handleDurationBlur}
-        placeholder="0:30"
-        aria-label="Duration"
-        disabled={busy}
-        className={cn(controlClass, "w-[4.25rem] tabular-nums")}
-        aria-invalid={Boolean(durationError)}
-      />
-      <Button
-        type="submit"
-        variant="outline"
-        disabled={!canAdd}
-        className={cn(controlClass, "ml-auto shrink-0 px-3")}
-      >
-        {saving ? "Adding…" : "Add entry"}
-      </Button>
+            {saving ? "Adding…" : "Add entry"}
+          </Button>
+        </div>
+      </div>
       {(error || durationError) && (
-        <p className="basis-full text-xs text-destructive" role="alert">
+        <p className="text-xs text-destructive" role="alert">
           {error ?? durationError}
         </p>
       )}

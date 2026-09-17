@@ -10,4 +10,8 @@ export * from "./app-bar-toolbar.js";
 export * from "./shell-menu.js";
 export * from "./shell-page-title-context.js";
 export * from "./sidebar-user-footer.js";
+export * from "./page-density.js";
+export * from "./page-layout.js";
+export * from "./stat-strip.js";
+export * from "./floating-action-bar.js";
 export * from "./widget-shell.js";

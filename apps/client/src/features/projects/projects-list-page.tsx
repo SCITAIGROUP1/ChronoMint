@@ -4,12 +4,14 @@ import { ROUTES, PROJECT_COLORS, pickDefaultProjectColor } from "@kloqra/contrac
 import type { ProjectListItemDto } from "@kloqra/contracts";
 import {
   AppModal,
-  AppBar,
+  PageLayout,
   AppBarListToolbar,
   appBarListFilterTriggerClass,
+  appBarPageActionClass,
   Badge,
   Button,
   DataTableCard,
+  DataTableScroll,
   DataTableCell,
   DataTableHead,
   DataTableHeaderRow,
@@ -151,55 +153,50 @@ export function ProjectsListPage({
   }
 
   return (
-    <div className="space-y-6">
-      <AppBar
-        title="Projects"
-        description={
-          managedProjectIds
-            ? "Manage tasks and teams for your assigned projects."
-            : "Browse workspace projects and open one to manage tasks, team, and settings."
-        }
-        secondary={
-          <AppBarListToolbar
-            searchValue={search}
-            onSearchChange={setSearch}
-            searchPlaceholder="Search by name or client…"
-            searchAriaLabel="Search projects"
-            filters={
-              <Select
-                value={statusFilter}
-                onValueChange={(value) => setStatusFilter(value as "ALL" | "active" | "inactive")}
+    <PageLayout
+      title="Projects"
+      description={
+        managedProjectIds
+          ? "Manage tasks and teams for your assigned projects."
+          : "Browse workspace projects and open one to manage tasks, team, and settings."
+      }
+      secondary={
+        <AppBarListToolbar
+          searchValue={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Search by name or client…"
+          searchAriaLabel="Search projects"
+          filters={
+            <Select
+              value={statusFilter}
+              onValueChange={(value) => setStatusFilter(value as "ALL" | "active" | "inactive")}
+            >
+              <SelectTrigger className={appBarListFilterTriggerClass} aria-label="Filter by status">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All statuses</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+          }
+          action={
+            canCreate ? (
+              <Button
+                type="button"
+                className={appBarPageActionClass}
+                onClick={() => setCreateOpen(true)}
               >
-                <SelectTrigger
-                  className={appBarListFilterTriggerClass}
-                  aria-label="Filter by status"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">All statuses</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-            }
-            action={
-              canCreate ? (
-                <Button
-                  type="button"
-                  className="h-10 w-full gap-2 md:w-auto"
-                  onClick={() => setCreateOpen(true)}
-                >
-                  <Plus className="h-4 w-4" aria-hidden />
-                  New project
-                </Button>
-              ) : undefined
-            }
-          />
-        }
-      />
-
-      <DataTableCard>
+                <Plus className="size-4" aria-hidden />
+                New project
+              </Button>
+            ) : undefined
+          }
+        />
+      }
+    >
+      <DataTableCard fill>
         {loading ? (
           <TableLoadingState rows={6} columns={5} />
         ) : visibleProjects.length === 0 ? (
@@ -212,73 +209,68 @@ export function ProjectsListPage({
               }
               description={
                 total === 0 && !search && statusFilter === "ALL"
-                  ? "Create your first project to organize time tracking and teams."
+                  ? "Use New project to organize time tracking and teams."
                   : "Try a different search term or filter."
-              }
-              action={
-                canCreate && total === 0 && !search && statusFilter === "ALL" ? (
-                  <Button type="button" onClick={() => setCreateOpen(true)}>
-                    New project
-                  </Button>
-                ) : undefined
               }
             />
           </div>
         ) : (
           <>
-            <Table>
-              <TableHeader>
-                <DataTableHeaderRow>
-                  <DataTableHead>Project Name</DataTableHead>
-                  <DataTableHead>Client Name</DataTableHead>
-                  <DataTableHead>Status</DataTableHead>
-                  <DataTableHead className="text-right">Total Time Tracked</DataTableHead>
-                  <DataTableHead className="w-10" />
-                </DataTableHeaderRow>
-              </TableHeader>
-              <TableBody>
-                {visibleProjects.map((p) => {
-                  const href = projectListHref(p.id);
-                  return (
-                    <TableRow
-                      key={p.id}
-                      className={entityRowClassName(p.isActive, "group cursor-pointer")}
-                      tabIndex={0}
-                      role="link"
-                      aria-label={`Open ${p.name}`}
-                      onClick={() => router.push(href)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          router.push(href);
-                        }
-                      }}
-                    >
-                      <DataTableCell>
-                        <ProjectNameWithColor name={p.name} color={p.color} />
-                      </DataTableCell>
-                      <DataTableCell className="text-muted-foreground">
-                        {p.clientName ?? "—"}
-                      </DataTableCell>
-                      <DataTableCell>
-                        <Badge variant={p.isActive ? "default" : "secondary"}>
-                          {p.isActive ? "Active" : "Inactive"}
-                        </Badge>
-                      </DataTableCell>
-                      <DataTableCell className="text-right tabular-nums text-muted-foreground">
-                        {formatTotalTracked(p.totalTrackedSec)}
-                      </DataTableCell>
-                      <DataTableCell className="text-muted-foreground">
-                        <ChevronRight
-                          className="h-4 w-4 opacity-40 transition-opacity group-hover:opacity-100"
-                          aria-hidden
-                        />
-                      </DataTableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+            <DataTableScroll>
+              <Table>
+                <TableHeader>
+                  <DataTableHeaderRow>
+                    <DataTableHead>Project Name</DataTableHead>
+                    <DataTableHead>Client Name</DataTableHead>
+                    <DataTableHead>Status</DataTableHead>
+                    <DataTableHead className="text-right">Total Time Tracked</DataTableHead>
+                    <DataTableHead className="w-10" />
+                  </DataTableHeaderRow>
+                </TableHeader>
+                <TableBody>
+                  {visibleProjects.map((p) => {
+                    const href = projectListHref(p.id);
+                    return (
+                      <TableRow
+                        key={p.id}
+                        className={entityRowClassName(p.isActive, "group cursor-pointer")}
+                        tabIndex={0}
+                        role="link"
+                        aria-label={`Open ${p.name}`}
+                        onClick={() => router.push(href)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            router.push(href);
+                          }
+                        }}
+                      >
+                        <DataTableCell>
+                          <ProjectNameWithColor name={p.name} color={p.color} />
+                        </DataTableCell>
+                        <DataTableCell className="text-muted-foreground">
+                          {p.clientName ?? "—"}
+                        </DataTableCell>
+                        <DataTableCell>
+                          <Badge variant={p.isActive ? "default" : "secondary"}>
+                            {p.isActive ? "Active" : "Inactive"}
+                          </Badge>
+                        </DataTableCell>
+                        <DataTableCell className="text-right tabular-nums text-muted-foreground">
+                          {formatTotalTracked(p.totalTrackedSec)}
+                        </DataTableCell>
+                        <DataTableCell className="text-muted-foreground">
+                          <ChevronRight
+                            className="h-4 w-4 opacity-40 transition-opacity group-hover:opacity-100"
+                            aria-hidden
+                          />
+                        </DataTableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </DataTableScroll>
             <TablePagination
               page={page}
               totalPages={totalPages}
@@ -371,6 +363,6 @@ export function ProjectsListPage({
           </form>
         </AppModal>
       ) : null}
-    </div>
+    </PageLayout>
   );
 }

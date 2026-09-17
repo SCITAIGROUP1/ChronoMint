@@ -14,6 +14,11 @@ describe("Input", () => {
     expect(screen.getByLabelText("Email")).toBeInTheDocument();
   });
 
+  it("uses the shared toolbar control height", () => {
+    render(<Input aria-label="Search" />);
+    expect(screen.getByLabelText("Search").className).toContain("h-10");
+  });
+
   it("accepts controlled value changes", async () => {
     const user = userEvent.setup();
     render(<Input aria-label="Name" defaultValue="" />);

@@ -23,8 +23,9 @@ test.describe("App categories", () => {
     const uniqueName = `E2E Category ${Date.now()}`;
     const updatedName = `${uniqueName} Updated`;
 
-    await page.getByLabel("Name").first().fill(uniqueName);
     await page.getByRole("button", { name: "Add category" }).click();
+    await page.getByLabel("Name").fill(uniqueName);
+    await page.getByRole("button", { name: "Create category" }).click();
     await expect(page.getByRole("row", { name: new RegExp(uniqueName) })).toBeVisible();
 
     const row = page.getByRole("row", { name: new RegExp(uniqueName) });

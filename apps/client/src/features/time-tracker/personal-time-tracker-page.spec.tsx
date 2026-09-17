@@ -67,7 +67,13 @@ vi.mock("./use-time-tracker-logs", () => ({
 }));
 vi.mock("./time-tracker-export-modal", () => ({ TimeTrackerExportModal: () => null }));
 vi.mock("./time-tracker-import-modal", () => ({ TimeTrackerImportModal: () => null }));
-vi.mock("./time-tracker-filters-panel", () => ({ TimeTrackerFiltersPanel: () => null }));
+vi.mock("./time-tracker-filters-panel", async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...(actual as Record<string, unknown>),
+    TimeTrackerFiltersPanel: () => null
+  };
+});
 vi.mock("./time-tracker-week-list", () => ({
   TimeTrackerWeekList: () => <div data-testid="week-list">Week list</div>,
   formatVisibleWeeksSummary: () => ""

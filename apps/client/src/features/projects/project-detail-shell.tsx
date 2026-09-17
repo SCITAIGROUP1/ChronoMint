@@ -1,6 +1,6 @@
 "use client";
 
-import { AppBar, Badge, Button, EmptyState, ProjectNameWithColor, Skeleton } from "@kloqra/ui";
+import { PageLayout, Badge, Button, EmptyState, ProjectNameWithColor, Skeleton } from "@kloqra/ui";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useParams, usePathname, useSearchParams } from "next/navigation";
@@ -79,13 +79,12 @@ function ProjectDetailShellInner({ children }: { children: ReactNode }) {
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <AppBar title="Project" description="Loading project details…" />
-        <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 lg:flex-row">
-          <Skeleton className="h-48 w-full rounded-xl lg:w-56" />
+      <PageLayout title="Project" description="Loading project details…">
+        <div className="flex min-h-0 flex-1 flex-col gap-4 @min-[720px]/shell:flex-row">
+          <Skeleton className="h-48 w-full rounded-xl @min-[720px]/shell:w-56" />
           <Skeleton className="h-64 flex-1 rounded-xl" />
         </div>
-      </div>
+      </PageLayout>
     );
   }
 
@@ -104,44 +103,39 @@ function ProjectDetailShellInner({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="space-y-6">
-      <AppBar
-        title={
-          <span className="inline-flex flex-wrap items-center gap-3">
-            <ProjectNameWithColor
-              name={project.name}
-              color={project.color}
-              className="text-2xl font-semibold tracking-tight"
-            />
-            <Badge variant={project.isActive ? "default" : "secondary"}>
-              {project.isActive ? "Active" : "Inactive"}
-            </Badge>
-          </span>
-        }
-        description={
-          project.clientName
-            ? `Client: ${project.clientName}`
-            : personal
-              ? "View your project, assigned tasks, and team."
-              : "Manage tasks, team members, and project settings."
-        }
-        actions={
-          <Button
-            asChild
-            variant="outline"
-            size="sm"
-            className="h-10 gap-1.5 border-border/80 bg-card shadow-none"
-          >
-            <Link href={listHref}>
-              <ArrowLeft className="h-4 w-4" aria-hidden />
-              {listLabel}
-            </Link>
-          </Button>
-        }
-      />
-
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 lg:flex-row lg:items-start">
-        <aside className="w-full shrink-0 rounded-xl border border-border bg-card p-3 shadow-sm lg:w-56">
+    <PageLayout
+      title={
+        <span className="inline-flex flex-wrap items-center gap-3">
+          <ProjectNameWithColor
+            name={project.name}
+            color={project.color}
+            className="text-xl font-semibold tracking-tight"
+          />
+          <Badge variant={project.isActive ? "default" : "secondary"}>
+            {project.isActive ? "Active" : "Inactive"}
+          </Badge>
+        </span>
+      }
+      titleLabel={project.name}
+      description={
+        project.clientName ? `Client: ${project.clientName}. ${copy.description}` : copy.description
+      }
+      actions={
+        <Button
+          asChild
+          variant="outline"
+          size="sm"
+          className="h-10 gap-1.5 border-border/80 bg-card shadow-none"
+        >
+          <Link href={listHref}>
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+            {listLabel}
+          </Link>
+        </Button>
+      }
+    >
+      <div className="flex min-h-0 flex-1 flex-col gap-4 @min-[720px]/shell:flex-row @min-[720px]/shell:items-start">
+        <aside className="w-full shrink-0 rounded-xl border border-border bg-card p-3 shadow-sm @min-[720px]/shell:w-56">
           <ProjectDetailNav
             projectId={project.id}
             includeSettings={!personal}
@@ -149,15 +143,9 @@ function ProjectDetailShellInner({ children }: { children: ReactNode }) {
           />
         </aside>
 
-        <section className="min-w-0 flex-1 space-y-6">
-          <div>
-            <h2 className="text-lg font-semibold tracking-tight">{copy.title}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">{copy.description}</p>
-          </div>
-          {children}
-        </section>
+        <section className="min-h-0 min-w-0 flex-1 overflow-y-auto">{children}</section>
       </div>
-    </div>
+    </PageLayout>
   );
 }
 

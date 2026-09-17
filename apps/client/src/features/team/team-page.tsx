@@ -1,14 +1,15 @@
 "use client";
 
 import {
-  AppBar,
+  PageLayout,
   AppBarSecondary,
   Card,
   CardContent,
   CenteredLoader,
   EmptyState,
   Input,
-  SegmentedControl
+  SegmentedControl,
+  StatStrip
 } from "@kloqra/ui";
 import { Search } from "lucide-react";
 import { useEffect, useRef } from "react";
@@ -46,50 +47,49 @@ export function TeamPage() {
   }, [error]);
 
   return (
-    <div className="space-y-6">
-      <AppBar
-        title="Team Live"
-        description="Real-time team activity monitoring"
-        secondary={
-          <AppBarSecondary
-            leading={
-              <div className="relative w-full max-w-xl">
-                <Search
-                  className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-                  aria-hidden
-                />
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search team members or projects…"
-                  className="h-10 pl-9"
-                  aria-label="Search team members or projects"
-                />
-              </div>
-            }
-            trailing={
-              <SegmentedControl
-                value={statusFilter}
-                onChange={setStatusFilter}
-                options={FILTER_OPTIONS}
+    <PageLayout
+      title="Team Live"
+      description="Who is tracking right now."
+      secondary={
+        <AppBarSecondary
+          leading={
+            <div className="relative w-full max-w-xl">
+              <Search
+                className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                aria-hidden
               />
-            }
-          />
-        }
-      />
-
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {STATUS_ORDER.map((status) => (
-          <TeamLiveStatusCard
-            key={status}
-            status={status}
-            count={counts[status]}
-            selected={statusFilter === status}
-            onSelect={() => setStatusFilter(statusFilter === status ? "all" : status)}
-          />
-        ))}
-      </div>
-
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search team members or projects…"
+                className="h-10 pl-9"
+                aria-label="Search team members or projects"
+              />
+            </div>
+          }
+          trailing={
+            <SegmentedControl
+              value={statusFilter}
+              onChange={setStatusFilter}
+              options={FILTER_OPTIONS}
+            />
+          }
+        />
+      }
+      stats={
+        <StatStrip>
+          {STATUS_ORDER.map((status) => (
+            <TeamLiveStatusCard
+              key={status}
+              status={status}
+              count={counts[status]}
+              selected={statusFilter === status}
+              onSelect={() => setStatusFilter(statusFilter === status ? "all" : status)}
+            />
+          ))}
+        </StatStrip>
+      }
+    >
       {error ? (
         <p className="text-sm text-destructive">{error}</p>
       ) : loading ? (
@@ -108,12 +108,12 @@ export function TeamPage() {
           }
         />
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto @min-[720px]/shell:grid-cols-2">
           {members.map((member) => (
             <TeamLiveMemberCard key={member.userId} member={member} now={now} />
           ))}
         </div>
       )}
-    </div>
+    </PageLayout>
   );
 }

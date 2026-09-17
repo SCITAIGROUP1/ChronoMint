@@ -18,6 +18,10 @@ describe("AppBarListToolbar", () => {
     expect(screen.getByRole("combobox", { name: "Filter by status" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add item" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Filters" })).toBeInTheDocument();
+    expect(screen.getByTestId("app-bar-list-actions").className).toContain("ml-auto");
+    expect(screen.getByTestId("app-bar-list-leading")).toContainElement(
+      screen.getByRole("textbox", { name: "Search items" })
+    );
   });
 
   it("calls onSearchChange when typing", async () => {

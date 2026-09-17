@@ -1,18 +1,13 @@
-/* eslint-disable */
 "use client";
 
 import {
-  AppBar,
+  AppBarActionButton,
   Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
   CenteredLoader,
   DateRangePicker,
   EmptyState,
+  PageLayout,
   SegmentedControl,
-  Skeleton,
   WidgetShell
 } from "@kloqra/ui";
 import {
@@ -26,22 +21,14 @@ import {
   DASHBOARD_GRID_BREAKPOINTS,
   DASHBOARD_GRID_COLS,
   generateResponsiveLayouts,
-  isPendingWorkspaceSetup
+  isPendingWorkspaceSetup,
+  isPersistableDashboardBreakpoint,
+  type DashboardBreakpoint
 } from "@kloqra/web-shared";
-import {
-  Building2,
-  Clock,
-  CreditCard,
-  DollarSign,
-  Users,
-  PieChart as PieIcon,
-  BarChart3,
-  Activity,
-  LayoutGrid,
-  Move
-} from "lucide-react";
-import { useEffect, useMemo, useState, useRef } from "react";
+import "react-grid-layout/css/styles.css";
+import { Building2, Clock, CreditCard, DollarSign, Users, LayoutGrid, Move } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { WidthProvider, Responsive } from "react-grid-layout";
 import {
   ResponsiveContainer,
@@ -57,20 +44,22 @@ import {
   Legend
 } from "recharts";
 import { toast } from "sonner";
-
-import "react-grid-layout/css/styles.css";
-
 import { AccountWorkspaceHoursTable } from "./account-workspace-hours-table";
-import { DashboardStatCard } from "@/components/dashboard-stat-card";
-import { formatDurationClock } from "@/components/report-charts";
 import { useAccountWidgetLayout } from "./use-account-widget-layout";
 import { WidgetControlPanel } from "./widget-control-panel";
-import { ACTIVE_WIDGET_REGISTRY as WIDGET_REGISTRY } from "./widget-registry";
+import {
+  ACTIVE_WIDGET_REGISTRY as WIDGET_REGISTRY,
+  repairAccountOverviewLayout,
+  type WidgetLayoutItem
+} from "./widget-registry";
+import { DashboardStatCard } from "@/components/dashboard-stat-card";
+import { formatDurationClock } from "@/components/report-charts";
 import { useSessionStore } from "@/stores/session.store";
 
 type AccountRollupPreset = "7d" | "30d" | "90d" | "custom";
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
+const EMPTY_ACCOUNT_LAYOUT: WidgetLayoutItem[] = [];
 
 const ROLLUP_PRESETS: { value: AccountRollupPreset; label: string }[] = [
   { value: "7d", label: "7 days" },
@@ -127,8 +116,11 @@ function isWorkspaceSetupError(message: string | null | undefined): boolean {
 
 function AccountWorkspaceSetupPrompt({ onCreate }: { onCreate: () => void }) {
   return (
-    <div className="space-y-6">
-      <AppBar title="Organization summary" description="Organization summary and plan status." />
+    <PageLayout
+      title="Organization summary"
+      description="Organization summary and plan status."
+      scroll="page"
+    >
       <EmptyState
         title="Create your first workspace"
         description="Your organization is ready. Create a workspace to view metrics, assign admins, and start tracking time."
@@ -138,7 +130,7 @@ function AccountWorkspaceSetupPrompt({ onCreate }: { onCreate: () => void }) {
           </Button>
         }
       />
-    </div>
+    </PageLayout>
   );
 }
 
@@ -169,8 +161,7 @@ export function AccountOverviewPage() {
   const {
     summary,
     loading: rollupLoading,
-    error: rollupError,
-    reload
+    error: rollupError
   } = useTenantAnalyticsSummary(from, to);
 
   useEffect(() => {
@@ -226,10 +217,15 @@ export function AccountOverviewPage() {
   // Layout engine state
   const tenantSlug = overview?.tenant?.slug || "default";
   const layoutState = useAccountWidgetLayout();
+  const [mounted, setMounted] = useState(false);
   const [isArranging, setIsArranging] = useState(false);
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
-  const arrangeSnapshotRef = useRef<any>(null);
-  const [gridBreakpoint, setGridBreakpoint] = useState<string>("lg");
+  const arrangeSnapshotRef = useRef<WidgetLayoutItem[] | null>(null);
+  const [gridBreakpoint, setGridBreakpoint] = useState<DashboardBreakpoint>("lg");
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (tenantSlug) {
@@ -237,7 +233,8 @@ export function AccountOverviewPage() {
     }
   }, [tenantSlug]);
 
-  const activeLayout = layoutState.layoutsByWorkspace[tenantSlug] || [];
+  const storedLayout = layoutState.layoutsByWorkspace[tenantSlug] ?? EMPTY_ACCOUNT_LAYOUT;
+  const activeLayout = useMemo(() => repairAccountOverviewLayout(storedLayout), [storedLayout]);
   const visibleItems = activeLayout.filter((item) => item.visible);
   const widgetMinSizes = useMemo(() => buildWidgetMinSizeMap(WIDGET_REGISTRY), []);
 
@@ -292,8 +289,11 @@ export function AccountOverviewPage() {
   }
   if (overviewError || !overview) {
     return (
-      <div className="space-y-6">
-        <AppBar title="Organization summary" description="Organization summary and plan status." />
+      <PageLayout
+        title="Organization summary"
+        description="Organization summary and plan status."
+        scroll="page"
+      >
         <EmptyState
           title="Unable to load account overview"
           description={
@@ -306,7 +306,7 @@ export function AccountOverviewPage() {
             </Button>
           }
         />
-      </div>
+      </PageLayout>
     );
   }
 
@@ -350,7 +350,7 @@ export function AccountOverviewPage() {
         );
       case "org_profile":
         return (
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 text-sm h-full w-full py-1">
+          <div className="flex h-full min-h-0 w-full items-center justify-between gap-4 py-0.5">
             <div className="space-y-1">
               <span className="font-semibold text-foreground text-sm block">
                 {overview.tenant.name}
@@ -541,59 +541,87 @@ export function AccountOverviewPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-[1600px] mx-auto pb-12">
-      <AppBar
-        title="Organization summary"
-        description="Organization summary and plan status."
-        actions={
-          <>
-            <AppBarActionButton
-              active={isCatalogOpen}
-              aria-label={isCatalogOpen ? "Close catalog" : "Add widgets"}
-              onClick={() => {
-                setIsCatalogOpen(!isCatalogOpen);
-                if (isArranging) {
-                  handleCancelArranging();
+    <PageLayout
+      title="Organization summary"
+      description="Organization summary and plan status."
+      actions={
+        <>
+          <AppBarActionButton
+            active={isCatalogOpen}
+            aria-label={isCatalogOpen ? "Close catalog" : "Add widgets"}
+            onClick={() => {
+              setIsCatalogOpen(!isCatalogOpen);
+              if (isArranging) {
+                handleCancelArranging();
+              }
+            }}
+          >
+            <LayoutGrid className="size-4 shrink-0" aria-hidden />
+            <span className="hidden @min-[1200px]/shell:inline">
+              {isCatalogOpen ? "Close catalog" : "Add widgets"}
+            </span>
+          </AppBarActionButton>
+          <AppBarActionButton
+            active={isArranging}
+            aria-label={isArranging ? "Done arranging" : "Arrange grid"}
+            onClick={async () => {
+              if (isArranging) {
+                try {
+                  await layoutState.persistLayout(tenantSlug);
+                } catch (e) {
+                  toast.error(e instanceof Error ? e.message : "Could not save dashboard layout");
+                  return;
                 }
-              }}
-            >
-              <LayoutGrid className="size-3.5 shrink-0" aria-hidden />
-              <span className="hidden sm:inline">
-                {isCatalogOpen ? "Closing Catalog" : "Add Widgets"}
-              </span>
-            </AppBarActionButton>
-            <AppBarActionButton
-              active={isArranging}
-              aria-label={isArranging ? "Done arranging" : "Arrange grid"}
-              onClick={async () => {
-                if (isArranging) {
-                  try {
-                    await layoutState.persistLayout(tenantSlug);
-                  } catch (e) {
-                    toast.error(e instanceof Error ? e.message : "Could not save dashboard layout");
-                    return;
-                  }
-                  arrangeSnapshotRef.current = null;
-                } else {
-                  const current = layoutState.layoutsByWorkspace[tenantSlug];
-                  if (current) {
-                    arrangeSnapshotRef.current = current.map((item) => ({ ...item }));
-                  }
+                arrangeSnapshotRef.current = null;
+              } else {
+                const current = layoutState.layoutsByWorkspace[tenantSlug];
+                if (current) {
+                  arrangeSnapshotRef.current = current.map((item) => ({ ...item }));
                 }
-                setIsArranging(!isArranging);
-                setIsCatalogOpen(false);
-              }}
-            >
-              <Move className="size-3.5 shrink-0" aria-hidden />
-              <span className="hidden sm:inline">
-                {isArranging ? "Done Arranging" : "Arrange Grid"}
-              </span>
-            </AppBarActionButton>
-          </>
-        }
-      />
-
-      {/* Customize catalog drawer */}
+              }
+              setIsArranging(!isArranging);
+              setIsCatalogOpen(false);
+            }}
+          >
+            <Move className="size-4 shrink-0" aria-hidden />
+            <span className="hidden @min-[1200px]/shell:inline">
+              {isArranging ? "Done arranging" : "Arrange grid"}
+            </span>
+          </AppBarActionButton>
+        </>
+      }
+      secondary={
+        <div className="grid w-full min-w-0 grid-cols-1 gap-3 @min-[720px]/shell:grid-cols-[minmax(0,1fr)_minmax(220px,320px)] @min-[720px]/shell:items-end">
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              Period filter
+            </span>
+            <SegmentedControl
+              value={preset}
+              onChange={handlePresetChange}
+              options={ROLLUP_PRESETS}
+              size="sm"
+              fullWidth
+            />
+          </div>
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              Custom range
+            </span>
+            <DateRangePicker
+              from={startDate}
+              to={endDate}
+              onChange={handleDateRangeChange}
+              weekStartsOn={1}
+              ariaLabel="Utilization date range"
+              className="w-full min-w-0"
+              numberOfMonths={2}
+              popoverAlign="end"
+            />
+          </div>
+        </div>
+      }
+    >
       {isCatalogOpen && (
         <WidgetControlPanel
           layoutItems={activeLayout}
@@ -603,7 +631,6 @@ export function AccountOverviewPage() {
         />
       )}
 
-      {/* Drag & Arrange Banner indicator */}
       {isArranging && (
         <DashboardArrangeBanner
           editModeLabel="Organization Grid Edit Mode"
@@ -614,65 +641,33 @@ export function AccountOverviewPage() {
         />
       )}
 
-      {/* Range controls */}
-      <section className="space-y-6" aria-label="Organization utilization">
-        <div className="rounded-xl border border-border/60 bg-muted/10 p-4">
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(220px,320px)] lg:items-end lg:gap-5">
-            <div className="flex min-w-0 flex-col gap-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                Period Filter
-              </span>
-              <SegmentedControl
-                value={preset}
-                onChange={handlePresetChange}
-                options={ROLLUP_PRESETS}
-                size="sm"
-                fullWidth
-              />
-            </div>
-            <div className="flex min-w-0 flex-col gap-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                Custom Range
-              </span>
-              <DateRangePicker
-                from={startDate}
-                to={endDate}
-                onChange={handleDateRangeChange}
-                weekStartsOn={1}
-                ariaLabel="Utilization date range"
-                className="w-full min-w-0"
-                numberOfMonths={2}
-                popoverAlign="end"
-              />
-            </div>
-          </div>
-        </div>
-
+      <section className="flex w-full min-w-0 flex-col gap-4" aria-label="Organization utilization">
         {rollupError && <div className="text-sm text-destructive">{rollupError}</div>}
 
-        {/* Drag-and-Resize Interactive Dashboard Grid */}
-        <div className="relative">
-          {!layoutState.initialized ? (
+        <div className="relative w-full min-w-0" data-testid="account-overview-grid">
+          {!mounted || !layoutState.initialized ? (
             <CenteredLoader label="Loading dashboard layout..." />
           ) : (
             <ResponsiveGridLayout
-              className={`layout ${isArranging ? "layout-customizing" : ""}`}
+              className={`layout w-full ${isArranging ? "layout-customizing" : ""}`}
               layouts={responsiveLayouts}
               breakpoints={DASHBOARD_GRID_BREAKPOINTS}
               cols={DASHBOARD_GRID_COLS}
-              rowHeight={80}
+              rowHeight={72}
               compactType="vertical"
               isDraggable={isArranging}
               isResizable={isArranging}
               draggableCancel="button, a, input, select, textarea, [role='menu'], [role='menuitem'], .widget-no-drag"
               resizeHandles={["s", "e", "se"]}
-              onBreakpointChange={(breakpoint) => setGridBreakpoint(breakpoint)}
+              onBreakpointChange={(breakpoint) =>
+                setGridBreakpoint(breakpoint as DashboardBreakpoint)
+              }
               onLayoutChange={(currentLayout) => {
-                if (isArranging) {
+                if (isArranging && isPersistableDashboardBreakpoint(gridBreakpoint)) {
                   layoutState.updateLayout(tenantSlug, currentLayout, { persist: false });
                 }
               }}
-              margin={[16, 16]}
+              margin={[12, 12]}
               containerPadding={[0, 0]}
             >
               {visibleItems.map((item) => {
@@ -696,30 +691,6 @@ export function AccountOverviewPage() {
           )}
         </div>
       </section>
-    </div>
-  );
-}
-
-// Sub-component wrapper for actions button layout
-function AppBarActionButton({
-  active,
-  children,
-  onClick,
-  ...props
-}: {
-  active?: boolean;
-  children: React.ReactNode;
-  onClick?: () => void;
-  [key: string]: any;
-}) {
-  return (
-    <Button
-      variant={active ? "default" : "outline"}
-      onClick={onClick}
-      className={`h-8 gap-1.5 text-xs font-semibold px-3 ${active ? "bg-primary text-primary-foreground border-primary" : "border-border/60"}`}
-      {...props}
-    >
-      {children}
-    </Button>
+    </PageLayout>
   );
 }

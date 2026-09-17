@@ -24,5 +24,13 @@ describe("personal dashboard registry", () => {
       h: 3,
       visible: true
     });
+    expect(DEFAULT_LAYOUT.find((item) => item.i === "stat_total_hours")).toMatchObject({
+      w: 3,
+      h: 1,
+      visible: true
+    });
+    expect(WIDGET_REGISTRY.find((widget) => widget.id === "stat_total_hours")?.defaultSize.h).toBe(
+      1
+    );
   });
 });

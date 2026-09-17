@@ -2,7 +2,7 @@
 
 import { BRAND_NAME, ROUTES } from "@kloqra/contracts";
 import {
-  AppBar,
+  PageLayout,
   Button,
   Card,
   CardContent,
@@ -444,20 +444,16 @@ export function TimerPage() {
   const totalTodaySec = todayLoggedSec + (tracking ? elapsedSec : 0);
 
   return (
-    <div className="space-y-6">
-      <AppBar
-        title="Timer"
-        description={
-          tracking
-            ? "Manage your ongoing timer. Pausing allows taking breaks without breaking logs."
-            : "Choose a project and task before you start tracking."
-        }
-      />
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+    <PageLayout
+      title="Timer"
+      description={
+        tracking ? "Manage your ongoing timer." : "Choose a project and task, then start."
+      }
+    >
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 @min-[720px]/shell:grid-cols-12">
         {/* Main Timer Column */}
-        <div className="lg:col-span-7">
-          <Card className="flex flex-col">
+        <div className="@min-[720px]/shell:col-span-7 min-h-0">
+          <Card className="flex h-full min-h-0 flex-col">
             <CardHeader className="pb-4">
               <CardTitle>{tracking ? "Tracking Time" : "Start Timer"}</CardTitle>
               {tracking && activeProject && activeTask && (
@@ -713,7 +709,7 @@ export function TimerPage() {
         </div>
 
         {/* Sidebar Widgets Column */}
-        <div className="lg:col-span-5 space-y-6">
+        <div className="@min-[720px]/shell:col-span-5 min-h-0 space-y-4">
           <DailyGoalWidget totalSeconds={totalTodaySec} logs={recentLogs} timezone={timezone} />
 
           <QuickActions
@@ -735,6 +731,6 @@ export function TimerPage() {
         onStopAndSave={handleStopAndSave}
         onDiscard={handleDiscard}
       />
-    </div>
+    </PageLayout>
   );
 }

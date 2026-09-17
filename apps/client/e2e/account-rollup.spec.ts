@@ -15,4 +15,13 @@ test("tenant owner sees organization rollup on account overview", async ({ page 
   await expect(page.getByRole("combobox", { name: /filter workspaces/i })).toBeVisible();
   await expect(page.getByRole("combobox", { name: /sort workspaces/i })).toBeVisible();
   await expect(page.getByRole("button", { name: /utilization date range/i })).toBeVisible();
+
+  const plan = page.getByText("ACTIVE");
+  const workspaces = page.getByText("In your organization");
+  const planBox = await plan.boundingBox();
+  const workspacesBox = await workspaces.boundingBox();
+  expect(planBox).toBeTruthy();
+  expect(workspacesBox).toBeTruthy();
+  expect(Math.abs((planBox?.y ?? 0) - (workspacesBox?.y ?? 0))).toBeLessThan(32);
+  expect(workspacesBox?.x ?? 0).toBeGreaterThan(planBox?.x ?? 0);
 });

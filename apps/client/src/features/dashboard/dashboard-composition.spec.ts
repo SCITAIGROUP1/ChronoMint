@@ -1,6 +1,7 @@
 import type { AuthSessionDto } from "@kloqra/contracts";
 import { describe, expect, it } from "vitest";
 import {
+  EMPTY_DASHBOARD_PROJECT_IDS,
   filterWidgetsForDashboardMode,
   getDashboardComposition,
   isDashboardWidgetAllowed,
@@ -117,6 +118,28 @@ describe("unified dashboard composition", () => {
         composition.capabilities
       )
     ).toBe(false);
+  });
+
+  it("reuses a stable empty projectIds list for workspace-wide dashboards", () => {
+    const session = {
+      ...BASE_SESSION,
+      workspaceRole: "ADMIN" as const,
+      capabilities: ["workspace:ReadReports"] as const
+    };
+    const first = getDashboardComposition(session);
+    const second = getDashboardComposition(session);
+    expect(first.projectIds).toBe(EMPTY_DASHBOARD_PROJECT_IDS);
+    expect(first.projectIds).toBe(second.projectIds);
+  });
+
+  it("reuses the session managedProjectIds array when not workspace-wide", () => {
+    const managedProjectIds = ["00000000-0000-4000-8000-000000000004"];
+    const composition = getDashboardComposition({
+      ...BASE_SESSION,
+      managedProjectIds,
+      capabilities: ["project:ReadReports"]
+    });
+    expect(composition.projectIds).toBe(managedProjectIds);
   });
 
   it("keeps Dashboard management-only even when personal capabilities exist", () => {

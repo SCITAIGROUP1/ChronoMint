@@ -5,6 +5,7 @@ import type {
   DashboardReportDto,
   NonProjectTimeFilter,
   Permission,
+  TaskDto,
   TeamMemberDto
 } from "@kloqra/contracts";
 import {
@@ -52,6 +53,7 @@ import {
   usePersonalDashboardData,
   filterPersonalDashboardData
 } from "./personal-dashboard";
+import { useLiftedAppBarNode } from "./use-lifted-app-bar-node";
 import { useWidgetLayout } from "./use-widget-layout";
 import type { WidgetLayoutItem } from "./use-widget-layout";
 import { WidgetControlPanel } from "./widget-control-panel";
@@ -87,7 +89,6 @@ import {
 import { DashboardStatCard } from "@/components/dashboard-stat-card";
 import { LivePresenceBadge } from "@/components/live-presence-badge";
 import { formatDurationClock } from "@/components/report-charts";
-import { TimeTrackerImportModal } from "@/features/time-tracker/time-tracker-import-modal";
 import { api } from "@/lib/api";
 import { useSessionStore } from "@/stores/session.store";
 
@@ -157,13 +158,11 @@ function rangeQuery(
   return params;
 }
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
-}
-
 function formatMoney(n: number) {
   return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+
+const EMPTY_TASKS: TaskDto[] = [];
 
 export type ManagementDashboardPageProps = {
   capabilities: readonly Permission[];
@@ -173,6 +172,7 @@ export type ManagementDashboardPageProps = {
   projectIds: readonly string[];
   onAppBarActionsChange?: (actions: ReactNode | null) => void;
   onAppBarDescriptionChange?: (description: string | null) => void;
+  onAppBarSecondaryChange?: (secondary: ReactNode | null) => void;
 };
 
 export function ManagementDashboardPage({
@@ -182,7 +182,8 @@ export function ManagementDashboardPage({
   workspaceWide,
   projectIds: scopedProjectIds,
   onAppBarActionsChange,
-  onAppBarDescriptionChange
+  onAppBarDescriptionChange,
+  onAppBarSecondaryChange
 }: ManagementDashboardPageProps) {
   const session = useSessionStore((s) => s.session);
   const ws = getEffectiveWorkspaceId() ?? session?.workspaceId ?? "";
@@ -195,8 +196,6 @@ export function ManagementDashboardPage({
   const canReadPresence =
     capabilities.includes("workspace:ReadPresence") ||
     capabilities.includes("project:ReadPresence");
-  const canCreateWorkspaceExport = capabilities.includes("workspace:CreateExport");
-  const canImportTime = capabilities.includes("personal:ManageTimelogs");
 
   const [range, setRange] = useState<DashboardPeriodSelection>("week");
   const [startDate, setStartDate] = useState<string>(
@@ -215,12 +214,15 @@ export function ManagementDashboardPage({
     showManagement ? "exclude" : "include"
   );
   const catalog = useEntryCatalogQueries(ws, { enabled: Boolean(ws) });
-  const projects =
-    showPersonal && !showManagement
-      ? catalog.projects
-      : workspaceWide
+  const projects = useMemo(
+    () =>
+      showPersonal && !showManagement
         ? catalog.projects
-        : catalog.projects.filter((project) => scopedProjectIds.includes(project.id));
+        : workspaceWide
+          ? catalog.projects
+          : catalog.projects.filter((project) => scopedProjectIds.includes(project.id)),
+    [showPersonal, showManagement, workspaceWide, catalog.projects, scopedProjectIds]
+  );
   const categories = catalog.categories;
 
   const taskFilters = useMemo(() => {
@@ -228,11 +230,12 @@ export function ManagementDashboardPage({
     return { projectId } as Record<string, string | string[]>;
   }, [projectId]);
 
-  const { data: tasksRaw = [] } = useTasksListQuery(
+  const { data: tasksQueryData } = useTasksListQuery(
     ws,
     taskFilters,
     Boolean(ws && projectId.length > 0)
   );
+  const tasksRaw = tasksQueryData ?? EMPTY_TASKS;
   const tasks = useMemo(() => {
     if (categoryId.length === 0) return tasksRaw;
     return tasksRaw.filter((task) => categoryId.includes(task.categoryId));
@@ -266,22 +269,27 @@ export function ManagementDashboardPage({
     }
   }, [timezone, range]);
 
-  function handleRangePresetChange(newRange: DashboardPeriodPreset) {
-    setRange(newRange);
-    const { from, to } = applyDashboardPeriodPreset(newRange, timezone);
-    setStartDate(from);
-    setEndDate(to);
-  }
+  const handleRangePresetChange = useCallback(
+    (newRange: DashboardPeriodPreset) => {
+      setRange(newRange);
+      const { from, to } = applyDashboardPeriodPreset(newRange, timezone);
+      setStartDate(from);
+      setEndDate(to);
+    },
+    [timezone]
+  );
 
-  function handleDateRangeChange(from: string, to: string) {
-    setStartDate(from);
-    setEndDate(to);
-    setRange(matchDashboardPeriodPreset(from, to, ["week", "month"], timezone) ?? "custom");
-  }
+  const handleDateRangeChange = useCallback(
+    (from: string, to: string) => {
+      setStartDate(from);
+      setEndDate(to);
+      setRange(matchDashboardPeriodPreset(from, to, ["week", "month"], timezone) ?? "custom");
+    },
+    [timezone]
+  );
 
   // Widget Customization UI States
   const [mounted, setMounted] = useState(false);
-  const [importOpen, setImportOpen] = useState(false);
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
   const [isArranging, setIsArranging] = useState(false);
   const [gridBreakpoint, setGridBreakpoint] = useState<DashboardBreakpoint>("lg");
@@ -318,27 +326,6 @@ export function ManagementDashboardPage({
     : teamMembers.find((m) => m.userId === userId);
 
   const selectedTask = tasks.find((t) => t.id === taskId);
-
-  const exportUrl = useMemo(() => {
-    const params = new URLSearchParams({
-      from: startDate,
-      to: endDate,
-      mode: "custom"
-    });
-    if (projectId && projectId.length > 0) {
-      params.set("projectId", projectId.join(","));
-    }
-    if (userId && userId.length > 0) {
-      params.set("userId", userId.join(","));
-    }
-    if (categoryId && categoryId.length > 0) {
-      params.set("categoryId", categoryId.join(","));
-    }
-    if (taskId) {
-      params.set("taskId", taskId);
-    }
-    return `/exports?${params.toString()}`;
-  }, [startDate, endDate, projectId, userId, categoryId, taskId]);
 
   const scopeLabel = selectedTask
     ? `${selectedTask.taskName} · ${selectedProject?.name ?? "1 project"}`
@@ -445,27 +432,30 @@ export function ManagementDashboardPage({
     };
   }, [isCatalogOpen, isArranging, handleCancelArranging]);
 
-  function onProjectChange(nextId: string[]) {
-    if (showPersonal && !showManagement) {
-      setProjectId(nextId);
+  const onProjectChange = useCallback(
+    (nextId: string[]) => {
+      if (showPersonal && !showManagement) {
+        setProjectId(nextId);
+        setUserId([]);
+        setTaskId("");
+        return;
+      }
+      const allowedIds = nextId.filter((id) => scopedProjectIds.includes(id));
+      setProjectId(
+        workspaceWide ? nextId : allowedIds.length > 0 ? allowedIds : [...scopedProjectIds]
+      );
       setUserId([]);
       setTaskId("");
-      return;
-    }
-    const allowedIds = nextId.filter((id) => scopedProjectIds.includes(id));
-    setProjectId(
-      workspaceWide ? nextId : allowedIds.length > 0 ? allowedIds : [...scopedProjectIds]
-    );
-    setUserId([]);
-    setTaskId("");
-  }
+    },
+    [showPersonal, showManagement, scopedProjectIds, workspaceWide]
+  );
 
-  function onCategoryChange(nextId: string[]) {
+  const onCategoryChange = useCallback((nextId: string[]) => {
     setCategoryId(nextId);
     setTaskId("");
-  }
+  }, []);
 
-  function clearScopeFilters() {
+  const clearScopeFilters = useCallback(() => {
     if (showPersonal && !showManagement) {
       setProjectId([]);
       setUserId([]);
@@ -479,7 +469,7 @@ export function ManagementDashboardPage({
     setCategoryId([]);
     setTaskId("");
     setNonProjectTime("exclude");
-  }
+  }, [showPersonal, showManagement, workspaceWide, scopedProjectIds]);
 
   const load = useCallback(() => {
     if (!showManagement || !ws) {
@@ -607,14 +597,7 @@ export function ManagementDashboardPage({
   );
   const visibleItems = activeLayout.filter((item) => item.visible);
 
-  const handleAddWidgets = useCallback(() => {
-    setIsCatalogOpen((open) => !open);
-    if (isArranging) {
-      handleCancelArranging();
-    }
-  }, [isArranging, handleCancelArranging]);
-
-  const handleArrangeGrid = useCallback(async () => {
+  const handleCustomize = useCallback(async () => {
     if (isArranging) {
       try {
         await persistLayout(ws);
@@ -623,44 +606,104 @@ export function ManagementDashboardPage({
         return;
       }
       arrangeSnapshotRef.current = null;
-    } else {
-      const current = layoutsByWorkspace[ws];
-      if (current) {
-        arrangeSnapshotRef.current = current.map((item) => ({ ...item }));
-      }
+      setIsArranging(false);
+      setIsCatalogOpen(false);
+      return;
     }
-    setIsArranging((arranging) => !arranging);
-    setIsCatalogOpen(false);
+    const current = layoutsByWorkspace[ws];
+    if (current) {
+      arrangeSnapshotRef.current = current.map((item) => ({ ...item }));
+    }
+    setIsArranging(true);
+    setIsCatalogOpen(true);
   }, [isArranging, layoutsByWorkspace, persistLayout, ws]);
 
   const appBarActions = useMemo(
     () => (
       <DashboardAppBarActions
-        canImport={canImportTime}
-        exportUrl={showManagement && canCreateWorkspaceExport ? exportUrl : null}
-        catalogOpen={isCatalogOpen}
-        arranging={isArranging}
-        onImport={() => setImportOpen(true)}
-        onAddWidgets={handleAddWidgets}
-        onArrange={() => void handleArrangeGrid()}
+        customizing={isArranging}
+        onCustomize={() => void handleCustomize()}
       />
     ),
+    [isArranging, handleCustomize]
+  );
+
+  useLiftedAppBarNode<ReactNode>(appBarActions, onAppBarActionsChange);
+
+  const appBarSecondary = useMemo(
+    () =>
+      showPersonal || showManagement ? (
+        <DashboardFiltersToolbar
+          period={
+            <DashboardPeriodFilter
+              className="min-w-0 flex-1"
+              range={range}
+              onPresetChange={handleRangePresetChange}
+              startDate={startDate}
+              endDate={endDate}
+              onDateRangeChange={handleDateRangeChange}
+              presets={ADMIN_PERIOD_PRESETS}
+              dateRangeAriaLabel="Dashboard date range"
+            />
+          }
+          scope={
+            <ReportScopeFilters
+              compact
+              taskRequiresProject
+              memberRequiresProject={showManagement}
+              hideMemberFilter={!showManagement}
+              memberAllLabel="Everyone on project"
+              memberPlaceholder="Everyone on project"
+              hintText={
+                showManagement
+                  ? "Optional — narrow charts and exports"
+                  : "Optional — narrow your personal widgets"
+              }
+              values={{ projectId, categoryId, taskId, userId }}
+              projects={projects}
+              categories={categories}
+              tasks={tasks}
+              members={
+                showManagement
+                  ? teamMembers.map((m) => ({ userId: m.userId, userName: m.userName }))
+                  : []
+              }
+              onProjectChange={onProjectChange}
+              onCategoryChange={onCategoryChange}
+              onTaskChange={setTaskId}
+              onUserChange={setUserId}
+              onClearAll={clearScopeFilters}
+              nonProjectTime={nonProjectTime}
+              onNonProjectTimeChange={setNonProjectTime}
+              defaultNonProjectTime={showManagement ? "exclude" : "include"}
+            />
+          }
+        />
+      ) : null,
     [
-      canImportTime,
+      showPersonal,
       showManagement,
-      canCreateWorkspaceExport,
-      exportUrl,
-      isCatalogOpen,
-      isArranging,
-      handleAddWidgets,
-      handleArrangeGrid
+      range,
+      handleRangePresetChange,
+      startDate,
+      endDate,
+      handleDateRangeChange,
+      projectId,
+      categoryId,
+      taskId,
+      userId,
+      projects,
+      categories,
+      tasks,
+      teamMembers,
+      onProjectChange,
+      onCategoryChange,
+      clearScopeFilters,
+      nonProjectTime
     ]
   );
 
-  useEffect(() => {
-    onAppBarActionsChange?.(appBarActions);
-    return () => onAppBarActionsChange?.(null);
-  }, [appBarActions, onAppBarActionsChange]);
+  useLiftedAppBarNode<ReactNode>(appBarSecondary, onAppBarSecondaryChange);
 
   const widgetMinSizes = useMemo(
     () => buildWidgetMinSizeMap(allowedWidgetRegistry),
@@ -674,26 +717,16 @@ export function ManagementDashboardPage({
 
   const colorByProjectId = Object.fromEntries(projects.map((p) => [p.id, p.color]));
   const hasData = (report?.workspace.totalHours ?? 0) > 0;
-  const periodLabel = report
-    ? `${formatDate(report.period.from)} – ${formatDate(report.period.to)}`
-    : `${formatDate(`${startDate}T12:00:00`)} – ${formatDate(`${endDate}T12:00:00`)}`;
 
-  useEffect(() => {
+  const appBarDescription = useMemo(() => {
     const clientLabel =
       showManagement && selectedProject?.clientName && !selectedMember
         ? ` · ${selectedProject.clientName}`
         : "";
-    const description = `${showManagement ? scopeLabel : "My work"} · ${periodLabel}${clientLabel}`;
-    onAppBarDescriptionChange?.(description);
-    return () => onAppBarDescriptionChange?.(null);
-  }, [
-    onAppBarDescriptionChange,
-    periodLabel,
-    scopeLabel,
-    selectedMember,
-    selectedProject?.clientName,
-    showManagement
-  ]);
+    return `${showManagement ? scopeLabel : "My work"}${clientLabel}`;
+  }, [showManagement, scopeLabel, selectedMember, selectedProject?.clientName]);
+
+  useLiftedAppBarNode<string>(appBarDescription, onAppBarDescriptionChange);
 
   // Widget Catalogue Render Lookup
   function renderWidgetContent(id: string) {
@@ -930,7 +963,7 @@ export function ManagementDashboardPage({
 
   // Get dynamic header action controls (e.g. filters) per widget type
   function renderWidgetShareButton(id: string) {
-    if (!isShareableWidgetId(id)) return null;
+    if (!isArranging || !isShareableWidgetId(id)) return null;
     const widgetDef = WIDGET_REGISTRY.find((w) => w.id === id);
     return (
       <WidgetShareButton
@@ -1043,7 +1076,7 @@ export function ManagementDashboardPage({
   }
 
   return (
-    <section aria-label="Dashboard widgets" className="space-y-8 min-h-screen pb-16">
+    <section aria-label="Dashboard widgets" className="flex min-h-0 flex-1 flex-col gap-3">
       {showManagement && canReadPresence ? (
         <div className="flex justify-end">
           <LivePresenceBadge />
@@ -1071,64 +1104,13 @@ export function ManagementDashboardPage({
         />
       )}
 
-      {showPersonal || showManagement ? (
-        <DashboardFiltersToolbar
-          period={
-            <>
-              <DashboardPeriodFilter
-                className="min-w-0 flex-1"
-                range={range}
-                onPresetChange={handleRangePresetChange}
-                startDate={startDate}
-                endDate={endDate}
-                onDateRangeChange={handleDateRangeChange}
-                presets={ADMIN_PERIOD_PRESETS}
-                dateRangeAriaLabel="Dashboard date range"
-              />
-            </>
-          }
-          scope={
-            <ReportScopeFilters
-              compact
-              taskRequiresProject
-              memberRequiresProject={showManagement}
-              hideMemberFilter={!showManagement}
-              memberAllLabel="Everyone on project"
-              memberPlaceholder="Everyone on project"
-              hintText={
-                showManagement
-                  ? "Optional — narrow charts and exports"
-                  : "Optional — narrow your personal widgets"
-              }
-              values={{ projectId, categoryId, taskId, userId }}
-              projects={projects}
-              categories={categories}
-              tasks={tasks}
-              members={
-                showManagement
-                  ? teamMembers.map((m) => ({ userId: m.userId, userName: m.userName }))
-                  : []
-              }
-              onProjectChange={onProjectChange}
-              onCategoryChange={onCategoryChange}
-              onTaskChange={setTaskId}
-              onUserChange={setUserId}
-              onClearAll={clearScopeFilters}
-              nonProjectTime={nonProjectTime}
-              onNonProjectTimeChange={setNonProjectTime}
-              defaultNonProjectTime={showManagement ? "exclude" : "include"}
-            />
-          }
-        />
-      ) : null}
-
       {showManagement && !loading && !error && !hasData ? (
         <p className="text-sm text-muted-foreground">
           No management time was recorded in this period.
         </p>
       ) : null}
 
-      <div className="relative">
+      <div className="relative min-h-0 flex-1">
         {!mounted || !initialized ? (
           <DashboardSkeleton />
         ) : (
@@ -1137,7 +1119,8 @@ export function ManagementDashboardPage({
             layouts={responsiveLayouts}
             breakpoints={DASHBOARD_GRID_BREAKPOINTS}
             cols={DASHBOARD_GRID_COLS}
-            rowHeight={80}
+            rowHeight={72}
+            margin={[12, 12]}
             compactType="vertical"
             isDraggable={isArranging}
             isResizable={isArranging}
@@ -1152,7 +1135,6 @@ export function ManagementDashboardPage({
                 updateLayout(ws, currentLayout, { persist: false });
               }
             }}
-            margin={[16, 16]}
             containerPadding={[0, 0]}
           >
             {visibleItems.map((item) => {
@@ -1177,8 +1159,6 @@ export function ManagementDashboardPage({
           </ResponsiveGridLayout>
         )}
       </div>
-
-      <TimeTrackerImportModal open={importOpen} onOpenChange={setImportOpen} onImported={load} />
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
     </section>

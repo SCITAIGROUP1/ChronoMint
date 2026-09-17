@@ -8,9 +8,10 @@ import type {
 } from "@kloqra/contracts";
 import {
   AppModal,
-  AppBar,
+  PageLayout,
   AppBarListToolbar,
   appBarListFilterTriggerClass,
+  appBarPageActionClass,
   Badge,
   Button,
   Card,
@@ -20,7 +21,9 @@ import {
   DataTableCell,
   DataTableHead,
   DataTableHeaderRow,
+  DataTableScroll,
   EmptyState,
+  StatStrip,
   Input,
   Label,
   Select,
@@ -324,108 +327,81 @@ export function TeamManagementPage() {
   const summaryStats = summary;
 
   return (
-    <div className="space-y-6">
-      <AppBar
-        title="Team Management"
-        description="Manage team members, roles, and permissions."
-        secondary={
-          <AppBarListToolbar
-            searchValue={search}
-            onSearchChange={setSearch}
-            searchPlaceholder="Search team members…"
-            searchAriaLabel="Search team members"
-            filterCount={(roleFilter !== "ALL" ? 1 : 0) + (statusFilter !== "ALL" ? 1 : 0)}
-            onClearFilters={() => {
-              setRoleFilter("ALL");
-              setStatusFilter("ALL");
-            }}
-            filters={
-              <>
-                <Select
-                  value={roleFilter}
-                  onValueChange={(value) => setRoleFilter(value as "ALL" | "ADMIN" | "MEMBER")}
-                >
-                  <SelectTrigger
-                    className={appBarListFilterTriggerClass}
-                    aria-label="Filter by role"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ALL">All roles</SelectItem>
-                    <SelectItem value="ADMIN">Admins</SelectItem>
-                    <SelectItem value="MEMBER">Members</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select
-                  value={statusFilter}
-                  onValueChange={(value) => setStatusFilter(value as "ALL" | "active" | "inactive")}
-                >
-                  <SelectTrigger
-                    className={appBarListFilterTriggerClass}
-                    aria-label="Filter by status"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ALL">All statuses</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                  </SelectContent>
-                </Select>
-              </>
-            }
-            moreActions={
-              <Button
-                type="button"
-                variant="outline"
-                className="h-10 w-full gap-2 sm:w-auto"
-                onClick={() => setBulkOpen(true)}
+    <PageLayout
+      title="Team Management"
+      description="Manage members, roles, and permissions."
+      secondary={
+        <AppBarListToolbar
+          searchValue={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Search team members…"
+          searchAriaLabel="Search team members"
+          filterCount={(roleFilter !== "ALL" ? 1 : 0) + (statusFilter !== "ALL" ? 1 : 0)}
+          onClearFilters={() => {
+            setRoleFilter("ALL");
+            setStatusFilter("ALL");
+          }}
+          filters={
+            <>
+              <Select
+                value={roleFilter}
+                onValueChange={(value) => setRoleFilter(value as "ALL" | "ADMIN" | "MEMBER")}
               >
-                <Upload className="h-4 w-4" aria-hidden />
-                Bulk Import
-              </Button>
-            }
-            action={
-              <Button
-                type="button"
-                className="h-10 w-full gap-2"
-                onClick={() => setInviteOpen(true)}
+                <SelectTrigger className={appBarListFilterTriggerClass} aria-label="Filter by role">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All roles</SelectItem>
+                  <SelectItem value="ADMIN">Admins</SelectItem>
+                  <SelectItem value="MEMBER">Members</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={statusFilter}
+                onValueChange={(value) => setStatusFilter(value as "ALL" | "active" | "inactive")}
               >
-                <Plus className="h-4 w-4" aria-hidden />
-                Add Team Member
-              </Button>
-            }
-          />
-        }
-      />
-
-      {summaryStats ? (
-        <>
-          <div
-            className="flex gap-3 overflow-x-auto pb-1 text-sm lg:hidden"
-            data-testid="team-stats-strip"
-          >
-            <span className="shrink-0 rounded-lg border border-border/70 bg-card px-3 py-2">
-              <span className="text-muted-foreground">Members </span>
-              <span className="font-semibold">{summaryStats.totalMembers}</span>
-            </span>
-            <span className="shrink-0 rounded-lg border border-border/70 bg-card px-3 py-2">
-              <span className="text-muted-foreground">Active </span>
-              <span className="font-semibold">{summaryStats.activeMembers}</span>
-            </span>
-            <span className="shrink-0 rounded-lg border border-border/70 bg-card px-3 py-2">
-              <span className="text-muted-foreground">Admins </span>
-              <span className="font-semibold">{summaryStats.adminCount}</span>
-            </span>
-            <span className="shrink-0 rounded-lg border border-border/70 bg-card px-3 py-2">
-              <span className="text-muted-foreground">Hours </span>
-              <span className="font-semibold">{formatWeekHours(summaryStats.totalWeekHours)}</span>
-            </span>
-          </div>
-          <div className="hidden gap-4 lg:grid sm:grid-cols-2 xl:grid-cols-4">
-            <Card className="border-primary/10 shadow-sm">
-              <CardContent className="p-4">
+                <SelectTrigger
+                  className={appBarListFilterTriggerClass}
+                  aria-label="Filter by status"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All statuses</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </>
+          }
+          moreActions={
+            <Button
+              type="button"
+              variant="outline"
+              className={appBarPageActionClass}
+              onClick={() => setBulkOpen(true)}
+            >
+              <Upload className="size-4" aria-hidden />
+              Bulk import
+            </Button>
+          }
+          action={
+            <Button
+              type="button"
+              className={appBarPageActionClass}
+              onClick={() => setInviteOpen(true)}
+            >
+              <Plus className="size-4" aria-hidden />
+              Add Team Member
+            </Button>
+          }
+        />
+      }
+      stats={
+        summaryStats ? (
+          <StatStrip data-testid="team-stats-strip">
+            <Card density="compact" className="border-primary/10 shadow-sm">
+              <CardContent className="p-2.5">
                 <DashboardStatCard
                   label="Total Members"
                   value={String(summaryStats.totalMembers)}
@@ -434,8 +410,8 @@ export function TeamManagementPage() {
                 />
               </CardContent>
             </Card>
-            <Card className="border-primary/10 shadow-sm">
-              <CardContent className="p-4">
+            <Card density="compact" className="border-primary/10 shadow-sm">
+              <CardContent className="p-2.5">
                 <DashboardStatCard
                   label="Active"
                   value={String(summaryStats.activeMembers)}
@@ -445,8 +421,8 @@ export function TeamManagementPage() {
                 />
               </CardContent>
             </Card>
-            <Card className="border-primary/10 shadow-sm">
-              <CardContent className="p-4">
+            <Card density="compact" className="border-primary/10 shadow-sm">
+              <CardContent className="p-2.5">
                 <DashboardStatCard
                   label="Admins"
                   value={String(summaryStats.adminCount)}
@@ -455,8 +431,8 @@ export function TeamManagementPage() {
                 />
               </CardContent>
             </Card>
-            <Card className="border-primary/10 shadow-sm">
-              <CardContent className="p-4">
+            <Card density="compact" className="border-primary/10 shadow-sm">
+              <CardContent className="p-2.5">
                 <DashboardStatCard
                   label="Total Hours"
                   value={formatWeekHours(summaryStats.totalWeekHours)}
@@ -466,11 +442,11 @@ export function TeamManagementPage() {
                 />
               </CardContent>
             </Card>
-          </div>
-        </>
-      ) : null}
-
-      <DataTableCard>
+          </StatStrip>
+        ) : undefined
+      }
+    >
+      <DataTableCard fill>
         {loading ? (
           <TableLoadingState rows={6} columns={5} />
         ) : members.length === 0 ? (
@@ -486,76 +462,80 @@ export function TeamManagementPage() {
           </div>
         ) : (
           <>
-            <Table>
-              <TableHeader>
-                <DataTableHeaderRow>
-                  <DataTableHead>Member</DataTableHead>
-                  <DataTableHead>Role</DataTableHead>
-                  <DataTableHead>Status</DataTableHead>
-                  <DataTableHead className="text-right">Projects</DataTableHead>
-                  <DataTableHead className="text-right">Hours (This Week)</DataTableHead>
-                  <DataTableHead>Last Active</DataTableHead>
-                  <DataTableHead className="text-right">Actions</DataTableHead>
-                </DataTableHeaderRow>
-              </TableHeader>
-              <TableBody>
-                {members.map((member) => (
-                  <TableRow key={member.id}>
-                    <DataTableCell>
-                      <div className="flex items-center gap-3">
-                        <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-                          {memberInitials(member.userName)}
+            <DataTableScroll>
+              <Table>
+                <TableHeader>
+                  <DataTableHeaderRow>
+                    <DataTableHead sticky>Member</DataTableHead>
+                    <DataTableHead>Role</DataTableHead>
+                    <DataTableHead priority="meta">Status</DataTableHead>
+                    <DataTableHead className="text-right">Projects</DataTableHead>
+                    <DataTableHead className="text-right" priority="meta">
+                      Hours (This Week)
+                    </DataTableHead>
+                    <DataTableHead priority="meta">Last Active</DataTableHead>
+                    <DataTableHead className="text-right">Actions</DataTableHead>
+                  </DataTableHeaderRow>
+                </TableHeader>
+                <TableBody>
+                  {members.map((member) => (
+                    <TableRow key={member.id}>
+                      <DataTableCell sticky>
+                        <div className="flex items-center gap-3">
+                          <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                            {memberInitials(member.userName)}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium">{member.userName}</p>
+                            <p className="truncate text-xs text-muted-foreground">
+                              {member.userEmail}
+                            </p>
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium">{member.userName}</p>
-                          <p className="truncate text-xs text-muted-foreground">
-                            {member.userEmail}
-                          </p>
-                        </div>
-                      </div>
-                    </DataTableCell>
-                    <DataTableCell>
-                      <Badge variant={member.role === "ADMIN" ? "default" : "secondary"}>
-                        {roleLabel(member.role)}
-                      </Badge>
-                    </DataTableCell>
-                    <DataTableCell>
-                      <Badge
-                        variant="outline"
-                        className={
-                          member.status === "active"
-                            ? "border-success/30 bg-success/10 text-success"
-                            : "border-destructive/30 bg-destructive/10 text-destructive"
-                        }
-                      >
-                        {formatMemberStatus(member.status)}
-                      </Badge>
-                    </DataTableCell>
-                    <DataTableCell className="text-right tabular-nums">
-                      {member.projectCount}
-                    </DataTableCell>
-                    <DataTableCell className="text-right tabular-nums">
-                      {formatWeekHours(member.weekHours)}
-                    </DataTableCell>
-                    <DataTableCell className="text-sm text-muted-foreground">
-                      {formatLastActive(member.lastActiveAt, member.isTrackingNow)}
-                    </DataTableCell>
-                    <DataTableCell className="text-right">
-                      <TeamMemberActions
-                        member={member}
-                        isSelf={member.userId === session?.user.id}
-                        busy={memberBusyId === member.id}
-                        onViewProfile={() => setProfileTarget(member)}
-                        onEditMember={() => setEditTarget(member)}
-                        onResendCredentials={() => handleResendCredentials(member)}
-                        onChangeStatus={(isActive) => handleChangeStatus(member, isActive)}
-                        onRemove={() => setRemoveTarget(member)}
-                      />
-                    </DataTableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                      </DataTableCell>
+                      <DataTableCell>
+                        <Badge variant={member.role === "ADMIN" ? "default" : "secondary"}>
+                          {roleLabel(member.role)}
+                        </Badge>
+                      </DataTableCell>
+                      <DataTableCell priority="meta">
+                        <Badge
+                          variant="outline"
+                          className={
+                            member.status === "active"
+                              ? "border-success/30 bg-success/10 text-success"
+                              : "border-destructive/30 bg-destructive/10 text-destructive"
+                          }
+                        >
+                          {formatMemberStatus(member.status)}
+                        </Badge>
+                      </DataTableCell>
+                      <DataTableCell className="text-right tabular-nums">
+                        {member.projectCount}
+                      </DataTableCell>
+                      <DataTableCell className="text-right tabular-nums" priority="meta">
+                        {formatWeekHours(member.weekHours)}
+                      </DataTableCell>
+                      <DataTableCell className="text-sm text-muted-foreground" priority="meta">
+                        {formatLastActive(member.lastActiveAt, member.isTrackingNow)}
+                      </DataTableCell>
+                      <DataTableCell className="text-right">
+                        <TeamMemberActions
+                          member={member}
+                          isSelf={member.userId === session?.user.id}
+                          busy={memberBusyId === member.id}
+                          onViewProfile={() => setProfileTarget(member)}
+                          onEditMember={() => setEditTarget(member)}
+                          onResendCredentials={() => handleResendCredentials(member)}
+                          onChangeStatus={(isActive) => handleChangeStatus(member, isActive)}
+                          onRemove={() => setRemoveTarget(member)}
+                        />
+                      </DataTableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </DataTableScroll>
             <TablePagination
               page={page}
               totalPages={totalPages}
@@ -761,6 +741,6 @@ export function TeamManagementPage() {
           </form>
         </div>
       </AppModal>
-    </div>
+    </PageLayout>
   );
 }

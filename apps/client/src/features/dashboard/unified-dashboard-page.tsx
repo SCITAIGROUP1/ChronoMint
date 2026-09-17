@@ -1,8 +1,8 @@
 "use client";
 
-import { AppBar } from "@kloqra/ui";
+import { PageLayout } from "@kloqra/ui";
 import { useRouter } from "next/navigation";
-import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { getDashboardComposition } from "./dashboard-composition";
 import { ManagementDashboardLazy } from "./management-dashboard-lazy";
 import { useSessionStore } from "@/stores/session.store";
@@ -12,13 +12,17 @@ export function UnifiedDashboardPage() {
   const router = useRouter();
   const [dashboardActions, setDashboardActions] = useState<ReactNode>(null);
   const [dashboardDescription, setDashboardDescription] = useState<string | null>(null);
+  const [dashboardSecondary, setDashboardSecondary] = useState<ReactNode>(null);
   const handleDashboardActionsChange = useCallback((actions: ReactNode | null) => {
     setDashboardActions(actions);
   }, []);
   const handleDashboardDescriptionChange = useCallback((description: string | null) => {
     setDashboardDescription(description);
   }, []);
-  const composition = session ? getDashboardComposition(session) : null;
+  const handleDashboardSecondaryChange = useCallback((secondary: ReactNode | null) => {
+    setDashboardSecondary(secondary);
+  }, []);
+  const composition = useMemo(() => (session ? getDashboardComposition(session) : null), [session]);
   const showManagement = composition?.showManagement ?? false;
 
   useEffect(() => {
@@ -29,16 +33,16 @@ export function UnifiedDashboardPage() {
   if (!session || !composition || !showManagement) return null;
 
   return (
-    <div className="space-y-10">
-      <AppBar
-        title="Dashboard"
-        description={dashboardDescription ?? "Loading dashboard range…"}
-        actions={
-          dashboardActions ? (
-            <div className="flex flex-wrap items-center justify-end gap-2">{dashboardActions}</div>
-          ) : null
-        }
-      />
+    <PageLayout
+      title="Dashboard"
+      description={dashboardDescription ?? "Workspace reports"}
+      actions={
+        dashboardActions ? (
+          <div className="flex flex-wrap items-center justify-end gap-2">{dashboardActions}</div>
+        ) : null
+      }
+      secondary={dashboardSecondary}
+    >
       <ManagementDashboardLazy
         capabilities={composition.capabilities}
         showPersonal={false}
@@ -47,7 +51,8 @@ export function UnifiedDashboardPage() {
         projectIds={composition.projectIds}
         onAppBarActionsChange={handleDashboardActionsChange}
         onAppBarDescriptionChange={handleDashboardDescriptionChange}
+        onAppBarSecondaryChange={handleDashboardSecondaryChange}
       />
-    </div>
+    </PageLayout>
   );
 }

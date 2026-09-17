@@ -1,5 +1,6 @@
 "use client";
 
+import { type CategoryDto, type ProjectDto, type TaskDto } from "@kloqra/contracts";
 import { useCallback, useMemo } from "react";
 import {
   useCategoriesListQuery,
@@ -8,6 +9,10 @@ import {
 } from "./use-catalog-queries";
 
 type CatalogFilters = Record<string, string | string[] | number | boolean | undefined | null>;
+
+const EMPTY_PROJECTS: ProjectDto[] = [];
+const EMPTY_CATEGORIES: CategoryDto[] = [];
+const EMPTY_TASKS: TaskDto[] = [];
 
 function filtersKey(filters?: CatalogFilters): string {
   if (!filters) return "";
@@ -38,9 +43,9 @@ export function useEntryCatalogQueries(
   }, [projectsQuery, categoriesQuery, tasksQuery]);
 
   return {
-    projects: projectsQuery.data ?? [],
-    categories: categoriesQuery.data ?? [],
-    tasks: tasksQuery.data ?? [],
+    projects: projectsQuery.data ?? EMPTY_PROJECTS,
+    categories: categoriesQuery.data ?? EMPTY_CATEGORIES,
+    tasks: tasksQuery.data ?? EMPTY_TASKS,
     isLoading: projectsQuery.isLoading || categoriesQuery.isLoading || tasksQuery.isLoading,
     isFetching: projectsQuery.isFetching || categoriesQuery.isFetching || tasksQuery.isFetching,
     refetch,

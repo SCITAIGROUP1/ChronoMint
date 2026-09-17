@@ -41,6 +41,7 @@ import {
   formatDayHeaderShort,
   type TimesheetDisplayFormat
 } from "./display-format";
+import { TimesheetLegend } from "./timesheet-legend";
 import { DEFAULT_TIMESHEET_SLOT_PX, type TimesheetSlotPx } from "./timesheet-zoom";
 import { TimesheetZoomControls } from "./timesheet-zoom-controls";
 import { calendarLogLabel, entryColorsForLog } from "@/lib/non-project-entry-styles";
@@ -103,6 +104,7 @@ export type TimesheetCalendarProps = {
   onZoomIn?: () => void;
   onZoomOut?: () => void;
   onZoomReset?: () => void;
+  className?: string;
 };
 
 function findDayColumnAt(
@@ -152,7 +154,8 @@ export function TimesheetCalendar({
   slotPx = DEFAULT_TIMESHEET_SLOT_PX,
   onZoomIn,
   onZoomOut,
-  onZoomReset
+  onZoomReset,
+  className
 }: TimesheetCalendarProps) {
   const slotRows = buildSlotRows();
   const hourPx = slotPx * 2;
@@ -529,23 +532,27 @@ export function TimesheetCalendar({
   }, [view, days, timezone, hourPx]);
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-card">
-      <p className="border-b border-border/60 px-3 py-1.5 text-[11px] text-muted-foreground/80">
-        <span className="hidden md:inline">
-          Drag slots to log · Drag block to move · Resize edges · Click to edit ·{" "}
-          <kbd className="rounded border border-border bg-muted px-1 font-sans text-[10px]">
-            Ctrl
-          </kbd>
-          +drag to duplicate
-        </span>
-        <span className="md:hidden">
-          Tap slots to log · Tap a block to edit · Swipe sideways in week view for more room
-        </span>
-      </p>
-      <div
-        ref={scrollContainerRef}
-        className="max-h-[calc(100dvh-12rem)] overflow-x-auto overflow-y-auto select-none md:max-h-[calc(100dvh-13rem)]"
-      >
+    <div
+      className={cn(
+        "flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card",
+        className
+      )}
+    >
+      <div className="flex shrink-0 items-center gap-2 overflow-x-auto border-b border-border/60 px-3 py-1.5">
+        <p className="min-w-0 text-[11px] text-muted-foreground/80">
+          <span className="hidden md:inline">
+            Drag slots to log · Drag block to move · Resize edges · Click to edit ·{" "}
+            <kbd className="rounded border border-border bg-muted px-1 font-sans text-[10px]">
+              Ctrl
+            </kbd>
+            +drag to duplicate
+          </span>
+          <span className="md:hidden">
+            Tap slots to log · Tap a block to edit · Swipe sideways in week view for more room
+          </span>
+        </p>
+      </div>
+      <div ref={scrollContainerRef} className="min-h-0 flex-1 overflow-auto select-none">
         <div className="w-full" style={gridMinWidth ? { minWidth: gridMinWidth } : undefined}>
           <div
             className="sticky top-0 z-40 grid border-b border-border bg-card"
@@ -716,20 +723,23 @@ export function TimesheetCalendar({
           </div>
         </div>
       </div>
-      {onZoomIn && onZoomOut && onZoomReset ? (
-        <div className="flex items-center justify-between gap-3 border-t border-border bg-muted/20 px-3 py-2">
-          <p className="hidden text-[11px] text-muted-foreground sm:block">
-            Zoom the time grid for denser or taller slots
-          </p>
+      <div className="flex shrink-0 items-center gap-3 overflow-x-auto border-t border-border bg-muted/20 px-3 py-1.5">
+        <TimesheetLegend
+          showOccupancy={showOccupancyOverlay}
+          showLiveTimer={Boolean(activeTimer)}
+          className="min-w-0"
+        />
+        {onZoomIn && onZoomOut && onZoomReset ? (
           <TimesheetZoomControls
+            compact
             slotPx={slotPx}
             onZoomIn={onZoomIn}
             onZoomOut={onZoomOut}
             onReset={onZoomReset}
-            className="ml-auto"
+            className="ml-auto shrink-0"
           />
-        </div>
-      ) : null}
+        ) : null}
+      </div>
     </div>
   );
 }

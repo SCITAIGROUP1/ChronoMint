@@ -1,6 +1,13 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { DataTableCard, TablePagination, dataTableCardClass } from "./data-table";
+import {
+  DataTableCard,
+  DataTableCell,
+  DataTableHead,
+  DataTableScroll,
+  TablePagination,
+  dataTableCardClass
+} from "./data-table";
 
 describe("DataTableCard", () => {
   it("uses flush card layout like time tracker tables", () => {
@@ -10,6 +17,47 @@ describe("DataTableCard", () => {
     expect(card?.className).toContain("gap-0");
     expect(card?.className).not.toContain("py-6");
     expect(dataTableCardClass).toContain("p-0");
+  });
+
+  it("fills leftover height with a sticky header scrollport", () => {
+    const { container } = render(
+      <DataTableCard fill>
+        <DataTableScroll>Rows</DataTableScroll>
+      </DataTableCard>
+    );
+    const card = container.querySelector('[data-slot="card"]');
+    expect(card).toHaveAttribute("data-fill", "true");
+    expect(card?.className).toContain("flex-1");
+    expect(card?.className).toContain("min-h-0");
+    expect(container.querySelector('[data-slot="data-table-scroll"]')?.className).toContain(
+      "overflow-auto"
+    );
+  });
+
+  it("hides meta columns on compact shell and can pin the first column", () => {
+    render(
+      <table>
+        <thead>
+          <tr>
+            <DataTableHead sticky>Member</DataTableHead>
+            <DataTableHead priority="meta">Status</DataTableHead>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <DataTableCell sticky>Ada</DataTableCell>
+            <DataTableCell priority="meta">Active</DataTableCell>
+          </tr>
+        </tbody>
+      </table>
+    );
+
+    const memberHead = screen.getByRole("columnheader", { name: "Member" });
+    expect(memberHead).toHaveAttribute("data-sticky", "true");
+    expect(memberHead.className).toContain("sticky");
+    const statusHead = screen.getByRole("columnheader", { name: "Status" });
+    expect(statusHead).toHaveAttribute("data-priority", "meta");
+    expect(statusHead.className).toContain("hidden");
   });
 });
 

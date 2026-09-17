@@ -3,8 +3,10 @@
 import { ROUTES } from "@kloqra/contracts";
 import {
   AppModal,
-  AppBar,
+  PageLayout,
+  AppBarSecondary,
   Button,
+  appBarPageActionClass,
   Input,
   Label,
   SearchableSelect,
@@ -211,27 +213,25 @@ export function WorkspacePage() {
   }
 
   return (
-    <div className="space-y-6">
-      <AppBar
-        title="Workspace settings"
-        description={
-          <>
-            Configure settings for <strong>{session?.workspaceName ?? "this workspace"}</strong>.
-            Manage members from Team Management.
-          </>
-        }
-        actions={
-          session?.tenantRole === "OWNER" ? (
-            <Button asChild className="h-10 gap-1.5 shadow-sm">
-              <Link href="/account/workspaces">
-                <Plus className="h-4 w-4" />
-                Manage workspaces
-              </Link>
-            </Button>
-          ) : undefined
-        }
-      />
-
+    <PageLayout
+      title="Workspace settings"
+      description={`Configure ${session?.workspaceName ?? "this workspace"}. Manage members from Team Management.`}
+      scroll="page"
+      secondary={
+        session?.tenantRole === "OWNER" ? (
+          <AppBarSecondary
+            trailing={
+              <Button asChild className={appBarPageActionClass}>
+                <Link href="/account/workspaces">
+                  <Plus className="size-4" aria-hidden />
+                  Manage workspaces
+                </Link>
+              </Button>
+            }
+          />
+        ) : undefined
+      }
+    >
       <WorkspaceSectionCard
         title="General settings"
         description="Timezone, timesheet defaults, and hour targets for this workspace."
@@ -446,6 +446,6 @@ export function WorkspacePage() {
           ) : null}
         </form>
       </AppModal>
-    </div>
+    </PageLayout>
   );
 }

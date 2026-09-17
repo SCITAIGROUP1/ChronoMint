@@ -119,7 +119,9 @@ describe("ResponsiveLayoutShell", () => {
       const aside = container.querySelector("aside.hidden.lg\\:flex");
       const header = aside?.children[0];
       const navScroll = aside?.children[1];
-      expect(header?.className).toContain("gap-5");
+      expect(aside?.className).toContain("overflow-hidden");
+      expect(aside?.className).toContain("min-h-0");
+      expect(header?.className).toContain("gap-3");
       expect(header?.className).toContain("shrink-0");
       expect(navScroll?.className).toContain("overflow-y-auto");
       expect(navScroll?.className).toContain("flex-1");
@@ -153,7 +155,10 @@ describe("ResponsiveLayoutShell", () => {
     });
   });
 
-  it("uses a single scroll container in the shell root", () => {
+  it("collapses an expanded sidebar when the window is resized into compact laptop width", async () => {
+    localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, "false");
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1600 });
+
     const { container } = render(
       <ResponsiveLayoutShell
         navItems={[{ href: "/dashboard", label: "Dashboard", Icon: Home }]}
@@ -168,10 +173,44 @@ describe("ResponsiveLayoutShell", () => {
       </ResponsiveLayoutShell>
     );
 
+    await waitFor(() => {
+      const aside = container.querySelector("aside.hidden.lg\\:flex");
+      expect(aside?.className).toContain("w-[14rem]");
+    });
+
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1024 });
+    await waitFor(() => {
+      window.dispatchEvent(new Event("resize"));
+      const aside = container.querySelector("aside.hidden.lg\\:flex");
+      expect(aside?.className).toContain("w-[5rem]");
+    });
+
+    localStorage.removeItem(SIDEBAR_COLLAPSED_STORAGE_KEY);
+  });
+
+  it("uses a fill column so pages can consume leftover height", () => {
+    const { container } = render(
+      <ResponsiveLayoutShell
+        navItems={[{ href: "/dashboard", label: "Dashboard", Icon: Home }]}
+        logoIcon={<span>K</span>}
+        logoTitle="Kloqra"
+        logoSubtitle="Admin"
+        logoLinkHref="/dashboard"
+        workspaceSwitcher={() => <div>Workspace</div>}
+        footerContent={() => <div>Footer</div>}
+      >
+        <div>Page content</div>
+      </ResponsiveLayoutShell>
+    );
+
+    const main = container.querySelector("main");
+    expect(main?.className).toContain("flex");
+    expect(main?.className).toContain("flex-col");
+    expect(main?.className).toContain("overflow-hidden");
+    expect(main?.className).not.toContain("overflow-y-auto");
     const root = container.firstElementChild;
     expect(root?.className).toContain("h-dvh");
     expect(root?.className).toContain("overflow-hidden");
-    expect(root?.className).toContain("lg:flex-row");
   });
 
   it("renders a compact count badge on nav icons when the sidebar is collapsed", async () => {

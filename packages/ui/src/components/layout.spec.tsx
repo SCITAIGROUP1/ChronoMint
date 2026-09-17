@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { PageHeader, SegmentedControl } from "./layout.js";
+import { EmptyState, PageHeader, SegmentedControl } from "./layout.js";
 import { ShellToolbarProvider } from "./shell-toolbar-context.js";
 
 describe("PageHeader", () => {
@@ -143,5 +143,16 @@ describe("SegmentedControl", () => {
     );
 
     expect(container.querySelector("[role='group'] > [aria-hidden]")).toBeNull();
+  });
+});
+
+describe("EmptyState", () => {
+  it("uses compact padding for content-first pages", () => {
+    const { container } = render(
+      <EmptyState title="No entries" description="Nothing logged yet." />
+    );
+    const box = container.querySelector(".border-dashed");
+    expect(box?.className).toContain("py-8");
+    expect(box?.className).not.toContain("py-12");
   });
 });

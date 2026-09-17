@@ -28,10 +28,11 @@ describe("display-format", () => {
     expect(label).toMatch(/^Fri \d+$/);
   });
 
-  it("formats week range using user preference", () => {
+  it("formats week range using user preference without a duplicate year", () => {
     const label = formatWeekRangeLabel(new Date("2026-06-08T12:00:00.000Z"), format);
     expect(label).toContain("–");
     expect(label).toContain("2026");
+    expect(label).not.toMatch(/2026.*2026.*2026/);
   });
 
   it("formats Y-axis clock labels as wall-clock hours without timezone shift", () => {

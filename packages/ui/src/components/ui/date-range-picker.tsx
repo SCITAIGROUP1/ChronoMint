@@ -318,7 +318,7 @@ export function DateRangePicker({
           disabled={disabled}
           aria-label={ariaLabel}
           className={cn(
-            "h-9 w-full min-w-0 justify-start gap-2 px-3 font-normal shadow-sm",
+            "h-10 w-full min-w-0 justify-start gap-2 px-3 font-normal shadow-sm",
             !from && !to && "text-muted-foreground",
             className
           )}

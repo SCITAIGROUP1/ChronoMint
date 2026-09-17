@@ -27,6 +27,7 @@ describe("SearchableSelect", () => {
     );
 
     await user.click(screen.getByRole("combobox", { name: "Member" }));
+    expect(screen.getByRole("combobox", { name: "Member" }).className).toContain("h-10");
     expect(screen.getByPlaceholderText("Search members")).toBeInTheDocument();
 
     await user.type(screen.getByPlaceholderText("Search members"), "sam");

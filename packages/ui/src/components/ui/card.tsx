@@ -2,28 +2,36 @@ import { cva, type VariantProps } from "class-variance-authority";
 import * as React from "react";
 import { cn } from "../../lib/utils.js";
 
-const cardVariants = cva(
-  "flex flex-col gap-6 rounded-lg border bg-card py-6 text-card-foreground shadow-sm",
-  {
-    variants: {
-      interactive: {
-        true: "transition-shadow duration-[var(--motion-base)] hover:shadow-md",
-        false: ""
-      }
+const cardVariants = cva("flex flex-col rounded-xl border bg-card text-card-foreground shadow-sm", {
+  variants: {
+    interactive: {
+      true: "transition-shadow duration-[var(--motion-base)] hover:shadow-md",
+      false: ""
     },
-    defaultVariants: {
-      interactive: false
+    density: {
+      default: "gap-6 py-6",
+      compact: "gap-0 py-0"
     }
+  },
+  defaultVariants: {
+    interactive: false,
+    density: "default"
   }
-);
+});
 
 function Card({
   className,
   interactive,
+  density,
   ...props
 }: React.ComponentProps<"div"> & VariantProps<typeof cardVariants>) {
   return (
-    <div data-slot="card" className={cn(cardVariants({ interactive }), className)} {...props} />
+    <div
+      data-slot="card"
+      data-density={density ?? "default"}
+      className={cn(cardVariants({ interactive, density }), className)}
+      {...props}
+    />
   );
 }
 

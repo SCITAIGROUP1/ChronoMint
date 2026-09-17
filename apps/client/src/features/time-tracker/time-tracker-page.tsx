@@ -2,7 +2,7 @@
 
 import { ROUTES } from "@kloqra/contracts";
 import type { TeamMembersOverviewDto } from "@kloqra/contracts";
-import { AppBar } from "@kloqra/ui";
+import { PageLayout } from "@kloqra/ui";
 import {
   fetchProjectTeam,
   useEntryCatalogQueries,
@@ -284,53 +284,53 @@ export function AdminTimeTrackerPage({
   const filtersPending = search.trim() !== debouncedSearch;
 
   function clearFilters() {
+    setProjectFilter([]);
+    setMemberFilter([]);
     setCategoryFilter("");
     setTaskFilter("");
     setBillability("all");
   }
 
   return (
-    <div className="space-y-6">
-      <AppBar
-        title="Team Time Tracker"
-        description={
-          managedProjectIds
-            ? "View time entries for members of your managed projects."
-            : "View time entries for all workspace members."
-        }
-      />
-
-      <TimeTrackerToolbar
-        search={search}
-        onSearchChange={setSearch}
-        projectId={projectFilter}
-        onProjectChange={setProjectFilter}
-        period={period}
-        onPeriodChange={handlePeriodChange}
-        rangeFrom={rangeFrom}
-        rangeTo={rangeTo}
-        onRangeChange={handleRangeChange}
-        weekStartsOn={weekStartPref === "sunday" ? 0 : 1}
-        projects={projects}
-        categories={categories}
-        tasks={tasks}
-        workspaceNamesById={{}}
-        filterValues={{
-          categoryId: categoryFilter,
-          taskId: taskFilter,
-          billability
-        }}
-        onCategoryChange={setCategoryFilter}
-        onTaskChange={setTaskFilter}
-        onBillabilityChange={setBillability}
-        onClearFilters={clearFilters}
-        memberFilter={memberFilter}
-        onMemberChange={setMemberFilter}
-        members={memberOptions}
-      />
-
-      <TimeTrackerStatCards stats={stats} loading={logsLoading || filtersPending} />
-
+    <PageLayout
+      title="Team Time Tracker"
+      description={
+        managedProjectIds
+          ? "Time entries for members of your managed projects."
+          : "Time entries for all workspace members."
+      }
+      secondary={
+        <TimeTrackerToolbar
+          search={search}
+          onSearchChange={setSearch}
+          projectId={projectFilter}
+          onProjectChange={setProjectFilter}
+          period={period}
+          onPeriodChange={handlePeriodChange}
+          rangeFrom={rangeFrom}
+          rangeTo={rangeTo}
+          onRangeChange={handleRangeChange}
+          weekStartsOn={weekStartPref === "sunday" ? 0 : 1}
+          projects={projects}
+          categories={categories}
+          tasks={tasks}
+          workspaceNamesById={{}}
+          filterValues={{
+            categoryId: categoryFilter,
+            taskId: taskFilter,
+            billability
+          }}
+          onCategoryChange={setCategoryFilter}
+          onTaskChange={setTaskFilter}
+          onBillabilityChange={setBillability}
+          onClearFilters={clearFilters}
+          memberFilter={memberFilter}
+          onMemberChange={setMemberFilter}
+          members={memberOptions}
+        />
+      }
+      stats={<TimeTrackerStatCards stats={stats} loading={logsLoading || filtersPending} />}
+    >
       {logsError ? <p className="text-sm text-destructive">{logsError}</p> : null}
 
       <AdminTimeTrackerWeekList
@@ -354,6 +354,6 @@ export function AdminTimeTrackerPage({
         totalWeekCount={totalWeekCount}
         weekRangeSummary={weekRangeSummary}
       />
-    </div>
+    </PageLayout>
   );
 }

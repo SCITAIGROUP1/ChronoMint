@@ -75,7 +75,7 @@ export function AppBar({
         className={cn(shellAppBarClass, !hasCompactChrome && "hidden lg:block", className)}
         data-compact-chrome={hasCompactChrome ? "true" : "false"}
       >
-        <div className="flex w-full flex-col gap-3 lg:gap-4">
+        <div className="flex w-full flex-col gap-4 lg:gap-5">
           <div className={cn(shellAppBarPrimaryRowClass, !hasCompactPrimary && "hidden lg:flex")}>
             <div className="hidden min-w-0 space-y-1 lg:block">
               <AppBarTitle title={title} />
@@ -107,7 +107,7 @@ export function AppBar({
       className={cn(shellAppBarClass, !hasCompactChrome && "hidden lg:block", className)}
       data-compact-chrome={hasCompactChrome ? "true" : "false"}
     >
-      <div className="flex w-full flex-col gap-3">
+      <div className="flex w-full flex-col gap-4">
         <div className={cn(shellAppBarPrimaryRowClass, !hasCompactPrimary && "hidden lg:flex")}>
           <div className="hidden min-w-0 space-y-1 lg:block">
             <AppBarTitle title={title} />
@@ -154,15 +154,17 @@ export function AppBarSecondary({ leading, trailing, className }: AppBarSecondar
   return (
     <div
       className={cn(
-        "flex w-full min-w-0 flex-col gap-3 border-t border-border/60 pt-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 lg:pt-4",
+        "flex w-full min-w-0 flex-nowrap items-center gap-2 overflow-x-auto border-t border-border/60 pt-4",
         className
       )}
+      data-testid="app-bar-secondary"
     >
-      {leading ? (
-        <div className="flex min-w-0 w-full flex-1 items-center sm:w-auto">{leading}</div>
-      ) : null}
+      {leading ? <div className="flex min-w-0 flex-1 items-center">{leading}</div> : null}
       {trailing ? (
-        <div className="flex w-full min-w-0 shrink-0 items-center justify-stretch gap-2 overflow-x-auto sm:w-auto sm:justify-end">
+        <div
+          className="ml-auto flex min-w-0 shrink-0 items-center justify-end gap-2"
+          data-testid="app-bar-secondary-actions"
+        >
           {trailing}
         </div>
       ) : null}

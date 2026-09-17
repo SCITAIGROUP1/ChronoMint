@@ -13,6 +13,7 @@ export type ManagementDashboardLazyProps = {
   projectIds: readonly string[];
   onAppBarActionsChange?: (actions: ReactNode | null) => void;
   onAppBarDescriptionChange?: (description: string | null) => void;
+  onAppBarSecondaryChange?: (secondary: ReactNode | null) => void;
 };
 
 const ManagementDashboard = dynamic(

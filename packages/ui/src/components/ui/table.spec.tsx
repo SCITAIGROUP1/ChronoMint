@@ -20,5 +20,9 @@ describe("Table", () => {
 
     expect(screen.getByRole("columnheader", { name: "Task" })).toBeInTheDocument();
     expect(screen.getByRole("cell", { name: "Design review" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: "Task" }).closest("thead")?.className
+    ).toContain("sticky");
+    expect(screen.getByRole("cell", { name: "Design review" }).className).toContain("text-sm");
   });
 });

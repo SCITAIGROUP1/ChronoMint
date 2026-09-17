@@ -9,7 +9,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover.js";
 import { AppBarFilterSheet } from "./app-bar-filter-sheet.js";
 
 /** Shared width/height for filter selects in list page app bar toolbars. */
-export const appBarListFilterTriggerClass = "h-10 w-full lg:w-[9.5rem]";
+export const appBarListFilterTriggerClass =
+  "h-10 w-full min-w-0 @min-[960px]/shell:max-w-[9.5rem] @min-[960px]/shell:flex-none";
+
+export const appBarListActionsClass = "ml-auto flex min-w-0 shrink-0 items-center gap-2";
 
 export type AppBarListToolbarProps = {
   searchValue: string;
@@ -20,7 +23,7 @@ export type AppBarListToolbarProps = {
   /** Number of non-default filters — shown as a badge on the compact Filters button. */
   filterCount?: number;
   onClearFilters?: () => void;
-  /** Primary CTA — always visible. */
+  /** Primary CTA — always visible at the trailing end. */
   action?: ReactNode;
   /** Extra actions: overflow menu on compact viewports, inline on desktop. */
   moreActions?: ReactNode;
@@ -28,8 +31,8 @@ export type AppBarListToolbarProps = {
 };
 
 /**
- * Standard list-page toolbar row for AppBar `secondary` — search, optional filters, optional CTA.
- * Below `lg`, filters move into a sheet and extra actions collapse into an overflow menu.
+ * Standard list-page toolbar row for AppBar `secondary` — search and filters
+ * stay leading; page actions pin to the trailing end.
  */
 export function AppBarListToolbar({
   searchValue,
@@ -49,30 +52,36 @@ export function AppBarListToolbar({
   return (
     <div
       className={cn(
-        "flex w-full min-w-0 flex-col gap-2 border-t border-border/60 pt-3 lg:flex-row lg:items-center lg:gap-2 lg:pt-4",
+        "flex w-full min-w-0 flex-nowrap items-center gap-2 border-t border-border/60 pt-4",
         className
       )}
+      data-testid="app-bar-list-toolbar"
     >
-      <Input
-        value={searchValue}
-        onChange={(e) => onSearchChange(e.target.value)}
-        placeholder={searchPlaceholder}
-        className="h-10 w-full lg:max-w-xs lg:flex-1 xl:max-w-sm"
-        aria-label={searchAriaLabel}
-      />
+      <div className="flex min-w-0 flex-1 items-center gap-2" data-testid="app-bar-list-leading">
+        <Input
+          value={searchValue}
+          onChange={(e) => onSearchChange(e.target.value)}
+          placeholder={searchPlaceholder}
+          className="h-10 min-w-0 flex-1 @min-[960px]/shell:max-w-xs @min-[960px]/shell:flex-none"
+          aria-label={searchAriaLabel}
+        />
 
-      {hasFilters ? (
-        <div className="hidden lg:contents" data-testid="app-bar-list-filters-desktop">
-          {filters}
-        </div>
-      ) : null}
+        {hasFilters ? (
+          <div
+            className="hidden items-center gap-2 @min-[960px]/shell:flex"
+            data-testid="app-bar-list-filters-desktop"
+          >
+            {filters}
+          </div>
+        ) : null}
+      </div>
 
-      <div className="flex min-w-0 items-center gap-2 lg:contents">
+      <div className={appBarListActionsClass} data-testid="app-bar-list-actions">
         {hasFilters ? (
           <Button
             type="button"
             variant="outline"
-            className="h-10 shrink-0 gap-2 lg:hidden"
+            className="h-10 shrink-0 gap-2 @min-[960px]/shell:hidden"
             onClick={() => setFiltersOpen(true)}
             aria-label={filterCount > 0 ? `Filters, ${filterCount} active` : "Filters"}
           >
@@ -89,7 +98,7 @@ export function AppBarListToolbar({
         {moreActions ? (
           <>
             <div
-              className="hidden lg:flex lg:items-center lg:gap-2"
+              className="hidden items-center gap-2 @min-[960px]/shell:flex"
               data-testid="app-bar-more-actions-desktop"
             >
               {moreActions}
@@ -100,7 +109,7 @@ export function AppBarListToolbar({
                   type="button"
                   variant="outline"
                   size="icon"
-                  className="h-10 w-10 shrink-0 lg:hidden"
+                  className="h-10 w-10 shrink-0 @min-[960px]/shell:hidden"
                   aria-label="More actions"
                 >
                   <MoreHorizontal className="h-4 w-4" />
@@ -113,9 +122,7 @@ export function AppBarListToolbar({
           </>
         ) : null}
 
-        {action ? (
-          <div className="min-w-0 flex-1 lg:ml-auto lg:w-auto lg:flex-none">{action}</div>
-        ) : null}
+        {action ? <div className="min-w-0 shrink-0">{action}</div> : null}
       </div>
 
       {hasFilters ? (

@@ -33,9 +33,10 @@ export const WidgetShell = forwardRef<HTMLDivElement, WidgetShellProps>(
       <Card
         ref={ref}
         style={style}
+        density="compact"
         className={cn(widgetShellVariants({ editing: isEditing }), className)}
       >
-        <CardContent className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-4">
+        <CardContent className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-3">
           {isEditing ? (
             // Keep bottom/right edges free so react-grid-layout resize handles receive events.
             <div

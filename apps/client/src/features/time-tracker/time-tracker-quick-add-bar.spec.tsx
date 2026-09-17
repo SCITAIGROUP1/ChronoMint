@@ -193,4 +193,64 @@ describe("TimeTrackerQuickAddBar favorites", () => {
     expect(screen.getByRole("combobox", { name: "Project" }).className).toContain("w-[11rem]");
     expect(screen.getByRole("combobox", { name: "Task" }).className).toContain("w-[11rem]");
   });
+
+  it("logs project work only and leaves non-project types to the timesheet modal", () => {
+    render(
+      <TimeTrackerQuickAddBar
+        projects={projects}
+        tasks={tasks}
+        categories={categories}
+        timezone="UTC"
+        onSubmit={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByRole("combobox", { name: "Entry type" })).toBeNull();
+    expect(screen.queryByRole("combobox", { name: "Activity type" })).toBeNull();
+    expect(screen.queryByText("Project work")).toBeNull();
+    expect(screen.getByRole("combobox", { name: "Project" })).toBeTruthy();
+    expect(screen.getByRole("combobox", { name: "Task" })).toBeTruthy();
+  });
+
+  it("submits a project draft without a non-project classification", async () => {
+    const onSubmit = vi.fn();
+    render(
+      <TimeTrackerQuickAddBar
+        projects={projects}
+        tasks={tasks}
+        categories={categories}
+        timezone="UTC"
+        onSubmit={onSubmit}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("combobox", { name: "Project" }));
+    await waitFor(() => {
+      expect(screen.getByRole("option", { name: /Main/i })).toBeTruthy();
+    });
+    fireEvent.click(screen.getByRole("option", { name: /Main/i }));
+
+    await waitFor(() => {
+      expect((screen.getByRole("combobox", { name: "Task" }) as HTMLButtonElement).disabled).toBe(
+        false
+      );
+    });
+    fireEvent.click(screen.getByRole("combobox", { name: "Task" }));
+    await waitFor(() => {
+      expect(screen.getByRole("option", { name: /Regular Task/i })).toBeTruthy();
+    });
+    fireEvent.click(screen.getByRole("option", { name: /Regular Task/i }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Add entry" }));
+
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          projectId: "proj-1",
+          taskSelection: "task-1",
+          classification: "PROJECT"
+        })
+      );
+    });
+  });
 });

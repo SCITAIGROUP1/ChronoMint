@@ -1,8 +1,26 @@
 /** @vitest-environment jsdom */
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AssistantProvider } from "./assistant-provider";
+import { AssistantProvider, useAssistant } from "./assistant-provider";
 import { AssistantWidget } from "./assistant-widget";
+
+function OpenAssistantButton() {
+  const { openAssistant } = useAssistant();
+  return (
+    <button type="button" onClick={openAssistant}>
+      Open help assistant
+    </button>
+  );
+}
+
+function renderAssistant() {
+  return render(
+    <AssistantProvider>
+      <OpenAssistantButton />
+      <AssistantWidget />
+    </AssistantProvider>
+  );
+}
 
 const sendMessage = vi.fn().mockResolvedValue({
   reply: "Open Timer and click Start.",
@@ -39,22 +57,14 @@ describe("AssistantWidget", () => {
   afterEach(cleanup);
 
   it("opens from the unified-shell launcher and sends contextual prompts", async () => {
-    render(
-      <AssistantProvider>
-        <AssistantWidget />
-      </AssistantProvider>
-    );
+    renderAssistant();
     fireEvent.click(screen.getByRole("button", { name: "Open help assistant" }));
     fireEvent.click(screen.getByRole("button", { name: "How do I start a timer?" }));
     await waitFor(() => expect(screen.getByText("Open Timer and click Start.")).toBeTruthy());
   });
 
   it("persists conversation under the unified app scope", async () => {
-    render(
-      <AssistantProvider>
-        <AssistantWidget />
-      </AssistantProvider>
-    );
+    renderAssistant();
     fireEvent.click(screen.getByRole("button", { name: "Open help assistant" }));
     fireEvent.click(screen.getByRole("button", { name: "How do I start a timer?" }));
     await waitFor(() => {
@@ -74,11 +84,7 @@ describe("AssistantWidget", () => {
     sendMessage
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce({ reply: "Recovered response.", links: [] });
-    render(
-      <AssistantProvider>
-        <AssistantWidget />
-      </AssistantProvider>
-    );
+    renderAssistant();
 
     fireEvent.click(screen.getByRole("button", { name: "Open help assistant" }));
     fireEvent.change(screen.getByRole("textbox", { name: "Assistant message" }), {
@@ -102,11 +108,7 @@ describe("AssistantWidget", () => {
           resolveRequest = resolve;
         })
     );
-    render(
-      <AssistantProvider>
-        <AssistantWidget />
-      </AssistantProvider>
-    );
+    renderAssistant();
 
     fireEvent.click(screen.getByRole("button", { name: "Open help assistant" }));
     const input = screen.getByRole("textbox", { name: "Assistant message" });
@@ -122,11 +124,7 @@ describe("AssistantWidget", () => {
   });
 
   it("traps focus in the expanded dialog, closes on Escape, and restores focus", () => {
-    render(
-      <AssistantProvider>
-        <AssistantWidget />
-      </AssistantProvider>
-    );
+    renderAssistant();
     const launcher = screen.getByRole("button", { name: "Open help assistant" });
     launcher.focus();
     fireEvent.click(launcher);

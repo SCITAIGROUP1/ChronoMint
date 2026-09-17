@@ -3,7 +3,7 @@
 import type { ReviewedTimesheetDto } from "@kloqra/contracts";
 import { Badge, Card, CardContent, CardHeader, CardTitle, cn } from "@kloqra/ui";
 import { Calendar, MessageSquare } from "lucide-react";
-import { PendingActivity } from "./pending-timesheet-card";
+import { PendingActivity } from "./period-entry-activity";
 
 function formatDateRange(startStr: string, endStr: string) {
   const start = new Date(startStr);

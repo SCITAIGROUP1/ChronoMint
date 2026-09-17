@@ -513,15 +513,15 @@ export function SubmissionsTable({
   );
 
   return (
-    <div className="rounded-lg border border-border/60 overflow-x-auto animate-fade-in motion-reduce:animate-none">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border/60 animate-fade-in motion-reduce:animate-none">
       <Table className="text-sm">
         <TableHeader>
           <DataTableHeaderRow>
             <DataTableHead className="w-8"></DataTableHead>
-            <DataTableHead>Period</DataTableHead>
+            <DataTableHead sticky>Period</DataTableHead>
             <DataTableHead>Project</DataTableHead>
             <DataTableHead>Status</DataTableHead>
-            <DataTableHead>Note / feedback</DataTableHead>
+            <DataTableHead priority="meta">Note / feedback</DataTableHead>
             <DataTableHead className="text-right">Actions</DataTableHead>
           </DataTableHeaderRow>
         </TableHeader>

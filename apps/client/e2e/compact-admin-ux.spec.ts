@@ -29,7 +29,7 @@ test.describe("Compact admin UX", () => {
     await assertNoHorizontalPageOverflow(page);
   });
 
-  test("approvals folds filters into a sheet and does not overflow", async ({ page }) => {
+  test("approvals folds filters into a popover and does not overflow", async ({ page }) => {
     await page.goto("/approvals");
     await waitForAppShell(page);
 
@@ -39,10 +39,11 @@ test.describe("Compact admin UX", () => {
     await expect(page.getByRole("button", { name: "Filters" })).toBeVisible();
 
     await page.getByRole("button", { name: "Filters" }).click();
-    const dialog = page.getByRole("dialog", { name: "Filters" });
-    await expect(dialog).toBeVisible();
-    await expect(dialog.getByText("Project", { exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "Done" }).click();
+    await expect(page.getByTestId("approvals-filters-panel")).toBeVisible();
+    await expect(page.getByRole("combobox", { name: "Project" })).toBeVisible();
+    await expect(page.getByRole("combobox", { name: "Member" })).toBeVisible();
+    await expect(page.getByText("Optional — narrow this list")).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "Filters" })).toHaveCount(0);
 
     await assertNoHorizontalPageOverflow(page);
   });

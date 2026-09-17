@@ -5,7 +5,9 @@ import {
   parseVisibleWeekdays,
   sameWeekdays,
   serializeVisibleWeekdays,
+  timesheetDisplayActiveCount,
   toggleVisibleWeekday,
+  visibleWeekdaysPreset,
   weekdayCheckboxOrder,
   WORK_WEEKDAY_INDEXES
 } from "./timesheet-visible-days";
@@ -74,5 +76,45 @@ describe("sameWeekdays / work week preset", () => {
   it("recognizes the Mon–Fri preset", () => {
     expect(sameWeekdays(WORK_WEEKDAY_INDEXES, [5, 4, 3, 2, 1])).toBe(true);
     expect(sameWeekdays(WORK_WEEKDAY_INDEXES, ALL_WEEKDAY_INDEXES)).toBe(false);
+  });
+});
+
+describe("visibleWeekdaysPreset", () => {
+  it("labels all, weekdays, and custom selections", () => {
+    expect(visibleWeekdaysPreset(ALL_WEEKDAY_INDEXES)).toBe("all");
+    expect(visibleWeekdaysPreset(WORK_WEEKDAY_INDEXES)).toBe("weekdays");
+    expect(visibleWeekdaysPreset([1, 2, 3])).toBe("custom");
+  });
+});
+
+describe("timesheetDisplayActiveCount", () => {
+  it("is zero for the default week view", () => {
+    expect(
+      timesheetDisplayActiveCount({
+        view: "week",
+        visibleWeekdays: ALL_WEEKDAY_INDEXES,
+        showOccupancyOverlay: true
+      })
+    ).toBe(0);
+  });
+
+  it("counts weekday filters and a hidden occupancy overlay", () => {
+    expect(
+      timesheetDisplayActiveCount({
+        view: "week",
+        visibleWeekdays: WORK_WEEKDAY_INDEXES,
+        showOccupancyOverlay: false
+      })
+    ).toBe(2);
+  });
+
+  it("ignores weekday filters in day view", () => {
+    expect(
+      timesheetDisplayActiveCount({
+        view: "day",
+        visibleWeekdays: WORK_WEEKDAY_INDEXES,
+        showOccupancyOverlay: true
+      })
+    ).toBe(0);
   });
 });

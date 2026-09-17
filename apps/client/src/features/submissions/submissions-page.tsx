@@ -1,11 +1,10 @@
 "use client";
 
 import {
-  AppBar,
   AppBarSecondary,
   Card,
   LoadingCrossfade,
-  MotionReveal,
+  PageLayout,
   SegmentedControl,
   TablePagination
 } from "@kloqra/ui";
@@ -243,32 +242,29 @@ export function SubmissionsPage() {
   const weekStartsOn = weekStartPref === "sunday" ? 0 : 1;
 
   return (
-    <div className="space-y-6">
-      <AppBar
-        title="Submissions"
-        description="Submit timesheets for review and track status by project."
-        secondary={
-          <AppBarSecondary
-            trailing={<SegmentedControl value={tab} onChange={setTab} options={tabOptions} />}
-          />
-        }
-      />
-
-      <MotionReveal>
-        <SubmissionsFiltersBar
-          rangeFrom={rangeFrom}
-          rangeTo={rangeTo}
-          onRangeChange={handleRangeChange}
-          weekStartsOn={weekStartsOn}
-          projectFilter={projectFilter}
-          onProjectFilterChange={setProjectFilter}
-          projectOptions={projectOptions}
-          onClearFilters={clearFilters}
-          hasActiveFilters={hasActiveFilters}
-          resultCount={filteredTotal}
+    <PageLayout
+      title="Submissions"
+      description="Submit timesheets for review and track status."
+      secondary={
+        <AppBarSecondary
+          leading={
+            <SubmissionsFiltersBar
+              rangeFrom={rangeFrom}
+              rangeTo={rangeTo}
+              onRangeChange={handleRangeChange}
+              weekStartsOn={weekStartsOn}
+              projectFilter={projectFilter}
+              onProjectFilterChange={setProjectFilter}
+              projectOptions={projectOptions}
+              onClearFilters={clearFilters}
+              hasActiveFilters={hasActiveFilters}
+              resultCount={filteredTotal}
+            />
+          }
+          trailing={<SegmentedControl value={tab} onChange={setTab} options={tabOptions} />}
         />
-      </MotionReveal>
-
+      }
+    >
       <LoadingCrossfade loading={allLoading} loaderLabel="Loading submissions…">
         {inProgressNotice ? (
           <div className="mb-4 flex items-start gap-3 rounded-lg border border-status-info-border bg-status-info-bg px-4 py-3 text-sm text-status-info-fg">
@@ -306,6 +302,6 @@ export function SubmissionsPage() {
           </>
         )}
       </LoadingCrossfade>
-    </div>
+    </PageLayout>
   );
 }

@@ -19,3 +19,17 @@ describe("shell-styles", () => {
     expect(appBarIconButtonVariants()).toContain("rounded-xl");
   });
 });
+
+describe("shell density tokens", () => {
+  it("does not inflate AppBar padding from a width container query", async () => {
+    const { shellAppBarClass, shellAppBarTitleClass, shellHeaderBandYClass, shellInsetXClass } =
+      await import("./shell-styles.js");
+    expect(shellHeaderBandYClass).toBe("py-3");
+    expect(shellHeaderBandYClass).not.toContain("py-5");
+    expect(shellAppBarTitleClass).toContain("text-xl");
+    expect(shellAppBarTitleClass).not.toContain("text-2xl");
+    expect(shellAppBarClass).toContain("mb-0");
+    expect(shellInsetXClass).toContain("@min-[1101px]/shell:px-6");
+    expect(shellInsetXClass).not.toContain("lg:px-8");
+  });
+});

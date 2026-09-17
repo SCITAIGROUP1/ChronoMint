@@ -9,6 +9,8 @@ export type DashboardComposition = {
   projectIds: string[];
 };
 
+export const EMPTY_DASHBOARD_PROJECT_IDS: string[] = [];
+
 const WIDGET_PERMISSIONS: Partial<Record<string, readonly Permission[]>> = {
   hourly_rates: ["workspace:ManageBillingRates"],
   live_presence: ["workspace:ReadPresence", "project:ReadPresence"],
@@ -43,7 +45,9 @@ export function getDashboardComposition(session: AuthSessionDto): DashboardCompo
       sessionCan(session, "personal:SubmitTimesheets"),
     showManagement: workspaceWide || projectReports,
     workspaceWide,
-    projectIds: workspaceWide ? [] : [...(session.managedProjectIds ?? [])]
+    projectIds: workspaceWide
+      ? EMPTY_DASHBOARD_PROJECT_IDS
+      : (session.managedProjectIds ?? EMPTY_DASHBOARD_PROJECT_IDS)
   };
 }
 

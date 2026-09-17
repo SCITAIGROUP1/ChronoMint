@@ -36,11 +36,7 @@ export function formatWeekRangeLabel(weekStart: Date, format: TimesheetDisplayFo
   weekEnd.setDate(weekEnd.getDate() + 6);
   const start = formatUserDate(weekStart, format.dateFormat, format.timezone);
   const end = formatUserDate(weekEnd, format.dateFormat, format.timezone);
-  const endYear = new Intl.DateTimeFormat("en-US", {
-    timeZone: format.timezone,
-    year: "numeric"
-  }).format(weekEnd);
-  return `${start} – ${end}, ${endYear}`;
+  return `${start} – ${end}`;
 }
 
 export function formatMonthYearLabel(date: Date, format: TimesheetDisplayFormat): string {

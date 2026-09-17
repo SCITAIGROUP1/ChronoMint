@@ -19,7 +19,9 @@ test.describe("UPS-05C unified member parity", () => {
       await expect(page.getByRole("heading", { name: /Welcome to Kloqra/i })).toBeVisible();
     }
     await expect(page.getByRole("button", { name: "Help menu" })).toBeAttached();
-    await expect(page.getByRole("button", { name: "Open help assistant" })).toBeAttached();
+    await expect(page.getByRole("button", { name: "Ask Kloqra" })).toHaveCount(0);
+    await page.getByRole("button", { name: "Help menu" }).click();
+    await expect(page.getByRole("button", { name: "Ask Kloqra" })).toBeVisible();
   });
 
   test("shows the dedicated personal time tracker presentation", async ({ page }) => {
@@ -27,11 +29,20 @@ test.describe("UPS-05C unified member parity", () => {
     await expect(page.getByRole("heading", { name: "Time Tracker", exact: true })).toBeVisible();
     await expect(page.getByPlaceholder("Search entries...")).toBeVisible();
     await expect(page.getByRole("button", { name: "Filters" })).toBeVisible();
+    await page.getByRole("button", { name: "Filters" }).click();
+    await expect(page.getByTestId("time-tracker-filters-panel")).toBeVisible();
+    await expect(page.getByText("Optional — narrow this list")).toBeVisible();
+    await expect(
+      page.getByTestId("time-tracker-filters-panel").getByRole("combobox", { name: "Project" })
+    ).toBeVisible();
+    await expect(page.getByRole("combobox", { name: "Member" })).toHaveCount(0);
+    await expect(page.getByText("Refine results")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Export" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Import" })).toBeVisible();
     await expect(page.getByRole("form", { name: "Quick add time entry" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Add entry", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: /Analytics/i })).toBeVisible();
+    await expect(page.getByRole("combobox", { name: "Entry type" })).toHaveCount(0);
     // Playwright role names are case-insensitive unless exact — assert no title-case AppBar CTA.
     await expect(page.getByRole("button", { name: "Add Entry", exact: true })).toHaveCount(0);
     await expect(page).toHaveURL(/\/time-tracker$/);

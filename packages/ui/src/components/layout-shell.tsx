@@ -252,7 +252,7 @@ function SidebarNavSections({
         >
           {!collapsed && section.label ? (
             <p
-              className="px-3 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground"
+              className="px-3 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
               aria-hidden
             >
               {section.label}
@@ -308,6 +308,16 @@ export function ResponsiveLayoutShell({
     if (window.innerWidth < COMPACT_LAPTOP_VIEWPORT_MAX) {
       setIsCollapsed(true);
     }
+  }, []);
+
+  useEffect(() => {
+    function collapseOnCompactResize() {
+      if (window.innerWidth < COMPACT_LAPTOP_VIEWPORT_MAX) {
+        setIsCollapsed(true);
+      }
+    }
+    window.addEventListener("resize", collapseOnCompactResize);
+    return () => window.removeEventListener("resize", collapseOnCompactResize);
   }, []);
 
   // Prevent background scrolling on mobile when drawer is open

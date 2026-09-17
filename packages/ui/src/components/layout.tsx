@@ -339,7 +339,7 @@ export function EmptyState({
 }) {
   return (
     <MotionReveal>
-      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/20 px-6 py-12 text-center">
+      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/20 px-6 py-8 text-center">
         <p className="font-medium">{title}</p>
         <p className="mt-2 max-w-md text-sm text-muted-foreground">{description}</p>
         {action ? <div className="mt-4">{action}</div> : null}

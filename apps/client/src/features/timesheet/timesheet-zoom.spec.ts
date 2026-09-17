@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   canZoomIn,
   canZoomOut,
+  defaultTimesheetSlotPx,
   DEFAULT_TIMESHEET_SLOT_PX,
   parseTimesheetSlotPx,
   TIMESHEET_ZOOM_LEVELS,
@@ -11,6 +12,11 @@ import {
 } from "./timesheet-zoom";
 
 describe("timesheet zoom", () => {
+  it("uses a denser default zoom on short laptop viewports", () => {
+    expect(defaultTimesheetSlotPx(768)).toBe(32);
+    expect(defaultTimesheetSlotPx(900)).toBe(DEFAULT_TIMESHEET_SLOT_PX);
+  });
+
   it("defaults to 40px (100%)", () => {
     expect(DEFAULT_TIMESHEET_SLOT_PX).toBe(40);
     expect(zoomPercentLabel(DEFAULT_TIMESHEET_SLOT_PX)).toBe("100%");

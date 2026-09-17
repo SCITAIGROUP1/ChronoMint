@@ -20,7 +20,7 @@ export function SettingsCard({
   className?: string;
 }) {
   return (
-    <div className={cn("rounded-xl border border-border bg-card p-5 shadow-sm", className)}>
+    <div className={cn("rounded-xl border border-border bg-card p-4 shadow-sm", className)}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 gap-4">
           <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">

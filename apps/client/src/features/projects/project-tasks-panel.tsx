@@ -3,10 +3,14 @@
 import { ROUTES } from "@kloqra/contracts";
 import type { CategoryDto, TaskDto } from "@kloqra/contracts";
 import {
+  AppModal,
   Badge,
   Button,
   Input,
   Label,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
   SearchableSelect,
   AssigneeAvatarStack,
   TaskAssigneePicker,
@@ -21,7 +25,17 @@ import {
   useCategoriesListQuery,
   useTasksListQuery
 } from "@kloqra/web-shared";
-import { Download, ListTodo, Pencil, Plus, Trash2, Lock, Unlock, Upload } from "lucide-react";
+import {
+  Download,
+  ListTodo,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Trash2,
+  Lock,
+  Unlock,
+  Upload
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { getTaskConfirmCopy } from "./task-confirmation";
@@ -73,6 +87,7 @@ export function ProjectTasksPanel({ workspaceId, projectId, projectIsActive }: P
   const [busyId, setBusyId] = useState<string | null>(null);
   const [confirmTarget, setConfirmTarget] = useState<PendingTaskConfirm | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const categoryById = useMemo(() => {
     const m = new Map<string, CategoryDto>();
@@ -172,6 +187,7 @@ export function ProjectTasksPanel({ workspaceId, projectId, projectIsActive }: P
       setNewBillable(true);
       setNewIsCommon(true);
       setNewAssigneeIds([]);
+      setCreateOpen(false);
       toast.success("Task created.");
       await refresh();
     } catch (err) {
@@ -321,7 +337,50 @@ export function ProjectTasksPanel({ workspaceId, projectId, projectIsActive }: P
   }, [tasks, categoryById]);
 
   return (
-    <div className="space-y-4">
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
+      <div className="flex shrink-0 items-center justify-end gap-2">
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button type="button" variant="outline" className="h-10 w-10" aria-label="More actions">
+              <MoreHorizontal className="size-4" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-56 p-2">
+            <div className="flex flex-col gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10 justify-start gap-2"
+                onClick={() => setImportOpen(true)}
+                data-testid="tasks-import"
+              >
+                <Upload className="size-4" aria-hidden />
+                Import
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10 justify-start gap-2"
+                onClick={() => void handleExport()}
+                data-testid="tasks-export"
+              >
+                <Download className="size-4" aria-hidden />
+                Export
+              </Button>
+            </div>
+          </PopoverContent>
+        </Popover>
+        <Button
+          type="button"
+          className="h-10 gap-2"
+          onClick={() => setCreateOpen(true)}
+          disabled={categories.length === 0}
+        >
+          <Plus className="size-4" aria-hidden />
+          Add task
+        </Button>
+      </div>
+
       {unassignedCount > 0 ? (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
           {unassignedCount} task{unassignedCount === 1 ? "" : "s"} have no assignees and are hidden
@@ -333,111 +392,7 @@ export function ProjectTasksPanel({ workspaceId, projectId, projectIsActive }: P
         <div className="rounded-xl border border-border bg-card p-5 text-sm text-muted-foreground shadow-sm">
           No categories yet. Create at least one category before adding tasks.
         </div>
-      ) : (
-        <SettingsCard
-          icon={Plus}
-          title="Add task"
-          description="Members pick from this list when logging time on the project."
-        >
-          <form onSubmit={createTask} className="space-y-5">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="new-task-name">Task name</Label>
-                <Input
-                  id="new-task-name"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  placeholder="Frontend development"
-                  maxLength={200}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="new-task-category">Category</Label>
-                <SearchableSelect
-                  id="new-task-category"
-                  value={newCategoryId}
-                  onValueChange={setNewCategoryId}
-                  options={categories.map((c) => ({ value: c.id, label: c.name }))}
-                  placeholder="Choose category"
-                  searchPlaceholder="Search categories…"
-                  aria-label="Category"
-                />
-              </div>
-            </div>
-            <div className="space-y-2.5">
-              <Label>Task Assignment Type</Label>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <button
-                  type="button"
-                  onClick={() => setNewIsCommon(true)}
-                  className={cn(
-                    "flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-all hover:bg-muted/50",
-                    newIsCommon
-                      ? "border-primary bg-primary/5 ring-1 ring-primary"
-                      : "border-border bg-transparent"
-                  )}
-                >
-                  <span className="text-sm font-semibold">Common task</span>
-                  <span className="text-xs text-muted-foreground">
-                    Available to all project team members by default
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setNewIsCommon(false)}
-                  className={cn(
-                    "flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-all hover:bg-muted/50",
-                    !newIsCommon
-                      ? "border-primary bg-primary/5 ring-1 ring-primary"
-                      : "border-border bg-transparent"
-                  )}
-                >
-                  <span className="text-sm font-semibold">Assigned task</span>
-                  <span className="text-xs text-muted-foreground">
-                    Restrict visibility to specific team members
-                  </span>
-                </button>
-              </div>
-            </div>
-            {!newIsCommon && (
-              <div className="space-y-2">
-                <Label>Assignees</Label>
-                <TaskAssigneePicker
-                  members={activeTeamOptions}
-                  value={newAssigneeIds}
-                  onChange={setNewAssigneeIds}
-                  disabled={saving}
-                />
-              </div>
-            )}
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pt-2">
-              <label className="flex cursor-pointer items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  className="size-4 rounded border border-input accent-primary"
-                  checked={newBillable}
-                  onChange={(e) => setNewBillable(e.target.checked)}
-                />
-                <span>Billable by default</span>
-              </label>
-              <Button
-                type="submit"
-                disabled={
-                  saving ||
-                  !newName.trim() ||
-                  !newCategoryId ||
-                  (!newIsCommon && newAssigneeIds.length === 0)
-                }
-                className="gap-2 sm:w-auto"
-              >
-                <Plus className="size-4" aria-hidden />
-                Add task
-              </Button>
-            </div>
-          </form>
-        </SettingsCard>
-      )}
+      ) : null}
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
@@ -448,32 +403,8 @@ export function ProjectTasksPanel({ workspaceId, projectId, projectIsActive }: P
           loading
             ? "Loading tasks…"
             : tasks.length === 0
-              ? "No tasks yet — add one above."
+              ? "No tasks yet. Use Add task to create one."
               : `${tasks.length} task${tasks.length === 1 ? "" : "s"} across ${grouped.length} ${grouped.length === 1 ? "category" : "categories"}`
-        }
-        action={
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              className="gap-2"
-              onClick={() => setImportOpen(true)}
-              data-testid="tasks-import"
-            >
-              <Upload className="size-4" aria-hidden />
-              Import
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="gap-2"
-              onClick={() => void handleExport()}
-              data-testid="tasks-export"
-            >
-              <Download className="size-4" aria-hidden />
-              Export
-            </Button>
-          </div>
         }
       >
         {(loading || tasksLoading) && tasks.length === 0 ? (
@@ -703,6 +634,116 @@ export function ProjectTasksPanel({ workspaceId, projectId, projectIsActive }: P
           </div>
         )}
       </SettingsCard>
+
+      <AppModal
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        title="Add task"
+        description="Members pick from this list when logging time on the project."
+        icon={<Plus className="size-5" />}
+        footer={
+          <>
+            <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="create-task-form"
+              disabled={
+                saving ||
+                !newName.trim() ||
+                !newCategoryId ||
+                (!newIsCommon && newAssigneeIds.length === 0)
+              }
+            >
+              {saving ? "Saving…" : "Create task"}
+            </Button>
+          </>
+        }
+      >
+        <form id="create-task-form" onSubmit={createTask} className="space-y-5">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="new-task-name">Task name</Label>
+              <Input
+                id="new-task-name"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="Frontend development"
+                maxLength={200}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="new-task-category">Category</Label>
+              <SearchableSelect
+                id="new-task-category"
+                value={newCategoryId}
+                onValueChange={setNewCategoryId}
+                options={categories.map((c) => ({ value: c.id, label: c.name }))}
+                placeholder="Choose category"
+                searchPlaceholder="Search categories…"
+                aria-label="Category"
+              />
+            </div>
+          </div>
+          <div className="space-y-2.5">
+            <Label>Task Assignment Type</Label>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => setNewIsCommon(true)}
+                className={cn(
+                  "flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-all hover:bg-muted/50",
+                  newIsCommon
+                    ? "border-primary bg-primary/5 ring-1 ring-primary"
+                    : "border-border bg-transparent"
+                )}
+              >
+                <span className="text-sm font-semibold">Common task</span>
+                <span className="text-xs text-muted-foreground">
+                  Available to all project team members by default
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setNewIsCommon(false)}
+                className={cn(
+                  "flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-all hover:bg-muted/50",
+                  !newIsCommon
+                    ? "border-primary bg-primary/5 ring-1 ring-primary"
+                    : "border-border bg-transparent"
+                )}
+              >
+                <span className="text-sm font-semibold">Assigned task</span>
+                <span className="text-xs text-muted-foreground">
+                  Restrict visibility to specific team members
+                </span>
+              </button>
+            </div>
+          </div>
+          {!newIsCommon && (
+            <div className="space-y-2">
+              <Label>Assignees</Label>
+              <TaskAssigneePicker
+                members={activeTeamOptions}
+                value={newAssigneeIds}
+                onChange={setNewAssigneeIds}
+                disabled={saving}
+              />
+            </div>
+          )}
+          <label className="flex cursor-pointer items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="size-4 rounded border border-input accent-primary"
+              checked={newBillable}
+              onChange={(e) => setNewBillable(e.target.checked)}
+            />
+            <span>Billable by default</span>
+          </label>
+        </form>
+      </AppModal>
 
       <ConfirmDialog
         open={confirmTarget !== null}

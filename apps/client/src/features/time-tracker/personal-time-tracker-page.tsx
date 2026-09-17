@@ -2,21 +2,7 @@
 
 import { resolveEffectiveDailyTargetHours } from "@kloqra/contracts";
 import type { TimeLogDto } from "@kloqra/contracts";
-import {
-  AppBar,
-  AppBarActionButton,
-  Badge,
-  Button,
-  ConfirmDialog,
-  DateRangePicker,
-  Input,
-  SearchableSelect,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@kloqra/ui";
+import { Button, ConfirmDialog, PageLayout, appBarPageActionClass } from "@kloqra/ui";
 import {
   logStartDateKey,
   useDisplayPreferences,
@@ -27,7 +13,7 @@ import {
   useUserProfile,
   useWorkspaceOperationalSettings
 } from "@kloqra/web-shared";
-import { Download, Eye, EyeOff, Filter, Search, Upload } from "lucide-react";
+import { Download, Upload } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -41,21 +27,20 @@ import {
 } from "./entry-approval-status";
 import { buildWeekGroupsForRange } from "./group-logs-by-week";
 import { TimeTrackerExportModal } from "./time-tracker-export-modal";
-import { TimeTrackerFiltersPanel, type BillabilityFilter } from "./time-tracker-filters-panel";
+import type { BillabilityFilter } from "./time-tracker-filters-panel";
 import { TimeTrackerImportModal } from "./time-tracker-import-modal";
 import {
   inclusiveDateKeysFromPeriod,
   matchTimeTrackerPeriod,
   periodLabelForSelection,
   resolveTimeTrackerDateRange,
-  TIME_TRACKER_PERIOD_LABELS,
-  TIME_TRACKER_PERIOD_PRESETS,
   type TimeTrackerPeriodSelection
 } from "./time-tracker-period";
 import { persistErrorSurface, type TimeTrackerPersistSurface } from "./time-tracker-persist-error";
 import { TimeTrackerQuickAddBar } from "./time-tracker-quick-add-bar";
 import { TimeTrackerStatCards } from "./time-tracker-stat-cards";
 import { computeTimeTrackerStats } from "./time-tracker-stats";
+import { TimeTrackerToolbar } from "./time-tracker-toolbar";
 import { formatVisibleWeeksSummary, TimeTrackerWeekList } from "./time-tracker-week-list";
 import { useTimeTrackerLogs } from "./use-time-tracker-logs";
 import {
@@ -108,11 +93,10 @@ export function PersonalTimeTrackerPage() {
   const [to, setTo] = useState(initial.to);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [projectId, setProjectId] = useState("all");
+  const [projectId, setProjectId] = useState<string[]>([]);
   const [categoryId, setCategoryId] = useState("");
   const [taskId, setTaskId] = useState("");
   const [billability, setBillability] = useState<BillabilityFilter>("all");
-  const [filtersOpen, setFiltersOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [entryDialogOpen, setEntryDialogOpen] = useState(false);
@@ -152,7 +136,7 @@ export function PersonalTimeTrackerPage() {
     () => ({
       from: visibleRange.from,
       to: visibleRange.to,
-      projectId: projectId === "all" ? undefined : [projectId],
+      projectId: projectId.length > 0 ? projectId : undefined,
       categoryId: categoryId || undefined,
       taskId: taskId || undefined,
       search: debouncedSearch || undefined,
@@ -193,7 +177,7 @@ export function PersonalTimeTrackerPage() {
       JSON.stringify({
         from: visibleRange.from.toISOString(),
         to: visibleRange.to.toISOString(),
-        projectId: projectId === "all" ? "" : projectId,
+        projectId,
         categoryId,
         taskId,
         search: debouncedSearch,
@@ -256,9 +240,6 @@ export function PersonalTimeTrackerPage() {
     );
   }
 
-  const activeFilterCount =
-    Number(Boolean(categoryId)) + Number(Boolean(taskId)) + Number(billability !== "all");
-
   function openDraft(next: TimeEntryDraft, log: TimeLogDto | null = null) {
     setEditingLog(log);
     setEntryDraft(next);
@@ -308,7 +289,10 @@ export function PersonalTimeTrackerPage() {
       else setQuickAddError(message);
     };
     if (!canSaveTaskDraft(draft)) {
-      const message = "Select a project and a task, or an organization time type.";
+      const message =
+        persistErrorSurface(surface) === "quickadd"
+          ? "Select a project and a task."
+          : "Select a project and a task, or an organization time type.";
       setSurfaceError(message);
       return false;
     }
@@ -383,7 +367,16 @@ export function PersonalTimeTrackerPage() {
   }
 
   async function createFromQuickAdd(draft: TimeEntryDraft) {
-    const ok = await persistEntry(draft, null, "quickadd");
+    const ok = await persistEntry(
+      {
+        ...draft,
+        classification: "PROJECT",
+        activityTypeId: "",
+        holidayId: ""
+      },
+      null,
+      "quickadd"
+    );
     if (ok) setQuickAddResetKey((key) => key + 1);
   }
 
@@ -419,219 +412,186 @@ export function PersonalTimeTrackerPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <AppBar
-        title="Time Tracker"
-        description="View, filter, import, export, and manage your own time entries."
-        actions={
-          <>
-            <AppBarActionButton onClick={() => setExportOpen(true)}>
-              <Download className="size-4" /> Export
-            </AppBarActionButton>
-            {!isImpersonating ? (
-              <AppBarActionButton onClick={() => setImportOpen(true)}>
-                <Upload className="size-4" /> Import
-              </AppBarActionButton>
-            ) : null}
-          </>
-        }
-      />
+    <PageLayout
+      title="Time Tracker"
+      description="Your project time entries."
+      secondary={
+        <TimeTrackerToolbar
+          search={search}
+          onSearchChange={setSearch}
+          projectId={projectId}
+          onProjectChange={(next) => {
+            setProjectId(next);
+            setTaskId("");
+          }}
+          period={period}
+          onPeriodChange={setPeriod}
+          rangeFrom={from}
+          rangeTo={to}
+          onRangeChange={(nextFrom, nextTo) => {
+            setFrom(nextFrom);
+            setTo(nextTo);
+            setPeriod(matchTimeTrackerPeriod(nextFrom, nextTo, timezone, weekStart));
+          }}
+          weekStartsOn={weekStart === "sunday" ? 0 : 1}
+          projects={projects}
+          categories={categories}
+          tasks={tasks}
+          workspaceNamesById={workspaceNamesById}
+          filterValues={{ categoryId, taskId, billability }}
+          onCategoryChange={setCategoryId}
+          onTaskChange={setTaskId}
+          onBillabilityChange={setBillability}
+          onClearFilters={() => {
+            setProjectId([]);
+            setCategoryId("");
+            setTaskId("");
+            setBillability("all");
+          }}
+          memberFilter={[]}
+          onMemberChange={() => undefined}
+          members={[]}
+          hideMemberFilter
+          analyticsVisible={analyticsVisible}
+          onToggleAnalytics={toggleAnalyticsVisible}
+          extraActions={
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                className={appBarPageActionClass}
+                onClick={() => setExportOpen(true)}
+              >
+                <Download className="size-4" />
+                Export
+              </Button>
+              {!isImpersonating ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className={appBarPageActionClass}
+                  onClick={() => setImportOpen(true)}
+                >
+                  <Upload className="size-4" />
+                  Import
+                </Button>
+              ) : null}
+            </>
+          }
+        />
+      }
+      stats={
+        analyticsVisible ? (
+          <TimeTrackerStatCards
+            stats={stats}
+            loading={loading || search.trim() !== debouncedSearch}
+          />
+        ) : null
+      }
+    >
+      <div className="flex min-h-0 flex-1 flex-col gap-3">
+        {!isImpersonating ? (
+          <TimeTrackerQuickAddBar
+            projects={projects}
+            tasks={tasks}
+            categories={categories}
+            timezone={timezone}
+            resetKey={quickAddResetKey}
+            saving={entrySaving && !entryDialogOpen}
+            error={quickAddError}
+            onClearError={() => setQuickAddError(null)}
+            onSubmit={(draft) => void createFromQuickAdd(draft)}
+          />
+        ) : null}
 
-      {!isImpersonating ? (
-        <TimeTrackerQuickAddBar
+        <TimeTrackerExportModal
+          open={exportOpen}
+          onOpenChange={setExportOpen}
+          defaultFrom={from}
+          defaultTo={to}
+          defaultProjectId={projectId[0] ?? "all"}
+        />
+        <TimeTrackerImportModal
+          open={importOpen}
+          onOpenChange={setImportOpen}
+          onImported={() => void refresh()}
+        />
+        <TimeEntryDialog
+          open={entryDialogOpen}
+          title={
+            editingLog ? "Edit time entry" : duplicatingEntry ? "Duplicate time entry" : "Log time"
+          }
+          draft={entryDraft}
           projects={projects}
           tasks={tasks}
           categories={categories}
+          taskLabel={(id) => tasks.find((task) => task.id === id)?.taskName ?? "Unknown task"}
+          editingLog={editingLog}
+          saving={entrySaving}
+          error={entryError}
+          readOnly={isImpersonating || (editingLog ? isEntryReadOnly(editingLog) : false)}
+          timezone={timezone}
+          workspaceId={workspaceId}
           activityTypes={activityTypes}
           dailyTargetHours={dailyTargetHours}
+          onClose={closeEntryDialog}
+          onDraftChange={setEntryDraft}
+          onSave={() => void saveEntry()}
+          onDelete={
+            !isImpersonating && editingLog && !isEntryReadOnly(editingLog)
+              ? () => deleteEntry(editingLog)
+              : undefined
+          }
+        />
+        <ConfirmDialog
+          open={Boolean(confirmDeleteLog)}
+          title="Delete time entry?"
+          description="This cannot be undone."
+          confirmLabel="Delete"
+          destructive
+          onConfirm={() => void confirmDelete()}
+          onCancel={() => setConfirmDeleteLog(null)}
+        />
+
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+
+        <TimeTrackerWeekList
+          groups={visibleWeekGroups}
+          weekTotals={weekTotals}
+          tasks={tasks}
+          projects={projects}
+          workspaceNamesById={workspaceNamesById}
+          submissionByKey={submissionByKey}
+          entryColor={entryColor}
+          isEntryLocked={(log) => {
+            const task = log.taskId ? taskById.get(log.taskId) : undefined;
+            const project = task ? projectById.get(task.projectId) : undefined;
+            return isTimeEntryLocked(log, project, submissionByKey);
+          }}
+          isEntryInactive={(log) => {
+            const task = log.taskId ? taskById.get(log.taskId) : undefined;
+            const project = task ? projectById.get(task.projectId) : undefined;
+            const category = task?.categoryId ? categoryById.get(task.categoryId) : undefined;
+            return isTimeEntryInactive(project, task, category);
+          }}
+          onEdit={openEditEntry}
+          onDelete={deleteEntry}
+          onDuplicate={openDuplicateEntry}
           timezone={timezone}
-          resetKey={quickAddResetKey}
-          saving={entrySaving && !entryDialogOpen}
-          error={quickAddError}
-          onClearError={() => setQuickAddError(null)}
-          onSubmit={(draft) => void createFromQuickAdd(draft)}
-        />
-      ) : null}
-
-      <div className="space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative min-w-[220px] flex-1">
-            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search entries..."
-              className="pl-9"
-            />
-          </div>
-          <SearchableSelect
-            value={projectId}
-            onValueChange={(value) => {
-              setProjectId(value);
-              setTaskId("");
-            }}
-            options={[
-              { value: "all", label: "All Projects" },
-              ...projects.map((project) => ({ value: project.id, label: project.name }))
-            ]}
-            placeholder="All Projects"
-            aria-label="Filter by project"
-            className="w-[190px]"
-          />
-          <Select
-            value={period}
-            onValueChange={(value) => setPeriod(value as TimeTrackerPeriodSelection)}
-          >
-            <SelectTrigger className="w-[170px]" aria-label="Time period">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {TIME_TRACKER_PERIOD_PRESETS.map((value) => (
-                <SelectItem key={value} value={value}>
-                  {TIME_TRACKER_PERIOD_LABELS[value]}
-                </SelectItem>
-              ))}
-              <SelectItem value="custom">{TIME_TRACKER_PERIOD_LABELS.custom}</SelectItem>
-            </SelectContent>
-          </Select>
-          <DateRangePicker
-            from={from}
-            to={to}
-            onChange={(nextFrom, nextTo) => {
-              setFrom(nextFrom);
-              setTo(nextTo);
-              setPeriod(matchTimeTrackerPeriod(nextFrom, nextTo, timezone, weekStart));
-            }}
-            weekStartsOn={weekStart === "sunday" ? 0 : 1}
-            ariaLabel="Date range"
-            className="w-[260px]"
-          />
-          <Button variant="outline" onClick={() => setFiltersOpen((open) => !open)}>
-            <Filter className="size-4" /> Filters
-            {activeFilterCount ? <Badge>{activeFilterCount}</Badge> : null}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={toggleAnalyticsVisible}
-            aria-pressed={analyticsVisible}
-            aria-label={analyticsVisible ? "Hide analytics" : "Show analytics"}
-          >
-            {analyticsVisible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-            Analytics
-          </Button>
-        </div>
-        {filtersOpen ? (
-          <TimeTrackerFiltersPanel
-            values={{ categoryId, taskId, billability }}
-            categories={categories}
-            tasks={tasks}
-            projectId={projectId === "all" ? [] : [projectId]}
-            onCategoryChange={setCategoryId}
-            onTaskChange={setTaskId}
-            onBillabilityChange={setBillability}
-            onClear={() => {
-              setCategoryId("");
-              setTaskId("");
-              setBillability("all");
-            }}
-          />
-        ) : null}
-      </div>
-
-      <TimeTrackerExportModal
-        open={exportOpen}
-        onOpenChange={setExportOpen}
-        defaultFrom={from}
-        defaultTo={to}
-        defaultProjectId={projectId}
-      />
-      <TimeTrackerImportModal
-        open={importOpen}
-        onOpenChange={setImportOpen}
-        onImported={() => void refresh()}
-      />
-      <TimeEntryDialog
-        open={entryDialogOpen}
-        title={
-          editingLog ? "Edit time entry" : duplicatingEntry ? "Duplicate time entry" : "Log time"
-        }
-        draft={entryDraft}
-        projects={projects}
-        tasks={tasks}
-        categories={categories}
-        taskLabel={(id) => tasks.find((task) => task.id === id)?.taskName ?? "Unknown task"}
-        editingLog={editingLog}
-        saving={entrySaving}
-        error={entryError}
-        readOnly={isImpersonating || (editingLog ? isEntryReadOnly(editingLog) : false)}
-        timezone={timezone}
-        workspaceId={workspaceId}
-        activityTypes={activityTypes}
-        dailyTargetHours={dailyTargetHours}
-        onClose={closeEntryDialog}
-        onDraftChange={setEntryDraft}
-        onSave={() => void saveEntry()}
-        onDelete={
-          !isImpersonating && editingLog && !isEntryReadOnly(editingLog)
-            ? () => deleteEntry(editingLog)
-            : undefined
-        }
-      />
-      <ConfirmDialog
-        open={Boolean(confirmDeleteLog)}
-        title="Delete time entry?"
-        description="This cannot be undone."
-        confirmLabel="Delete"
-        destructive
-        onConfirm={() => void confirmDelete()}
-        onCancel={() => setConfirmDeleteLog(null)}
-      />
-
-      {analyticsVisible ? (
-        <TimeTrackerStatCards
-          stats={stats}
+          weekStartPref={weekStart}
+          rangeFrom={from}
+          rangeTo={to}
           loading={loading || search.trim() !== debouncedSearch}
+          page={page}
+          weeksPerPage={weeksPerPage}
+          onWeeksPerPageChange={setWeeksPerPageAndResetPage}
+          onPageChange={setPage}
+          totalWeekPages={totalWeekPages}
+          totalWeekCount={totalWeekCount}
+          weekRangeSummary={weekRangeSummary}
+          readOnly={isImpersonating}
         />
-      ) : null}
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
-
-      <TimeTrackerWeekList
-        groups={visibleWeekGroups}
-        weekTotals={weekTotals}
-        tasks={tasks}
-        projects={projects}
-        workspaceNamesById={workspaceNamesById}
-        submissionByKey={submissionByKey}
-        entryColor={entryColor}
-        isEntryLocked={(log) => {
-          const task = log.taskId ? taskById.get(log.taskId) : undefined;
-          const project = task ? projectById.get(task.projectId) : undefined;
-          return isTimeEntryLocked(log, project, submissionByKey);
-        }}
-        isEntryInactive={(log) => {
-          const task = log.taskId ? taskById.get(log.taskId) : undefined;
-          const project = task ? projectById.get(task.projectId) : undefined;
-          const category = task?.categoryId ? categoryById.get(task.categoryId) : undefined;
-          return isTimeEntryInactive(project, task, category);
-        }}
-        onEdit={openEditEntry}
-        onDelete={deleteEntry}
-        onDuplicate={openDuplicateEntry}
-        timezone={timezone}
-        weekStartPref={weekStart}
-        rangeFrom={from}
-        rangeTo={to}
-        loading={loading || search.trim() !== debouncedSearch}
-        page={page}
-        weeksPerPage={weeksPerPage}
-        onWeeksPerPageChange={setWeeksPerPageAndResetPage}
-        onPageChange={setPage}
-        totalWeekPages={totalWeekPages}
-        totalWeekCount={totalWeekCount}
-        weekRangeSummary={weekRangeSummary}
-        readOnly={isImpersonating}
-      />
-    </div>
+      </div>
+    </PageLayout>
   );
 }

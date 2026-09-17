@@ -4,6 +4,13 @@ import { TABLE_PAGE_SIZE_OPTIONS } from "@kloqra/contracts";
 import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 import * as React from "react";
 import { cn } from "../../lib/utils.js";
+import {
+  dataTableCardFillClass,
+  dataTableMetaColClass,
+  dataTablePaginationClass,
+  dataTableScrollClass,
+  dataTableStickyColClass
+} from "../shell/page-density.js";
 import { Button } from "../ui/button.js";
 import { Card } from "../ui/card.js";
 import { Input } from "../ui/input.js";
@@ -13,17 +20,41 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 export const dataTableCardClass = "gap-0 overflow-hidden border-primary/10 p-0 shadow-sm";
 export const dataTableHeaderRowClass = "border-b border-border/60 bg-muted/30 hover:bg-muted/30";
 export const dataTableHeadClass =
-  "h-11 px-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground";
-export const dataTableCellClass = "px-4 py-3 text-sm";
+  "h-10 px-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground";
+export const dataTableCellClass = "px-3 py-2.5 text-sm";
 
 export function DataTableCard({
+  children,
+  className,
+  fill = false
+}: {
+  children: React.ReactNode;
+  className?: string;
+  fill?: boolean;
+}) {
+  return (
+    <Card
+      density="compact"
+      data-fill={fill ? "true" : undefined}
+      className={cn(dataTableCardClass, fill && dataTableCardFillClass, className)}
+    >
+      {children}
+    </Card>
+  );
+}
+
+export function DataTableScroll({
   children,
   className
 }: {
   children: React.ReactNode;
   className?: string;
 }) {
-  return <Card className={cn(dataTableCardClass, className)}>{children}</Card>;
+  return (
+    <div data-slot="data-table-scroll" className={cn(dataTableScrollClass, className)}>
+      {children}
+    </div>
+  );
 }
 
 export type TableToolbarProps = {
@@ -47,7 +78,7 @@ export function TableToolbar({
     <div className="flex flex-col gap-3 border-b border-border/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
       <div className="flex flex-1 flex-wrap items-center gap-3">
         {onSearchChange ? (
-          <div className="relative min-w-[220px] max-w-md flex-1">
+          <div className="relative min-w-0 max-w-md flex-1">
             <Search
               className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
               aria-hidden
@@ -56,7 +87,7 @@ export function TableToolbar({
               value={searchValue}
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder={searchPlaceholder}
-              className="h-9 pl-9"
+              className="h-10 pl-9"
               aria-label={searchAriaLabel}
             />
           </div>
@@ -101,7 +132,12 @@ export function TablePagination({
   const defaultSummary = `Showing ${start}–${end} of ${total}`;
 
   return (
-    <div className="flex flex-col gap-2 border-t border-border/60 px-4 py-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
+    <div
+      className={cn(
+        dataTablePaginationClass,
+        "flex flex-col gap-2 border-t border-border/60 px-4 py-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6"
+      )}
+    >
       <span>{summary ?? defaultSummary}</span>
       <div className="flex flex-wrap items-center gap-2">
         {onLimitChange ? (
@@ -112,7 +148,7 @@ export function TablePagination({
               onValueChange={(value) => onLimitChange(Number(value))}
               disabled={disabled}
             >
-              <SelectTrigger className="h-8 w-[72px]" aria-label={pageSizeLabel}>
+              <SelectTrigger className="h-10 w-[72px]" aria-label={pageSizeLabel}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -129,7 +165,7 @@ export function TablePagination({
           type="button"
           variant="outline"
           size="sm"
-          className="h-8 gap-1"
+          className="h-10 gap-1"
           disabled={disabled || page <= 1}
           onClick={() => onPageChange(page - 1)}
         >
@@ -143,7 +179,7 @@ export function TablePagination({
           type="button"
           variant="outline"
           size="sm"
-          className="h-8 gap-1"
+          className="h-10 gap-1"
           disabled={disabled || page >= totalPages || totalPages === 0}
           onClick={() => onPageChange(page + 1)}
         >
@@ -159,12 +195,53 @@ export function DataTableHeaderRow({ className, ...props }: React.ComponentProps
   return <TableRow className={cn(dataTableHeaderRowClass, className)} {...props} />;
 }
 
-export function DataTableHead({ className, ...props }: React.ComponentProps<typeof TableHead>) {
-  return <TableHead className={cn(dataTableHeadClass, className)} {...props} />;
+export type DataTablePriority = "core" | "meta";
+
+type DataTableColumnProps = {
+  priority?: DataTablePriority;
+  sticky?: boolean;
+};
+
+export function DataTableHead({
+  className,
+  priority = "core",
+  sticky = false,
+  ...props
+}: React.ComponentProps<typeof TableHead> & DataTableColumnProps) {
+  return (
+    <TableHead
+      data-priority={priority}
+      data-sticky={sticky ? "true" : undefined}
+      className={cn(
+        dataTableHeadClass,
+        sticky && dataTableStickyColClass,
+        priority === "meta" && dataTableMetaColClass,
+        className
+      )}
+      {...props}
+    />
+  );
 }
 
-export function DataTableCell({ className, ...props }: React.ComponentProps<typeof TableCell>) {
-  return <TableCell className={cn(dataTableCellClass, className)} {...props} />;
+export function DataTableCell({
+  className,
+  priority = "core",
+  sticky = false,
+  ...props
+}: React.ComponentProps<typeof TableCell> & DataTableColumnProps) {
+  return (
+    <TableCell
+      data-priority={priority}
+      data-sticky={sticky ? "true" : undefined}
+      className={cn(
+        dataTableCellClass,
+        sticky && dataTableStickyColClass,
+        priority === "meta" && dataTableMetaColClass,
+        className
+      )}
+      {...props}
+    />
+  );
 }
 
 export { Table, TableBody, TableHeader, TableRow };

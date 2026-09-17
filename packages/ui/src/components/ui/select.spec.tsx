@@ -17,6 +17,7 @@ describe("Select", () => {
       </Select>
     );
 
+    expect(screen.getByRole("combobox", { name: "Period" }).className).toContain("h-10");
     await user.click(screen.getByRole("combobox", { name: "Period" }));
     await user.click(screen.getByRole("option", { name: "Weekly" }));
     expect(screen.getByRole("combobox", { name: "Period" })).toHaveTextContent("Weekly");

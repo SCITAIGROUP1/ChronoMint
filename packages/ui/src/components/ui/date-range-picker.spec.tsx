@@ -17,6 +17,7 @@ describe("DateRangePicker", () => {
     expect(screen.getByRole("button", { name: "Date range" })).toHaveTextContent(
       "Jun 8 – Jun 14, 2026"
     );
+    expect(screen.getByRole("button", { name: "Date range" }).className).toContain("h-10");
   });
 
   it("applies a newly selected range", async () => {

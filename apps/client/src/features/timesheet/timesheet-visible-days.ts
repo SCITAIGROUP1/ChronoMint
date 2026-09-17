@@ -22,6 +22,29 @@ export function sameWeekdays(a: readonly WeekdayIndex[], b: readonly WeekdayInde
   return b.every((d) => set.has(d));
 }
 
+export type VisibleWeekdaysPreset = "all" | "weekdays" | "custom";
+
+export function visibleWeekdaysPreset(days: readonly WeekdayIndex[]): VisibleWeekdaysPreset {
+  if (sameWeekdays(days, ALL_WEEKDAY_INDEXES)) return "all";
+  if (sameWeekdays(days, WORK_WEEKDAY_INDEXES)) return "weekdays";
+  return "custom";
+}
+
+export function timesheetDisplayActiveCount(input: {
+  view: "day" | "week" | "month";
+  visibleWeekdays: readonly WeekdayIndex[];
+  showOccupancyOverlay: boolean;
+}): number {
+  let count = 0;
+  if (input.view === "week" && visibleWeekdaysPreset(input.visibleWeekdays) !== "all") {
+    count += 1;
+  }
+  if ((input.view === "day" || input.view === "week") && !input.showOccupancyOverlay) {
+    count += 1;
+  }
+  return count;
+}
+
 /** Column order for the day-visibility checkboxes, respecting week-start preference. */
 export function weekdayCheckboxOrder(weekStart: "monday" | "sunday"): WeekdayIndex[] {
   if (weekStart === "sunday") {

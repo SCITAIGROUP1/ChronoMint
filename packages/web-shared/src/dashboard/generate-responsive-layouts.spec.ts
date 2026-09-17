@@ -1,6 +1,7 @@
 import type { WidgetLayoutItemDto } from "@kloqra/contracts";
 import { describe, expect, it } from "vitest";
 import {
+  DASHBOARD_GRID_BREAKPOINTS,
   DASHBOARD_GRID_COLS,
   generateResponsiveLayouts,
   isPersistableDashboardBreakpoint,
@@ -22,6 +23,11 @@ const MIN_SIZES: Record<string, WidgetMinSize> = {
 };
 
 describe("generateResponsiveLayouts", () => {
+  it("keeps 12-col desktop coords through compact-laptop container widths", () => {
+    expect(DASHBOARD_GRID_BREAKPOINTS.lg).toBeLessThanOrEqual(900);
+    expect(DASHBOARD_GRID_COLS.lg).toBe(12);
+    expect(DASHBOARD_GRID_COLS.md).toBe(12);
+  });
   it("returns visible items for lg without reflowing desktop positions", () => {
     const layouts = generateResponsiveLayouts(SAMPLE_LAYOUT, DASHBOARD_GRID_COLS, MIN_SIZES);
     expect(layouts.lg.map((item) => item.i)).toEqual([
