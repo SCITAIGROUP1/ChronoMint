@@ -95,6 +95,16 @@ export function TenantListPage() {
             onSearchChange={setSearch}
             searchPlaceholder="Search by name or slug…"
             searchAriaLabel="Search tenants"
+            filterCount={
+              (statusFilter !== ALL ? 1 : 0) +
+              (planFilter !== ALL ? 1 : 0) +
+              (subscriptionFilter !== ALL ? 1 : 0)
+            }
+            onClearFilters={() => {
+              setStatusFilter(ALL);
+              setPlanFilter(ALL);
+              setSubscriptionFilter(ALL);
+            }}
             filters={
               <>
                 <Select

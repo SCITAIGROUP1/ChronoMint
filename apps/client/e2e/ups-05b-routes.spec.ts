@@ -7,8 +7,12 @@ test.describe("UPS-05B unified work routes", () => {
     await expect(page.getByRole("heading", { name: /projects/i })).toBeVisible();
 
     await page.goto("/tasks");
-    await expect(page).toHaveURL(/\/tasks$/);
-    await expect(page.getByRole("heading", { name: "Tasks", exact: true })).toBeVisible();
+    await expect(page).toHaveURL(/\/projects$/);
+    await expect(page.getByRole("heading", { name: /projects/i })).toBeVisible();
+
+    await page.goto("/project-managers");
+    await expect(page).toHaveURL(/\/projects$/);
+    await expect(page.getByRole("heading", { name: /projects/i })).toBeVisible();
 
     await page.goto("/time-tracker");
     await expect(page).toHaveURL(/\/time-tracker$/);

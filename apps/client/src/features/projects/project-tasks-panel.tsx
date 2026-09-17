@@ -21,11 +21,13 @@ import {
   useCategoriesListQuery,
   useTasksListQuery
 } from "@kloqra/web-shared";
-import { ListTodo, Pencil, Plus, Trash2, Lock, Unlock } from "lucide-react";
+import { Download, ListTodo, Pencil, Plus, Trash2, Lock, Unlock, Upload } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { getTaskConfirmCopy } from "./task-confirmation";
+import { TasksImportModal } from "./tasks-import-modal";
 import { api } from "@/lib/api";
+import { apiDownloadGet, saveDownloadResponse } from "@/lib/download";
 
 type PendingTaskConfirm = {
   action: "activate" | "deactivate" | "delete";
@@ -70,6 +72,7 @@ export function ProjectTasksPanel({ workspaceId, projectId, projectIsActive }: P
   const [editAssigneeIds, setEditAssigneeIds] = useState<string[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [confirmTarget, setConfirmTarget] = useState<PendingTaskConfirm | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   const categoryById = useMemo(() => {
     const m = new Map<string, CategoryDto>();
@@ -293,6 +296,19 @@ export function ProjectTasksPanel({ workspaceId, projectId, projectIsActive }: P
     }
   }
 
+  async function handleExport() {
+    try {
+      const params = new URLSearchParams({ format: "xlsx", projectId });
+      await saveDownloadResponse(
+        await apiDownloadGet(`${ROUTES.TASKS.EXPORT}?${params.toString()}`, workspaceId),
+        "tasks_export.xlsx"
+      );
+      toast.success("Tasks exported.");
+    } catch {
+      toast.error("Failed to export tasks.");
+    }
+  }
+
   const grouped = useMemo(() => {
     const groups = new Map<string, TaskDto[]>();
     for (const t of tasks) {
@@ -434,6 +450,30 @@ export function ProjectTasksPanel({ workspaceId, projectId, projectIsActive }: P
             : tasks.length === 0
               ? "No tasks yet — add one above."
               : `${tasks.length} task${tasks.length === 1 ? "" : "s"} across ${grouped.length} ${grouped.length === 1 ? "category" : "categories"}`
+        }
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2"
+              onClick={() => setImportOpen(true)}
+              data-testid="tasks-import"
+            >
+              <Upload className="size-4" aria-hidden />
+              Import
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2"
+              onClick={() => void handleExport()}
+              data-testid="tasks-export"
+            >
+              <Download className="size-4" aria-hidden />
+              Export
+            </Button>
+          </div>
         }
       >
         {(loading || tasksLoading) && tasks.length === 0 ? (
@@ -672,6 +712,12 @@ export function ProjectTasksPanel({ workspaceId, projectId, projectIsActive }: P
         destructive={confirmCopy?.destructive}
         onConfirm={() => void handleConfirmTaskAction()}
         onCancel={() => setConfirmTarget(null)}
+      />
+      <TasksImportModal
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        workspaceId={workspaceId}
+        onImported={() => void refresh()}
       />
     </div>
   );

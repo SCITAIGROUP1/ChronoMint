@@ -17,7 +17,6 @@ function hrefsFromNav(
     projectLeadOnly: false,
     workspaceNavItems: APP_NAV_ITEMS,
     pendingCount: 0,
-    notificationUnreadCount: 0,
     session: { tenantRole: "OWNER" },
     ...overrides
   });
@@ -33,7 +32,6 @@ function sectionLabels(
     projectLeadOnly: false,
     workspaceNavItems: APP_NAV_ITEMS,
     pendingCount: 0,
-    notificationUnreadCount: 0,
     session: { tenantRole: "OWNER" },
     ...overrides
   });
@@ -55,7 +53,6 @@ describe("resolveAppShellNav", () => {
       projectLeadOnly: false,
       workspaceNavItems: APP_NAV_ITEMS,
       pendingCount: 0,
-      notificationUnreadCount: 0,
       session: { tenantRole: "OWNER" }
     });
 
@@ -70,7 +67,6 @@ describe("resolveAppShellNav", () => {
       projectLeadOnly: false,
       workspaceNavItems: APP_NAV_ITEMS,
       pendingCount: 0,
-      notificationUnreadCount: 0,
       session: { tenantRole: "OWNER" }
     });
 
@@ -117,7 +113,6 @@ describe("resolveAppShellNav", () => {
       projectLeadOnly: false,
       workspaceNavItems: APP_NAV_ITEMS,
       pendingCount: 2,
-      notificationUnreadCount: 1,
       projectCount: 4,
       session: { tenantRole: "OWNER" }
     });
@@ -135,9 +130,13 @@ describe("resolveAppShellNav", () => {
     expect(flattenNavSections(navSections).find((item) => item.href === "/approvals")?.badge).toBe(
       2
     );
-    expect(
-      flattenNavSections(navSections).find((item) => item.href === "/notifications")?.badge
-    ).toBe(1);
+    expect(flattenNavSections(navSections).some((item) => item.href === "/notifications")).toBe(
+      false
+    );
+    expect(flattenNavSections(navSections).some((item) => item.href === "/tasks")).toBe(false);
+    expect(flattenNavSections(navSections).some((item) => item.href === "/project-managers")).toBe(
+      false
+    );
   });
 
   it("returns filtered nav for project managers", () => {
@@ -154,8 +153,7 @@ describe("resolveAppShellNav", () => {
       "/approvals",
       "/overview",
       "/my-projects",
-      "/time-tracker",
-      "/notifications"
+      "/time-tracker"
     ]);
     expect(sectionLabels("/projects", { projectLeadOnly: true, session: undefined })).toEqual([
       "Workspace",
@@ -169,7 +167,6 @@ describe("resolveAppShellNav", () => {
       projectLeadOnly: true,
       workspaceNavItems: APP_NAV_ITEMS,
       pendingCount: 8,
-      notificationUnreadCount: 0,
       projectCount: 1,
       session: undefined
     });
@@ -188,7 +185,6 @@ describe("resolveAppShellNav", () => {
       projectLeadOnly: false,
       workspaceNavItems: APP_NAV_ITEMS,
       pendingCount: 0,
-      notificationUnreadCount: 3,
       session: undefined,
       capabilities: getManagedRolePermissions(["WORKSPACE_MEMBER"])
     });
@@ -202,15 +198,14 @@ describe("resolveAppShellNav", () => {
       "/timesheet",
       "/submissions",
       "/my-projects",
-      "/time-tracker",
-      "/notifications"
+      "/time-tracker"
     ]);
     expect(flattenNavSections(navSections).some((item) => item.href === "/dashboard")).toBe(false);
     expect(flattenNavSections(navSections).some((item) => item.href === "/tasks")).toBe(false);
     expect(flattenNavSections(navSections).some((item) => item.href === "/support")).toBe(false);
-    expect(
-      flattenNavSections(navSections).find((item) => item.href === "/notifications")?.badge
-    ).toBe(3);
+    expect(flattenNavSections(navSections).some((item) => item.href === "/notifications")).toBe(
+      false
+    );
     expect(flattenNavSections(navSections).some((item) => item.href === "/team-time-tracker")).toBe(
       false
     );
@@ -223,14 +218,13 @@ describe("resolveAppShellNav", () => {
       projectLeadOnly: false,
       workspaceNavItems: APP_NAV_ITEMS,
       pendingCount: 0,
-      notificationUnreadCount: 0,
       session: { tenantRole: "ADMIN" }
     });
 
     expect(mode).toBe("workspace");
     const hrefs = flattenNavSections(navSections).map((item) => item.href);
     expect(hrefs).toContain("/team-management");
-    expect(hrefs).toContain("/project-managers");
+    expect(hrefs).not.toContain("/project-managers");
     expect(hrefs).toContain("/workspace");
   });
 
@@ -240,7 +234,6 @@ describe("resolveAppShellNav", () => {
       projectLeadOnly: false,
       workspaceNavItems: APP_NAV_ITEMS,
       pendingCount: 0,
-      notificationUnreadCount: 0,
       session: undefined,
       capabilities: getManagedRolePermissions(["WORKSPACE_ADMIN"])
     });
@@ -248,7 +241,7 @@ describe("resolveAppShellNav", () => {
     const hrefs = flattenNavSections(navSections).map((item) => item.href);
     expect(hrefs).toContain("/team-time-tracker");
     expect(hrefs).toContain("/time-tracker");
-    expect(hrefs).toContain("/tasks");
+    expect(hrefs).not.toContain("/tasks");
     expect(hrefs).toContain("/support");
   });
 });

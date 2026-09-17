@@ -334,6 +334,11 @@ export function TeamManagementPage() {
             onSearchChange={setSearch}
             searchPlaceholder="Search team members…"
             searchAriaLabel="Search team members"
+            filterCount={(roleFilter !== "ALL" ? 1 : 0) + (statusFilter !== "ALL" ? 1 : 0)}
+            onClearFilters={() => {
+              setRoleFilter("ALL");
+              setStatusFilter("ALL");
+            }}
             filters={
               <>
                 <Select
@@ -370,76 +375,99 @@ export function TeamManagementPage() {
                 </Select>
               </>
             }
+            moreActions={
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10 w-full gap-2 sm:w-auto"
+                onClick={() => setBulkOpen(true)}
+              >
+                <Upload className="h-4 w-4" aria-hidden />
+                Bulk Import
+              </Button>
+            }
             action={
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-10 w-full gap-2 sm:w-auto"
-                  onClick={() => setBulkOpen(true)}
-                >
-                  <Upload className="h-4 w-4" aria-hidden />
-                  Bulk Import
-                </Button>
-                <Button
-                  type="button"
-                  className="h-10 w-full gap-2 sm:w-auto"
-                  onClick={() => setInviteOpen(true)}
-                >
-                  <Plus className="h-4 w-4" aria-hidden />
-                  Add Team Member
-                </Button>
-              </div>
+              <Button
+                type="button"
+                className="h-10 w-full gap-2"
+                onClick={() => setInviteOpen(true)}
+              >
+                <Plus className="h-4 w-4" aria-hidden />
+                Add Team Member
+              </Button>
             }
           />
         }
       />
 
       {summaryStats ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <Card className="border-primary/10 shadow-sm">
-            <CardContent className="p-4">
-              <DashboardStatCard
-                label="Total Members"
-                value={String(summaryStats.totalMembers)}
-                icon={Users}
-                tone="primary"
-              />
-            </CardContent>
-          </Card>
-          <Card className="border-primary/10 shadow-sm">
-            <CardContent className="p-4">
-              <DashboardStatCard
-                label="Active"
-                value={String(summaryStats.activeMembers)}
-                hint="Active in the last 30 days"
-                icon={UserCheck}
-                tone="success"
-              />
-            </CardContent>
-          </Card>
-          <Card className="border-primary/10 shadow-sm">
-            <CardContent className="p-4">
-              <DashboardStatCard
-                label="Admins"
-                value={String(summaryStats.adminCount)}
-                icon={Shield}
-                tone="premium"
-              />
-            </CardContent>
-          </Card>
-          <Card className="border-primary/10 shadow-sm">
-            <CardContent className="p-4">
-              <DashboardStatCard
-                label="Total Hours"
-                value={formatWeekHours(summaryStats.totalWeekHours)}
-                hint="This week"
-                icon={Clock}
-                tone="warning"
-              />
-            </CardContent>
-          </Card>
-        </div>
+        <>
+          <div
+            className="flex gap-3 overflow-x-auto pb-1 text-sm lg:hidden"
+            data-testid="team-stats-strip"
+          >
+            <span className="shrink-0 rounded-lg border border-border/70 bg-card px-3 py-2">
+              <span className="text-muted-foreground">Members </span>
+              <span className="font-semibold">{summaryStats.totalMembers}</span>
+            </span>
+            <span className="shrink-0 rounded-lg border border-border/70 bg-card px-3 py-2">
+              <span className="text-muted-foreground">Active </span>
+              <span className="font-semibold">{summaryStats.activeMembers}</span>
+            </span>
+            <span className="shrink-0 rounded-lg border border-border/70 bg-card px-3 py-2">
+              <span className="text-muted-foreground">Admins </span>
+              <span className="font-semibold">{summaryStats.adminCount}</span>
+            </span>
+            <span className="shrink-0 rounded-lg border border-border/70 bg-card px-3 py-2">
+              <span className="text-muted-foreground">Hours </span>
+              <span className="font-semibold">{formatWeekHours(summaryStats.totalWeekHours)}</span>
+            </span>
+          </div>
+          <div className="hidden gap-4 lg:grid sm:grid-cols-2 xl:grid-cols-4">
+            <Card className="border-primary/10 shadow-sm">
+              <CardContent className="p-4">
+                <DashboardStatCard
+                  label="Total Members"
+                  value={String(summaryStats.totalMembers)}
+                  icon={Users}
+                  tone="primary"
+                />
+              </CardContent>
+            </Card>
+            <Card className="border-primary/10 shadow-sm">
+              <CardContent className="p-4">
+                <DashboardStatCard
+                  label="Active"
+                  value={String(summaryStats.activeMembers)}
+                  hint="Active in the last 30 days"
+                  icon={UserCheck}
+                  tone="success"
+                />
+              </CardContent>
+            </Card>
+            <Card className="border-primary/10 shadow-sm">
+              <CardContent className="p-4">
+                <DashboardStatCard
+                  label="Admins"
+                  value={String(summaryStats.adminCount)}
+                  icon={Shield}
+                  tone="premium"
+                />
+              </CardContent>
+            </Card>
+            <Card className="border-primary/10 shadow-sm">
+              <CardContent className="p-4">
+                <DashboardStatCard
+                  label="Total Hours"
+                  value={formatWeekHours(summaryStats.totalWeekHours)}
+                  hint="This week"
+                  icon={Clock}
+                  tone="warning"
+                />
+              </CardContent>
+            </Card>
+          </div>
+        </>
       ) : null}
 
       <DataTableCard>

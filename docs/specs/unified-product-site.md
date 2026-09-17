@@ -14,9 +14,9 @@ isolated internal console with scope `platform`.
 ## Capability-driven experience
 
 All active workspace members receive Dashboard, Timer, Time Tracker, Timesheet, Submissions,
-Projects, Tasks, Notifications, Profile, and personal Settings. Project managers receive actions
-only for assigned projects. Workspace administrators receive authorized workspace operations.
-Tenant owners/admins receive authorized organization controls under `/account/*`; tenant membership
+Projects, Profile, and personal Settings. Notifications open from the header bell. Tasks are
+managed on each project's Tasks tab. Project managers receive actions only for assigned projects.
+Workspace administrators receive authorized workspace operations. Tenant owners/admins receive authorized organization controls under `/account/*`; tenant membership
 does not imply workspace operational access.
 
 There is no member/administrator mode switch. Shared resources use one route with permission-gated

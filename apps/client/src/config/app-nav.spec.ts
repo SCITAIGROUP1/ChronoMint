@@ -22,6 +22,8 @@ describe("app navigation scopes", () => {
     }
     expect(leadHrefs).not.toContain("/team-management");
     expect(leadHrefs).not.toContain("/project-managers");
+    expect(leadHrefs).not.toContain("/notifications");
+    expect(leadHrefs).not.toContain("/tasks");
     expect(leadHrefs).not.toContain("/billing");
     expect(leadHrefs).not.toContain("/workspace");
   });

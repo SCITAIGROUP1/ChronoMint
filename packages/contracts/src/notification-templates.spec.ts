@@ -71,6 +71,7 @@ describe("notification templates", () => {
     });
     expect(rendered.title).toBe("Task assigned");
     expect(rendered.metadata.taskId).toBe(UUID);
+    expect(rendered.metadata.href).toBe(`/projects/${UUID}/tasks`);
   });
 
   it("renders lifecycle templates for assignment changes", () => {
@@ -81,6 +82,7 @@ describe("notification templates", () => {
       projectId: UUID
     });
     expect(unassigned.title).toBe("Task unassigned");
+    expect(unassigned.metadata.href).toBe(`/projects/${UUID}/tasks`);
 
     const removed = buildNotificationTemplate("workspace.removed", {
       workspaceName: "Acme Corp",

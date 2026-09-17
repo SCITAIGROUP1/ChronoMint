@@ -7,6 +7,7 @@ export {
   COMPACT_LAPTOP_VIEWPORT_MAX,
   COMFORTABLE_DESKTOP_SHELL_MIN,
   EXPORT_TWO_COLUMN_SHELL_MIN,
+  SHELL_PERSISTENT_SIDEBAR_MIN,
   SIDEBAR_COLLAPSED_STORAGE_KEY
 } from "./responsive-tiers.js";
 
@@ -295,6 +296,8 @@ export {
   AppBarListToolbar,
   type AppBarListToolbarProps,
   appBarListFilterTriggerClass,
+  AppBarFilterSheet,
+  type AppBarFilterSheetProps,
   AppBarSecondary,
   type AppBarSecondaryProps,
   AppBarActionButton,

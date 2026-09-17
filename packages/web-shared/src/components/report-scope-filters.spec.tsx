@@ -64,13 +64,41 @@ describe("ReportScopeFilters", () => {
 
     expect(screen.getByRole("button", { name: "Scope filters" })).toBeTruthy();
     expect(screen.queryByLabelText("Project")).toBeNull();
+    expect(screen.queryByTestId("scope-filters-applied")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Scope filters" }));
 
+    const panel = screen.getByTestId("scope-filters-panel");
+    expect(panel.className).toContain("max-h-[min(32rem,calc(100dvh-5rem))]");
     expect(screen.getByLabelText("Project")).toBeTruthy();
     expect(screen.getByLabelText("Category")).toBeTruthy();
     expect(screen.getByText("Optional — narrow charts and exports")).toBeTruthy();
     expect(screen.queryByLabelText("Non-project time")).toBeNull();
+  });
+
+  it("keeps the trigger separate from applied chips so the menu does not reflow", () => {
+    render(
+      <ReportScopeFilters
+        {...baseProps}
+        compact
+        values={{
+          projectId: ["p1"],
+          categoryId: [],
+          taskId: "",
+          userId: []
+        }}
+      />
+    );
+
+    const trigger = screen.getByTestId("scope-filters-trigger");
+    const applied = screen.getByTestId("scope-filters-applied");
+
+    expect(trigger.contains(applied)).toBe(false);
+    expect(applied.className).toContain("col-span-full");
+    expect(screen.getByTestId("scope-filter-chip-project").textContent).toContain("Alpha");
+    expect(screen.getByRole("button", { name: "Remove Project Alpha" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Scope filters, 1 active" })).toBeTruthy();
+    expect(screen.queryByLabelText("Project")).toBeNull();
   });
 
   it("shows active chips without auto-expanding the popover", () => {
@@ -87,7 +115,7 @@ describe("ReportScopeFilters", () => {
       />
     );
 
-    expect(screen.getByText("Project: Alpha")).toBeTruthy();
+    expect(screen.getByText("Alpha")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Scope filters, 1 active" })).toBeTruthy();
     expect(screen.queryByLabelText("Project")).toBeNull();
   });
@@ -136,10 +164,10 @@ describe("ReportScopeFilters", () => {
       />
     );
 
-    expect(screen.getByText("Non-project: Only non-project")).toBeTruthy();
+    expect(screen.getByText("Only non-project")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Scope filters, 1 active" })).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "Remove Non-project: Only non-project" }));
+    fireEvent.click(screen.getByRole("button", { name: "Remove Non-project Only non-project" }));
     expect(onNonProjectTimeChange).toHaveBeenCalledWith("exclude");
   });
 
@@ -181,8 +209,8 @@ describe("ReportScopeFilters", () => {
       />
     );
 
-    expect(screen.queryByText("Project: Alpha")).toBeNull();
-    expect(screen.getByText("Non-project: Only non-project")).toBeTruthy();
+    expect(screen.queryByTestId("scope-filter-chip-project")).toBeNull();
+    expect(screen.getByText("Only non-project")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Scope filters, 1 active" })).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Scope filters, 1 active" }));

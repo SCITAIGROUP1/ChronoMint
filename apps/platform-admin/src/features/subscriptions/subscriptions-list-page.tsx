@@ -266,30 +266,32 @@ export function SubscriptionsListPage() {
       />
 
       {/* Tabs navigation */}
-      <div className="border-b border-border flex flex-wrap gap-2" role="tablist">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            role="tab"
-            aria-selected={activeTab === tab.id}
-            onClick={() => {
-              setActiveTab(tab.id);
-              setPage(1);
-            }}
-            className={`px-4 py-3 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 -mb-[2px] ${
-              activeTab === tab.id
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/30"
-            }`}
-          >
-            {tab.label}
-            {tab.count !== undefined && tab.count > 0 ? (
-              <span className="px-2 py-0.5 text-xs rounded-full bg-primary/10 text-primary font-bold">
-                {tab.count}
-              </span>
-            ) : null}
-          </button>
-        ))}
+      <div className="border-b border-border overflow-x-auto" role="tablist">
+        <div className="flex min-w-max gap-1">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              role="tab"
+              aria-selected={activeTab === tab.id}
+              onClick={() => {
+                setActiveTab(tab.id);
+                setPage(1);
+              }}
+              className={`shrink-0 px-3 py-2.5 text-sm font-semibold border-b-2 transition-all flex items-center gap-2 -mb-[2px] sm:px-4 sm:py-3 ${
+                activeTab === tab.id
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/30"
+              }`}
+            >
+              {tab.label}
+              {tab.count !== undefined && tab.count > 0 ? (
+                <span className="px-2 py-0.5 text-xs rounded-full bg-primary/10 text-primary font-bold">
+                  {tab.count}
+                </span>
+              ) : null}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Toolbar - search and filters (only visible for All tab or search) */}
@@ -298,6 +300,22 @@ export function SubscriptionsListPage() {
         onSearchChange={setSearch}
         searchPlaceholder="Search by organization name or slug…"
         searchAriaLabel="Search subscriptions"
+        filterCount={
+          activeTab === "all"
+            ? (statusFilter !== ALL ? 1 : 0) +
+              (planFilter !== ALL ? 1 : 0) +
+              (sourceFilter !== ALL ? 1 : 0)
+            : 0
+        }
+        onClearFilters={
+          activeTab === "all"
+            ? () => {
+                setStatusFilter(ALL);
+                setPlanFilter(ALL);
+                setSourceFilter(ALL);
+              }
+            : undefined
+        }
         filters={
           activeTab === "all" ? (
             <>

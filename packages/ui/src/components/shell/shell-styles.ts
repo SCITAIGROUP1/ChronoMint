@@ -3,15 +3,15 @@ import { cva } from "class-variance-authority";
 /**
  * Shared shell spacing — keeps sidebar brand, app bar title, and page body on one grid.
  */
-export const shellInsetXClass = "px-6 lg:px-8";
+export const shellInsetXClass = "px-4 lg:px-8";
 
-export const shellHeaderBandYClass = "py-4 @min-[720px]/shell:py-5";
+export const shellHeaderBandYClass = "py-3 @min-[720px]/shell:py-5";
 
 export const shellMainContentClass = `${shellInsetXClass} pb-6 lg:pb-8`;
 
 /** Shared layout shell surfaces */
 export const shellSidebarClass =
-  "sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-border/80 bg-card shadow-sm transition-all duration-300 ease-in-out md:flex";
+  "sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-border/80 bg-card shadow-sm transition-all duration-300 ease-in-out lg:flex";
 
 /** Narrow rail — wide enough for 36px controls with minimal inset */
 export const shellSidebarCollapsedWidthClass = "w-[5rem]";
@@ -44,13 +44,13 @@ export const shellMainClass =
   "min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-muted/20 overscroll-y-contain";
 
 export const shellMobileHeaderClass =
-  "sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between border-b border-border/80 bg-card/90 px-4 backdrop-blur-md md:hidden";
+  "sticky top-0 z-40 flex h-14 shrink-0 items-center gap-2 border-b border-border/80 bg-card/90 px-3 backdrop-blur-md lg:hidden";
 
 export const shellMobileDrawerClass =
-  "fixed inset-y-0 left-0 z-50 flex h-full w-[17rem] flex-col border-r border-border/80 bg-card p-4 shadow-xl transition-transform duration-300 ease-in-out md:hidden";
+  "fixed inset-y-0 left-0 z-50 flex h-full w-[17rem] flex-col border-r border-border/80 bg-card p-4 shadow-xl transition-transform duration-300 ease-in-out lg:hidden";
 
 /** App bar — negative margin pairs with `shellMainContentClass` horizontal inset */
-export const shellAppBarClass = `sticky top-0 z-30 -mx-6 mb-6 border-b border-border/80 bg-background/95 backdrop-blur-md lg:-mx-8 ${shellInsetXClass} ${shellHeaderBandYClass}`;
+export const shellAppBarClass = `sticky top-0 z-30 -mx-4 mb-4 border-b border-border/80 bg-background/95 backdrop-blur-md lg:-mx-8 lg:mb-6 ${shellInsetXClass} ${shellHeaderBandYClass}`;
 
 export const shellAppBarPrimaryRowClass =
   "flex min-h-10 flex-col gap-3 @min-[640px]/shell:flex-row @min-[640px]/shell:items-start @min-[720px]/shell:items-center @min-[720px]/shell:justify-between";

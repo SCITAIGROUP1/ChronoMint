@@ -8,6 +8,7 @@ import {
   useShellToolbar
 } from "../shell-toolbar-context.js";
 import { AppBarToolbar } from "./app-bar-toolbar.js";
+import { useRegisterShellPageTitle } from "./shell-page-title-context.js";
 import {
   shellAppBarClass,
   shellAppBarDescriptionClass,
@@ -19,6 +20,8 @@ import {
 
 export type AppBarProps = {
   title: ReactNode;
+  /** Plain-text title for the compact shell header when `title` is not a string. */
+  titleLabel?: string;
   description?: ReactNode;
   /** Page-specific actions shown before the global shell toolbar (bell, theme, avatar). */
   actions?: ReactNode;
@@ -27,11 +30,27 @@ export type AppBarProps = {
   className?: string;
 };
 
+function AppBarTitle({ title }: { title: ReactNode }) {
+  if (typeof title === "string") {
+    return <h1 className={shellAppBarTitleClass}>{title}</h1>;
+  }
+  return <div className={shellAppBarTitleClass}>{title}</div>;
+}
+
 /**
  * Sticky page app bar used across admin/client shells.
  * Shell toolbar actions are injected automatically via `ShellToolbarProvider`.
+ * On compact viewports the title and shell icons live in the shell mobile header instead.
  */
-export function AppBar({ title, description, actions, secondary, className }: AppBarProps) {
+export function AppBar({
+  title,
+  titleLabel,
+  description,
+  actions,
+  secondary,
+  className
+}: AppBarProps) {
+  useRegisterShellPageTitle(title, titleLabel);
   const shellToolbar = useShellToolbar();
   const structured = shellToolbar != null && isShellToolbarParts(shellToolbar);
   const {
@@ -42,19 +61,24 @@ export function AppBar({ title, description, actions, secondary, className }: Ap
     ? resolveShellToolbar(shellToolbar)
     : { search: null, actions: shellToolbar ?? null, legacy: true as const };
 
+  const hasCompactPrimary = Boolean(actions);
+  const hasCompactChrome = hasCompactPrimary || Boolean(secondary);
+  const desktopShellActions = shellActions ? (
+    <div className="hidden lg:flex">{shellActions}</div>
+  ) : null;
+
   if (legacy) {
     const hasTrailing = Boolean(actions || shellActions);
 
     return (
-      <header className={cn(shellAppBarClass, className)}>
-        <div className="flex w-full flex-col gap-4">
-          <div className={shellAppBarPrimaryRowClass}>
-            <div className="min-w-0 space-y-1">
-              {typeof title === "string" ? (
-                <h1 className={shellAppBarTitleClass}>{title}</h1>
-              ) : (
-                <div className={shellAppBarTitleClass}>{title}</div>
-              )}
+      <header
+        className={cn(shellAppBarClass, !hasCompactChrome && "hidden lg:block", className)}
+        data-compact-chrome={hasCompactChrome ? "true" : "false"}
+      >
+        <div className="flex w-full flex-col gap-3 lg:gap-4">
+          <div className={cn(shellAppBarPrimaryRowClass, !hasCompactPrimary && "hidden lg:flex")}>
+            <div className="hidden min-w-0 space-y-1 lg:block">
+              <AppBarTitle title={title} />
               {description ? (
                 <div className={shellAppBarDescriptionClass}>{description}</div>
               ) : null}
@@ -63,7 +87,7 @@ export function AppBar({ title, description, actions, secondary, className }: Ap
               <div className="flex w-full min-w-0 justify-end @min-[640px]/shell:w-auto @min-[640px]/shell:shrink-0">
                 <AppBarToolbar
                   pageActions={actions}
-                  shellActions={shellActions ?? undefined}
+                  shellActions={desktopShellActions}
                   className="w-full justify-end @min-[640px]/shell:w-auto"
                 />
               </div>
@@ -79,19 +103,18 @@ export function AppBar({ title, description, actions, secondary, className }: Ap
   const hasShellActions = Boolean(shellActions);
 
   return (
-    <header className={cn(shellAppBarClass, className)}>
+    <header
+      className={cn(shellAppBarClass, !hasCompactChrome && "hidden lg:block", className)}
+      data-compact-chrome={hasCompactChrome ? "true" : "false"}
+    >
       <div className="flex w-full flex-col gap-3">
-        <div className={shellAppBarPrimaryRowClass}>
-          <div className="min-w-0 space-y-1">
-            {typeof title === "string" ? (
-              <h1 className={shellAppBarTitleClass}>{title}</h1>
-            ) : (
-              <div className={shellAppBarTitleClass}>{title}</div>
-            )}
+        <div className={cn(shellAppBarPrimaryRowClass, !hasCompactPrimary && "hidden lg:flex")}>
+          <div className="hidden min-w-0 space-y-1 lg:block">
+            <AppBarTitle title={title} />
             {description ? <div className={shellAppBarDescriptionClass}>{description}</div> : null}
           </div>
           {hasShellActions ? (
-            <div className="flex w-full shrink-0 justify-end self-stretch @min-[640px]/shell:w-auto @min-[720px]/shell:self-center">
+            <div className="hidden w-full shrink-0 justify-end self-stretch lg:flex @min-[640px]/shell:w-auto @min-[720px]/shell:self-center">
               {shellActions}
             </div>
           ) : null}
@@ -131,7 +154,7 @@ export function AppBarSecondary({ leading, trailing, className }: AppBarSecondar
   return (
     <div
       className={cn(
-        "flex w-full min-w-0 flex-col gap-3 border-t border-border/60 pt-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4",
+        "flex w-full min-w-0 flex-col gap-3 border-t border-border/60 pt-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 lg:pt-4",
         className
       )}
     >
@@ -139,7 +162,7 @@ export function AppBarSecondary({ leading, trailing, className }: AppBarSecondar
         <div className="flex min-w-0 w-full flex-1 items-center sm:w-auto">{leading}</div>
       ) : null}
       {trailing ? (
-        <div className="flex w-full shrink-0 items-center justify-stretch gap-2 sm:w-auto sm:justify-end">
+        <div className="flex w-full min-w-0 shrink-0 items-center justify-stretch gap-2 overflow-x-auto sm:w-auto sm:justify-end">
           {trailing}
         </div>
       ) : null}

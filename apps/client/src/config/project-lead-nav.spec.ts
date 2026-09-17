@@ -14,6 +14,9 @@ describe("projectLeadNavItems", () => {
     expect(hrefs).not.toContain("/exports");
     expect(hrefs).not.toContain("/team-management");
     expect(hrefs).not.toContain("/billing");
+    expect(hrefs).not.toContain("/tasks");
+    expect(hrefs).not.toContain("/notifications");
+    expect(hrefs).not.toContain("/project-managers");
     expect(hrefs.length).toBeLessThan(APP_NAV_ITEMS.length);
   });
 });

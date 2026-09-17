@@ -71,4 +71,20 @@ describe("AppBar", () => {
     expect(screen.getByRole("textbox", { name: "Search team members" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add Team Member" })).toBeInTheDocument();
   });
+
+  it("hides the title block from compact chrome and keeps page actions", () => {
+    const { container } = render(
+      <AppBar title="Team Management" actions={<button type="button">Add</button>} />
+    );
+
+    const titleBlock = container.querySelector(".hidden.min-w-0");
+    expect(titleBlock?.className).toContain("lg:block");
+    expect(screen.getByRole("button", { name: "Add" })).toBeInTheDocument();
+  });
+
+  it("hides the whole app bar on compact when there is no secondary row or page actions", () => {
+    const { container } = render(<AppBar title="Dashboard" description="Overview" />);
+    expect(container.querySelector("header")?.className).toContain("hidden");
+    expect(container.querySelector("header")?.className).toContain("lg:block");
+  });
 });

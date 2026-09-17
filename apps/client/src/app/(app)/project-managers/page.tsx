@@ -1,5 +1,5 @@
-import { ProjectManagersPage } from "@/features/project-managers/project-managers-page";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <ProjectManagersPage />;
+  redirect("/projects");
 }

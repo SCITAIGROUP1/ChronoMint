@@ -45,8 +45,9 @@ Manual entries can be edited or deleted. Timer-created entries should be treated
 
 ## Tasks
 
-1. Go to **Tasks** (`/tasks`) to see tasks for your projects.
-2. Tasks are created by admins on each project.
+1. Open a project from **My Projects** (`/my-projects`) or **Projects** (`/projects`).
+2. Use the **Tasks** tab to browse tasks for that project.
+3. Tasks are created by admins and project managers on each project.
 
 ## Tips
 

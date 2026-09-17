@@ -1090,7 +1090,6 @@ export function ManagementDashboardPage({
           scope={
             <ReportScopeFilters
               compact
-              className="shrink-0 sm:justify-end"
               taskRequiresProject
               memberRequiresProject={showManagement}
               hideMemberFilter={!showManagement}

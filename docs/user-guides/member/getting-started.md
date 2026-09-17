@@ -30,8 +30,7 @@ You must already belong to the workspace before accepting a project invite.
 | Time tracker       | `/time-tracker`         | Week list of your entries                        |
 | Dashboard          | `/dashboard`            | Personal summary widgets                         |
 | Approvals          | `/submissions`          | Submit timesheets when projects require approval |
-| Tasks              | `/tasks`                | Browse tasks on your projects                    |
-| Projects           | `/projects`             | Projects you are on                              |
+| Projects           | `/projects`             | Projects you are on, including tasks             |
 | Profile / Settings | `/profile`, `/settings` | Name, preferences, password, 2FA                 |
 
 ## What you can do as a member

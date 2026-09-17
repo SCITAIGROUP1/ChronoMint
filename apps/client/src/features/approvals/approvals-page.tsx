@@ -648,7 +648,11 @@ export function ApprovalsPage() {
         description="Review submitted timesheets, remind missing submissions, and handle edit requests."
         secondary={
           <AppBarSecondary
-            trailing={<SegmentedControl value={tab} onChange={setTab} options={tabOptions} />}
+            trailing={
+              <div className="w-full overflow-x-auto">
+                <SegmentedControl value={tab} onChange={setTab} options={tabOptions} />
+              </div>
+            }
           />
         }
       />

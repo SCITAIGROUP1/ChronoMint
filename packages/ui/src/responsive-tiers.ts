@@ -4,6 +4,9 @@
  */
 export const SIDEBAR_COLLAPSED_STORAGE_KEY = "kloqra-sidebar-collapsed";
 
+/** Viewport width where the persistent sidebar appears; below this, use the hamburger drawer. */
+export const SHELL_PERSISTENT_SIDEBAR_MIN = 1024;
+
 /** Viewport width below which the sidebar auto-collapses without a saved preference. */
 export const COMPACT_LAPTOP_VIEWPORT_MAX = 1400;
 

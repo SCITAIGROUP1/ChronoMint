@@ -25,7 +25,7 @@ export function PlatformContextBreadcrumb({
     <nav
       aria-label="Current context"
       className={cn(
-        "sticky top-0 z-20 -mx-6 border-b border-border/70 bg-background/95 px-6 py-2.5 text-xs text-muted-foreground backdrop-blur-md lg:-mx-8 lg:px-8",
+        "sticky top-0 z-20 -mx-4 border-b border-border/70 bg-background/95 px-4 py-2.5 text-xs text-muted-foreground backdrop-blur-md lg:-mx-8 lg:px-8",
         className
       )}
     >

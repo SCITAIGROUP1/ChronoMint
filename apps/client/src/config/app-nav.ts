@@ -2,8 +2,6 @@ import type { Permission } from "@kloqra/contracts";
 import type { LucideIcon } from "lucide-react";
 import {
   Activity,
-  Bell,
-  Briefcase,
   CalendarDays,
   CircleDollarSign,
   ClipboardCheck,
@@ -12,7 +10,6 @@ import {
   FolderKanban,
   Home,
   LayoutDashboard,
-  ListTodo,
   Send,
   Settings2,
   Tags,
@@ -108,13 +105,6 @@ export const APP_NAV_ITEMS: readonly AppNavItem[] = [
     requiredAnyCapabilities: ["workspace:CreateProject", "project:Read"]
   },
   {
-    href: "/tasks",
-    label: "Tasks",
-    Icon: ListTodo,
-    section: "workspace",
-    requiredCapability: "project:ManageTasks"
-  },
-  {
     href: "/team-time-tracker",
     label: "Team Time Tracker",
     Icon: Clock,
@@ -123,26 +113,11 @@ export const APP_NAV_ITEMS: readonly AppNavItem[] = [
     requiredAnyCapabilities: ["workspace:ReadReports", "project:ReadReports"]
   },
   {
-    href: "/notifications",
-    label: "Notifications",
-    Icon: Bell,
-    section: "my-time",
-    requiredCapability: "personal:ReadNotifications"
-  },
-  {
     href: "/team-management",
     label: "Team Management",
     Icon: Users,
     section: "workspace",
     keywords: ["members", "invite", "people"],
-    requiredCapability: "workspace:ManageMembers"
-  },
-  {
-    href: "/project-managers",
-    label: "Project managers",
-    Icon: Briefcase,
-    section: "workspace",
-    keywords: ["pm", "project manager", "managers", "provisioning"],
     requiredCapability: "workspace:ManageMembers"
   },
   {

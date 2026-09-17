@@ -539,7 +539,7 @@ function renderTemplate(
         emailSubject: subjectPrefix(`Task assigned: ${c.taskName}`),
         preheader: `New task on ${c.projectName}.`,
         metadata: {
-          href: "/tasks",
+          href: `/projects/${c.projectId}/tasks`,
           projectId: c.projectId,
           taskId: c.taskId,
           variant: "info",
@@ -561,7 +561,7 @@ function renderTemplate(
         emailSubject: subjectPrefix(`Unassigned from task: ${c.taskName}`),
         preheader: `You are no longer assigned to ${c.taskName}.`,
         metadata: {
-          href: "/tasks",
+          href: `/projects/${c.projectId}/tasks`,
           projectId: c.projectId,
           taskId: c.taskId,
           variant: "info",

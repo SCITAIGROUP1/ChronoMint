@@ -16,7 +16,6 @@ import {
   ShellHeaderActions,
   shouldRedirectBootstrapToLogin,
   useNotificationSocket,
-  useNotificationUnreadCount,
   useTenantSubscription,
   useUserProfile,
   resolveWorkspaceSetupRedirect,
@@ -72,7 +71,6 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
   useUserProfile();
   useNotificationSocket(wsId, notificationsEnabled);
   useAppWorkspaceDataSync(wsId);
-  const { count: notificationUnreadCount } = useNotificationUnreadCount(wsId, notificationsEnabled);
   const pendingCount = usePendingTimesheetsBadgeCount(wsId, canUseWorkspaceOps);
   const projectCount = useProjectsNavBadgeCount(wsId, canSeeProjectsNav && !isAccountMode);
   const { subscription } = useTenantSubscription(isOwner);
@@ -87,20 +85,11 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
       projectLeadOnly,
       workspaceNavItems,
       pendingCount,
-      notificationUnreadCount,
       projectCount,
       session,
       capabilities
     });
-  }, [
-    pathname,
-    projectLeadOnly,
-    pendingCount,
-    notificationUnreadCount,
-    projectCount,
-    session,
-    capabilities
-  ]);
+  }, [pathname, projectLeadOnly, pendingCount, projectCount, session, capabilities]);
 
   useEffect(() => {
     if (session) {

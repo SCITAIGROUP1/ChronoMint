@@ -8,6 +8,13 @@ describe("Tasks bulk routes", () => {
     expect(ROUTES.TASKS.BULK_UPLOAD).toBe("/tasks/bulk/upload");
     expect(ROUTES.TASKS.EXPORT).toBe("/tasks/export");
   });
+
+  it("scopes project task export to the current project", () => {
+    const params = new URLSearchParams({ format: "xlsx", projectId: "project-1" });
+    expect(`${ROUTES.TASKS.EXPORT}?${params.toString()}`).toBe(
+      "/tasks/export?format=xlsx&projectId=project-1"
+    );
+  });
 });
 
 describe("notifyTaskImportResult", () => {

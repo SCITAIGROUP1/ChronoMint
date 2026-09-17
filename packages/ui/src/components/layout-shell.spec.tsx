@@ -76,7 +76,7 @@ describe("ResponsiveLayoutShell", () => {
     );
 
     expect(screen.getByRole("textbox", { name: "Global search" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Notify" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Notify" }).length).toBeGreaterThan(0);
   });
 
   it("establishes a named shell container for responsive app bar layout", () => {
@@ -116,7 +116,7 @@ describe("ResponsiveLayoutShell", () => {
     );
 
     await waitFor(() => {
-      const aside = container.querySelector("aside.hidden.md\\:flex");
+      const aside = container.querySelector("aside.hidden.lg\\:flex");
       const header = aside?.children[0];
       const navScroll = aside?.children[1];
       expect(header?.className).toContain("gap-5");
@@ -148,7 +148,7 @@ describe("ResponsiveLayoutShell", () => {
     );
 
     await waitFor(() => {
-      const aside = container.querySelector("aside.hidden.md\\:flex");
+      const aside = container.querySelector("aside.hidden.lg\\:flex");
       expect(aside?.className).toContain("w-[5rem]");
     });
   });
@@ -171,6 +171,7 @@ describe("ResponsiveLayoutShell", () => {
     const root = container.firstElementChild;
     expect(root?.className).toContain("h-dvh");
     expect(root?.className).toContain("overflow-hidden");
+    expect(root?.className).toContain("lg:flex-row");
   });
 
   it("renders a compact count badge on nav icons when the sidebar is collapsed", async () => {
@@ -341,5 +342,31 @@ describe("ResponsiveLayoutShell", () => {
       "aria-current",
       "page"
     );
+  });
+
+  it("puts the page title and compact toolbar in the mobile header", async () => {
+    render(
+      <ResponsiveLayoutShell
+        navItems={[{ href: "/dashboard", label: "Dashboard", Icon: Home }]}
+        logoIcon={<span>K</span>}
+        logoTitle="Kloqra"
+        logoSubtitle="Admin"
+        logoLinkHref="/dashboard"
+        workspaceSwitcher={() => <div>Workspace</div>}
+        footerContent={() => <div>Footer</div>}
+        shellToolbar={<button type="button">Notify</button>}
+      >
+        <AppBar title="Team Management" />
+      </ResponsiveLayoutShell>
+    );
+
+    const mobileHeader = screen.getByTestId("shell-mobile-header");
+    await waitFor(() => {
+      expect(mobileHeader).toHaveTextContent("Team Management");
+    });
+    expect(screen.getByTestId("shell-mobile-toolbar").querySelector("button")).toHaveTextContent(
+      "Notify"
+    );
+    expect(screen.getByTestId("shell-desktop-sidebar").className).toContain("lg:flex");
   });
 });

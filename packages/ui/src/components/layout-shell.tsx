@@ -7,6 +7,7 @@ import React, { useState, useEffect } from "react";
 import { cn } from "../lib/utils.js";
 import { COMPACT_LAPTOP_VIEWPORT_MAX, SIDEBAR_COLLAPSED_STORAGE_KEY } from "../responsive-tiers.js";
 import { resolveActiveNavHref } from "./resolve-active-nav-href.js";
+import { ShellPageTitleProvider, useShellPageTitle } from "./shell/shell-page-title-context.js";
 import {
   shellMainClass,
   shellMainContentClass,
@@ -22,7 +23,12 @@ import {
   shellSidebarNavScrollClass,
   shellSidebarNavScrollCollapsedClass
 } from "./shell/shell-styles.js";
-import { ShellToolbarProvider, type ShellToolbarValue } from "./shell-toolbar-context.js";
+import {
+  isShellToolbarParts,
+  resolveShellToolbar,
+  ShellToolbarProvider,
+  type ShellToolbarValue
+} from "./shell-toolbar-context.js";
 
 export type SidebarNavItem = {
   href: string;
@@ -87,6 +93,60 @@ export type ResponsiveLayoutShellProps = {
   /** Accessible name for the sidebar navigation region. */
   navAriaLabel?: string;
 };
+
+function withToolbarDensity(node: React.ReactNode, density: "compact" | "full"): React.ReactNode {
+  if (!React.isValidElement(node)) return node;
+  if (typeof node.type === "string") {
+    return React.cloneElement(node);
+  }
+  return React.cloneElement(node as React.ReactElement<{ density?: "compact" | "full" }>, {
+    density
+  });
+}
+
+function CompactShellToolbar({ toolbar }: { toolbar?: ShellToolbarValue }) {
+  if (!toolbar) return null;
+  if (isShellToolbarParts(toolbar)) {
+    const { actions } = resolveShellToolbar(toolbar);
+    return <>{withToolbarDensity(actions, "compact")}</>;
+  }
+  return <>{withToolbarDensity(toolbar, "compact")}</>;
+}
+
+function CompactShellHeader({
+  logoTitle,
+  onOpenNav,
+  toolbar
+}: {
+  logoTitle: string;
+  onOpenNav: () => void;
+  toolbar?: ShellToolbarValue;
+}) {
+  const pageTitle = useShellPageTitle()?.title;
+  const heading = pageTitle || logoTitle;
+
+  return (
+    <header className={shellMobileHeaderClass} data-testid="shell-mobile-header">
+      <button
+        type="button"
+        onClick={onOpenNav}
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border/80 bg-muted/40 text-muted-foreground hover:bg-background/60 hover:text-foreground transition-colors cursor-pointer"
+        aria-label="Open navigation menu"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
+
+      <h1 className="min-w-0 flex-1 truncate text-sm font-semibold tracking-tight">{heading}</h1>
+
+      <div
+        className="flex shrink-0 items-center justify-end gap-1"
+        data-testid="shell-mobile-toolbar"
+      >
+        <CompactShellToolbar toolbar={toolbar} />
+      </div>
+    </header>
+  );
+}
 
 function resolveNavSections(
   navSections: readonly SidebarNavSection[] | undefined,
@@ -269,166 +329,164 @@ export function ResponsiveLayoutShell({
   };
 
   return (
-    <div className="flex h-dvh overflow-hidden flex-col bg-background md:flex-row">
-      {/* --- DESKTOP SIDEBAR --- */}
-      <aside
-        className={cn(
-          shellSidebarClass,
-          isCollapsed ? shellSidebarCollapsedWidthClass : shellSidebarExpandedWidthClass
-        )}
-      >
-        {/* Brand + context stay fixed; only nav scrolls */}
-        <div className={isCollapsed ? shellSidebarHeaderCollapsedClass : shellSidebarHeaderClass}>
-          <div
-            className={cn(
-              "w-full transition-all duration-300",
-              isCollapsed ? "flex flex-col items-center gap-1.5" : "flex items-center gap-2"
-            )}
-          >
-            <Link
-              href={logoLinkHref}
+    <ShellPageTitleProvider>
+      <div className="flex h-dvh overflow-hidden flex-col bg-background lg:flex-row">
+        {/* --- DESKTOP SIDEBAR --- */}
+        <aside
+          className={cn(
+            shellSidebarClass,
+            isCollapsed ? shellSidebarCollapsedWidthClass : shellSidebarExpandedWidthClass
+          )}
+          data-testid="shell-desktop-sidebar"
+        >
+          {/* Brand + context stay fixed; only nav scrolls */}
+          <div className={isCollapsed ? shellSidebarHeaderCollapsedClass : shellSidebarHeaderClass}>
+            <div
               className={cn(
-                "flex min-w-0 items-center rounded-xl transition-all duration-300",
-                isCollapsed ? "justify-center p-0" : "flex-1 gap-3 py-0.5"
+                "w-full transition-all duration-300",
+                isCollapsed ? "flex flex-col items-center gap-1.5" : "flex items-center gap-2"
               )}
             >
-              {logoIcon}
-              <div
+              <Link
+                href={logoLinkHref}
                 className={cn(
-                  "min-w-0 transition-all duration-300 ease-in-out origin-left",
-                  isCollapsed
-                    ? "opacity-0 w-0 scale-95 overflow-hidden absolute pointer-events-none"
-                    : "opacity-100"
+                  "flex min-w-0 items-center rounded-xl transition-all duration-300",
+                  isCollapsed ? "justify-center p-0" : "flex-1 gap-3 py-0.5"
                 )}
               >
+                {logoIcon}
+                <div
+                  className={cn(
+                    "min-w-0 transition-all duration-300 ease-in-out origin-left",
+                    isCollapsed
+                      ? "opacity-0 w-0 scale-95 overflow-hidden absolute pointer-events-none"
+                      : "opacity-100"
+                  )}
+                >
+                  <p className="truncate text-sm font-medium tracking-tight">{logoTitle}</p>
+                  <p className="truncate text-xs text-muted-foreground">{logoSubtitle}</p>
+                </div>
+              </Link>
+              {mounted ? (
+                <button
+                  type="button"
+                  onClick={toggleCollapse}
+                  className={cn(
+                    "flex shrink-0 items-center justify-center rounded-md text-muted-foreground transition-all duration-300 hover:bg-muted/50 hover:text-foreground focus:outline-none cursor-pointer",
+                    isCollapsed ? "h-7 w-7" : "h-8 w-8 mr-0.5"
+                  )}
+                  style={{ transform: isCollapsed ? "rotate(180deg)" : "rotate(0deg)" }}
+                  aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                >
+                  <ChevronLeft className="h-4 w-4" strokeWidth={1.5} />
+                </button>
+              ) : null}
+            </div>
+
+            <div className={cn("w-full", isCollapsed && "flex justify-center")}>
+              {workspaceSwitcher(isCollapsed)}
+            </div>
+          </div>
+
+          <div
+            className={
+              isCollapsed ? shellSidebarNavScrollCollapsedClass : shellSidebarNavScrollClass
+            }
+          >
+            <SidebarNavSections
+              sections={sections}
+              activeHref={activeHref}
+              collapsed={isCollapsed}
+              ariaLabel={navAriaLabel}
+            />
+          </div>
+
+          <div className={isCollapsed ? shellSidebarFooterCollapsedClass : shellSidebarFooterClass}>
+            {footerContent(isCollapsed)}
+          </div>
+        </aside>
+
+        {/* --- MOBILE NAVBAR --- */}
+        <CompactShellHeader
+          logoTitle={logoTitle}
+          onOpenNav={() => setIsMobileOpen(true)}
+          toolbar={shellToolbar}
+        />
+
+        {/* --- MOBILE SIDEBAR DRAWER --- */}
+        {/* Drawer Overlay Backdrop */}
+        <div
+          className={cn(
+            "fixed inset-0 z-50 bg-black/40 backdrop-blur-xs transition-opacity duration-300 lg:hidden",
+            isMobileOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+          )}
+          onClick={() => setIsMobileOpen(false)}
+        />
+
+        {/* Drawer Panel */}
+        <aside
+          className={cn(
+            shellMobileDrawerClass,
+            isMobileOpen ? "translate-x-0" : "-translate-x-full"
+          )}
+        >
+          {/* Drawer Header — logo stays fixed */}
+          <div className="flex shrink-0 items-center justify-between pb-4 border-b border-border/50">
+            <Link
+              href={logoLinkHref}
+              className="flex items-center gap-3 rounded-xl py-0.5"
+              onClick={() => setIsMobileOpen(false)}
+            >
+              {logoIcon}
+              <div className="min-w-0">
                 <p className="truncate text-sm font-medium tracking-tight">{logoTitle}</p>
                 <p className="truncate text-xs text-muted-foreground">{logoSubtitle}</p>
               </div>
             </Link>
-            {mounted ? (
-              <button
-                type="button"
-                onClick={toggleCollapse}
-                className={cn(
-                  "flex shrink-0 items-center justify-center rounded-md text-muted-foreground transition-all duration-300 hover:bg-muted/50 hover:text-foreground focus:outline-none cursor-pointer",
-                  isCollapsed ? "h-7 w-7" : "h-8 w-8 mr-0.5"
-                )}
-                style={{ transform: isCollapsed ? "rotate(180deg)" : "rotate(0deg)" }}
-                aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-              >
-                <ChevronLeft className="h-4 w-4" strokeWidth={1.5} />
-              </button>
-            ) : null}
+            <button
+              type="button"
+              onClick={() => setIsMobileOpen(false)}
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-border/80 bg-muted/40 text-muted-foreground hover:bg-background/60 hover:text-foreground transition-colors cursor-pointer"
+              aria-label="Close menu"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
 
-          <div className={cn("w-full", isCollapsed && "flex justify-center")}>
-            {workspaceSwitcher(isCollapsed)}
+          {/* Context stays fixed above scrolling nav */}
+          <div className="shrink-0 pt-4">{workspaceSwitcher(false)}</div>
+
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain py-4">
+            <SidebarNavSections
+              sections={sections}
+              activeHref={activeHref}
+              collapsed={false}
+              ariaLabel={navAriaLabel}
+              onNavigate={() => setIsMobileOpen(false)}
+            />
           </div>
-        </div>
 
-        <div
-          className={isCollapsed ? shellSidebarNavScrollCollapsedClass : shellSidebarNavScrollClass}
-        >
-          <SidebarNavSections
-            sections={sections}
-            activeHref={activeHref}
-            collapsed={isCollapsed}
-            ariaLabel={navAriaLabel}
-          />
-        </div>
+          {/* Drawer Footer */}
+          <div className="shrink-0 space-y-3 border-t border-border/70 pt-4">
+            {footerContent(false)}
+          </div>
+        </aside>
 
-        <div className={isCollapsed ? shellSidebarFooterCollapsedClass : shellSidebarFooterClass}>
-          {footerContent(isCollapsed)}
-        </div>
-      </aside>
-
-      {/* --- MOBILE NAVBAR --- */}
-      <header className={shellMobileHeaderClass}>
-        <button
-          type="button"
-          onClick={() => setIsMobileOpen(true)}
-          className="flex h-10 w-10 items-center justify-center rounded-lg border border-border/80 bg-muted/40 text-muted-foreground hover:bg-background/60 hover:text-foreground transition-colors cursor-pointer"
-          aria-label="Open navigation menu"
-        >
-          <Menu className="h-5 w-5" />
-        </button>
-
-        <Link href={logoLinkHref} className="flex items-center gap-2 font-medium">
-          {logoIcon}
-          <span className="text-sm tracking-tight">{logoTitle}</span>
-        </Link>
-
-        {/* Spacer to balance menu button */}
-        <div className="w-10" />
-      </header>
-
-      {/* --- MOBILE SIDEBAR DRAWER --- */}
-      {/* Drawer Overlay Backdrop */}
-      <div
-        className={cn(
-          "fixed inset-0 z-50 bg-black/40 backdrop-blur-xs transition-opacity duration-300 md:hidden",
-          isMobileOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-        )}
-        onClick={() => setIsMobileOpen(false)}
-      />
-
-      {/* Drawer Panel */}
-      <aside
-        className={cn(shellMobileDrawerClass, isMobileOpen ? "translate-x-0" : "-translate-x-full")}
-      >
-        {/* Drawer Header — logo stays fixed */}
-        <div className="flex shrink-0 items-center justify-between pb-4 border-b border-border/50">
-          <Link
-            href={logoLinkHref}
-            className="flex items-center gap-3 rounded-xl py-0.5"
-            onClick={() => setIsMobileOpen(false)}
-          >
-            {logoIcon}
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium tracking-tight">{logoTitle}</p>
-              <p className="truncate text-xs text-muted-foreground">{logoSubtitle}</p>
+        {/* --- MAIN PAGE CONTENT --- */}
+        <main className={shellMainClass}>
+          {impersonationBanner}
+          <ShellToolbarProvider toolbar={shellToolbar}>
+            <div
+              className={cn(
+                "@container/shell mx-auto w-full max-w-[1600px]",
+                shellMainContentClass
+              )}
+            >
+              {children}
             </div>
-          </Link>
-          <button
-            type="button"
-            onClick={() => setIsMobileOpen(false)}
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-border/80 bg-muted/40 text-muted-foreground hover:bg-background/60 hover:text-foreground transition-colors cursor-pointer"
-            aria-label="Close menu"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        {/* Context stays fixed above scrolling nav */}
-        <div className="shrink-0 pt-4">{workspaceSwitcher(false)}</div>
-
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain py-4">
-          <SidebarNavSections
-            sections={sections}
-            activeHref={activeHref}
-            collapsed={false}
-            ariaLabel={navAriaLabel}
-            onNavigate={() => setIsMobileOpen(false)}
-          />
-        </div>
-
-        {/* Drawer Footer */}
-        <div className="shrink-0 space-y-3 border-t border-border/70 pt-4">
-          {footerContent(false)}
-        </div>
-      </aside>
-
-      {/* --- MAIN PAGE CONTENT --- */}
-      <main className={shellMainClass}>
-        {impersonationBanner}
-        <ShellToolbarProvider toolbar={shellToolbar}>
-          <div
-            className={cn("@container/shell mx-auto w-full max-w-[1600px]", shellMainContentClass)}
-          >
-            {children}
-          </div>
-        </ShellToolbarProvider>
-      </main>
-    </div>
+          </ShellToolbarProvider>
+        </main>
+      </div>
+    </ShellPageTitleProvider>
   );
 }

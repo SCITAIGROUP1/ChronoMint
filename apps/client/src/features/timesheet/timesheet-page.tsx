@@ -4,6 +4,7 @@ import { ROUTES, resolveEffectiveDailyTargetHours } from "@kloqra/contracts";
 import type { TimeLogDto, UserProfileDto } from "@kloqra/contracts";
 import {
   AppBar,
+  AppModal,
   Button,
   ConfirmDialog,
   Badge,
@@ -242,6 +243,7 @@ export function TimesheetPage() {
   const [confirmDeleteLog, setConfirmDeleteLog] = useState<TimeLogDto | null>(null);
 
   const [showOccupancyOverlay, setShowOccupancyOverlay] = useState(true);
+  const [viewOptionsOpen, setViewOptionsOpen] = useState(false);
   const [visibleWeekdays, setVisibleWeekdays] = useState<WeekdayIndex[]>(() => [
     ...ALL_WEEKDAY_INDEXES
   ]);
@@ -921,6 +923,7 @@ export function TimesheetPage() {
             </Badge>
           </span>
         }
+        titleLabel="Timesheet"
         description={
           <>
             <span className="hidden md:inline">
@@ -1029,91 +1032,57 @@ export function TimesheetPage() {
           <TimesheetPeriodHours totalSec={periodTotalSec} view={view} />
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {view === "week" ? (
-            <div
-              className="flex flex-wrap items-center gap-1"
-              role="group"
-              aria-label="Visible weekdays"
-            >
-              <Button
-                type="button"
-                size="sm"
-                variant={
-                  sameWeekdays(visibleWeekdays, WORK_WEEKDAY_INDEXES) ? "secondary" : "ghost"
-                }
-                className="h-7 px-2 text-[11px]"
-                onClick={() => setVisibleWeekdaysPreset([...WORK_WEEKDAY_INDEXES])}
-              >
-                Weekdays
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant={sameWeekdays(visibleWeekdays, ALL_WEEKDAY_INDEXES) ? "secondary" : "ghost"}
-                className="h-7 px-2 text-[11px]"
-                onClick={() => setVisibleWeekdaysPreset([...ALL_WEEKDAY_INDEXES])}
-              >
-                All
-              </Button>
-              <span className="mx-0.5 h-4 w-px bg-border" aria-hidden />
-              {weekdayOrder.map((day) => {
-                const checked = visibleWeekdays.includes(day);
-                const onlyOneLeft = checked && visibleWeekdays.length === 1;
-                return (
-                  <button
-                    key={day}
-                    type="button"
-                    disabled={onlyOneLeft}
-                    aria-pressed={checked}
-                    aria-label={`${WEEKDAY_SHORT_LABELS[day]}${checked ? ", shown" : ", hidden"}`}
-                    onClick={() => onVisibleWeekdayChange(day, !checked)}
-                    className={cn(
-                      "inline-flex h-7 min-w-8 items-center justify-center rounded-md px-1.5 text-[11px] font-medium transition-colors",
-                      checked
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                      onlyOneLeft && "opacity-60"
-                    )}
-                  >
-                    {WEEKDAY_SHORT_LABELS[day]}
-                  </button>
-                );
-              })}
-            </div>
-          ) : null}
-          {(view === "day" || view === "week") && (
-            <>
-              <TimesheetZoomControls
-                compact
-                slotPx={slotPx}
-                onZoomIn={onZoomIn}
-                onZoomOut={onZoomOut}
-                onReset={onZoomReset}
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={toggleOccupancyOverlay}
-                className="text-muted-foreground hover:text-foreground text-xs flex items-center gap-1.5 h-8"
-              >
-                {showOccupancyOverlay ? (
-                  <>
-                    <EyeOff className="h-3.5 w-3.5" />
-                    Hide occupied
-                  </>
-                ) : (
-                  <>
-                    <Eye className="h-3.5 w-3.5" />
-                    Show occupied
-                  </>
-                )}
-              </Button>
-            </>
-          )}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="lg:hidden"
+          onClick={() => setViewOptionsOpen(true)}
+        >
+          View options
+        </Button>
+        <div className="hidden flex-wrap items-center gap-2 lg:flex">
+          <TimesheetViewOptions
+            view={view}
+            visibleWeekdays={visibleWeekdays}
+            weekdayOrder={weekdayOrder}
+            onWeekdaysPreset={setVisibleWeekdaysPreset}
+            onVisibleWeekdayChange={onVisibleWeekdayChange}
+            slotPx={slotPx}
+            onZoomIn={onZoomIn}
+            onZoomOut={onZoomOut}
+            onZoomReset={onZoomReset}
+            showOccupancyOverlay={showOccupancyOverlay}
+            onToggleOccupancy={toggleOccupancyOverlay}
+          />
         </div>
       </div>
+
+      <AppModal
+        open={viewOptionsOpen}
+        onOpenChange={setViewOptionsOpen}
+        title="View options"
+        size="sm"
+        footer={
+          <Button type="button" onClick={() => setViewOptionsOpen(false)}>
+            Done
+          </Button>
+        }
+      >
+        <TimesheetViewOptions
+          view={view}
+          visibleWeekdays={visibleWeekdays}
+          weekdayOrder={weekdayOrder}
+          onWeekdaysPreset={setVisibleWeekdaysPreset}
+          onVisibleWeekdayChange={onVisibleWeekdayChange}
+          slotPx={slotPx}
+          onZoomIn={onZoomIn}
+          onZoomOut={onZoomOut}
+          onZoomReset={onZoomReset}
+          showOccupancyOverlay={showOccupancyOverlay}
+          onToggleOccupancy={toggleOccupancyOverlay}
+        />
+      </AppModal>
 
       {showOccupancyOverlay && (view === "day" || view === "week") && (
         <div className="flex flex-wrap items-center gap-2">
@@ -1242,6 +1211,117 @@ export function TimesheetPage() {
         onConfirm={() => void confirmDelete()}
         onCancel={() => setConfirmDeleteLog(null)}
       />
+    </div>
+  );
+}
+
+function TimesheetViewOptions({
+  view,
+  visibleWeekdays,
+  weekdayOrder,
+  onWeekdaysPreset,
+  onVisibleWeekdayChange,
+  slotPx,
+  onZoomIn,
+  onZoomOut,
+  onZoomReset,
+  showOccupancyOverlay,
+  onToggleOccupancy
+}: {
+  view: ViewMode;
+  visibleWeekdays: WeekdayIndex[];
+  weekdayOrder: WeekdayIndex[];
+  onWeekdaysPreset: (days: WeekdayIndex[]) => void;
+  onVisibleWeekdayChange: (day: WeekdayIndex, visible: boolean) => void;
+  slotPx: TimesheetSlotPx;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  onZoomReset: () => void;
+  showOccupancyOverlay: boolean;
+  onToggleOccupancy: () => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {view === "week" ? (
+        <div
+          className="flex flex-wrap items-center gap-1"
+          role="group"
+          aria-label="Visible weekdays"
+        >
+          <Button
+            type="button"
+            size="sm"
+            variant={sameWeekdays(visibleWeekdays, WORK_WEEKDAY_INDEXES) ? "secondary" : "ghost"}
+            className="h-7 px-2 text-[11px]"
+            onClick={() => onWeekdaysPreset([...WORK_WEEKDAY_INDEXES])}
+          >
+            Weekdays
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={sameWeekdays(visibleWeekdays, ALL_WEEKDAY_INDEXES) ? "secondary" : "ghost"}
+            className="h-7 px-2 text-[11px]"
+            onClick={() => onWeekdaysPreset([...ALL_WEEKDAY_INDEXES])}
+          >
+            All
+          </Button>
+          <span className="mx-0.5 h-4 w-px bg-border" aria-hidden />
+          {weekdayOrder.map((day) => {
+            const checked = visibleWeekdays.includes(day);
+            const onlyOneLeft = checked && visibleWeekdays.length === 1;
+            return (
+              <button
+                key={day}
+                type="button"
+                disabled={onlyOneLeft}
+                aria-pressed={checked}
+                aria-label={`${WEEKDAY_SHORT_LABELS[day]}${checked ? ", shown" : ", hidden"}`}
+                onClick={() => onVisibleWeekdayChange(day, !checked)}
+                className={cn(
+                  "inline-flex h-7 min-w-8 items-center justify-center rounded-md px-1.5 text-[11px] font-medium transition-colors",
+                  checked
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  onlyOneLeft && "opacity-60"
+                )}
+              >
+                {WEEKDAY_SHORT_LABELS[day]}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+      {view === "day" || view === "week" ? (
+        <>
+          <TimesheetZoomControls
+            compact
+            slotPx={slotPx}
+            onZoomIn={onZoomIn}
+            onZoomOut={onZoomOut}
+            onReset={onZoomReset}
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onToggleOccupancy}
+            className="text-muted-foreground hover:text-foreground text-xs flex items-center gap-1.5 h-8"
+          >
+            {showOccupancyOverlay ? (
+              <>
+                <EyeOff className="h-3.5 w-3.5" />
+                Hide occupied
+              </>
+            ) : (
+              <>
+                <Eye className="h-3.5 w-3.5" />
+                Show occupied
+              </>
+            )}
+          </Button>
+        </>
+      ) : null}
     </div>
   );
 }

@@ -9,8 +9,7 @@ const LEAD_ALLOWED_HREFS = new Set([
   "/overview",
   "/my-projects",
   "/time-tracker",
-  "/team",
-  "/notifications"
+  "/team"
 ]);
 
 /** Nav items visible to workspace MEMBERs who lead at least one project. */

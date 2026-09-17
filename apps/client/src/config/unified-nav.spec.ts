@@ -13,11 +13,11 @@ describe("unified capability navigation", () => {
       "/timesheet",
       "/submissions",
       "/my-projects",
-      "/time-tracker",
-      "/notifications"
+      "/time-tracker"
     ]);
     expect(hrefs).not.toContain("/dashboard");
     expect(hrefs).not.toContain("/tasks");
+    expect(hrefs).not.toContain("/notifications");
     expect(hrefs).not.toContain("/support");
   });
 
@@ -26,7 +26,9 @@ describe("unified capability navigation", () => {
     const hrefs = filterNavByCapabilities(APP_NAV_ITEMS, capabilities).map((item) => item.href);
 
     expect(hrefs).toContain("/dashboard");
-    expect(hrefs).toContain("/tasks");
+    expect(hrefs).not.toContain("/tasks");
+    expect(hrefs).not.toContain("/notifications");
+    expect(hrefs).not.toContain("/project-managers");
     expect(hrefs).toContain("/support");
     expect(hrefs).toContain("/approvals");
     expect(hrefs).toContain("/team");
@@ -44,7 +46,9 @@ describe("unified capability navigation", () => {
 
     expect(hrefs).toContain("/timer");
     expect(hrefs).toContain("/dashboard");
-    expect(hrefs).toContain("/tasks");
+    expect(hrefs).not.toContain("/tasks");
+    expect(hrefs).not.toContain("/notifications");
+    expect(hrefs).not.toContain("/project-managers");
     expect(hrefs).toContain("/support");
     expect(hrefs).toContain("/team-management");
     expect(hrefs).toContain("/categories");
